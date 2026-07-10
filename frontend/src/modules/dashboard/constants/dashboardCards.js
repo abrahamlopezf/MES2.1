@@ -1,0 +1,55 @@
+import {
+  BarChart3,
+  Building2,
+  QrCode,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
+
+export const dashboardCards = [
+  {
+    title: 'Códigos QR',
+    description: 'Genera, valida, asigna y consulta códigos QR para trazabilidad operativa.',
+    icon: QrCode,
+    permission: 'qr.read',
+    path: '/qr',
+    tag: 'Trazabilidad',
+    tone: 'primary',
+  },
+  {
+    title: 'Usuarios',
+    description: 'Administra accesos, roles, áreas y estado de usuarios del sistema.',
+    icon: Users,
+    permission: 'users.read',
+    path: '/users',
+    tag: 'Administración',
+    tone: 'success',
+  },
+  {
+    title: 'Roles',
+    description: 'Consulta roles, permisos y niveles de acceso del sistema.',
+    icon: ShieldCheck,
+    permission: 'roles.read',
+    path: '/roles',
+    tag: 'Seguridad',
+    tone: 'warning',
+  },
+  {
+    title: 'Áreas',
+    description: 'Consulta áreas operativas asignables al personal y a códigos QR.',
+    icon: Building2,
+    permission: 'areas.read',
+    path: '/areas',
+    tag: 'Operación',
+    tone: 'primary',
+  },
+  {
+    title: 'Reportes',
+    description: 'Consulta indicadores, reportes y gráficas operativas.',
+    icon: BarChart3,
+    permission: 'reports.read',
+    path: '/reports',
+    tag: 'Análisis',
+    tone: 'neutral',
+  },
+];

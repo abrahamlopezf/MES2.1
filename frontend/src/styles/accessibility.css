@@ -1,0 +1,45 @@
+html {
+  font-size: 18px;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: 1rem;
+}
+
+button {
+  min-height: 52px;
+  padding: 12px 22px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  min-height: 52px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+a,
+button {
+  transition: 0.2s ease;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus {
+  outline: 3px solid rgba(31, 58, 95, 0.35);
+  outline-offset: 3px;
+}
