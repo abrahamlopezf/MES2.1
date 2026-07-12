@@ -8,65 +8,72 @@ module.exports = {
 
             id: {
                 type: Sequelize.INTEGER,
+                primaryKey: true,
                 autoIncrement: true,
-                primaryKey: true
+                allowNull: false
             },
 
-            process_output_id: {
+            process_run_output_id: {
                 type: Sequelize.INTEGER,
                 allowNull: false,
                 references: {
-                    model: 'process_outputs',
+                    model: 'process_run_outputs',
                     key: 'id'
                 },
                 onDelete: 'CASCADE'
             },
 
-            intermediate_material_id: {
+            material_id: {
                 type: Sequelize.INTEGER,
-                allowNull: false,
+                allowNull: true,
                 references: {
-                    model: 'intermediate_materials',
+                    model: 'materials',
                     key: 'id'
                 }
             },
 
-            produced_units: {
+            quantity: {
                 type: Sequelize.DECIMAL(12, 3),
+                allowNull: false,
+                defaultValue: 0
+            },
+
+            unit: {
+                type: Sequelize.STRING(20),
                 allowNull: false
             },
 
-            produced_weight: {
-                type: Sequelize.DECIMAL(12, 3),
-                allowNull: false
+            item_type: {
+                type: Sequelize.STRING(30),
+                allowNull: false,
+                defaultValue: 'PRODUCTO'
             },
 
-            unit_weight: {
-                type: Sequelize.DECIMAL(12, 3),
-                allowNull: false
-            },
-
-            metadata: {
-                type: Sequelize.JSONB
+            notes: {
+                type: Sequelize.TEXT,
+                allowNull: true
             },
 
             created_at: {
-                type: Sequelize.DATE,
-                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+                allowNull: false,
+                type: Sequelize.DATE
             },
 
             updated_at: {
-                type: Sequelize.DATE,
-                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+                allowNull: false,
+                type: Sequelize.DATE
             }
 
         });
 
     },
 
+
     async down(queryInterface) {
 
-        await queryInterface.dropTable('process_output_items');
+        await queryInterface.dropTable(
+            'process_output_items'
+        );
 
     }
 

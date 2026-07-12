@@ -38,6 +38,10 @@ const initIntermediateStockModel = require('../../modules/intermediate/intermedi
 const initProcessRunOutputModel = require('../../modules/processes/processRunOutput.model');
 const initIntermediateStockMovementModel = require('../../modules/intermediate/intermediateStockMovement.model');
 
+const initScrapCatalogModel = require('../../modules/scrap/scrapCatalog.model');
+const initScrapMovementModel = require('../../modules/scrap/scrapMovement.model');
+const initProcessOutputItemModel = require('../../modules/processes/processOutputItem.model');
+
 const db = {};
 
 db.sequelize = sequelize;
@@ -77,6 +81,9 @@ db.IntermediateMaterial = initIntermediateMaterialModel(sequelize, DataTypes);
 db.StorageRack = initStorageRackModel(sequelize, DataTypes);
 db.IntermediateStock = initIntermediateStockModel(sequelize, DataTypes);
 db.ProcessRunOutput = initProcessRunOutputModel(sequelize, DataTypes);
+db.ScrapCatalog = initScrapCatalogModel(sequelize, DataTypes);
+db.ScrapMovement = initScrapMovementModel(sequelize, DataTypes);
+db.ProcessOutputItem = initProcessOutputItemModel(sequelize, DataTypes);
 db.IntermediateStockMovement = initIntermediateStockMovementModel(sequelize, DataTypes);
 
 db.Role.belongsToMany(db.Permission, {
@@ -798,6 +805,59 @@ db.IntermediateStockMovement.belongsTo(db.Area, {
 db.IntermediateStockMovement.belongsTo(db.StorageRack, {
   foreignKey: 'rack_id',
   as: 'rack',
+});
+
+// Process output items
+db.ProcessRunOutput.hasMany(db.ProcessOutputItem, {
+  foreignKey: 'process_run_output_id',
+  as: 'items',
+});
+
+db.ProcessOutputItem.belongsTo(db.ProcessRunOutput, {
+  foreignKey: 'process_run_output_id',
+  as: 'process_output',
+});
+
+// Scrap catalog
+db.ProcessRunOutput.belongsTo(db.ScrapCatalog, {
+  foreignKey: 'scrap_catalog_id',
+  as: 'scrap_type',
+});
+
+db.ScrapCatalog.hasMany(db.ProcessRunOutput, {
+  foreignKey: 'scrap_catalog_id',
+  as: 'process_outputs',
+});
+
+// Scrap movements
+db.ScrapCatalog.hasMany(db.ScrapMovement, {
+  foreignKey: 'scrap_catalog_id',
+  as: 'movements'
+});
+
+db.ScrapMovement.belongsTo(db.ScrapCatalog, {
+  foreignKey: 'scrap_catalog_id',
+  as: 'scrap_type'
+});
+
+db.ProcessRunOutput.hasMany(db.ScrapMovement, {
+  foreignKey: 'process_run_output_id',
+  as: 'scrap_movements'
+});
+
+db.ScrapMovement.belongsTo(db.ProcessRunOutput, {
+  foreignKey: 'process_run_output_id',
+  as: 'process_output'
+});
+
+db.ScrapMovement.belongsTo(db.StorageRack, {
+  foreignKey: 'from_rack_id',
+  as: 'from_rack'
+});
+
+db.ScrapMovement.belongsTo(db.StorageRack, {
+  foreignKey: 'to_rack_id',
+  as: 'to_rack'
 });
 
 module.exports = db;
