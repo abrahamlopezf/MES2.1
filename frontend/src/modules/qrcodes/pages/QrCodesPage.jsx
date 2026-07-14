@@ -1,462 +1,236 @@
-import { useMemo, useState } from 'react';
-import { Activity, CheckCircle, Clock, RefreshCw } from 'lucide-react';
-
-import { TFAlert, TFButton } from '../../../components/tf-ui';
-
-import ErrorState from '../../../components/feedback/ErrorState';
-import LoadingState from '../../../components/feedback/LoadingState';
-
-import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
-import { useAuthStore } from '../../../store/authStore';
-
-import QrActionSheet from '../components/QrActionSheet';
-import QrAssignForm from '../components/QrAssignForm';
-import QrCancelDialog from '../components/QrCancelDialog';
-import QrCodesTable from '../components/QrCodesTable';
-import QrEventsPanel from '../components/QrEventsPanel';
-import QrFiltersPanel from '../components/QrFiltersPanel';
-import QrGenerateForm from '../components/QrGenerateForm';
-import QrListSection from '../components/QrListSection';
-import QrModuleHeader from '../components/QrModuleHeader';
-import QrSummaryCard from '../components/QrSummaryCard';
-import QrValidatePanel from '../components/QrValidatePanel';
-
-import {
-  useAreasQuery,
-  useAssignQrCodesMutation,
-  useCancelQrMutation,
-  useGenerateQrBatchMutation,
-  useQrCodesQuery,
-  useQrEventsQuery,
-  useValidateQrMutation,
-} from '../hooks/useQrQueries';
-
-const getApiErrorMessage = (error) => {
-  const baseMessage =
-    error?.friendlyMessage ||
-    error?.response?.data?.message ||
-    error?.message ||
-    'Ocurrió un problema al procesar la solicitud.';
-
-  const validationErrors = error?.response?.data?.errors;
-
-  if (Array.isArray(validationErrors) && validationErrors.length > 0) {
-    const details = validationErrors
-      .map((item) => item.message || item.field)
-      .filter(Boolean)
-      .join(' ');
-
-    return `${baseMessage} ${details}`;
-  }
-
-  return baseMessage;
-};
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Camera, Printer, QrCode as QrIcon, CheckCircle2, XCircle } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { QRCodeCanvas } from 'qrcode.react';
 
 const QrCodesPage = () => {
-  const { user: currentUser, hasPermission } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('scan');
+  const [scanResult, setScanResult] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [printerFormat, setPrinterFormat] = useState('zebra'); // 'zebra' | 'a4'
 
-  const canGenerate = hasPermission('qr.generate');
-  const canAssign = hasPermission('qr.assign');
-  const canCancel = hasPermission('qr.cancel');
-  const canReadEvents = hasPermission('qr.events.read');
-
-  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [isValidateOpen, setIsValidateOpen] = useState(false);
-
-  const [selectedQrForEvents, setSelectedQrForEvents] = useState(null);
-  const [selectedQrToCancel, setSelectedQrToCancel] = useState(null);
-
-  const [validationResult, setValidationResult] = useState(null);
-  const [validationError, setValidationError] = useState(null);
-
-  const [operationError, setOperationError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-
-  const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    area_id: '',
-  });
-
-  const debouncedFilters = useDebouncedValue(filters, 300);
-
-  const qrCodesQuery = useQrCodesQuery(debouncedFilters);
-  const areasQuery = useAreasQuery();
-
-  const generateQrBatchMutation = useGenerateQrBatchMutation();
-  const assignQrCodesMutation = useAssignQrCodesMutation();
-  const validateQrMutation = useValidateQrMutation();
-  const cancelQrMutation = useCancelQrMutation();
-
-  const qrEventsQuery = useQrEventsQuery(selectedQrForEvents?.id);
-
-  const qrCodes = qrCodesQuery.data?.items || [];
-  const total = qrCodesQuery.data?.total || 0;
-  const areas = areasQuery.data || [];
-
-  const isInitialLoading =
-    (qrCodesQuery.isLoading || areasQuery.isLoading) &&
-    !qrCodesQuery.data &&
-    !areasQuery.data;
-
-  const loadError = qrCodesQuery.error || areasQuery.error;
-
-  const hasActiveFilters = Boolean(
-    filters.search || filters.status || filters.area_id
-  );
-
-  const generatedQrCodes = useMemo(() => {
-    return qrCodes.filter((qr) => qr.status === 'GENERADO');
-  }, [qrCodes]);
-
-  const availableCount = useMemo(() => {
-    return qrCodes.filter((qr) => qr.status === 'DISPONIBLE').length;
-  }, [qrCodes]);
-
-  const inUseCount = useMemo(() => {
-    return qrCodes.filter((qr) => qr.status === 'EN_USO').length;
-  }, [qrCodes]);
-
-  const generatedCount = useMemo(() => {
-    return qrCodes.filter((qr) => qr.status === 'GENERADO').length;
-  }, [qrCodes]);
-
-  const isRefreshing =
-    qrCodesQuery.isFetching && !qrCodesQuery.isLoading;
-
-  const updateFilter = (key, value) => {
-    setFilters((currentFilters) => ({
-      ...currentFilters,
-      [key]: value,
-    }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      status: '',
-      area_id: '',
-    });
-  };
-
-  const closeForms = () => {
-    setIsGenerateOpen(false);
-    setIsAssignOpen(false);
-    setIsValidateOpen(false);
-    setValidationResult(null);
-    setValidationError(null);
-  };
-
-  const openGenerateForm = () => {
-    closeForms();
-    setOperationError(null);
-    setSuccessMessage(null);
-    setIsGenerateOpen(true);
-  };
-
-  const openAssignForm = () => {
-    closeForms();
-    setOperationError(null);
-    setSuccessMessage(null);
-    setIsAssignOpen(true);
-  };
-
-  const openValidatePanel = () => {
-    closeForms();
-    setOperationError(null);
-    setSuccessMessage(null);
-    setIsValidateOpen(true);
-  };
-
-  const handleRefresh = () => {
-    qrCodesQuery.refetch();
-    areasQuery.refetch();
-  };
-
-  const handleGenerateBatch = async (payload) => {
-    setOperationError(null);
-    setSuccessMessage(null);
-
-    try {
-      const response = await generateQrBatchMutation.mutateAsync(payload);
-
-      setSuccessMessage(
-        `Lote generado correctamente. Cantidad: ${response.data.generated_quantity}. Estado inicial: ${response.data.initial_status}.`
+  // --- ESCÁNER LOGIC ---
+  useEffect(() => {
+    let scanner = null;
+    
+    if (activeTab === 'scan') {
+      setIsScanning(true);
+      scanner = new Html5QrcodeScanner(
+        "reader", 
+        { fps: 10, qrbox: {width: 250, height: 250}, aspectRatio: 1.0 }, 
+        /* verbose= */ false
       );
-
-      setIsGenerateOpen(false);
-    } catch (requestError) {
-      setOperationError(getApiErrorMessage(requestError));
-    }
-  };
-
-  const handleAssignQrCodes = async (payload) => {
-    setOperationError(null);
-    setSuccessMessage(null);
-
-    try {
-      const response = await assignQrCodesMutation.mutateAsync(payload);
-
-      setSuccessMessage(
-        `Asignación correcta. Se asignaron ${response.data.assigned_quantity} códigos QR al área ${response.data.area?.name}.`
-      );
-
-      setIsAssignOpen(false);
-    } catch (requestError) {
-      setOperationError(getApiErrorMessage(requestError));
-    }
-  };
-
-  const handleValidateQr = async (payload) => {
-    setValidationResult(null);
-    setValidationError(null);
-    setOperationError(null);
-
-    try {
-      const response = await validateQrMutation.mutateAsync(payload);
-
-      setValidationResult(response.data);
-    } catch (requestError) {
-      setValidationError(getApiErrorMessage(requestError));
-    }
-  };
-
-  const handleViewEvents = (qr) => {
-    setSelectedQrForEvents(qr);
-    setOperationError(null);
-  };
-
-  const handleCancelQr = async (payload) => {
-    if (!selectedQrToCancel) return;
-
-    setOperationError(null);
-    setSuccessMessage(null);
-
-    try {
-      await cancelQrMutation.mutateAsync({
-        qrId: selectedQrToCancel.id,
-        payload,
-      });
-
-      setSuccessMessage('Código QR cancelado correctamente.');
-      setSelectedQrToCancel(null);
-    } catch (requestError) {
-      setOperationError(getApiErrorMessage(requestError));
-    }
-  };
-
-  if (isInitialLoading) {
-    return (
-      <LoadingState
-        title="Cargando códigos QR"
-        message="Estamos consultando los códigos QR y áreas disponibles."
-      />
-    );
-  }
-
-  if (loadError && !qrCodes.length) {
-    return (
-      <ErrorState
-        title="No pudimos cargar códigos QR"
-        message={getApiErrorMessage(loadError)}
-        action={
-          <TFButton icon={RefreshCw} onClick={handleRefresh}>
-            Intentar nuevamente
-          </TFButton>
+      
+      scanner.render(
+        (decodedText) => {
+          setScanResult({ success: true, text: decodedText });
+          // Opcional: pausar el escáner al leer
+          scanner.pause();
+        },
+        (error) => {
+          // Ignoramos errores de cuadros sin QR
         }
-      />
-    );
-  }
+      );
+    }
+
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(error => console.error("Failed to clear html5QrcodeScanner. ", error));
+      }
+    };
+  }, [activeTab]);
+
+  const resetScanner = () => {
+    setScanResult(null);
+    setIsScanning(true);
+    // Para reactivar, tendríamos que re-instanciar o si el scanner estaba pausado, resumirlo.
+    // Como la limpieza es compleja por ahora forzamos re-render de la pestaña
+    setActiveTab('generate');
+    setTimeout(() => setActiveTab('scan'), 50);
+  };
 
   return (
-    <section className="qr-page-shell">
-      {successMessage && (
-        <TFAlert
-          variant="success"
-          title="Operación correcta"
-          message={successMessage}
-        />
-      )}
+    <div className="h-full flex flex-col gap-6 pb-10 max-w-5xl mx-auto">
+      
+      {/* Header Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col gap-2 mt-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-surface rounded-lg border border-border shadow-sm">
+            <QrIcon size={24} className="text-primary" style={{ color: 'var(--color-primary)' }} />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight" style={{ color: 'var(--color-text)' }}>
+            Motor de Trazabilidad QR
+          </h1>
+        </div>
+        <p className="text-muted text-base sm:text-lg font-bold mt-1 ml-12 max-w-2xl" style={{ color: 'var(--color-muted)' }}>
+          Central operativa para registrar movimientos en planta mediante escáner y emitir etiquetas de lotes.
+        </p>
+      </motion.div>
 
-      {operationError && (
-        <TFAlert
-          variant="danger"
-          title="Revisa la operación"
-          message={operationError}
-        />
-      )}
-
-      {loadError && qrCodes.length > 0 && (
-        <TFAlert
-          variant="warning"
-          title="Información parcialmente actualizada"
-          message={getApiErrorMessage(loadError)}
-        />
-      )}
-
-      <QrModuleHeader
-        total={total || qrCodes.length}
-        canGenerate={canGenerate}
-        canAssign={canAssign}
-        onGenerate={openGenerateForm}
-        onAssign={openAssignForm}
-        onValidate={openValidatePanel}
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <QrSummaryCard
-          title="Disponibles"
-          value={availableCount}
-          description="Listos para operación"
-          icon={CheckCircle}
-          tone="success"
-        />
-
-        <QrSummaryCard
-          title="En uso"
-          value={inUseCount}
-          description="Vinculados a operación"
-          icon={Activity}
-          tone="primary"
-        />
-
-        <QrSummaryCard
-          title="Generados"
-          value={generatedCount}
-          description="Pendientes de asignación"
-          icon={Clock}
-          tone="warning"
-        />
+      {/* Tabs */}
+      <div className="flex gap-4 border-b border-border mb-4">
+        <button
+          onClick={() => setActiveTab('scan')}
+          className={`flex items-center gap-2 pb-3 px-4 font-bold text-lg transition-colors border-b-4 ${
+            activeTab === 'scan' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-text'
+          }`}
+          style={{ borderColor: activeTab === 'scan' ? 'var(--color-primary)' : 'transparent', color: activeTab === 'scan' ? 'var(--color-primary)' : 'var(--color-muted)' }}
+        >
+          <Camera size={20} />
+          Escanear
+        </button>
+        <button
+          onClick={() => setActiveTab('generate')}
+          className={`flex items-center gap-2 pb-3 px-4 font-bold text-lg transition-colors border-b-4 ${
+            activeTab === 'generate' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-text'
+          }`}
+          style={{ borderColor: activeTab === 'generate' ? 'var(--color-primary)' : 'transparent', color: activeTab === 'generate' ? 'var(--color-primary)' : 'var(--color-muted)' }}
+        >
+          <Printer size={20} />
+          Impresión
+        </button>
       </div>
 
-      <QrFiltersPanel
-        searchTerm={filters.search}
-        statusFilter={filters.status}
-        areaFilter={filters.area_id}
-        areas={areas}
-        onSearchChange={(value) => updateFilter('search', value)}
-        onStatusChange={(value) => updateFilter('status', value)}
-        onAreaChange={(value) => updateFilter('area_id', value)}
-        onClearFilters={clearFilters}
-      />
+      {/* Content Area */}
+      <div className="flex-1">
+        {activeTab === 'scan' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full"
+          >
+            {/* Lente */}
+            <div className="glass-panel p-6 flex flex-col items-center">
+              <h2 className="text-2xl font-black text-text mb-6 w-full text-left" style={{ color: 'var(--color-text)' }}>Visor Óptico</h2>
+              
+              <div className="w-full max-w-sm aspect-square bg-background border-4 border-dashed border-border rounded-lg overflow-hidden relative shadow-inner">
+                {!scanResult ? (
+                  <div id="reader" className="w-full h-full [&>div]:border-none [&_video]:object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface">
+                    <CheckCircle2 size={64} className="text-success mb-4" style={{ color: 'var(--color-success)' }} />
+                    <h3 className="text-xl font-bold text-text" style={{ color: 'var(--color-text)' }}>Código Capturado</h3>
+                  </div>
+                )}
+              </div>
+              
+              {scanResult && (
+                <button 
+                  onClick={resetScanner}
+                  className="mt-6 px-6 py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  Escanear Otro Código
+                </button>
+              )}
+            </div>
 
-      {hasActiveFilters && (
-        <TFAlert
-          variant="info"
-          title="Filtros activos"
-          message={`Mostrando ${qrCodes.length} de ${total} códigos QR según los filtros seleccionados.`}
-        />
-      )}
+            {/* Resultados / Acciones */}
+            <div className="glass-panel p-6 flex flex-col">
+              <h2 className="text-2xl font-black text-text mb-6" style={{ color: 'var(--color-text)' }}>Detalle del Material</h2>
+              
+              {!scanResult ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center opacity-70">
+                  <QrIcon size={48} className="text-muted mb-4" style={{ color: 'var(--color-muted)' }} />
+                  <p className="text-lg font-bold text-text" style={{ color: 'var(--color-text)' }}>Esperando lectura...</p>
+                  <p className="text-sm text-muted max-w-xs mt-2" style={{ color: 'var(--color-muted)' }}>Posiciona la etiqueta QR dentro del marco del visor para extraer su información.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className="p-4 bg-background border border-border rounded-lg shadow-inner">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted" style={{ color: 'var(--color-muted)' }}>ID Encriptado</span>
+                    <p className="text-lg font-mono text-text break-all mt-1 font-bold" style={{ color: 'var(--color-text)' }}>{scanResult.text}</p>
+                  </div>
+                  
+                  <div className="p-4 bg-surface border border-warning rounded-lg shadow-sm">
+                    <h3 className="text-warning font-bold flex items-center gap-2 mb-2" style={{ color: 'var(--color-warning)' }}>
+                      <CheckCircle2 size={18} /> Validación de Sistema
+                    </h3>
+                    <p className="text-sm font-semibold text-text" style={{ color: 'var(--color-text)' }}>Este código corresponde a una bobina de Materia Prima lista para el área de Mezclado.</p>
+                  </div>
 
-      {isRefreshing && (
-        <TFAlert
-          variant="info"
-          title="Actualizando información"
-          message="Estamos sincronizando los códigos QR con el servidor."
-        />
-      )}
-
-      <QrListSection
-        qrs={qrCodes}
-        onViewEvents={handleViewEvents}
-        onCancel={setSelectedQrToCancel}
-        canReadEvents={canReadEvents}
-        canCancel={canCancel}
-        canGenerate={canGenerate}
-        onGenerate={openGenerateForm}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={clearFilters}
-      >
-        <QrCodesTable
-          qrCodes={qrCodes}
-          canCancel={canCancel}
-          canReadEvents={canReadEvents}
-          onViewEvents={handleViewEvents}
-          onCancel={setSelectedQrToCancel}
-        />
-      </QrListSection>
-
-      <QrActionSheet
-        open={isGenerateOpen}
-        onClose={() => setIsGenerateOpen(false)}
-        title="Generar lote de códigos QR"
-        description="Crea códigos QR en bloque y asígnalos a un área si corresponde."
-      >
-        <QrGenerateForm
-          areas={areas}
-          currentUser={currentUser}
-          isSubmitting={generateQrBatchMutation.isPending}
-          onSubmit={handleGenerateBatch}
-          onCancel={() => setIsGenerateOpen(false)}
-        />
-      </QrActionSheet>
-
-      <QrActionSheet
-        open={isAssignOpen}
-        onClose={() => setIsAssignOpen(false)}
-        title="Asignar códigos QR"
-        description="Asigna códigos QR generados a un área operativa para que puedan usarse."
-      >
-        <QrAssignForm
-          areas={areas}
-          generatedQrCodes={generatedQrCodes}
-          currentUser={currentUser}
-          isSubmitting={assignQrCodesMutation.isPending}
-          onSubmit={handleAssignQrCodes}
-          onCancel={() => setIsAssignOpen(false)}
-        />
-      </QrActionSheet>
-
-      <QrActionSheet
-        open={isValidateOpen}
-        onClose={closeForms}
-        title="Validar código QR"
-        description="Escanea o escribe un código QR para validar su disponibilidad y área operativa."
-      >
-        <QrValidatePanel
-          areas={areas}
-          currentUser={currentUser}
-          isSubmitting={validateQrMutation.isPending}
-          result={validationResult}
-          error={validationError}
-          onSubmit={handleValidateQr}
-        />
-      </QrActionSheet>
-
-      <QrActionSheet
-        open={Boolean(selectedQrForEvents)}
-        onClose={() => {
-          setSelectedQrForEvents(null);
-        }}
-        title="Eventos del código QR"
-        description={
-          selectedQrForEvents
-            ? `Historial operativo de ${selectedQrForEvents.qr_code || selectedQrForEvents.code
-            }`
-            : 'Historial operativo del código QR.'
-        }
-      >
-        {selectedQrForEvents && (
-          <QrEventsPanel
-            qr={selectedQrForEvents}
-            events={qrEventsQuery.data || []}
-            isLoading={qrEventsQuery.isLoading || qrEventsQuery.isFetching}
-            onClose={() => setSelectedQrForEvents(null)}
-          />
+                  <div className="mt-auto pt-6 flex gap-3">
+                    <button className="flex-1 py-3 bg-success text-white font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm" style={{ backgroundColor: 'var(--color-success)' }}>
+                      Aprobar Ingreso
+                    </button>
+                    <button className="px-4 py-3 bg-surface border-2 border-danger text-danger font-bold rounded-lg hover:bg-danger hover:text-white transition-colors" style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                      Rechazar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
-      </QrActionSheet>
 
-      <QrCancelDialog
-        open={Boolean(selectedQrToCancel)}
-        qr={selectedQrToCancel}
-        isLoading={cancelQrMutation.isPending}
-        onConfirm={handleCancelQr}
-        onClose={() => setSelectedQrToCancel(null)}
-      />
-    </section>
+        {activeTab === 'generate' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="glass-panel p-6 sm:p-10 min-h-[400px]"
+          >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-text" style={{ color: 'var(--color-text)' }}>Centro de Impresión</h2>
+                <p className="text-muted font-bold mt-1" style={{ color: 'var(--color-muted)' }}>Genera etiquetas QR para nuevos lotes.</p>
+              </div>
+              
+              <div className="flex items-center gap-2 bg-background p-1 rounded-md border border-border">
+                <button 
+                  onClick={() => setPrinterFormat('zebra')}
+                  className={`px-4 py-2 rounded font-bold text-sm transition-colors ${printerFormat === 'zebra' ? 'bg-primary text-white shadow-sm' : 'text-text hover:bg-surface'}`}
+                  style={{ backgroundColor: printerFormat === 'zebra' ? 'var(--color-primary)' : 'transparent', color: printerFormat === 'zebra' ? '#fff' : 'var(--color-text)' }}
+                >
+                  Etiqueta Térmica
+                </button>
+                <button 
+                  onClick={() => setPrinterFormat('a4')}
+                  className={`px-4 py-2 rounded font-bold text-sm transition-colors ${printerFormat === 'a4' ? 'bg-primary text-white shadow-sm' : 'text-text hover:bg-surface'}`}
+                  style={{ backgroundColor: printerFormat === 'a4' ? 'var(--color-primary)' : 'transparent', color: printerFormat === 'a4' ? '#fff' : 'var(--color-text)' }}
+                >
+                  Hoja A4
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-bold text-text" style={{ color: 'var(--color-text)' }}>Tipo de Material</label>
+                    <select className="p-3 rounded-lg bg-background border border-border text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-semibold" style={{ color: 'var(--color-text)' }}>
+                      <option>Materia Prima (MP)</option>
+                      <option>Material Intermedio (MI)</option>
+                      <option>Producto Terminado (PT)</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-bold text-text" style={{ color: 'var(--color-text)' }}>Lote Interno</label>
+                    <input type="text" defaultValue="L-20260714-001" className="p-3 rounded-lg bg-background border border-border text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-mono font-bold" style={{ color: 'var(--color-text)' }} />
+                  </div>
+                </div>
+                
+                <button className="mt-4 py-4 bg-primary text-white font-black rounded-lg hover:opacity-90 transition-opacity shadow-sm w-full text-lg" style={{ backgroundColor: 'var(--color-primary)' }}>
+                  Generar y Mandar a Imprimir
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-6 bg-background border border-border rounded-lg shadow-inner">
+                <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
+                  <QRCodeCanvas value="L-20260714-001" size={160} level="H" />
+                </div>
+                <span className="mt-4 font-mono font-black text-lg text-text" style={{ color: 'var(--color-text)' }}>L-20260714-001</span>
+                <span className="text-xs font-bold text-muted mt-1 uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Vista Previa</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+    </div>
   );
 };
 

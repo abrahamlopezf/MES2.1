@@ -24,6 +24,7 @@ const scrapDashboardRoutes = require('../modules/scrap/scrap.dashboard.routes');
 const scrapReportRoutes = require('../modules/scrap/scrap.report.routes');
 
 const reportsRoutes = require('../modules/reports/reports.routes');
+const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 
 const router = express.Router();
 
@@ -46,5 +47,6 @@ router.use('/scrap/reports', scrapReportRoutes);
 router.use('/scrap', scrapRoutes);
 
 router.use('/reports', reportsRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 module.exports = router;

@@ -13,7 +13,14 @@ import AreasPage from '../modules/areas/pages/AreasPage';
 import ReportsPage from '../modules/reports/pages/ReportsPage';
 
 import QrCodesPage from '../modules/qrcodes/pages/QrCodesPage';
-import UiPreviewPage from '../modules/dev/pages/UiPreviewPage';
+import PlaygroundScreen from '../modules/dev/screens/PlaygroundScreen';
+import ReceiveMaterialScreen from '../modules/recepcion-material/screens/ReceiveMaterialScreen';
+import FormulaPreparationScreen from '../modules/preparacion-formulas/screens/FormulaPreparationScreen';
+import ExtrusionStationScreen from '../modules/extrusion/screens/ExtrusionStationScreen';
+import WasteRegistrationStationScreen from '../modules/scrap/screens/WasteRegistrationStationScreen';
+import QualityStationScreen from '../modules/calidad/screens/QualityStationScreen';
+import OperationsCenterScreen from '../modules/dashboard/screens/OperationsCenterScreen';
+import { ScannerProvider } from '../core/scanner/ScannerProvider';
 
 import MaterialsPage from '../modules/materials/pages/MaterialsPage';
 
@@ -38,7 +45,7 @@ export const router = createBrowserRouter([
         children: [
           {
             path: '/dashboard',
-            element: <DashboardPage />,
+            element: <OperationsCenterScreen />,
           },
           {
             path: '/users',
@@ -57,6 +64,46 @@ export const router = createBrowserRouter([
             element: <MaterialsPage />,
           },
           {
+            path: '/recepcion',
+            element: (
+              <ScannerProvider>
+                <ReceiveMaterialScreen />
+              </ScannerProvider>
+            ),
+          },
+          {
+            path: '/formulas',
+            element: (
+              <ScannerProvider>
+                <FormulaPreparationScreen />
+              </ScannerProvider>
+            ),
+          },
+          {
+            path: '/extrusion',
+            element: (
+              <ScannerProvider>
+                <ExtrusionStationScreen />
+              </ScannerProvider>
+            ),
+          },
+          {
+            path: '/scrap',
+            element: (
+              <ScannerProvider>
+                <WasteRegistrationStationScreen />
+              </ScannerProvider>
+            ),
+          },
+          {
+            path: '/calidad',
+            element: (
+              <ScannerProvider>
+                <QualityStationScreen />
+              </ScannerProvider>
+            ),
+          },
+          {
             path: '/areas',
             element: <AreasPage />,
           },
@@ -65,8 +112,8 @@ export const router = createBrowserRouter([
             element: <ReportsPage />,
           },
           {
-            path: '/ui-preview',
-            element: <UiPreviewPage />,
+            path: '/playground',
+            element: <PlaygroundScreen />,
           },
         ],
       },

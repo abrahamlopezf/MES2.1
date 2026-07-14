@@ -1,26 +1,116 @@
-:root {
-  --color-primary: #1f3a5f;
-  --color-primary-dark: #14283f;
-  --color-secondary: #c8a96a;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-  --color-background: #f5f3ef;
-  --color-surface: #ffffff;
-  --color-border: #d9d6cf;
+@layer base {
+  :root {
+    /* Shadcn standard tokens - Light Mode */
+    --background: #F8FAFC;
+    --foreground: #111827;
 
-  --color-text: #1f2933;
-  --color-muted: #6b7280;
+    --card: #FFFFFF;
+    --card-foreground: #111827;
 
-  --color-success: #2f855a;
-  --color-warning: #b7791f;
-  --color-danger: #c53030;
+    --popover: #FFFFFF;
+    --popover-foreground: #111827;
 
-  --font-size-base: 18px;
-  --font-size-large: 22px;
-  --font-size-title: 34px;
+    --primary: #2563EB;
+    --primary-foreground: #FFFFFF;
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 24px;
+    --secondary: #E5E7EB;
+    --secondary-foreground: #111827;
 
-  --shadow-soft: 0 20px 45px rgba(31, 41, 51, 0.12);
+    --muted: #F1F5F9;
+    --muted-foreground: #64748B;
+
+    --border: #E2E8F0;
+    --input: #E2E8F0;
+    --ring: #2563EB;
+    --radius: 0.5rem;
+
+    /* Domain specific tokens */
+    --success: #16A34A;
+    --success-foreground: #FFFFFF;
+    
+    --warning: #D97706;
+    --warning-foreground: #FFFFFF;
+    
+    --danger: #DC2626;
+    --danger-foreground: #FFFFFF;
+    
+    --quality: #9333EA;
+    --quality-foreground: #FFFFFF;
+    
+    --material: #0891B2;
+    --material-foreground: #FFFFFF;
+    
+    --info: #0284C7;
+    --info-foreground: #FFFFFF;
+  }
+
+  .dark {
+    /* Shadcn standard tokens - Dark Mode */
+    --background: #09090B;
+    --foreground: #FAFAFA;
+
+    --card: #18181B;
+    --card-foreground: #FAFAFA;
+
+    --popover: #18181B;
+    --popover-foreground: #FAFAFA;
+
+    --primary: #2563EB;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #27272A;
+    --secondary-foreground: #FAFAFA;
+
+    --muted: #27272A;
+    --muted-foreground: #A1A1AA;
+
+    --border: #3F3F46;
+    --input: #3F3F46;
+    --ring: #2563EB;
+
+    /* Domain specific tokens (adjusted for contrast if necessary, keeping base for now) */
+    --success: #16A34A;
+    --success-foreground: #FFFFFF;
+    
+    --warning: #D97706;
+    --warning-foreground: #FFFFFF;
+    
+    --danger: #DC2626;
+    --danger-foreground: #FFFFFF;
+    
+    --quality: #9333EA;
+    --quality-foreground: #FFFFFF;
+    
+    --material: #0891B2;
+    --material-foreground: #FFFFFF;
+    
+    --info: #0284C7;
+    --info-foreground: #FFFFFF;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', system-ui, sans-serif;
+    transition: none; /* No transition on theme change to prevent flashing */
+  }
+}
+
+@layer utilities {
+  .solid-card {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius);
+  }
+
+  .status-available { color: var(--success); }
+  .status-process { color: var(--primary); }
+  .status-transferred { color: var(--warning); } /* Assuming transferred relates to waiting/transit */
+  .status-pending { color: var(--warning); }
+  .status-blocked { color: var(--danger); }
+  .status-finished { color: var(--muted-foreground); }
 }

@@ -1,65 +1,39 @@
-import { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
-
-import Header from './Header';
-import MainContent from './MainContent';
-import MobileBottomNav from './MobileBottomNav';
+import { useState, useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import Header from './Header';
 
 const AppLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
 
-  const openSidebar = () => {
-    setIsSidebarOpen(true);
-  };
-
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
+  // Close sidebar on route change on mobile
   useEffect(() => {
-    if (!isSidebarOpen) {
-      document.body.classList.remove('body-sidebar-open');
-      return;
-    }
-
-    document.body.classList.add('body-sidebar-open');
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        closeSidebar();
-      }
-    };
-
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.body.classList.remove('body-sidebar-open');
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [isSidebarOpen]);
+    setIsSidebarOpen(false);
+  }, [location]);
 
   return (
-    <div className={`app-shell ${isSidebarOpen ? 'app-shell-sidebar-open' : ''}`}>
+    <div className="flex h-[100dvh] bg-background text-foreground transition-colors duration-300 overflow-hidden font-sans relative">
+      
+      {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <button
-          type="button"
-          className="sidebar-overlay"
-          onClick={closeSidebar}
-          aria-label="Cerrar menú"
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
         />
       )}
 
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-
-      <div className="app-body">
-        <Header onOpenSidebar={openSidebar} />
-
-        <MainContent>
-          <Outlet />
-        </MainContent>
-
-        <MobileBottomNav />
+      {/* Sidebar - Controlled purely by CSS on Desktop, toggled on Mobile */}
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden w-full relative">
+        <Header onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+        
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 w-full">
+          <div className="max-w-7xl mx-auto h-full pb-20 lg:pb-0">
+            <Outlet />
+          </div>
+        </main>
       </div>
     </div>
   );
