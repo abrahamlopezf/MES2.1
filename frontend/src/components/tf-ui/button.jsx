@@ -19,17 +19,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-[var(--color-primary)] text-white shadow-[0_14px_32px_rgba(31,58,95,0.22)] hover:bg-[var(--color-primary-dark)] hover:-translate-y-0.5',
+          'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 hover:-translate-y-0.5',
         secondary:
-          'border border-[var(--color-border)] bg-white text-[var(--color-primary)] hover:bg-[rgba(31,58,95,0.06)] hover:-translate-y-0.5',
+          'border border-border bg-card text-primary hover:bg-secondary/60 hover:-translate-y-0.5',
         success:
-          'bg-[var(--color-success)] text-white shadow-[0_14px_32px_rgba(47,133,90,0.20)] hover:-translate-y-0.5',
+          'bg-success text-success-foreground shadow-lg hover:bg-success/90 hover:-translate-y-0.5',
         warning:
-          'bg-[var(--color-warning)] text-white shadow-[0_14px_32px_rgba(183,121,31,0.20)] hover:-translate-y-0.5',
+          'bg-warning text-warning-foreground shadow-lg hover:bg-warning/90 hover:-translate-y-0.5',
         danger:
-          'bg-[var(--color-danger)] text-white shadow-[0_14px_32px_rgba(197,48,48,0.20)] hover:-translate-y-0.5',
+          'bg-danger text-danger-foreground shadow-lg hover:bg-danger/90 hover:-translate-y-0.5',
         ghost:
-          'bg-transparent text-[var(--color-primary)] hover:bg-[rgba(31,58,95,0.07)]',
+          'bg-transparent text-primary hover:bg-secondary/50',
       },
       size: {
         sm: 'min-h-12 px-4 text-sm rounded-xl',
