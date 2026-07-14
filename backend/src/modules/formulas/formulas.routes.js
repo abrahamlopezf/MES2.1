@@ -1,6 +1,7 @@
 const express = require('express');
 
 const formulasController = require('./formulas.controller');
+const processPreparationRoutes = require('./processPreparation.routes');
 
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
@@ -64,5 +65,7 @@ router.patch(
   authorizePermission('formulas.manage'),
   formulasController.deactivateFormula
 );
+
+router.use('/preparations', processPreparationRoutes);
 
 module.exports = router;
