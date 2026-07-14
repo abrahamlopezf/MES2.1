@@ -36,11 +36,11 @@ export function WarningPanel({ warnings }: WarningPanelProps) {
               "font-black text-sm uppercase tracking-wider",
               warning.severity === 'high' ? "text-danger" :
               warning.severity === 'medium' ? "text-warning" :
-              "text-text"
+              "text-foreground"
             )}>
               {warning.code}
             </span>
-            <span className="text-text font-semibold text-sm mt-0.5 leading-relaxed">
+            <span className="text-foreground font-semibold text-sm mt-0.5 leading-relaxed">
               {warning.message}
             </span>
           </div>

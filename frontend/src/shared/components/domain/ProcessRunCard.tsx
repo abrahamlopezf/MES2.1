@@ -43,7 +43,7 @@ export function ProcessRunCard({ run, onAction, className }: ProcessRunCardProps
             <Activity className="text-muted w-5 h-5" />
             <span className="font-black text-xl tracking-tight uppercase">{run.code}</span>
           </div>
-          <p className="text-sm text-text font-medium flex gap-4">
+          <p className="text-sm text-foreground font-medium flex gap-4">
             <span className="flex items-center gap-1"><ServerCog className="w-4 h-4 text-muted" /> {run.machine}</span>
             {run.operator && <span>Operador: <strong className="font-bold">{run.operator}</strong></span>}
           </p>

@@ -14,12 +14,12 @@ export function SectionHeader({ title, description, icon: Icon, action, classNam
     <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border mb-6", className)}>
       <div className="flex items-center gap-3">
         {Icon && (
-          <div className="p-2 bg-surface border border-border rounded-lg shadow-sm">
+          <div className="p-2 bg-card border border-border rounded-lg shadow-sm">
             <Icon size={24} className="text-primary" />
           </div>
         )}
         <div>
-          <h2 className="text-2xl font-black text-text tracking-tight">{title}</h2>
+          <h2 className="text-2xl font-black text-foreground tracking-tight">{title}</h2>
           {description && (
             <p className="text-sm font-semibold text-muted mt-1">{description}</p>
           )}

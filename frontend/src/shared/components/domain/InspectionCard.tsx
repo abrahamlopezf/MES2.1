@@ -34,7 +34,7 @@ export function InspectionCard({ id, targetEntityCode, inspector, date, result, 
             {isApproved ? <ShieldCheck className="text-success w-6 h-6" /> : isPending ? <FileText className="text-warning w-6 h-6" /> : <ShieldAlert className="text-danger w-6 h-6" />}
             Inspección: {id}
           </span>
-          <p className="text-sm font-bold text-muted mt-1 uppercase">Lote: <span className="text-text">{targetEntityCode}</span></p>
+          <p className="text-sm font-bold text-muted mt-1 uppercase">Lote: <span className="text-foreground">{targetEntityCode}</span></p>
         </div>
         <div className={cn(
           "px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider",
@@ -45,7 +45,7 @@ export function InspectionCard({ id, targetEntityCode, inspector, date, result, 
       </div>
 
       {/* Meta Info */}
-      <div className="flex gap-6 text-sm text-text font-medium">
+      <div className="flex gap-6 text-sm text-foreground font-medium">
         <span className="flex items-center gap-2"><User className="w-4 h-4 text-muted" /> {inspector}</span>
         <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted" /> {date}</span>
       </div>
@@ -56,7 +56,7 @@ export function InspectionCard({ id, targetEntityCode, inspector, date, result, 
         <div className="space-y-2">
           {parameters.map((p, idx) => (
             <div key={idx} className="flex justify-between items-center text-sm">
-              <span className="font-medium text-text">{p.name}</span>
+              <span className="font-medium text-foreground">{p.name}</span>
               <div className="flex items-center gap-3">
                 <span className="font-bold">{p.value}</span>
                 <span className={cn(

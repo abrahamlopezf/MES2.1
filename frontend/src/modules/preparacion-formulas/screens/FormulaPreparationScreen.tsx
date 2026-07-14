@@ -27,11 +27,11 @@ export default function FormulaPreparationScreen() {
       />
 
       {!lastScannedCode && !isScanning && (
-        <div className="flex flex-col items-center justify-center p-12 bg-surface border-2 border-dashed border-border rounded-xl mb-8">
+        <div className="flex flex-col items-center justify-center p-12 bg-card border-2 border-dashed border-border rounded-xl mb-8">
           <div className="p-4 bg-primary/10 rounded-full mb-4">
             <QrCode size={48} className="text-primary" />
           </div>
-          <h3 className="text-2xl font-black text-text mb-2">Esperando Fórmula...</h3>
+          <h3 className="text-2xl font-black text-foreground mb-2">Esperando Fórmula...</h3>
           <Button onClick={startScanning} size="lg" className="px-8 shadow-md">
             Activar Cámara Móvil
           </Button>
@@ -69,7 +69,7 @@ export default function FormulaPreparationScreen() {
           </div>
 
           <div className="solid-card p-6">
-            <h4 className="font-bold text-text mb-4 text-lg border-b border-border pb-2">{formulaData.entity.name}</h4>
+            <h4 className="font-bold text-foreground mb-4 text-lg border-b border-border pb-2">{formulaData.entity.name}</h4>
             
             <div className="space-y-4 mb-8">
               {/* NOTA: Para una integración perfecta de recetas, backend enviará los requerimientos en un array extendido. */}

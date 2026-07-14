@@ -26,9 +26,9 @@ export default function ExtrusionStationScreen() {
       />
 
       {!lastScannedCode && (
-        <div className="flex flex-col items-center justify-center p-12 bg-surface border-2 border-dashed border-border rounded-xl">
+        <div className="flex flex-col items-center justify-center p-12 bg-card border-2 border-dashed border-border rounded-xl">
           <Activity size={48} className="text-muted mb-4" />
-          <h3 className="text-xl font-black text-text mb-2">Escanee el QR de la Máquina/Corrida</h3>
+          <h3 className="text-xl font-black text-foreground mb-2">Escanee el QR de la Máquina/Corrida</h3>
         </div>
       )}
 

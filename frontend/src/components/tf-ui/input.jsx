@@ -19,7 +19,7 @@ const TFInput = React.forwardRef(
     return (
       <label className={cn('grid gap-2', containerClassName)}>
         {label && (
-          <span className="text-base font-black text-[var(--color-text)]">
+          <span className="text-base font-black text-foreground">
             {label}
           </span>
         )}
@@ -27,23 +27,23 @@ const TFInput = React.forwardRef(
         <div
           className={cn(
             [
-              'flex min-h-15 items-center gap-3 rounded-2xl border bg-white px-4',
+              'flex min-h-15 items-center gap-3 rounded-2xl border bg-card px-4',
               'transition-all duration-300 ease-out',
-              'focus-within:-translate-y-0.5 focus-within:border-[var(--color-primary)]',
-              'focus-within:shadow-[0_0_0_4px_rgba(31,58,95,0.16)]',
-              error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)]',
+              'focus-within:-translate-y-0.5 focus-within:border-primary',
+              'focus-within:shadow-[0_0_0_4px] focus-within:shadow-ring/20',
+              error ? 'border-danger' : 'border-border',
             ].join(' ')
           )}
         >
-          {Icon && <Icon className="size-5 shrink-0 text-[var(--color-primary)]" />}
+          {Icon && <Icon className="size-5 shrink-0 text-primary" />}
 
           <input
             ref={ref}
             name={name}
             className={cn(
               [
-                'min-h-14 w-full bg-transparent text-base font-semibold text-[var(--color-text)]',
-                'outline-none placeholder:text-[var(--color-muted)]',
+                'min-h-14 w-full bg-transparent text-base font-semibold text-foreground',
+                'outline-none placeholder:text-muted-foreground',
               ].join(' '),
               className
             )}
@@ -54,13 +54,13 @@ const TFInput = React.forwardRef(
         </div>
 
         {error && (
-          <span id={`${name}-error`} className="text-sm font-black text-[var(--color-danger)]">
+          <span id={`${name}-error`} className="text-sm font-black text-danger">
             {error}
           </span>
         )}
 
         {!error && helperText && (
-          <span className="text-sm font-bold text-[var(--color-muted)]">
+          <span className="text-sm font-bold text-muted-foreground">
             {helperText}
           </span>
         )}
@@ -97,13 +97,13 @@ const TFTextarea = React.forwardRef(
           name={name}
           className={cn(
             [
-              'min-h-32 w-full resize-y rounded-2xl border bg-white px-4 py-4',
-              'text-base font-semibold text-[var(--color-text)]',
+              'min-h-32 w-full resize-y rounded-2xl border bg-card px-4 py-4',
+              'text-base font-semibold text-foreground',
               'outline-none transition-all duration-300 ease-out',
-              'placeholder:text-[var(--color-muted)]',
-              'focus:-translate-y-0.5 focus:border-[var(--color-primary)]',
-              'focus:shadow-[0_0_0_4px_rgba(31,58,95,0.16)]',
-              error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)]',
+              'placeholder:text-muted-foreground',
+              'focus:-translate-y-0.5 focus:border-primary',
+              'focus:shadow-[0_0_0_4px] focus:shadow-ring/20',
+              error ? 'border-danger' : 'border-border',
             ].join(' '),
             className
           )}

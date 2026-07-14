@@ -68,7 +68,7 @@ export default function PlaygroundScreen() {
 
       <section className="space-y-6">
         <h2 className="text-xl font-bold text-muted uppercase tracking-widest border-b border-border pb-2">1. Estados Universales (StatusBadge)</h2>
-        <div className="flex flex-wrap gap-4 bg-surface p-6 border border-border rounded-lg">
+        <div className="flex flex-wrap gap-4 bg-card p-6 border border-border rounded-lg">
           <StatusBadge status="RECIBIDO" />
           <StatusBadge status="EN_PROCESO" />
           <StatusBadge status="DISPONIBLE" />
@@ -83,7 +83,7 @@ export default function PlaygroundScreen() {
       <section className="space-y-6">
         <h2 className="text-xl font-bold text-muted uppercase tracking-widest border-b border-border pb-2">2. Acciones HATEOAS (ActionButton)</h2>
         <p className="text-sm text-text">Estos botones se renderizan automáticamente basados en el array `allowed_actions` del backend.</p>
-        <div className="flex flex-wrap gap-4 bg-surface p-6 border border-border rounded-lg">
+        <div className="flex flex-wrap gap-4 bg-card p-6 border border-border rounded-lg">
           <ActionButton action={{ code: 'RECEIVE', label: 'Recibir', description: 'Ingreso al almacén', icon: 'Archive', severity: 'success', requires_confirmation: false }} />
           <ActionButton action={{ code: 'CONSUME', label: 'Consumir', description: 'Usar en máquina', icon: 'Play', severity: 'default', requires_confirmation: false }} />
           <ActionButton action={{ code: 'TRANSFER', label: 'Transferir', description: 'Mover material', icon: 'ArrowRight', severity: 'warning', requires_confirmation: true }} />
@@ -124,7 +124,7 @@ export default function PlaygroundScreen() {
       <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
           <h2 className="text-xl font-bold text-muted uppercase tracking-widest border-b border-border pb-2">4. Línea de Tiempo (Timeline)</h2>
-          <div className="bg-surface p-6 border border-border rounded-lg">
+          <div className="bg-card p-6 border border-border rounded-lg">
             <ProcessTimeline events={[
               { id: '1', title: 'Recepción MP', timestamp: '08:00 AM', actor: 'Juan Pérez', isCompleted: true, description: 'Pesaje validado en báscula 1.' },
               { id: '2', title: 'Transferencia a Mezclado', timestamp: '09:15 AM', actor: 'María López', isCompleted: true },
@@ -136,7 +136,7 @@ export default function PlaygroundScreen() {
 
         <div className="space-y-6">
           <h2 className="text-xl font-bold text-muted uppercase tracking-widest border-b border-border pb-2">5. Genealogía (GenealogyTree)</h2>
-          <div className="bg-surface p-6 border border-border rounded-lg overflow-x-auto">
+          <div className="bg-card p-6 border border-border rounded-lg overflow-x-auto">
             <GenealogyTree data={{
               id: 'g1', type: 'Mix Preparado', qrId: 'MIX-991', status: 'CONSUMIDO', quantity: '100 kg',
               children: [

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   Building2,
@@ -8,27 +8,180 @@ import {
   Users,
   Boxes,
   LogOut,
-} from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
+} from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 
 const menuItems = [
-  { label: 'Control Operativo', path: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.read' },
-  { label: 'Recepción', path: '/recepcion', icon: Boxes, permission: 'materials.read' },
-  { label: 'Mezclado', path: '/formulas', icon: Boxes, permission: 'materials.read' },
-  { label: 'Extrusión', path: '/extrusion', icon: Boxes, permission: 'materials.read' },
-  { label: 'Desperdicios', path: '/scrap', icon: Boxes, permission: 'materials.read' },
-  { label: 'Calidad QA', path: '/calidad', icon: ShieldCheck, permission: 'materials.read' },
-  { label: 'Códigos QR', path: '/qr', icon: QrCode, permission: 'qr.read' },
-  { label: 'Usuarios', path: '/users', icon: Users, permission: 'users.read' },
-  { label: 'Roles', path: '/roles', icon: ShieldCheck, permission: 'roles.read' },
-  { label: 'Áreas', path: '/areas', icon: Building2, permission: 'areas.read' },
-  { label: 'Reportes', path: '/reports', icon: BarChart3, permission: 'reports.read' },
-  { label: 'Laboratorio (UI)', path: '/playground', icon: Boxes, permission: 'dashboard.read' },
+  /*{
+    label: "Control Operativo",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+    permission: "dashboard.read",
+  },*/
+
+  {
+    label: "MES Demo",
+    path: "/mes-demo",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
+
+  {
+    label: "Recepción Almacén",
+    path: "/mes-demo/recepcion",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Preparación Mezcla",
+    path: "/mes-demo/mezcla",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Extrusión",
+    path: "/mes-demo/extrusion",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Scrap / Merma",
+    path: "/mes-demo/waste",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Proceso: Telares",
+    path: "/mes-demo/telares",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+
+  {
+    label: "Admin: Materiales",
+    path: "/materials",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Admin: Fórmulas",
+    path: "/formulas",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Admin: Carretes",
+    path: "/mes-demo/admin/spools",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
+  {
+    label: "Admin: Rollos",
+    path: "/mes-demo/admin/rolls",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
+  {
+    label: "Admin: Racks",
+    path: "/mes-demo/admin/racks",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
+  {
+    label: "Admin: Contenedores",
+    path: "/mes-demo/admin/containers",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
+  {
+    label: "QR: Generar",
+    path: "/mes-demo/qr",
+    icon: QrCode,
+    permission: "dashboard.read",
+  },
+  {
+    label: "QR: Batch History",
+    path: "/mes-demo/qr-history",
+    icon: QrCode,
+    permission: "dashboard.read",
+  },
+  {
+    label: "QR: Asignaciones",
+    path: "/mes-demo/qr-assignments",
+    icon: QrCode,
+    permission: "dashboard.read",
+  },
+  {
+    label: "QR: Trazabilidad",
+    path: "/mes-demo/trazabilidad",
+    icon: ShieldCheck,
+    permission: "dashboard.read",
+  },
+  {
+    label: "Inventario: Resumen",
+    path: "/mes-demo/inventory",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
+
+  /*{
+    label: "Recepción",
+    path: "/recepcion",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Mezclado",
+    path: "/formulas",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Extrusión",
+    path: "/extrusion",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Desperdicios",
+    path: "/scrap",
+    icon: Boxes,
+    permission: "materials.read",
+  },
+  {
+    label: "Calidad QA",
+    path: "/calidad",
+    icon: ShieldCheck,
+    permission: "materials.read",
+  },
+  { label: "Códigos QR", path: "/qr", icon: QrCode, permission: "qr.read" },
+  { label: "Usuarios", path: "/users", icon: Users, permission: "users.read" },
+  {
+    label: "Roles",
+    path: "/roles",
+    icon: ShieldCheck,
+    permission: "roles.read",
+  },*/
+  { label: "Áreas", path: "/areas", icon: Building2, permission: "areas.read" },
+  {
+    label: "Reportes",
+    path: "/reports",
+    icon: BarChart3,
+    permission: "reports.read",
+  },
+  {
+    label: "Laboratorio (UI)",
+    path: "/playground",
+    icon: Boxes,
+    permission: "dashboard.read",
+  },
 ];
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { hasPermission, logout } = useAuthStore();
-  const visibleMenuItems = menuItems.filter((item) => hasPermission(item.permission));
+  const visibleMenuItems = menuItems.filter((item) =>
+    hasPermission(item.permission),
+  );
 
   return (
     <aside
@@ -37,18 +190,24 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         w-[280px] h-full flex-shrink-0 flex flex-col justify-between overflow-hidden
         bg-card border-r border-border
         transition-transform duration-300 ease-in-out shadow-md lg:shadow-none
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
     >
       <div className="flex flex-col h-full w-full">
         {/* Logo Section */}
         <div className="h-20 flex items-center px-5 shrink-0 border-b border-border">
           <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
-            <span className="text-white font-bold text-xl leading-none">TF</span>
+            <span className="text-primary-foreground font-bold text-xl leading-none">
+              TF
+            </span>
           </div>
           <div className="ml-4 flex flex-col whitespace-nowrap">
-            <span className="font-bold text-lg text-foreground tracking-tight">TraceFlow</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industrial Core</span>
+            <span className="font-bold text-lg text-foreground tracking-tight">
+              TraceFlow
+            </span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Industrial Core
+            </span>
           </div>
         </div>
 
@@ -63,17 +222,20 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 className={({ isActive }) =>
                   `flex items-center gap-4 px-4 py-3 rounded-lg transition-colors border-l-4 ${
                     isActive
-                      ? 'bg-primary/10 text-primary border-primary font-bold'
-                      : 'text-foreground hover:bg-secondary/50 border-transparent hover:border-border/50'
+                      ? "bg-primary/10 text-primary border-primary font-bold"
+                      : "text-foreground hover:bg-secondary/50 border-transparent hover:border-border/50"
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <Icon size={22} className={isActive ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="whitespace-nowrap">
-                      {item.label}
-                    </span>
+                    <Icon
+                      size={22}
+                      className={
+                        isActive ? "text-primary" : "text-muted-foreground"
+                      }
+                    />
+                    <span className="whitespace-nowrap">{item.label}</span>
                   </>
                 )}
               </NavLink>
@@ -85,12 +247,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className="p-4 shrink-0 border-t border-border">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-lg text-danger hover:bg-danger/10 transition-colors font-bold"
+            className="
+              w-full flex items-center gap-4 px-4 py-3 rounded-lg
+              text-danger
+              hover:bg-danger/10
+              transition-colors
+              font-bold
+              "
           >
             <LogOut size={22} />
-            <span className="whitespace-nowrap">
-              Cerrar Sesión
-            </span>
+            <span className="whitespace-nowrap">Cerrar Sesión</span>
           </button>
         </div>
       </div>

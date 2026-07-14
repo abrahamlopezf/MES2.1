@@ -41,6 +41,12 @@ router.post(
   qrcodesController.generateQrBatch
 );
 
+router.get(
+  '/batches',
+  permissionMiddleware('qr.read'),
+  qrcodesController.getQrBatches
+);
+
 router.post(
   '/assign',
   permissionMiddleware('qr.assign'),

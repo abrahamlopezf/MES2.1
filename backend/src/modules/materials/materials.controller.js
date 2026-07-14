@@ -8,7 +8,7 @@ const getCategories = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, categories, 'Categorías consultadas correctamente.');
+    return successResponse(res, 'Categorías consultadas correctamente.', categories);
   } catch (error) {
     return next(error);
   }
@@ -21,7 +21,7 @@ const getCategoryById = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, category, 'Categoría consultada correctamente.');
+    return successResponse(res, 'Categoría consultada correctamente.', category);
   } catch (error) {
     return next(error);
   }
@@ -34,7 +34,7 @@ const createCategory = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, category, 'Categoría creada correctamente.', 201);
+    return successResponse(res, 'Categoría creada correctamente.', category, 201);
   } catch (error) {
     return next(error);
   }
@@ -48,7 +48,7 @@ const updateCategory = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, category, 'Categoría actualizada correctamente.');
+    return successResponse(res, 'Categoría actualizada correctamente.', category);
   } catch (error) {
     return next(error);
   }
@@ -61,7 +61,7 @@ const deactivateCategory = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, category, 'Categoría desactivada correctamente.');
+    return successResponse(res, 'Categoría desactivada correctamente.', category);
   } catch (error) {
     return next(error);
   }
@@ -74,7 +74,7 @@ const getMaterials = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, materials, 'Materiales consultados correctamente.');
+    return successResponse(res, 'Materiales consultados correctamente.', materials);
   } catch (error) {
     return next(error);
   }
@@ -87,7 +87,7 @@ const getMaterialById = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, material, 'Material consultado correctamente.');
+    return successResponse(res, 'Material consultado correctamente.', material);
   } catch (error) {
     return next(error);
   }
@@ -100,7 +100,7 @@ const createMaterial = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, material, 'Material creado correctamente.', 201);
+    return successResponse(res, 'Material creado correctamente.', material, 201);
   } catch (error) {
     return next(error);
   }
@@ -114,7 +114,7 @@ const updateMaterial = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, material, 'Material actualizado correctamente.');
+    return successResponse(res, 'Material actualizado correctamente.', material);
   } catch (error) {
     return next(error);
   }
@@ -127,7 +127,7 @@ const deactivateMaterial = async (req, res, next) => {
       currentUser: req.user,
     });
 
-    return successResponse(res, material, 'Material desactivado correctamente.');
+    return successResponse(res, 'Material desactivado correctamente.', material);
   } catch (error) {
     return next(error);
   }

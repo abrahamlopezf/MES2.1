@@ -31,11 +31,11 @@ export default function ReceiveMaterialScreen() {
 
       {/* ZONA DE ESCANEO */}
       {!lastScannedCode && !isScanning && (
-        <div className="flex flex-col items-center justify-center p-12 bg-surface border-2 border-dashed border-border rounded-xl mb-8">
+        <div className="flex flex-col items-center justify-center p-12 bg-card border-2 border-dashed border-border rounded-xl mb-8">
           <div className="p-4 bg-primary/10 rounded-full mb-4">
             <QrCode size={48} className="text-primary" />
           </div>
-          <h3 className="text-2xl font-black text-text mb-2">Esperando lectura...</h3>
+          <h3 className="text-2xl font-black text-foreground mb-2">Esperando lectura...</h3>
           <p className="text-muted font-medium text-center max-w-sm mb-6">
             Utilice la pistola USB o active la cámara de su dispositivo para escanear el QR del material.
           </p>

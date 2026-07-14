@@ -33,15 +33,15 @@ export function EntityCard({
           
           <div className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-widest text-muted">{entityType}</span>
-            <h3 className="text-2xl font-black text-text font-mono">{qrId}</h3>
+            <h3 className="text-2xl font-black text-foreground font-mono">{qrId}</h3>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <StatusBadge status={status} />
               
-              <div className="flex items-center gap-1.5 text-sm font-bold text-text bg-background px-2.5 py-1 rounded-md border border-border">
+              <div className="flex items-center gap-1.5 text-sm font-bold text-foreground bg-background px-2.5 py-1 rounded-md border border-border">
                 <Layers size={14} className="text-primary" /> {quantity}
               </div>
 
-              <div className="flex items-center gap-1.5 text-sm font-bold text-text bg-background px-2.5 py-1 rounded-md border border-border">
+              <div className="flex items-center gap-1.5 text-sm font-bold text-foreground bg-background px-2.5 py-1 rounded-md border border-border">
                 <MapPin size={14} className="text-warning" /> {area} {rack ? `/ ${rack}` : ''}
               </div>
             </div>

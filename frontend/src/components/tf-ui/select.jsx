@@ -20,7 +20,7 @@ const TFSelect = React.forwardRef(
     return (
       <label className={cn('grid gap-2', containerClassName)}>
         {label && (
-          <span className="text-base font-black text-[var(--color-text)]">
+          <span className="text-base font-black text-foreground">
             {label}
           </span>
         )}
@@ -28,11 +28,11 @@ const TFSelect = React.forwardRef(
         <div
           className={cn(
             [
-              'flex min-h-15 items-center rounded-2xl border bg-white px-4',
+              'flex min-h-15 items-center rounded-2xl border bg-card px-4',
               'transition-all duration-300 ease-out',
-              'focus-within:-translate-y-0.5 focus-within:border-[var(--color-primary)]',
-              'focus-within:shadow-[0_0_0_4px_rgba(31,58,95,0.16)]',
-              error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)]',
+              'focus-within:-translate-y-0.5 focus-within:border-primary',
+              'focus-within:shadow-[0_0_0_4px] focus-within:shadow-ring/20',
+              error ? 'border-danger' : 'border-border',
             ].join(' ')
           )}
         >
@@ -42,7 +42,7 @@ const TFSelect = React.forwardRef(
             className={cn(
               [
                 'min-h-14 w-full cursor-pointer bg-transparent text-base font-bold',
-                'text-[var(--color-text)] outline-none',
+                'text-foreground outline-none',
               ].join(' '),
               className
             )}
@@ -61,13 +61,13 @@ const TFSelect = React.forwardRef(
         </div>
 
         {error && (
-          <span id={`${name}-error`} className="text-sm font-black text-[var(--color-danger)]">
+          <span id={`${name}-error`} className="text-sm font-black text-danger">
             {error}
           </span>
         )}
 
         {!error && helperText && (
-          <span className="text-sm font-bold text-[var(--color-muted)]">
+          <span className="text-sm font-bold text-muted-foreground">
             {helperText}
           </span>
         )}

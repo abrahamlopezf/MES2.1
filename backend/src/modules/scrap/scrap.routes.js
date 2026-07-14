@@ -27,8 +27,13 @@ router.use(authMiddleware);
 router.get(
   '/containers',
   permissionMiddleware('scrap.view', 'scrap.manage'),
-  validate(listContainersSchema, 'query'),
   scrapController.listContainers
+);
+
+router.post(
+  '/containers',
+  permissionMiddleware('scrap.create', 'scrap.manage'),
+  scrapController.createContainer
 );
 
 router.get(

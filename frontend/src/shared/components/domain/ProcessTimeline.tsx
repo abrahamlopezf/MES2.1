@@ -42,7 +42,7 @@ export function ProcessTimeline({ events }: ProcessTimelineProps) {
           </div>
 
           <div className="flex flex-col pb-2">
-            <h4 className={cn("text-sm font-bold", event.isCompleted || event.isCurrent ? "text-text" : "text-muted")}>
+            <h4 className={cn("text-sm font-bold", event.isCompleted || event.isCurrent ? "text-foreground" : "text-muted-foreground")}>
               {event.title}
             </h4>
             

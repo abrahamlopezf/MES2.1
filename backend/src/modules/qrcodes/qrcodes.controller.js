@@ -21,6 +21,15 @@ const getQrCodes = async (req, res, next) => {
   }
 };
 
+const getQrBatches = async (req, res, next) => {
+  try {
+    const result = await qrcodesService.getQrBatches(req.query, req.user);
+    return successResponse(res, 'Lotes de códigos QR obtenidos correctamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getQrCodeByValue = async (req, res, next) => {
   try {
     const result = await qrcodesService.getQrCodeByValue(req.params.qrCode, req.user);
@@ -79,4 +88,5 @@ module.exports = {
   assignQrCodes,
   validateQrForUse,
   cancelQrCode,
+  getQrBatches,
 };

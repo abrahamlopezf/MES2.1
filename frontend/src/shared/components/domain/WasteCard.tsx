@@ -24,7 +24,7 @@ export function WasteCard({ code, type, quantity, origin, destination, reason, a
           <span className="font-black text-xl tracking-tight uppercase flex items-center gap-2">
             <PackageX className="text-muted w-5 h-5" /> {code}
           </span>
-          <p className="text-lg font-black text-text mt-1">{quantity.value} {quantity.unit}</p>
+          <p className="text-lg font-black text-foreground mt-1">{quantity.value} {quantity.unit}</p>
         </div>
         <WasteReasonBadge type={type} reason={reason} />
       </div>
@@ -32,11 +32,11 @@ export function WasteCard({ code, type, quantity, origin, destination, reason, a
       <div className="grid grid-cols-2 gap-4 bg-muted/10 p-4 rounded-lg border border-border">
         <div className="flex flex-col">
           <span className="text-xs font-bold text-muted uppercase flex items-center gap-1"><MapPin className="w-3 h-3"/> Origen</span>
-          <span className="text-sm font-semibold text-text">{origin}</span>
+          <span className="text-sm font-semibold text-foreground">{origin}</span>
         </div>
         <div className="flex flex-col">
           <span className="text-xs font-bold text-muted uppercase flex items-center gap-1"><Truck className="w-3 h-3"/> Destino</span>
-          <span className="text-sm font-semibold text-text">{destination}</span>
+          <span className="text-sm font-semibold text-foreground">{destination}</span>
         </div>
       </div>
 

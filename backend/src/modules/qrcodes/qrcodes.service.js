@@ -167,8 +167,8 @@ const buildBatchResponse = (batch) => {
     notes: plainBatch.notes,
     assigned_area: buildAreaResponse(plainBatch.assignedArea),
     created_by: buildUserMiniResponse(plainBatch.creator),
-    created_at: plainBatch.created_at,
-    updated_at: plainBatch.updated_at,
+    created_at: plainBatch.created_at || plainBatch.createdAt,
+    updated_at: plainBatch.updated_at || plainBatch.updatedAt,
   };
 };
 
@@ -430,6 +430,57 @@ const getQrCodes = async (query, currentUser) => {
   };
 };
 
+const getQrBatches = async (query, currentUser) => {
+  const where = {};
+  if (query.status) where.status = query.status;
+  
+  const limit = Math.min(Number(query.limit) || 100, 500);
+  const offset = Number(query.offset) || 0;
+
+  const { rows, count } = await QrBatch.findAndCountAll({
+    where,
+    include: [
+      {
+        model: Area,
+        as: 'assignedArea',
+      },
+      {
+        model: User,
+        as: 'creator',
+        attributes: ['id', 'first_name', 'last_name', 'username'],
+      },
+    ],
+    order: [['id', 'DESC']],
+    limit,
+    offset,
+  });
+
+  const items = await Promise.all(rows.map(async (batch) => {
+    const plainBatch = batch.get ? batch.get({ plain: true }) : batch;
+    
+    // Count available QR codes in this batch
+    const available_quantity = await QrCode.count({
+      where: {
+        batch_id: batch.id,
+        status: QR_STATUS.GENERADO,
+        is_active: true
+      }
+    });
+
+    return {
+      ...buildBatchResponse(batch),
+      available_quantity
+    };
+  }));
+
+  return {
+    total: count,
+    limit,
+    offset,
+    items,
+  };
+};
+
 const getQrCodeByValue = async (qrCodeValue, currentUser) => {
   const qrCode = await QrCode.findOne({
     where: {
@@ -545,6 +596,23 @@ const assignQrCodes = async (payload, currentUser) => {
     await QrEvent.bulkCreate(eventRows, {
       transaction,
     });
+
+    if (payload.batch_id) {
+      const remainingQrs = await QrCode.count({
+        where: {
+          batch_id: payload.batch_id,
+          status: QR_STATUS.GENERADO,
+          is_active: true,
+        },
+        transaction,
+      });
+      if (remainingQrs === 0) {
+        await QrBatch.update(
+          { status: QR_BATCH_STATUS.ASSIGNED },
+          { where: { id: payload.batch_id }, transaction }
+        );
+      }
+    }
 
     return {
       assigned_quantity: qrCodes.length,
@@ -678,4 +746,5 @@ module.exports = {
   assignQrCodes,
   validateQrForUse,
   cancelQrCode,
+  getQrBatches,
 };

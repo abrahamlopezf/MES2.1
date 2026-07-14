@@ -43,7 +43,7 @@ const TFDialogContent = React.forwardRef(
             [
               'fixed left-1/2 top-1/2 z-[9999] grid w-[calc(100vw-2rem)]',
               'max-w-xl -translate-x-1/2 -translate-y-1/2 gap-5 rounded-[2rem]',
-              'border border-[rgba(31,58,95,0.12)] bg-white p-6',
+              'border border-border bg-popover text-popover-foreground p-6',
               'shadow-[0_28px_80px_rgba(15,23,42,0.30)]',
               'focus:outline-none',
               'data-[state=open]:animate-[tfDialogIn_240ms_cubic-bezier(0.16,1,0.3,1)]',
@@ -60,9 +60,9 @@ const TFDialogContent = React.forwardRef(
               className={cn(
                 [
                   'absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-2xl',
-                  'bg-[rgba(31,58,95,0.08)] text-[var(--color-primary)]',
-                  'transition-all hover:bg-[rgba(31,58,95,0.14)] focus:outline-none',
-                  'focus-visible:ring-4 focus-visible:ring-[rgba(31,58,95,0.18)]',
+                  'bg-secondary text-primary',
+                  'transition-all hover:bg-secondary/80 focus:outline-none',
+                  'focus-visible:ring-4 focus-visible:ring-ring/20',
                 ].join(' ')
               )}
               aria-label="Cerrar"
@@ -95,7 +95,7 @@ const TFDialogTitle = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <DialogPrimitive.Title
       ref={ref}
-      className={cn('text-2xl font-black text-[var(--color-primary)]', className)}
+      className={cn('text-2xl font-black text-primary', className)}
       {...props}
     />
   );
@@ -107,7 +107,7 @@ const TFDialogDescription = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <DialogPrimitive.Description
       ref={ref}
-      className={cn('text-base font-medium leading-relaxed text-[var(--color-muted)]', className)}
+      className={cn('text-base font-medium leading-relaxed text-muted-foreground', className)}
       {...props}
     />
   );

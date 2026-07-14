@@ -2,6 +2,25 @@ const { successResponse, errorResponse } = require('../../shared/responses/apiRe
 const { ScrapContainer, ScrapMovement, ScrapCatalog, StorageRack, sequelize } = require('../../database/models');
 const { updateContainerInventory } = require('./services/updateContainerInventory.service');
 
+const createContainer = async (req, res) => {
+  try {
+    const { code, name, container_type, capacity, unit, area_id } = req.body;
+    const container = await ScrapContainer.create({
+      code,
+      name,
+      container_type,
+      capacity,
+      unit,
+      area_id,
+      status: 'AVAILABLE',
+      is_active: true,
+    });
+    return successResponse(res, 'Contenedor creado correctamente.', container, 201);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al crear el contenedor.', [], 400);
+  }
+};
+
 const listContainers = async (req, res) => {
   try {
     const { status, scrap_catalog_id } = req.query;
@@ -135,6 +154,7 @@ const recycle = async (req, res) => {
 module.exports = {
   listContainers,
   getContainer,
+  createContainer,
   createMovement,
   transfer,
   recycle

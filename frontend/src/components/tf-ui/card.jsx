@@ -8,8 +8,8 @@ const TFCard = React.forwardRef(({ className, children, ...props }, ref) => {
       ref={ref}
       className={cn(
         [
-          'overflow-hidden rounded-[2rem] border border-[rgba(31,58,95,0.10)]',
-          'bg-white/95 shadow-[0_16px_42px_rgba(31,41,51,0.08)]',
+          'overflow-hidden rounded-[2rem] border border-border',
+          'bg-card text-card-foreground shadow-sm',
           'transition-all duration-300 ease-out',
         ].join(' '),
         className
@@ -29,8 +29,8 @@ const TFCardHeader = React.forwardRef(({ className, children, ...props }, ref) =
       ref={ref}
       className={cn(
         [
-          'flex flex-col gap-3 border-b border-[rgba(31,58,95,0.10)]',
-          'bg-gradient-to-br from-[rgba(31,58,95,0.055)] to-[rgba(47,133,90,0.045)]',
+          'flex flex-col gap-3 border-b border-border',
+          'bg-muted/30',
           'p-6 sm:flex-row sm:items-start sm:justify-between sm:p-7',
         ].join(' '),
         className
@@ -48,19 +48,19 @@ const TFCardTitleGroup = ({ eyebrow, title, description, className }) => {
   return (
     <div className={cn('grid gap-1.5', className)}>
       {eyebrow && (
-        <p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-[var(--color-muted)]">
+        <p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
           {eyebrow}
         </p>
       )}
 
       {title && (
-        <h2 className="m-0 text-2xl font-black leading-tight text-[var(--color-primary)] sm:text-3xl">
+        <h2 className="m-0 text-2xl font-black leading-tight text-primary sm:text-3xl">
           {title}
         </h2>
       )}
 
       {description && (
-        <p className="m-0 max-w-3xl text-base font-medium leading-relaxed text-[var(--color-muted)]">
+        <p className="m-0 max-w-3xl text-base font-medium leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}
