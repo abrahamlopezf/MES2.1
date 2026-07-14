@@ -1,81 +1,61 @@
-module.exports = (sequelize, DataTypes) => {
+const { Model, DataTypes } = require('sequelize');
 
-    const ScrapMovement = sequelize.define(
-        'ScrapMovement',
-        {
+class ScrapMovement extends Model { }
 
-            id: {
-                type: DataTypes.INTEGER,
-                primaryKey: true,
-                autoIncrement: true
-            },
+const initScrapMovement = (sequelize) => {
 
-            process_run_output_id: {
-                type: DataTypes.INTEGER,
-                allowNull: false
-            },
+    ScrapMovement.init({
 
-            scrap_catalog_id: {
-                type: DataTypes.INTEGER,
-                allowNull: false
-            },
-
-            from_rack_id: {
-                type: DataTypes.INTEGER,
-                allowNull: true
-            },
-
-            to_rack_id: {
-                type: DataTypes.INTEGER,
-                allowNull: true
-            },
-
-            movement_type: {
-                type: DataTypes.ENUM(
-                    'TRANSFERENCIA',
-                    'CONSUMO',
-                    'AJUSTE'
-                ),
-                allowNull: false
-            },
-
-            quantity: {
-                type: DataTypes.DECIMAL(12, 3),
-                allowNull: false
-            },
-
-            unit: {
-                type: DataTypes.STRING,
-                allowNull: false
-            },
-
-            status: {
-                type: DataTypes.ENUM(
-                    'REGISTRADO',
-                    'CANCELADO'
-                ),
-                allowNull: false
-            },
-
-            notes: {
-                type: DataTypes.TEXT
-            },
-
-            created_by: {
-                type: DataTypes.INTEGER
-            },
-
-            updated_by: {
-                type: DataTypes.INTEGER
-            }
-
+        id: {
+            type: DataTypes.INTEGER,
+            autoIncrement: true,
+            primaryKey: true
         },
-        {
-            tableName: 'scrap_movements',
-            timestamps: true
-        });
 
+        container_id: DataTypes.INTEGER,
+
+        process_run_id: DataTypes.INTEGER,
+
+        traceable_item_id: DataTypes.INTEGER,
+
+        movement_type: DataTypes.ENUM(
+            'GENERACION',
+            'TRASLADO',
+            'AJUSTE',
+            'SALIDA_RECICLAJE',
+            'CANCELACION'
+        ),
+
+        cause: DataTypes.STRING,
+
+        quantity: DataTypes.DECIMAL(12, 3),
+
+        unit: DataTypes.STRING,
+
+        balance_before: DataTypes.DECIMAL(12, 3),
+
+        balance_after: DataTypes.DECIMAL(12, 3),
+
+        reference_folio: DataTypes.STRING,
+
+        notes: DataTypes.TEXT,
+
+        metadata: DataTypes.JSONB,
+
+        performed_by: DataTypes.INTEGER,
+
+        performed_at: DataTypes.DATE
+
+    }, {
+        sequelize,
+        tableName: 'scrap_movements',
+        modelName: 'ScrapMovement',
+        underscored: true,
+        timestamps: true
+    });
 
     return ScrapMovement;
 
 };
+
+module.exports = initScrapMovement;
