@@ -12,119 +12,27 @@ import {
 import { useAuthStore } from "../../store/authStore";
 
 const menuItems = [
-  /*{
-    label: "Control Operativo",
+  {
+    label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
     permission: "dashboard.read",
-  },*/
-
-  {
-    label: "MES Demo",
-    path: "/mes-demo",
-    icon: Boxes,
-    permission: "dashboard.read",
   },
-
+  { label: "Usuarios", path: "/users", icon: Users, permission: "users.read" },
   {
-    label: "Recepción Almacén",
-    path: "/mes-demo/recepcion",
-    icon: Boxes,
-    permission: "materials.read",
+    label: "Roles",
+    path: "/roles",
+    icon: ShieldCheck,
+    permission: "roles.read",
   },
+  { label: "QR", path: "/qr", icon: QrCode, permission: "qr.read" },
   {
-    label: "Preparación Mezcla",
-    path: "/mes-demo/mezcla",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Extrusión",
-    path: "/mes-demo/extrusion",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Scrap / Merma",
-    path: "/mes-demo/waste",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Proceso: Telares",
-    path: "/mes-demo/telares",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-
-  {
-    label: "Admin: Materiales",
+    label: "Materiales",
     path: "/materials",
     icon: Boxes,
     permission: "materials.read",
   },
   {
-    label: "Admin: Fórmulas",
-    path: "/formulas",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Admin: Carretes",
-    path: "/mes-demo/admin/spools",
-    icon: Boxes,
-    permission: "dashboard.read",
-  },
-  {
-    label: "Admin: Rollos",
-    path: "/mes-demo/admin/rolls",
-    icon: Boxes,
-    permission: "dashboard.read",
-  },
-  {
-    label: "Admin: Racks",
-    path: "/mes-demo/admin/racks",
-    icon: Boxes,
-    permission: "dashboard.read",
-  },
-  {
-    label: "Admin: Contenedores",
-    path: "/mes-demo/admin/containers",
-    icon: Boxes,
-    permission: "dashboard.read",
-  },
-  {
-    label: "QR: Generar",
-    path: "/mes-demo/qr",
-    icon: QrCode,
-    permission: "dashboard.read",
-  },
-  {
-    label: "QR: Batch History",
-    path: "/mes-demo/qr-history",
-    icon: QrCode,
-    permission: "dashboard.read",
-  },
-  {
-    label: "QR: Asignaciones",
-    path: "/mes-demo/qr-assignments",
-    icon: QrCode,
-    permission: "dashboard.read",
-  },
-  {
-    label: "QR: Trazabilidad",
-    path: "/mes-demo/trazabilidad",
-    icon: ShieldCheck,
-    permission: "dashboard.read",
-  },
-  {
-    label: "Inventario: Resumen",
-    path: "/mes-demo/inventory",
-    icon: Boxes,
-    permission: "dashboard.read",
-  },
-
-  /*{
     label: "Recepción",
     path: "/recepcion",
     icon: Boxes,
@@ -143,37 +51,23 @@ const menuItems = [
     permission: "materials.read",
   },
   {
-    label: "Desperdicios",
+    label: "Scrap",
     path: "/scrap",
     icon: Boxes,
     permission: "materials.read",
   },
   {
-    label: "Calidad QA",
+    label: "Calidad",
     path: "/calidad",
     icon: ShieldCheck,
     permission: "materials.read",
   },
-  { label: "Códigos QR", path: "/qr", icon: QrCode, permission: "qr.read" },
-  { label: "Usuarios", path: "/users", icon: Users, permission: "users.read" },
-  {
-    label: "Roles",
-    path: "/roles",
-    icon: ShieldCheck,
-    permission: "roles.read",
-  },*/
   { label: "Áreas", path: "/areas", icon: Building2, permission: "areas.read" },
   {
     label: "Reportes",
     path: "/reports",
     icon: BarChart3,
     permission: "reports.read",
-  },
-  {
-    label: "Laboratorio (UI)",
-    path: "/playground",
-    icon: Boxes,
-    permission: "dashboard.read",
   },
 ];
 
