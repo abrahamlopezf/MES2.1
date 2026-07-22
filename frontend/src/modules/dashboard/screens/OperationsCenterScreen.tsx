@@ -80,7 +80,7 @@ export default function OperationsCenterScreen() {
               <h3 className="text-lg font-black uppercase tracking-widest text-muted-foreground border-b border-border pb-2 flex items-center justify-between">
                 Alertas Operativas
                 {data.alerts.length > 0 && (
-                  <span className="bg-danger text-white text-xs px-2 py-0.5 rounded-full">
+                  <span className="bg-danger text-danger-foreground text-xs px-2 py-0.5 rounded-full">
                     {data.alerts.length}
                   </span>
                 )}

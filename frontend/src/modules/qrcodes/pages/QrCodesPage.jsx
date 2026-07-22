@@ -61,13 +61,13 @@ const QrCodesPage = () => {
       >
         <div className="flex items-center gap-3">
           <div className="p-2 bg-surface rounded-lg border border-border shadow-sm">
-            <QrIcon size={24} className="text-primary" style={{ color: 'var(--color-primary)' }} />
+            <QrIcon size={24} className="text-primary" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-text tracking-tight" style={{ color: 'var(--color-text)' }}>
+          <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">
             Motor de Trazabilidad QR
           </h1>
         </div>
-        <p className="text-muted text-base sm:text-lg font-bold mt-1 ml-12 max-w-2xl" style={{ color: 'var(--color-muted)' }}>
+        <p className="text-muted-foreground text-base sm:text-lg font-bold mt-1 ml-12 max-w-2xl">
           Central operativa para registrar movimientos en planta mediante escáner y emitir etiquetas de lotes.
         </p>
       </motion.div>
@@ -77,9 +77,8 @@ const QrCodesPage = () => {
         <button
           onClick={() => setActiveTab('scan')}
           className={`flex items-center gap-2 pb-3 px-4 font-bold text-lg transition-colors border-b-4 ${
-            activeTab === 'scan' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-text'
+            activeTab === 'scan' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
-          style={{ borderColor: activeTab === 'scan' ? 'var(--color-primary)' : 'transparent', color: activeTab === 'scan' ? 'var(--color-primary)' : 'var(--color-muted)' }}
         >
           <Camera size={20} />
           Escanear
@@ -87,9 +86,8 @@ const QrCodesPage = () => {
         <button
           onClick={() => setActiveTab('generate')}
           className={`flex items-center gap-2 pb-3 px-4 font-bold text-lg transition-colors border-b-4 ${
-            activeTab === 'generate' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-text'
+            activeTab === 'generate' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
-          style={{ borderColor: activeTab === 'generate' ? 'var(--color-primary)' : 'transparent', color: activeTab === 'generate' ? 'var(--color-primary)' : 'var(--color-muted)' }}
         >
           <Printer size={20} />
           Impresión
@@ -104,16 +102,16 @@ const QrCodesPage = () => {
             className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full"
           >
             {/* Lente */}
-            <div className="glass-panel p-6 flex flex-col items-center">
-              <h2 className="text-2xl font-black text-text mb-6 w-full text-left" style={{ color: 'var(--color-text)' }}>Visor Óptico</h2>
+            <div className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6 flex flex-col items-center">
+              <h2 className="text-2xl font-black text-foreground mb-6 w-full text-left">Visor Óptico</h2>
               
               <div className="w-full max-w-sm aspect-square bg-background border-4 border-dashed border-border rounded-lg overflow-hidden relative shadow-inner">
                 {!scanResult ? (
                   <div id="reader" className="w-full h-full [&>div]:border-none [&_video]:object-cover" />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface">
-                    <CheckCircle2 size={64} className="text-success mb-4" style={{ color: 'var(--color-success)' }} />
-                    <h3 className="text-xl font-bold text-text" style={{ color: 'var(--color-text)' }}>Código Capturado</h3>
+                    <CheckCircle2 size={64} className="text-success mb-4" />
+                    <h3 className="text-xl font-bold text-foreground">Código Capturado</h3>
                   </div>
                 )}
               </div>
@@ -121,8 +119,7 @@ const QrCodesPage = () => {
               {scanResult && (
                 <button 
                   onClick={resetScanner}
-                  className="mt-6 px-6 py-3 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
+                  className="mt-6 px-6 py-3 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm"
                 >
                   Escanear Otro Código
                 </button>
@@ -130,34 +127,34 @@ const QrCodesPage = () => {
             </div>
 
             {/* Resultados / Acciones */}
-            <div className="glass-panel p-6 flex flex-col">
-              <h2 className="text-2xl font-black text-text mb-6" style={{ color: 'var(--color-text)' }}>Detalle del Material</h2>
+            <div className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6 flex flex-col">
+              <h2 className="text-2xl font-black text-foreground mb-6">Detalle del Material</h2>
               
               {!scanResult ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-70">
-                  <QrIcon size={48} className="text-muted mb-4" style={{ color: 'var(--color-muted)' }} />
-                  <p className="text-lg font-bold text-text" style={{ color: 'var(--color-text)' }}>Esperando lectura...</p>
-                  <p className="text-sm text-muted max-w-xs mt-2" style={{ color: 'var(--color-muted)' }}>Posiciona la etiqueta QR dentro del marco del visor para extraer su información.</p>
+                  <QrIcon size={48} className="text-muted-foreground mb-4" />
+                  <p className="text-lg font-bold text-foreground">Esperando lectura...</p>
+                  <p className="text-sm text-muted-foreground max-w-xs mt-2">Posiciona la etiqueta QR dentro del marco del visor para extraer su información.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
                   <div className="p-4 bg-background border border-border rounded-lg shadow-inner">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted" style={{ color: 'var(--color-muted)' }}>ID Encriptado</span>
-                    <p className="text-lg font-mono text-text break-all mt-1 font-bold" style={{ color: 'var(--color-text)' }}>{scanResult.text}</p>
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">ID Encriptado</span>
+                    <p className="text-lg font-mono text-foreground break-all mt-1 font-bold">{scanResult.text}</p>
                   </div>
                   
                   <div className="p-4 bg-surface border border-warning rounded-lg shadow-sm">
-                    <h3 className="text-warning font-bold flex items-center gap-2 mb-2" style={{ color: 'var(--color-warning)' }}>
+                    <h3 className="text-warning font-bold flex items-center gap-2 mb-2">
                       <CheckCircle2 size={18} /> Validación de Sistema
                     </h3>
-                    <p className="text-sm font-semibold text-text" style={{ color: 'var(--color-text)' }}>Este código corresponde a una bobina de Materia Prima lista para el área de Mezclado.</p>
+                    <p className="text-sm font-semibold text-foreground">Este código corresponde a una bobina de Materia Prima lista para el área de Mezclado.</p>
                   </div>
 
                   <div className="mt-auto pt-6 flex gap-3">
-                    <button className="flex-1 py-3 bg-success text-white font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm" style={{ backgroundColor: 'var(--color-success)' }}>
+                    <button className="flex-1 py-3 bg-success text-success-foreground font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm">
                       Aprobar Ingreso
                     </button>
-                    <button className="px-4 py-3 bg-surface border-2 border-danger text-danger font-bold rounded-lg hover:bg-danger hover:text-white transition-colors" style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                    <button className="px-4 py-3 bg-card border-2 border-danger text-danger font-bold rounded-lg hover:bg-danger hover:text-danger-foreground transition-colors">
                       Rechazar
                     </button>
                   </div>
@@ -170,26 +167,24 @@ const QrCodesPage = () => {
         {activeTab === 'generate' && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="glass-panel p-6 sm:p-10 min-h-[400px]"
+            className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6 sm:p-10 min-h-[400px]"
           >
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <div>
-                <h2 className="text-2xl font-black text-text" style={{ color: 'var(--color-text)' }}>Centro de Impresión</h2>
-                <p className="text-muted font-bold mt-1" style={{ color: 'var(--color-muted)' }}>Genera etiquetas QR para nuevos lotes.</p>
+                <h2 className="text-2xl font-black text-foreground">Centro de Impresión</h2>
+                <p className="text-muted-foreground font-bold mt-1">Genera etiquetas QR para nuevos lotes.</p>
               </div>
               
               <div className="flex items-center gap-2 bg-background p-1 rounded-md border border-border">
                 <button 
                   onClick={() => setPrinterFormat('zebra')}
-                  className={`px-4 py-2 rounded font-bold text-sm transition-colors ${printerFormat === 'zebra' ? 'bg-primary text-white shadow-sm' : 'text-text hover:bg-surface'}`}
-                  style={{ backgroundColor: printerFormat === 'zebra' ? 'var(--color-primary)' : 'transparent', color: printerFormat === 'zebra' ? '#fff' : 'var(--color-text)' }}
+                  className={`px-4 py-2 rounded font-bold text-sm transition-colors ${printerFormat === 'zebra' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted'}`}
                 >
                   Etiqueta Térmica
                 </button>
                 <button 
                   onClick={() => setPrinterFormat('a4')}
-                  className={`px-4 py-2 rounded font-bold text-sm transition-colors ${printerFormat === 'a4' ? 'bg-primary text-white shadow-sm' : 'text-text hover:bg-surface'}`}
-                  style={{ backgroundColor: printerFormat === 'a4' ? 'var(--color-primary)' : 'transparent', color: printerFormat === 'a4' ? '#fff' : 'var(--color-text)' }}
+                  className={`px-4 py-2 rounded font-bold text-sm transition-colors ${printerFormat === 'a4' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted'}`}
                 >
                   Hoja A4
                 </button>
@@ -200,30 +195,30 @@ const QrCodesPage = () => {
               <div className="lg:col-span-2 flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-bold text-text" style={{ color: 'var(--color-text)' }}>Tipo de Material</label>
-                    <select className="p-3 rounded-lg bg-background border border-border text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-semibold" style={{ color: 'var(--color-text)' }}>
+                    <label className="text-sm font-bold text-foreground">Tipo de Material</label>
+                    <select className="p-3 rounded-lg bg-background border border-border text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-semibold">
                       <option>Materia Prima (MP)</option>
                       <option>Material Intermedio (MI)</option>
                       <option>Producto Terminado (PT)</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-bold text-text" style={{ color: 'var(--color-text)' }}>Lote Interno</label>
-                    <input type="text" defaultValue="L-20260714-001" className="p-3 rounded-lg bg-background border border-border text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-mono font-bold" style={{ color: 'var(--color-text)' }} />
+                    <label className="text-sm font-bold text-foreground">Lote Interno</label>
+                    <input type="text" defaultValue="L-20260714-001" className="p-3 rounded-lg bg-background border border-border text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-mono font-bold" />
                   </div>
                 </div>
                 
-                <button className="mt-4 py-4 bg-primary text-white font-black rounded-lg hover:opacity-90 transition-opacity shadow-sm w-full text-lg" style={{ backgroundColor: 'var(--color-primary)' }}>
+                <button className="mt-4 py-4 bg-primary text-primary-foreground font-black rounded-lg hover:opacity-90 transition-opacity shadow-sm w-full text-lg">
                   Generar y Mandar a Imprimir
                 </button>
               </div>
 
               <div className="flex flex-col items-center justify-center p-6 bg-background border border-border rounded-lg shadow-inner">
-                <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
+                <div className="bg-card p-4 rounded-md shadow-sm border border-border">
                   <QRCodeCanvas value="L-20260714-001" size={160} level="H" />
                 </div>
-                <span className="mt-4 font-mono font-black text-lg text-text" style={{ color: 'var(--color-text)' }}>L-20260714-001</span>
-                <span className="text-xs font-bold text-muted mt-1 uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Vista Previa</span>
+                <span className="mt-4 font-mono font-black text-lg text-foreground">L-20260714-001</span>
+                <span className="text-xs font-bold text-muted-foreground mt-1 uppercase tracking-wider">Vista Previa</span>
               </div>
             </div>
           </motion.div>

@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import Button from './button.tsx';
+import { Button } from './button.tsx';
 
 const ConfirmDialog = ({
   open,

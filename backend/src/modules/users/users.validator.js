@@ -33,6 +33,11 @@ const createUserSchema = Joi.object({
     'any.required': 'El usuario es obligatorio.',
   }),
 
+  numero_nomina: Joi.string().trim().max(30).required().messages({
+    'string.empty': 'El número de nómina es obligatorio.',
+    'any.required': 'El número de nómina es obligatorio.',
+  }),
+
   password: passwordSchema.required().messages({
     'string.empty': 'La contraseña es obligatoria.',
     'any.required': 'La contraseña es obligatoria.',
@@ -54,6 +59,7 @@ const updateUserSchema = Joi.object({
   last_name: Joi.string().trim().min(2).max(100).optional(),
   email: Joi.string().trim().email().max(150).optional(),
   username: Joi.string().trim().min(3).max(80).optional(),
+  numero_nomina: Joi.string().trim().max(30).optional(),
   password: passwordSchema.optional(),
   role_id: Joi.number().integer().positive().optional(),
   area_id: Joi.number().integer().positive().allow(null).optional(),

@@ -8,16 +8,16 @@ const StatCard = ({ title, value, icon: Icon, color, delay }) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5, ease: "easeOut" }}
-    className="glass-card p-6 flex flex-col justify-between"
+    className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6 flex flex-col justify-between"
   >
     <div className="flex justify-between items-start mb-4">
       <div className={`p-3 rounded-xl ${color} bg-opacity-10 shadow-[0_0_15px_rgba(0,0,0,0.1)] backdrop-blur-md`}>
-        <Icon size={24} className="text-white" />
+        <Icon size={24} className="text-primary-foreground" />
       </div>
     </div>
     <div>
-      <h3 className="text-slate-400 text-sm font-medium mb-1">{title}</h3>
-      <p className="text-3xl font-bold text-slate-100">{value}</p>
+      <h3 className="text-muted-foreground text-sm font-medium mb-1">{title}</h3>
+      <p className="text-3xl font-bold text-foreground">{value}</p>
     </div>
   </motion.div>
 );
@@ -52,7 +52,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
           Dashboard Ejecutivo
         </h1>
-        <p className="text-slate-400">Resumen en tiempo real del ciclo productivo.</p>
+        <p className="text-muted-foreground">Resumen en tiempo real del ciclo productivo.</p>
       </div>
 
       {/* KPI Cards */}
@@ -71,9 +71,9 @@ const Dashboard = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.5 }}
-          className="glass-panel p-6 lg:col-span-2"
+          className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6 lg:col-span-2"
         >
-          <h3 className="text-lg font-semibold text-slate-200 mb-6 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
             <Activity size={18} className="text-blue-400" /> 
             Rendimiento (Entradas vs Salidas)
           </h3>
@@ -110,9 +110,9 @@ const Dashboard = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6 }}
-          className="glass-panel p-6"
+          className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6"
         >
-          <h3 className="text-lg font-semibold text-slate-200 mb-6 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
             <AlertTriangle size={18} className="text-red-400" />
             Merma por Área (Kg)
           </h3>

@@ -14,6 +14,7 @@ const buildUserPayload = (user) => {
     last_name: plainUser.last_name,
     email: plainUser.email,
     username: plainUser.username,
+    numero_nomina: plainUser.numero_nomina,
     is_active: plainUser.is_active,
     must_change_password: plainUser.must_change_password,
     last_login_at: plainUser.last_login_at,
@@ -87,7 +88,7 @@ const login = async ({ identifier, password }) => {
     {
       [Op.or]: [
         { username: identifier },
-        { email: identifier },
+        { numero_nomina: identifier },
       ],
     },
     true

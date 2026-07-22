@@ -31,6 +31,11 @@ const initUserModel = (sequelize) => {
         allowNull: false,
         unique: true,
       },
+      numero_nomina: {
+        type: DataTypes.STRING(30),
+        allowNull: false,
+        unique: true,
+      },
       password_hash: {
         type: DataTypes.STRING(255),
         allowNull: false,

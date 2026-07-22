@@ -46,8 +46,8 @@ const Header = ({ onMenuToggle }) => {
             {initials}
           </div>
           <div className="hidden md:flex flex-col">
-            <span className="text-sm font-bold text-text leading-tight" style={{ color: 'var(--color-text)' }}>{userName}</span>
-            <span className="text-xs font-semibold text-muted" style={{ color: 'var(--color-muted)' }}>{roleName}</span>
+            <span className="text-sm font-bold text-foreground leading-tight">{userName}</span>
+            <span className="text-xs font-semibold text-muted-foreground">{roleName}</span>
           </div>
         </div>
       </div>

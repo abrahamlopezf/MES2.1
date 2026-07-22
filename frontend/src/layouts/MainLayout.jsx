@@ -23,18 +23,18 @@ export const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-100">
+    <div className="flex h-screen bg-background overflow-hidden text-foreground">
       
       {/* Sidebar */}
       <motion.aside 
         initial={{ width: 280 }}
         animate={{ width: isSidebarOpen ? 280 : 80 }}
-        className="glass-panel m-4 flex flex-col justify-between overflow-hidden"
+        className="bg-card text-card-foreground border border-border rounded-xl shadow-sm m-4 flex flex-col justify-between overflow-hidden"
       >
         <div>
           <div className="flex items-center gap-3 px-6 py-8">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.3)]">
-              <Layers className="text-white" size={24} />
+              <Layers className="text-primary-foreground" size={24} />
             </div>
             {isSidebarOpen && (
               <motion.span 
@@ -69,7 +69,7 @@ export const MainLayout = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden p-4 pl-0">
-        <header className="glass-panel px-6 py-4 mb-4 flex justify-between items-center h-20">
+        <header className="bg-card text-card-foreground border border-border rounded-xl shadow-sm px-6 py-4 mb-4 flex justify-between items-center h-20">
           <button 
             onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300"

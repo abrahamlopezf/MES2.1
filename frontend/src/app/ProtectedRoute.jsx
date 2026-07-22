@@ -8,11 +8,15 @@ const ProtectedRoute = () => {
     isAuthenticated,
     isInitializing,
     initializeAuth,
+    user,
+    token,
   } = useAuthStore();
 
   useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
+    if (token && !user) {
+      initializeAuth();
+    }
+  }, [token, user, initializeAuth]);
 
   if (isInitializing) {
     return (

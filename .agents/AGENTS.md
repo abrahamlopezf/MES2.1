@@ -6,7 +6,7 @@
 - **Rule of Thumb**: "Can a 55-year-old operator understand this screen in under 5 seconds?" If not, redesign it.
 - **Backend Supremacy**: The frontend is strictly a visual representation of the backend logic. NEVER alter industrial operational flows (Traceability, States, Routing) to make the UI simpler. 
 
-## The 13 Golden Rules (Frontend Constitution)
+## The 14 Golden Rules (Frontend Constitution)
 1. **Frontend NEVER modifies state locally.** State changes come ONLY from the backend.
 2. **Frontend NEVER calculates quantities.** (e.g. balance, yield, efficiency, scrap). The backend calculates, the frontend visualizes.
 3. **Buttons are driven by `allowed_actions`.** NEVER hardcode `if (status === 'RECIBIDO') renderButton()`. Always map UI actions to the `allowed_actions` array provided by the backend endpoint.
@@ -17,8 +17,9 @@
 8. **Runtime Integrity.** Un módulo no está terminado hasta demostrar que puede fallar sin dejar al operador frente a una pantalla blanca. Todo fallo (red, backend, permisos) debe ser capturado por un Boundary o un ErrorState explícito.
 9. **Contract Integrity.** Todo módulo nuevo debe respetar los contratos existentes de exportación, importación y comunicación entre capas. Aplica a Componentes, Hooks, API Clients, Rutas, y Middlewares.
 10. **Design System Acceptance.** Ningún módulo puede considerarse terminado sin validar compatibilidad completa con el Design System y ambos temas visuales (Light/Dark Mode).
-11. **Visual Consistency (Golden Rule #12).** Ningún módulo puede considerarse terminado sin validar compatibilidad completa con el Design System y ambos temas visuales.
-12. **Domain Color Integrity (Golden Rule #13).** Los colores del sistema representan significado operacional. Ningún componente puede alterar la semántica visual definida por el dominio. (Ej. Scrap SIEMPRE es Danger, Producción SIEMPRE es Primary).
+11. **Visual Consistency (Golden Rule #11).** Ningún módulo puede considerarse terminado sin validar compatibilidad completa con el Design System y ambos temas visuales.
+12. **Domain Color Integrity (Golden Rule #12).** Los colores del sistema representan significado operacional. Ningún componente puede alterar la semántica visual definida por el dominio. (Ej. Scrap SIEMPRE es Danger, Producción SIEMPRE es Primary).
+13. **Business Logic Prohibition (Golden Rule #13).** El frontend nunca inventará lógica de negocio. Toda regla operacional deberá existir en el backend. El frontend únicamente validará la experiencia del usuario (campos requeridos, formatos, navegación y retroalimentación visual), pero nunca tomará decisiones que puedan afectar la integridad de los datos.
 
 ## Strict Prohibitions
 - NO Glassmorphism, transparencies, or blurred backgrounds.

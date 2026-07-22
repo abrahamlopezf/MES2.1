@@ -23,6 +23,7 @@ module.exports = {
         last_name,
         email,
         username,
+        numero_nomina,
         password_hash,
         role_id,
         area_id,
@@ -37,24 +38,26 @@ module.exports = {
         'Desarrollador',
         'superadmin@sistema.local',
         'superadmin',
+        'EMP-0000',
         :passwordHash,
         :roleId,
         NULL,
         true,
         true,
         NULL,
-        NOW(),
-        NOW()
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
       )
       ON CONFLICT (username)
       DO UPDATE SET
         first_name = EXCLUDED.first_name,
         last_name = EXCLUDED.last_name,
         email = EXCLUDED.email,
+        numero_nomina = EXCLUDED.numero_nomina,
         role_id = EXCLUDED.role_id,
         area_id = NULL,
         is_active = true,
-        updated_at = NOW();
+        updated_at = CURRENT_TIMESTAMP;
       `,
       {
         replacements: {

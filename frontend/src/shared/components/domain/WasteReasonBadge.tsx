@@ -17,7 +17,7 @@ export function WasteReasonBadge({ type, reason }: WasteReasonBadgeProps) {
     )}>
       <div className={cn(
         "px-2 py-1 text-xs font-black uppercase tracking-wider flex items-center gap-1",
-        isScrap ? "bg-danger text-white" : "bg-warning text-white"
+        isScrap ? "bg-danger text-danger-foreground" : "bg-warning text-warning-foreground"
       )}>
         {isScrap ? <AlertCircle className="w-3 h-3" /> : <FileWarning className="w-3 h-3" />}
         {type}

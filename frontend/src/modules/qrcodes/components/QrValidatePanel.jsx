@@ -102,7 +102,7 @@ const QrValidatePanel = ({
       </form>
 
       {error && (
-        <div style={{ marginTop: '24px' }}>
+        <div className="mt-6">
           <Alert
             variant="danger"
             title="QR no válido"

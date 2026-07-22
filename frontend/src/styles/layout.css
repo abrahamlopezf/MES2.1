@@ -1,0 +1,187 @@
+/* =========================
+   ESTRUCTURA GENERAL
+========================= */
+.page-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.module-page,
+.dashboard-home {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.module-stack {
+  display: grid;
+  gap: 24px;
+}
+
+.module-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 820px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   FORMS LAYOUT
+========================= */
+.user-form,
+.role-form,
+.qr-form {
+  display: grid;
+  gap: 24px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.form-grid-full {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+  .form-actions > * {
+    width: 100%;
+  }
+}
+
+/* =========================
+   FILTERS LAYOUT
+========================= */
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 18px;
+  align-items: end;
+}
+
+.filter-grid-3 {
+  grid-template-columns: 1.4fr 1fr 1fr;
+}
+
+.filter-grid-2 {
+  grid-template-columns: 1.4fr 1fr;
+}
+
+.filter-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .filter-grid,
+  .filter-grid-3,
+  .filter-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .filter-grid,
+  .filter-grid-3,
+  .filter-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .filter-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-actions-row > * {
+    width: 100%;
+  }
+}
+
+/* =========================
+   QR LAYOUT
+========================= */
+.qr-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.qr-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .qr-check-grid,
+  .qr-result-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   TABLES LAYOUT
+========================= */
+.table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .table-actions {
+    justify-content: stretch;
+  }
+  .table-actions > * {
+    width: 100%;
+  }
+}
+
+/* =========================
+   PERMISSIONS LAYOUT
+========================= */
+.permission-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .permission-check-grid {
+    grid-template-columns: 1fr;
+  }
+}

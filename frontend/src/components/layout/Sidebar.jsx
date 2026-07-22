@@ -10,6 +10,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
+import { useUsersQuery } from "../../modules/users/hooks/useUsers";
 
 const menuItems = [
   {
@@ -19,60 +20,15 @@ const menuItems = [
     permission: "dashboard.read",
   },
   { label: "Usuarios", path: "/users", icon: Users, permission: "users.read" },
-  {
-    label: "Roles",
-    path: "/roles",
-    icon: ShieldCheck,
-    permission: "roles.read",
-  },
-  { label: "QR", path: "/qr", icon: QrCode, permission: "qr.read" },
-  {
-    label: "Materiales",
-    path: "/materials",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Recepción",
-    path: "/recepcion",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Mezclado",
-    path: "/formulas",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Extrusión",
-    path: "/extrusion",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Scrap",
-    path: "/scrap",
-    icon: Boxes,
-    permission: "materials.read",
-  },
-  {
-    label: "Calidad",
-    path: "/calidad",
-    icon: ShieldCheck,
-    permission: "materials.read",
-  },
-  { label: "Áreas", path: "/areas", icon: Building2, permission: "areas.read" },
-  {
-    label: "Reportes",
-    path: "/reports",
-    icon: BarChart3,
-    permission: "reports.read",
-  },
 ];
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { hasPermission, logout } = useAuthStore();
+  
+  const canApproveUsers = hasPermission("users.approve");
+  const { data: allUsers = [] } = useUsersQuery({ enabled: canApproveUsers });
+  const pendingUsersCount = allUsers.filter(u => u.status === 'PENDING').length;
+
   const visibleMenuItems = menuItems.filter((item) =>
     hasPermission(item.permission),
   );
@@ -122,15 +78,22 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 }
               >
                 {({ isActive }) => (
-                  <>
-                    <Icon
-                      size={22}
-                      className={
-                        isActive ? "text-primary" : "text-muted-foreground"
-                      }
-                    />
-                    <span className="whitespace-nowrap">{item.label}</span>
-                  </>
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-4">
+                      <Icon
+                        size={22}
+                        className={
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        }
+                      />
+                      <span className="whitespace-nowrap">{item.label}</span>
+                    </div>
+                    {item.path === '/users' && pendingUsersCount > 0 && (
+                      <span className="bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full">
+                        {pendingUsersCount}
+                      </span>
+                    )}
+                  </div>
                 )}
               </NavLink>
             );

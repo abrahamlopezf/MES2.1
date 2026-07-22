@@ -1,130 +1,135 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, LogIn, User } from 'lucide-react';
+import { Lock, LogIn, User } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
+
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const loginSchema = z.object({
+  identifier: z.string().min(1, 'El usuario o número de nómina es obligatorio.'),
+  password: z.string().min(1, 'La contraseña es obligatoria.'),
+});
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuthStore();
 
-  const {
-    login,
-    isAuthenticated,
-    isLoading,
-    error,
-  } = useAuthStore();
-
-  const [formData, setFormData] = useState({
-    identifier: '',
-    password: '',
+  const form = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      identifier: '',
+      password: '',
+    },
   });
 
-  const [showPassword, setShowPassword] = useState(false);
+  const mutation = useMutation({
+    mutationFn: (credentials) => login(credentials),
+    onSuccess: () => {
+      navigate('/dashboard', { replace: true });
+    },
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      form.setFocus('identifier');
+    }
+  }, [isAuthenticated, form.setFocus, form]);
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    try {
-      await login(formData);
-      navigate('/dashboard', { replace: true });
-    } catch (loginError) {
-      console.error('Error de login:', loginError);
-    }
+  const onSubmit = (data) => {
+    mutation.mutate(data);
   };
 
   return (
-    <main className="login-page">
-      <section className="login-card">
-        <div className="login-header">
-          <div className="login-icon">
-            <Lock size={42} />
+    <main className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-lg border-border">
+        <CardHeader className="space-y-3 items-center text-center pb-6">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-2">
+            <Lock className="w-8 h-8 text-primary" />
           </div>
-
-          <h1>Acceso al sistema</h1>
-          <p>
+          <CardTitle className="text-2xl font-bold tracking-tight">Acceso al sistema</CardTitle>
+          <CardDescription className="text-base">
             Ingresa tu usuario y contraseña para continuar.
-          </p>
-        </div>
+          </CardDescription>
+        </CardHeader>
 
-        {error && (
-          <div className="form-alert form-alert-error">
-            {error}
-          </div>
-        )}
+        <CardContent>
+          {mutation.isError && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>
+                {mutation.error?.message || 'No pudimos iniciar sesión.'}
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label className="form-field">
-            <span>Usuario o correo</span>
-
-            <div className="input-with-icon">
-              <User size={24} />
-              <input
-                type="text"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              <FormField
+                control={form.control}
                 name="identifier"
-                value={formData.identifier}
-                onChange={handleChange}
-                placeholder="Ejemplo: superadmin"
-                autoComplete="username"
-                required
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Usuario o No. de Nómina</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <User className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          placeholder="Ingresa tu usuario o número de nómina"
+                          autoComplete="username"
+                          disabled={mutation.isPending}
+                          className="!pl-10"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </label>
 
-          <label className="form-field">
-            <span>Contraseña</span>
-
-            <div className="input-with-icon">
-              <Lock size={24} />
-
-              <input
-                type={showPassword ? 'text' : 'password'}
+              <FormField
+                control={form.control}
                 name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Escribe tu contraseña"
-                autoComplete="current-password"
-                required
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder="Escribe tu contraseña"
+                          autoComplete="current-password"
+                          disabled={mutation.isPending}
+                          className="!pl-10"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
 
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setShowPassword((currentValue) => !currentValue)}
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                {showPassword ? <EyeOff size={24} /> : <Eye size={24} />}
-              </button>
-            </div>
-          </label>
-
-          <button
-            type="submit"
-            className="primary-button full-width-button"
-            disabled={isLoading}
-          >
-            <LogIn size={26} />
-            {isLoading ? 'Ingresando...' : 'Ingresar al sistema'}
-          </button>
-        </form>
-
-        <div className="login-helper">
-          <strong>Usuario inicial:</strong> superadmin
-          <br />
-          <strong>Contraseña:</strong> Admin123*
-        </div>
-      </section>
+              <Button type="submit" className="w-full h-11 text-base font-semibold mt-2" disabled={mutation.isPending}>
+                <LogIn className={`mr-2 h-5 w-5 ${mutation.isPending ? 'animate-pulse' : ''}`} />
+                {mutation.isPending ? 'Validando...' : 'Ingresar al sistema'}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </main>
   );
 };

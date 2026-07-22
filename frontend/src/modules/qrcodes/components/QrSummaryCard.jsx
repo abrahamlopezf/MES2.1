@@ -12,11 +12,11 @@ const QrSummaryCard = ({
   const shouldReduceMotion = useReducedMotion();
 
   const toneClasses = {
-    primary: 'bg-[rgba(31,58,95,0.10)] text-[var(--color-primary)]',
-    success: 'bg-[rgba(47,133,90,0.12)] text-[var(--color-success)]',
-    warning: 'bg-[rgba(183,121,31,0.14)] text-[var(--color-warning)]',
-    danger: 'bg-[rgba(197,48,48,0.12)] text-[var(--color-danger)]',
-    neutral: 'bg-slate-100 text-slate-600',
+    primary: 'bg-primary/10 text-primary',
+    success: 'bg-success/10 text-success',
+    warning: 'bg-warning/10 text-warning',
+    danger: 'bg-danger/10 text-danger',
+    neutral: 'bg-muted text-muted-foreground',
   };
 
   const Component = shouldReduceMotion ? 'article' : motion.article;
@@ -27,7 +27,7 @@ const QrSummaryCard = ({
       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
       className={[
         'relative overflow-hidden rounded-[2rem] border border-[rgba(31,58,95,0.10)]',
-        'bg-white p-5 shadow-[0_16px_42px_rgba(31,41,51,0.08)]',
+        'bg-card p-5 shadow-lg',
         'transition-all duration-300 ease-out',
       ].join(' ')}
     >
@@ -39,16 +39,16 @@ const QrSummaryCard = ({
         </div>
 
         <div className="grid gap-1">
-          <span className="text-sm font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <span className="text-sm font-black uppercase tracking-[0.12em] text-muted-foreground">
             {title}
           </span>
 
-          <strong className="text-3xl font-black leading-none text-[var(--color-primary)]">
+          <strong className="text-3xl font-black leading-none text-primary">
             {value}
           </strong>
 
           {description && (
-            <small className="font-bold leading-relaxed text-[var(--color-muted)]">
+            <small className="font-bold leading-relaxed text-muted-foreground">
               {description}
             </small>
           )}

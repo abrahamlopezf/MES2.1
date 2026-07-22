@@ -3,34 +3,45 @@ import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { Activity, Package, Layers, AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
+import { useThemeStore } from '../../../store/themeStore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, delay }) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.4, ease: "easeOut" }}
-    className="glass-panel p-6 flex flex-col justify-between"
   >
-    <div className="flex justify-between items-start mb-6">
-      <div className={`p-3 rounded-lg flex items-center justify-center ${colorClass}`}>
-        <Icon size={26} />
-      </div>
-      <div className="flex items-center gap-1 bg-surface px-2 py-1 rounded-md border border-border">
-        <TrendingUp size={14} className="text-success" style={{ color: 'var(--color-success)' }} />
-        <span className="text-text text-xs font-bold" style={{ color: 'var(--color-text)' }}>+12%</span>
-      </div>
-    </div>
-    
-    <div>
-      <h3 className="text-muted text-sm font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-muted)' }}>{title}</h3>
-      <p className="text-4xl font-black text-text tracking-tight" style={{ color: 'var(--color-text)' }}>{value}</p>
-    </div>
+    <Card className="flex flex-col justify-between h-full shadow-sm">
+      <CardHeader className="flex flex-row justify-between items-start pb-2">
+        <div className={`p-3 rounded-lg flex items-center justify-center ${colorClass}`}>
+          <Icon size={26} />
+        </div>
+        <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md border border-border">
+          <TrendingUp size={14} className="text-success" />
+          <span className="text-foreground text-xs font-bold">+12%</span>
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        <CardTitle className="text-foreground opacity-70 text-sm font-bold uppercase tracking-wider mb-1">{title}</CardTitle>
+        <p className="text-4xl font-black text-foreground tracking-tight">{value}</p>
+      </CardContent>
+    </Card>
   </motion.div>
 );
 
 const DashboardPage = () => {
   const { user } = useAuthStore();
+  const { theme } = useThemeStore();
   const userName = user?.first_name || user?.username || 'Usuario';
+
+  // Configuración de colores estrictos para Recharts
+  const isDark = theme === 'dark';
+  const axisColor = isDark ? '#e4e4e7' : '#18181b'; // zinc-200 : zinc-900
+  const gridColor = isDark ? '#27272a' : '#e4e4e7'; // zinc-800 : zinc-200
+  const tooltipBg = isDark ? '#18181b' : '#ffffff'; // card bg
+  const tooltipBorder = isDark ? '#27272a' : '#e4e4e7'; // border
 
   // Mock data para KPIs
   const stats = {
@@ -66,23 +77,23 @@ const DashboardPage = () => {
       >
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
-            <Zap size={24} className="text-primary" style={{ color: 'var(--color-primary)' }} />
+            <Zap size={24} className="text-primary" />
           </div>
-          <h1 className="text-4xl font-black text-text tracking-tight" style={{ color: 'var(--color-text)' }}>
-            Hola, <span style={{ color: 'var(--color-primary)' }}>{userName}</span>
+          <h1 className="text-4xl font-black text-foreground tracking-tight">
+            Hola, <span className="text-primary">{userName}</span>
           </h1>
         </div>
-        <p className="text-muted text-lg font-medium mt-1 ml-12" style={{ color: 'var(--color-muted)' }}>
-          Monitor de <span className="font-bold text-text" style={{ color: 'var(--color-text)' }}>Producción y Rendimiento</span> en Tiempo Real.
+        <p className="text-foreground opacity-70 text-lg font-medium mt-1 ml-12">
+          Monitor de <span className="font-bold text-foreground">Producción y Rendimiento</span> en Tiempo Real.
         </p>
       </motion.div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard delay={0.1} title="Materia Prima" value={stats.rawMaterial} icon={Package} colorClass="bg-primary text-white" />
-        <StatCard delay={0.2} title="Rendimiento Global" value={stats.yieldRate} icon={Activity} colorClass="bg-success text-white" />
-        <StatCard delay={0.3} title="Rollos Activos" value={stats.activeRolls} icon={Layers} colorClass="bg-secondary text-white" />
-        <StatCard delay={0.4} title="Merma Acumulada" value={stats.monthlyScrap} icon={AlertTriangle} colorClass="bg-danger text-white" />
+        <StatCard delay={0.1} title="Materia Prima" value={stats.rawMaterial} icon={Package} colorClass="bg-primary text-primary-foreground" />
+        <StatCard delay={0.2} title="Rendimiento Global" value={stats.yieldRate} icon={Activity} colorClass="bg-success text-success-foreground" />
+        <StatCard delay={0.3} title="Rollos Activos" value={stats.activeRolls} icon={Layers} colorClass="bg-secondary text-secondary-foreground" />
+        <StatCard delay={0.4} title="Merma Acumulada" value={stats.monthlyScrap} icon={AlertTriangle} colorClass="bg-danger text-danger-foreground" />
       </div>
 
       {/* Charts Grid */}
@@ -93,32 +104,35 @@ const DashboardPage = () => {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.5 }}
-          className="glass-panel p-6 sm:p-8 xl:col-span-2"
+          className="xl:col-span-2"
         >
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-surface border border-border rounded-lg shadow-sm"><Activity size={22} className="text-primary" style={{ color: 'var(--color-primary)' }} /></div>
-            <div>
-              <h3 className="text-2xl font-black text-text tracking-tight" style={{ color: 'var(--color-text)' }}>Análisis de Rendimiento</h3>
-              <p className="text-sm font-semibold text-muted" style={{ color: 'var(--color-muted)' }}>Comparativa de Entradas vs Salidas (kg)</p>
-            </div>
-          </div>
-          
-          <div className="h-[380px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={yieldData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="name" stroke="var(--color-muted)" tick={{fill: 'var(--color-text)', fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} dy={15} />
-                <YAxis stroke="var(--color-muted)" tick={{fill: 'var(--color-text)', fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} />
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: '8px', color: 'var(--color-text)', padding: '12px' }}
-                  itemStyle={{ color: 'var(--color-text)', fontWeight: 'bold' }}
-                />
-                <Legend verticalAlign="top" height={40} wrapperStyle={{ paddingBottom: '24px', fontWeight: 700, color: 'var(--color-text)' }} iconType="circle" />
-                <Area type="monotone" name="Entradas Acumuladas" dataKey="entradas" stroke="var(--color-primary)" strokeWidth={4} fill="var(--color-primary)" fillOpacity={0.1} activeDot={{ r: 6, strokeWidth: 0, fill: 'var(--color-primary)' }} />
-                <Area type="monotone" name="Salidas Reales" dataKey="salidas" stroke="var(--color-secondary)" strokeWidth={4} fill="var(--color-secondary)" fillOpacity={0.1} activeDot={{ r: 6, strokeWidth: 0, fill: 'var(--color-secondary)' }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <Card className="h-full shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 pb-8">
+              <div className="p-3 bg-muted border border-border rounded-lg shadow-sm"><Activity size={22} className="text-primary" /></div>
+              <div>
+                <CardTitle className="text-2xl font-black text-foreground tracking-tight">Análisis de Rendimiento</CardTitle>
+                <p className="text-sm font-semibold text-foreground opacity-70">Comparativa de Entradas vs Salidas (kg)</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[380px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={yieldData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" stroke={gridColor} vertical={false} />
+                    <XAxis dataKey="name" stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} dy={15} />
+                    <YAxis stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} />
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: axisColor, padding: '12px' }}
+                      itemStyle={{ color: axisColor, fontWeight: 'bold' }}
+                    />
+                    <Legend verticalAlign="top" height={40} wrapperStyle={{ paddingBottom: '24px', fontWeight: 700, color: 'var(--foreground)' }} iconType="circle" />
+                    <Area type="monotone" name="Entradas Acumuladas" dataKey="entradas" stroke="var(--primary)" strokeWidth={4} fill="var(--primary)" fillOpacity={0.1} activeDot={{ r: 6, strokeWidth: 0, fill: 'var(--primary)' }} />
+                    <Area type="monotone" name="Salidas Reales" dataKey="salidas" stroke="var(--secondary)" strokeWidth={4} fill="var(--secondary)" fillOpacity={0.1} activeDot={{ r: 6, strokeWidth: 0, fill: 'var(--secondary)' }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Scrap Bar Chart */}
@@ -126,31 +140,33 @@ const DashboardPage = () => {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6 }}
-          className="glass-panel p-6 sm:p-8"
         >
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-surface border border-border rounded-lg shadow-sm"><AlertTriangle size={22} className="text-danger" style={{ color: 'var(--color-danger)' }} /></div>
-            <div>
-              <h3 className="text-2xl font-black text-text tracking-tight" style={{ color: 'var(--color-text)' }}>Merma Operativa</h3>
-              <p className="text-sm font-semibold text-muted" style={{ color: 'var(--color-muted)' }}>Impacto por Área de Trabajo</p>
-            </div>
-          </div>
-          
-          <div className="h-[380px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={scrapData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="area" stroke="var(--color-muted)" tick={{fill: 'var(--color-text)', fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} dy={15} />
-                <YAxis stroke="var(--color-muted)" tick={{fill: 'var(--color-text)', fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} />
-                <RechartsTooltip 
-                  cursor={{fill: 'var(--color-border)', opacity: 0.5}}
-                  contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: '8px', color: 'var(--color-text)' }}
-                  itemStyle={{ color: 'var(--color-danger)', fontWeight: 'bold' }}
-                />
-                <Bar name="Merma Registrada (kg)" dataKey="kg" fill="var(--color-danger)" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <Card className="h-full shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 pb-8">
+              <div className="p-3 bg-muted border border-border rounded-lg shadow-sm"><AlertTriangle size={22} className="text-danger" /></div>
+              <div>
+                <CardTitle className="text-2xl font-black text-foreground tracking-tight">Merma Operativa</CardTitle>
+                <p className="text-sm font-semibold text-foreground opacity-70">Impacto por Área de Trabajo</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[380px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={scrapData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" stroke={gridColor} vertical={false} />
+                    <XAxis dataKey="area" stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} dy={15} />
+                    <YAxis stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} />
+                    <RechartsTooltip 
+                      cursor={{fill: gridColor, opacity: 0.5}}
+                      contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: axisColor }}
+                      itemStyle={{ color: 'var(--danger)', fontWeight: 'bold' }}
+                    />
+                    <Bar name="Merma Registrada (kg)" dataKey="kg" fill="var(--danger)" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
       </div>
