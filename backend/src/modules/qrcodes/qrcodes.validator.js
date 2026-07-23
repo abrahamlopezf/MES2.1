@@ -8,6 +8,7 @@ const generateQrBatchSchema = Joi.object({
     'any.required': 'La cantidad es obligatoria.',
   }),
   assigned_area_id: Joi.number().integer().positive().allow(null).optional(),
+  nomenclature_prefix: Joi.string().min(3).max(50).optional(),
   notes: Joi.string().allow('', null).max(500).optional(),
 });
 

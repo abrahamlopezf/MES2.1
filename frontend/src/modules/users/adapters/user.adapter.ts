@@ -13,7 +13,7 @@ export const userAdapter = {
       username: dto.username || '',
       numeroNomina: dto.numero_nomina || '', 
       correo: dto.email || '',
-      telefono: (dto as any).phone || (dto as any).telefono || '',
+      telefono: dto.telefono || '',
       areaId: dto.area ? String(dto.area.id) : '',
       areaNombre: dto.area?.name || 'Sin área',
       rolId: dto.role ? String(dto.role.id) : '',
@@ -31,8 +31,7 @@ export const userAdapter = {
       email: domain.correo,
       // Temporalmente ACTIVE significa true, cualquier otro significa false
       is_active: domain.status === 'ACTIVE',
-      // @ts-ignore
-      phone: domain.telefono,
+      telefono: domain.telefono,
       role_id: Number(domain.rolId),
       area_id: domain.areaId ? Number(domain.areaId) : null,
     };

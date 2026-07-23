@@ -91,8 +91,8 @@ const generateBatchCode = () => {
   return `QRB-${datePart}-${timePart}-${randomPart}`;
 };
 
-const buildQrCodeValue = (batchCode, serialNumber) => {
-  return `${batchCode}-${String(serialNumber).padStart(6, '0')}`;
+const buildQrCodeValue = (nomenclaturePrefix, serialNumber) => {
+  return `${nomenclaturePrefix}-${String(serialNumber).padStart(9, '0')}`;
 };
 
 const buildAreaResponse = (area) => {
@@ -304,16 +304,30 @@ const generateQrBatch = async (payload, currentUser) => {
       }
     );
 
+    const nomenclaturePrefix = payload.nomenclature_prefix || 'UND-UND-UND';
     const status = assignedAreaId ? QR_STATUS.DISPONIBLE : QR_STATUS.GENERADO;
     const now = new Date();
 
-    for (let start = 1; start <= payload.quantity; start += CHUNK_SIZE) {
-      const end = Math.min(start + CHUNK_SIZE - 1, payload.quantity);
+    // Obtener los siguientes N seriales de la secuencia
+    const seqResult = await sequelize.query(
+      `SELECT nextval('qr_code_serial_seq') as serial FROM generate_series(1, :qty);`,
+      {
+        replacements: { qty: payload.quantity },
+        type: sequelize.QueryTypes.SELECT,
+        transaction,
+      }
+    );
+    const serials = seqResult.map(r => Number(r.serial));
+
+    for (let start = 0; start < payload.quantity; start += CHUNK_SIZE) {
+      const end = Math.min(start + CHUNK_SIZE, payload.quantity);
       const rows = [];
 
-      for (let serial = start; serial <= end; serial += 1) {
+      for (let i = start; i < end; i++) {
+        const serial = serials[i];
         rows.push({
-          qr_code: buildQrCodeValue(batchCode, serial),
+          serial,
+          qr_code: buildQrCodeValue(nomenclaturePrefix, serial),
           batch_id: batch.id,
           assigned_area_id: assignedAreaId,
           current_area_id: assignedAreaId,
@@ -441,6 +455,11 @@ const getQrBatches = async (query, currentUser) => {
     where,
     include: [
       {
+        model: QrCode,
+        as: 'codes',
+        attributes: ['id', 'qr_code', 'status', 'is_active', 'serial', 'uuid'],
+      },
+      {
         model: Area,
         as: 'assignedArea',
       },
@@ -458,18 +477,17 @@ const getQrBatches = async (query, currentUser) => {
   const items = await Promise.all(rows.map(async (batch) => {
     const plainBatch = batch.get ? batch.get({ plain: true }) : batch;
     
-    // Count available QR codes in this batch
-    const available_quantity = await QrCode.count({
-      where: {
-        batch_id: batch.id,
-        status: QR_STATUS.GENERADO,
-        is_active: true
-      }
-    });
+    const available_quantity = batch.codes ? batch.codes.filter(c => c.status === QR_STATUS.GENERADO && c.is_active).length : 0;
+    const tokens = batch.codes ? batch.codes.map(c => ({
+      tokenId: c.uuid,
+      industrialCode: c.qr_code,
+      status: c.status
+    })) : [];
 
     return {
       ...buildBatchResponse(batch),
-      available_quantity
+      available_quantity,
+      tokens
     };
   }));
 

@@ -20,6 +20,12 @@ const menuItems = [
     permission: "dashboard.read",
   },
   { label: "Usuarios", path: "/users", icon: Users, permission: "users.read" },
+  {
+    label: "Generar QRs",
+    path: "/identity/generate",
+    icon: QrCode,
+    permission: "dashboard.read", // Temporalmente usa permiso de lectura
+  },
 ];
 
 const Sidebar = ({ isOpen, setIsOpen }) => {

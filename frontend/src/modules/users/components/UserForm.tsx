@@ -95,7 +95,9 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], areas = [], onClo
             onClose();
           },
           onError: (error: any) => {
-            toast.error(error.response?.data?.message || error.message || 'No se pudo actualizar el usuario');
+            console.error('Update Error:', JSON.stringify(error.response?.data?.errors, null, 2));
+            const detailMsg = error.response?.data?.errors?.[0]?.message;
+            toast.error(detailMsg ? `Error: ${detailMsg}` : error.response?.data?.message || error.message || 'No se pudo actualizar el usuario');
           }
         }
       );

@@ -17,21 +17,12 @@ const UsersTable: React.FC<UsersTableProps> = ({ users = [], onEdit }) => {
   const columns = useMemo<ColumnDef<User>[]>(
     () => [
       {
-        accessorKey: 'numeroNomina',
-        header: 'No. Nómina',
-        cell: ({ row }) => <strong className="font-medium text-foreground">{row.original.numeroNomina}</strong>,
-      },
-      {
         accessorKey: 'username',
-        header: 'Username',
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.username}</span>,
-      },
-      {
-        accessorKey: 'nombreCompleto',
-        header: 'Nombre Completo',
+        header: 'Nombre de usuario',
         cell: ({ row }) => (
-          <span className="text-foreground font-semibold">
-            {row.original.nombres} {row.original.apellidos}
+          <span className="font-semibold text-foreground">
+            {row.original.nombres} {row.original.apellidos} 
+            <span className="text-muted-foreground ml-2 font-normal">({row.original.username})</span>
           </span>
         ),
       },
@@ -52,16 +43,6 @@ const UsersTable: React.FC<UsersTableProps> = ({ users = [], onEdit }) => {
             {row.original.rolNombre}
           </Badge>
         ),
-      },
-      {
-        accessorKey: 'telefono',
-        header: 'Teléfono',
-        cell: ({ row }) => <span className="text-sm">{row.original.telefono || 'N/A'}</span>,
-      },
-      {
-        accessorKey: 'correo',
-        header: 'Correo',
-        cell: ({ row }) => <span className="text-sm">{row.original.correo}</span>,
       },
       {
         accessorKey: 'status',

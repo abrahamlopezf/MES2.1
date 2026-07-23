@@ -1,0 +1,35 @@
+{
+  "areas": [
+    {
+      "id": "ALM",
+      "name": "Almacén",
+      "subcategories": [
+        { "id": "MPR", "name": "Materia Prima", "color": "#3b82f6", "bgClass": "bg-blue-500", "textClass": "text-blue-500", "borderClass": "border-blue-500", "categories": [{ "id": "MAT", "name": "Material Directo" }] },
+        { "id": "APT", "name": "Producto Terminado", "color": "#8b5cf6", "bgClass": "bg-purple-500", "textClass": "text-purple-500", "borderClass": "border-purple-500", "categories": [{ "id": "PRD", "name": "Producto Regular" }] },
+        { "id": "AQS", "name": "Cuarentena / Calidad", "color": "#f59e0b", "bgClass": "bg-amber-500", "textClass": "text-amber-500", "borderClass": "border-amber-500", "categories": [{ "id": "CAL", "name": "Calidad" }] },
+        { "id": "PTI", "name": "Producto Terminado Intermedio", "color": "#6366f1", "bgClass": "bg-indigo-500", "textClass": "text-indigo-500", "borderClass": "border-indigo-500", "categories": [{ "id": "INT", "name": "Intermedio" }] }
+      ]
+    },
+    {
+      "id": "EXT",
+      "name": "Extrusión",
+      "subcategories": [
+        { "id": "MEZ", "name": "Mezclado (Fórmulas)", "color": "#f97316", "bgClass": "bg-orange-500", "textClass": "text-orange-500", "borderClass": "border-orange-500", "categories": [{ "id": "MIX", "name": "Mezcla" }] },
+        { "id": "EXT", "name": "Líneas de Extrusión", "color": "#ef4444", "bgClass": "bg-red-500", "textClass": "text-red-500", "borderClass": "border-red-500", "categories": [{ "id": "PTI", "name": "Bobinas PTI" }] }
+      ]
+    },
+    {
+      "id": "CON",
+      "name": "Telares",
+      "subcategories": [
+        { "id": "IMP", "name": "Telar Tipo 1 (Circular)", "color": "#10b981", "bgClass": "bg-emerald-500", "textClass": "text-emerald-500", "borderClass": "border-emerald-500", "categories": [{ "id": "PRD", "name": "Rollo" }] },
+        { "id": "TL2", "name": "Telar Tipo 2 (Plano)", "color": "#14b8a6", "bgClass": "bg-teal-500", "textClass": "text-teal-500", "borderClass": "border-teal-500", "categories": [{ "id": "PRD", "name": "Rollo" }] },
+        { "id": "TL3", "name": "Telar Tipo 3 (Especial)", "color": "#06b6d4", "bgClass": "bg-cyan-500", "textClass": "text-cyan-500", "borderClass": "border-cyan-500", "categories": [{ "id": "PRD", "name": "Rollo" }] }
+      ]
+    }
+  ],
+  "tokenTypes": [
+    { "id": "QR", "name": "Código QR" },
+    { "id": "RFID", "name": "Etiqueta RFID" }
+  ]
+}

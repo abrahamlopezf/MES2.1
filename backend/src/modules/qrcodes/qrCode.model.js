@@ -7,6 +7,16 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
         primaryKey: true,
       },
+      uuid: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        allowNull: false,
+        unique: true,
+      },
+      serial: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+      },
       qr_code: {
         type: DataTypes.STRING(120),
         allowNull: false,

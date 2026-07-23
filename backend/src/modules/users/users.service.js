@@ -55,6 +55,8 @@ const buildUserResponse = (user) => {
     last_name: plainUser.last_name,
     email: plainUser.email,
     username: plainUser.username,
+    numero_nomina: plainUser.numero_nomina,
+    telefono: plainUser.telefono,
     is_active: plainUser.is_active,
     must_change_password: plainUser.must_change_password,
     last_login_at: plainUser.last_login_at,
@@ -217,6 +219,8 @@ const createUser = async (payload, currentUser) => {
         last_name: payload.last_name,
         email: payload.email,
         username: payload.username,
+        numero_nomina: payload.numero_nomina || null,
+        telefono: payload.telefono || null,
         password_hash: passwordHash,
         role_id: role.id,
         area_id: payload.area_id || null,
@@ -269,6 +273,8 @@ const updateUser = async (userId, payload, currentUser) => {
       last_name: payload.last_name ?? user.last_name,
       email: payload.email ?? user.email,
       username: payload.username ?? user.username,
+      numero_nomina: Object.prototype.hasOwnProperty.call(payload, 'numero_nomina') ? (payload.numero_nomina || null) : user.numero_nomina,
+      telefono: Object.prototype.hasOwnProperty.call(payload, 'telefono') ? (payload.telefono || null) : user.telefono,
       role_id: payload.role_id ?? user.role_id,
       area_id: AREA_REQUIRED_ROLES.includes(role.code)
         ? payload.area_id ?? user.area_id

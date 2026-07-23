@@ -19,6 +19,7 @@ export interface UserDTO {
   email: string;
   username: string;
   numero_nomina: string;
+  telefono?: string;
   is_active: boolean;
   role?: UserRoleDTO;
   area?: UserAreaDTO;

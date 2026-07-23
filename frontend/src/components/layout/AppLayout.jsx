@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
 
 const AppLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -35,6 +36,8 @@ const AppLayout = () => {
           </div>
         </main>
       </div>
+
+      <GlobalScannerModal />
     </div>
   );
 };

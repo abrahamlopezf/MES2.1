@@ -33,8 +33,12 @@ const initUserModel = (sequelize) => {
       },
       numero_nomina: {
         type: DataTypes.STRING(30),
-        allowNull: false,
+        allowNull: true,
         unique: true,
+      },
+      telefono: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
       },
       password_hash: {
         type: DataTypes.STRING(255),
