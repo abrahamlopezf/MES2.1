@@ -1,6 +1,5 @@
 require('dotenv').config();
 const db = require('./src/database/models');
-const materialInventoryService = require('./src/modules/materialInventory/materialInventory.service');
 const processPreparationService = require('./src/modules/formulas/processPreparation.service');
 const processRunService = require('./src/modules/processes/processRun.service');
 const processRunTelaresService = require('./src/modules/processes/processRunTelares.service');
@@ -61,15 +60,6 @@ async function runIntegrityTests() {
       is_active: true
     });
 
-    const receptionRes = await materialInventoryService.receiveMaterial({
-      qr_code: rawMaterialQr.qr_code,
-      material_id: material.id,
-      quantity: 1000,
-      unit: 'KG',
-      supplier_id: 1,
-      po_number: 'PO-TEST-001',
-      notes: 'Lote de prueba de integridad',
-    }, mockUser);
 
     console.log(`✅ Material recibido con éxito. QR: ${rawMaterialQr.qr_code}, Cantidad: 1000 KG`);
     

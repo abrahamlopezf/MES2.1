@@ -19,7 +19,6 @@ const { throwHttpError } = require('../../shared/security/accessRules');
 const qrCodesService = require('../qrcodes/qrcodes.service');
 const { QR_STATUS, QR_EVENT_TYPE } = require('../qrcodes/qr.constants');
 const { TRACEABLE_ITEM_TYPE, TRACEABLE_ITEM_STATUS, TRACEABILITY_MOVEMENT_TYPE, TRACEABILITY_LINK_TYPE } = require('../traceability/traceability.constants');
-const { MATERIAL_MOVEMENT_TYPE, MATERIAL_MOVEMENT_SOURCE, MATERIAL_LOT_STATUS } = require('../materialInventory/materialInventory.constants');
 
 const createPreparation = async (payload, currentUser) => {
   return sequelize.transaction(async (transaction) => {
@@ -141,8 +140,6 @@ const createPreparation = async (payload, currentUser) => {
           const lotBalanceAfter = Number(materialLot.current_quantity) - Number(input.quantity);
           await materialLot.update({
             current_quantity: lotBalanceAfter,
-            status: lotBalanceAfter === 0 ? MATERIAL_LOT_STATUS.CONSUMIDO : materialLot.status,
-            updated_by: currentUser.id,
           }, { transaction });
         }
 

@@ -16,9 +16,6 @@ const initMaterialUnitModel = require('../../modules/materials/materialUnit.mode
 const initMaterialModel = require('../../modules/materials/material.model');
 const initStockUnitModel = require('../../modules/warehouse/stockUnit.model');
 
-const initMaterialStockModel = require('../../modules/materialInventory/materialStock.model');
-const initMaterialLotModel = require('../../modules/materialInventory/materialLot.model');
-const initMaterialStockMovementModel = require('../../modules/materialInventory/materialStockMovement.model');
 
 const initQrAreaAssignmentModel = require('../../modules/traceability/qrAreaAssignment.model');
 const initTraceableItemModel = require('../../modules/traceability/traceableItem.model');
@@ -67,10 +64,6 @@ db.MaterialSubcategory = initMaterialSubcategoryModel(sequelize, DataTypes);
 db.MaterialUnit = initMaterialUnitModel(sequelize, DataTypes);
 db.Material = initMaterialModel(sequelize, DataTypes);
 db.StockUnit = initStockUnitModel(sequelize, DataTypes);
-
-db.MaterialStock = initMaterialStockModel(sequelize, DataTypes);
-db.MaterialLot = initMaterialLotModel(sequelize, DataTypes);
-db.MaterialStockMovement = initMaterialStockMovementModel(sequelize, DataTypes);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
 db.TraceableItem = initTraceableItemModel(sequelize, DataTypes);
@@ -282,70 +275,6 @@ db.Material.belongsTo(db.User, {
   as: 'updater',
 });
 
-db.Material.hasOne(db.MaterialStock, {
-  foreignKey: 'material_id',
-  as: 'stock',
-});
-
-db.MaterialStock.belongsTo(db.Material, {
-  foreignKey: 'material_id',
-  as: 'material',
-});
-
-db.Material.hasMany(db.MaterialLot, {
-  foreignKey: 'material_id',
-  as: 'lots',
-});
-
-db.MaterialLot.belongsTo(db.Material, {
-  foreignKey: 'material_id',
-  as: 'material',
-});
-
-db.Material.hasMany(db.MaterialStockMovement, {
-  foreignKey: 'material_id',
-  as: 'stock_movements',
-});
-
-db.MaterialStockMovement.belongsTo(db.Material, {
-  foreignKey: 'material_id',
-  as: 'material',
-});
-
-db.MaterialLot.hasMany(db.MaterialStockMovement, {
-  foreignKey: 'material_lot_id',
-  as: 'movements',
-});
-
-db.MaterialStockMovement.belongsTo(db.MaterialLot, {
-  foreignKey: 'material_lot_id',
-  as: 'lot',
-});
-
-db.MaterialStock.belongsTo(db.User, {
-  foreignKey: 'created_by',
-  as: 'creator',
-});
-
-db.MaterialStock.belongsTo(db.User, {
-  foreignKey: 'updated_by',
-  as: 'updater',
-});
-
-db.MaterialLot.belongsTo(db.User, {
-  foreignKey: 'created_by',
-  as: 'creator',
-});
-
-db.MaterialLot.belongsTo(db.User, {
-  foreignKey: 'updated_by',
-  as: 'updater',
-});
-
-db.MaterialStockMovement.belongsTo(db.User, {
-  foreignKey: 'created_by',
-  as: 'creator',
-});
 
 /* =========================
    WAREHOUSE

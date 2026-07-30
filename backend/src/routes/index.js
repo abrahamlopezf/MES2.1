@@ -11,7 +11,6 @@ const areasRoutes = require('../modules/areas/areas.routes');
 
 const qrcodesRoutes = require('../modules/qrcodes/qrcodes.routes');
 const materialsRoutes = require('../modules/materials/materials.routes');
-const materialInventoryRoutes = require('../modules/materialInventory/materialInventory.routes');
 const warehouseRoutes = require('../modules/warehouse/warehouse.routes');
 
 const traceabilityRoutes = require('../modules/traceability/traceability.routes');
@@ -37,7 +36,6 @@ router.use('/permissions', permissionsRoutes);
 router.use('/areas', areasRoutes);
 router.use('/qr', qrcodesRoutes);
 router.use('/materials', materialsRoutes);
-router.use('/material-inventory', materialInventoryRoutes);
 router.use('/warehouse', warehouseRoutes);
 router.use('/traceability', traceabilityRoutes);
 router.use('/formulas', formulasRoutes);
