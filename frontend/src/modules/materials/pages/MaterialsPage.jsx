@@ -322,7 +322,7 @@ const MaterialsPage = () => {
   }
 
   return (
-    <section className="materials-page-shell">
+    <div className="grid content-start gap-4 sm:gap-6 lg:gap-8 pb-32 sm:pb-12 overflow-x-hidden">
       {operationMessage && (
         <TFAlert
           variant="success"
@@ -484,7 +484,7 @@ const MaterialsPage = () => {
         onConfirm={handleDeactivateCategory}
         onClose={() => setCategoryToDeactivate(null)}
       />
-    </section>
+    </div>
   );
 };
 

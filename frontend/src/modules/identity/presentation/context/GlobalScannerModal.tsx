@@ -9,6 +9,12 @@ export const GlobalScannerModal: React.FC = () => {
   const { handleScan } = useSmartScanner();
   const { user } = useAuth();
 
+  React.useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('open-scanner', handleOpen);
+    return () => window.removeEventListener('open-scanner', handleOpen);
+  }, []);
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (qrCode.trim()) {
@@ -22,13 +28,6 @@ export const GlobalScannerModal: React.FC = () => {
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-slate-900 text-white p-4 rounded-full shadow-2xl hover:bg-slate-800 transition-colors z-50 flex items-center justify-center"
-      >
-        <QrCode size={28} />
-      </button>
-
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative">

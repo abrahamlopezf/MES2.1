@@ -10,6 +10,7 @@ import { IdentityRequestsPage } from '../modules/identity/presentation/pages/Ide
 import { PrintBatchPage } from '../modules/identity/presentation/pages/PrintBatchPage';
 import { IdentityCustodyPage } from '../modules/identity/presentation/pages/IdentityCustodyPage';
 import { WarehouseTerminalPage } from '../modules/warehouse/presentation/pages/WarehouseTerminalPage';
+import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
 import { MixingTerminalPage } from '../modules/production/presentation/pages/MixingTerminalPage';
 import { AndonBoardPage } from '../modules/production/presentation/pages/AndonBoardPage';
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
@@ -59,6 +60,7 @@ export const AppRouter = () => {
           {/* Warehouse */}
           <Route path="/warehouse">
             <Route path="receive" element={<WarehouseTerminalPage />} />
+            <Route path="inventory" element={<WarehouseInventoryPage />} />
           </Route>
         </Route>
     </Routes>

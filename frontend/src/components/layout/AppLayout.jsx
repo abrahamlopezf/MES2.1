@@ -1,42 +1,75 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
-import Header from './Header';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
+import { Home, Grid, QrCode, User } from 'lucide-react';
+import { PageContainer, BottomNavigation, FAB } from '../../design-system';
+import Sidebar from './Sidebar';
 
 const AppLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Close sidebar on route change on mobile
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location]);
+  const handleNav = (path) => {
+    navigate(path);
+  };
+
+  const navItems = [
+    {
+      icon: <Home size={24} />,
+      label: 'Home',
+      onClick: () => handleNav('/dashboard'),
+      isActive: location.pathname === '/dashboard' || location.pathname === '/'
+    },
+    {
+      icon: <Grid size={24} />,
+      label: 'Áreas',
+      onClick: () => handleNav('/areas'),
+      isActive: location.pathname.startsWith('/areas')
+    },
+    // Botón de Escáner integrado en la barra
+    {
+      icon: <QrCode size={26} />, 
+      label: 'Escanear',
+      onClick: () => window.dispatchEvent(new Event('open-scanner')),
+      isActive: false
+    },
+    {
+      icon: <User size={24} />,
+      label: 'Perfil',
+      onClick: () => handleNav('/profile'),
+      isActive: location.pathname.startsWith('/profile')
+    }
+  ];
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-[100dvh] bg-background text-foreground transition-colors duration-300 overflow-hidden font-sans relative">
+    <div className="flex h-[100dvh] bg-background text-foreground font-sans relative overflow-hidden">
       
-      {/* Mobile Overlay */}
-      {isSidebarOpen && (
-        <div 
-          onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 lg:hidden"
-        />
-      )}
-
-      {/* Sidebar - Controlled purely by CSS on Desktop, toggled on Mobile */}
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden w-full relative">
-        <Header onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
-        
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 w-full">
-          <div className="max-w-7xl mx-auto h-full pb-20 lg:pb-0">
-            <Outlet />
-          </div>
-        </main>
+      {/* Sidebar for Desktop */}
+      <div className="hidden lg:block h-full shrink-0">
+        <Sidebar isOpen={true} setIsOpen={() => {}} />
       </div>
 
+      {/* Mobile-First Layout for ALL screens */}
+      <div className="flex-1 h-full overflow-y-auto relative custom-scrollbar">
+        
+        {/* Main Content Area */}
+        <PageContainer withBottomNav={true} maxWidth="full" className="px-2 py-4 md:px-6 md:py-6 lg:max-w-7xl w-full">
+          <Outlet />
+        </PageContainer>
+        
+      </div>
+
+      {/* Navegación Inferior Flotante (Solo en mobile/tablet) */}
+      <div className="block lg:hidden">
+        <BottomNavigation 
+          items={navItems} 
+          className="left-0 right-0 rounded-t-3xl border-t shadow-2xl" 
+        />
+      </div>
+
+      {/* Global Scanner Modal manages its own state and renders the FAB centrally */}
       <GlobalScannerModal />
     </div>
   );

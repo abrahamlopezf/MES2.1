@@ -17,7 +17,7 @@ export function IdentityRequestsPage() {
   if (isLoading) return <div className="p-8">Cargando solicitudes...</div>;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto space-y-6 overflow-x-hidden">
       <h2 className="text-2xl font-bold text-slate-800">Solicitudes Pendientes</h2>
       
       <div className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">

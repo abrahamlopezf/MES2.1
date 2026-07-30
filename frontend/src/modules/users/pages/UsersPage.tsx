@@ -3,9 +3,7 @@ import { FilterX, Plus, RefreshCw, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Alert } from '@/components/ui/alert.tsx';
-import { Button } from '@/components/ui/button.tsx';
-import { Card } from '@/components/ui/card.tsx';
-import { Input } from '@/components/ui/input.tsx';
+import { Card, Button, Input, TopBar } from '../../../design-system';
 
 // TODO: Refactorizar a Shadcn UI Select en un PR futuro para evitar dependencias circulares con componentes viejos
 // Importamos temporalmente el UI nativo o el Shadcn para filtros si está disponible
@@ -21,7 +19,7 @@ import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { useAuthStore } from '@/store/authStore';
 
 import UserForm from '../components/UserForm';
-import UsersTable from '../components/UsersTable';
+import UsersGrid from '../components/UsersTable';
 import { User } from '../types/user';
 
 const UsersPage: React.FC = () => {
@@ -142,29 +140,19 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Gestión de Usuarios</h2>
-            <p className="text-muted-foreground">Administra los accesos y roles del sistema.</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => refetch()}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Actualizar
+    <div className="space-y-4 px-4 sm:px-6 md:px-8 py-4 md:py-6 pb-32 sm:pb-12 overflow-x-hidden">
+      <TopBar 
+        title="Gestión de Usuarios" 
+        rightAction={
+          <PermissionGate permission="users.create">
+            <Button size="icon" variant="ghost" onClick={openCreateForm}>
+              <Plus className="w-5 h-5 text-primary" />
             </Button>
+          </PermissionGate>
+        }
+      />
 
-            <PermissionGate permission="users.create">
-              <Button onClick={openCreateForm}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nuevo usuario
-              </Button>
-            </PermissionGate>
-          </div>
-        </div>
-
-        <div className="space-y-4">
+      <div className="space-y-4">
           <section className="bg-muted/50 p-4 rounded-lg border space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-medium text-sm">Filtros de Búsqueda</h3>
@@ -235,10 +223,9 @@ const UsersPage: React.FC = () => {
               }
             />
           ) : (
-            <UsersTable users={filteredUsers} onEdit={openEditForm} />
+            <UsersGrid users={filteredUsers} onEdit={openEditForm} />
           )}
         </div>
-      </Card>
     </div>
   );
 };

@@ -9,7 +9,7 @@ export function TraceabilityTreePage() {
 
   if (!tokenId) {
     return (
-      <div className="p-8 max-w-4xl mx-auto text-center text-muted-foreground">
+      <div className="px-4 py-8 sm:p-8 max-w-4xl mx-auto text-center text-muted-foreground">
         No se especificó un ID de token para analizar.
         <button 
           onClick={() => navigate(-1)}
@@ -22,7 +22,7 @@ export function TraceabilityTreePage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="px-4 sm:px-8 py-4 sm:py-8 max-w-4xl mx-auto space-y-8 overflow-x-hidden">
       <div className="flex justify-between items-center mb-2">
         <button 
           onClick={() => navigate(-1)}

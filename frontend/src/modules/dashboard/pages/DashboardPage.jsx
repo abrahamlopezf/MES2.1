@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { Activity, Package, Layers, AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../design-system';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, delay }) => (
   <motion.div 
@@ -67,7 +67,7 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col gap-8 pb-10">
+    <div className="h-full flex flex-col gap-8 px-4 sm:px-6 md:px-8 pb-32 sm:pb-12 overflow-x-hidden">
       
       {/* Header Section */}
       <motion.div 
@@ -115,9 +115,9 @@ const DashboardPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-[380px] w-full">
+              <div className="h-[250px] sm:h-[320px] lg:h-[380px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={yieldData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={yieldData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="4 4" stroke={gridColor} vertical={false} />
                     <XAxis dataKey="name" stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} dy={15} />
                     <YAxis stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} />
@@ -150,9 +150,9 @@ const DashboardPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-[380px] w-full">
+              <div className="h-[250px] sm:h-[320px] lg:h-[380px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={scrapData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <BarChart data={scrapData} margin={{ top: 10, right: 10, left: -25, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="4 4" stroke={gridColor} vertical={false} />
                     <XAxis dataKey="area" stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} dy={15} />
                     <YAxis stroke={axisColor} tick={{fill: axisColor, fontSize: '0.875rem', fontWeight: 600}} axisLine={false} tickLine={false} />

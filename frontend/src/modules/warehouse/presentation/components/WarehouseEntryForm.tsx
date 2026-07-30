@@ -1,195 +1,179 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useWarehouseEntry } from '../hooks/useWarehouseEntry';
 import { useMaterials } from '../../../catalog/presentation/hooks/useCatalog';
-import { PackagePlus, QrCode, User, MapPin, AlertCircle, Loader2 } from 'lucide-react';
-import { UnitOfMeasure } from '../../catalog/domain/valueObjects/UnitOfMeasure';
-import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../../identity/presentation/context/AuthContext';
+import { PackagePlus, QrCode, MapPin, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const WarehouseEntryForm: React.FC = () => {
   const mutation = useWarehouseEntry();
   const { data: materials, isLoading: loadingMaterials } = useMaterials();
 
-  const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-  const qrFromUrl = searchParams.get('qr') || '';
-
-  const [identityTokenId, setIdentityTokenId] = useState(qrFromUrl);
+  const [qrCode, setQrCode] = useState('');
   const [materialId, setMaterialId] = useState('');
-  const [amount, setAmount] = useState(100);
+  const [amount, setAmount] = useState<number | ''>('');
   const [locationId, setLocationId] = useState('ALMACEN-PRINCIPAL');
-  const [operatorId, setOperatorId] = useState(user?.id || 'OP-101');
+  
+  const qrInputRef = useRef<HTMLInputElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedMaterial = materials?.find(m => m.id === materialId);
-  const currentUnit = selectedMaterial?.defaultUnit || 'KG';
+  // Enfoque automático al cargar
+  useEffect(() => {
+    qrInputRef.current?.focus();
+  }, []);
+
+  const handleQrKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Si ya hay material seleccionado, enfocamos la cantidad
+      // De lo contrario, forzamos seleccionar material
+      if (!materialId) {
+        toast.info('Seleccione el material de catálogo.');
+        document.getElementById('material-select')?.focus();
+      } else {
+        amountInputRef.current?.focus();
+      }
+    }
+  };
+
+  const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setMaterialId(e.target.value);
+    amountInputRef.current?.focus();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identityTokenId || !materialId || amount <= 0 || !locationId || !operatorId) return;
+    if (!qrCode || !materialId || !amount || Number(amount) <= 0) {
+      toast.error('Complete todos los campos correctamente.');
+      return;
+    }
 
-    mutation.mutate({
-      identityTokenId,
-      materialId,
-      amount,
-      unit: currentUnit as UnitOfMeasure,
-      locationId,
-      operatorId
-    });
+    mutation.mutate(
+      {
+        qr_code: qrCode,
+        material_id: Number(materialId),
+        quantity: Number(amount),
+        location: locationId,
+      },
+      {
+        onSuccess: () => {
+          toast.success('Entrada registrada exitosamente.');
+          setQrCode('');
+          setAmount('');
+          qrInputRef.current?.focus();
+        },
+        onError: (err: any) => {
+          toast.error(err.response?.data?.message || 'Error al registrar entrada.');
+          qrInputRef.current?.focus();
+        }
+      }
+    );
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-200">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-        <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-          <PackagePlus size={24} />
+    <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-2xl border-4 border-slate-200/60 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-10 pb-6 border-b-2 border-slate-100">
+        <div className="flex items-center gap-4">
+          <div className="bg-blue-600 p-4 rounded-xl text-white shadow-md">
+            <PackagePlus size={40} />
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight">RECEPCIÓN DE MATERIAL</h2>
+            <p className="text-slate-500 font-medium text-lg mt-1">Escanee la etiqueta para iniciar el registro</p>
+          </div>
         </div>
-        <h2 className="text-xl font-bold text-slate-800">Recepción de Material (Almacén)</h2>
+        <div className="text-right">
+          <div className="inline-flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
+            <MapPin size={20} className="text-slate-500" />
+            <select 
+              value={locationId}
+              onChange={e => setLocationId(e.target.value)}
+              className="bg-transparent border-none font-bold text-slate-700 outline-none text-lg"
+            >
+              <option value="ALMACEN-PRINCIPAL">ALMACEN-PRINCIPAL</option>
+              <option value="CUARENTENA">CUARENTENA</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-            <QrCode size={16} /> Identidad & Ubicación
-          </h3>
-          
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Identity Token (QR Virgen)</label>
+      <div className="grid grid-cols-1 gap-8 mb-10">
+        {/* ESCANEO QR */}
+        <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
+          <label className="block text-xl font-bold text-slate-700 mb-3 flex items-center gap-2 uppercase tracking-wide">
+            <QrCode size={24} className="text-blue-600" /> 1. Escanear Etiqueta (QR Virgen)
+          </label>
+          <input 
+            ref={qrInputRef}
+            type="text" 
+            required
+            value={qrCode}
+            onChange={(e) => setQrCode(e.target.value)}
+            onKeyDown={handleQrKeyPress}
+            className="w-full border-2 border-blue-300 rounded-xl px-6 py-6 text-4xl text-slate-900 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none uppercase font-mono font-black tracking-widest bg-white shadow-inner placeholder:text-slate-300"
+            placeholder="ESCANEE EL CÓDIGO QR"
+            autoComplete="off"
+          />
+        </div>
+
+        {/* MATERIAL Y CANTIDAD */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
+            <label className="block text-xl font-bold text-slate-700 mb-3 uppercase tracking-wide">
+              2. Material Recibido
+            </label>
+            {loadingMaterials ? (
+              <div className="h-20 flex items-center justify-center gap-3 text-slate-500 font-bold text-lg">
+                <Loader2 className="animate-spin" size={24} /> Cargando catálogo...
+              </div>
+            ) : (
+              <select
+                id="material-select"
+                required
+                value={materialId}
+                onChange={handleMaterialChange}
+                className="w-full border-2 border-slate-300 rounded-xl px-4 py-6 text-2xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+              >
+                <option value="" disabled>-- SELECCIONE MATERIAL --</option>
+                {materials?.map((m: any) => (
+                  <option key={m.id} value={m.id}>
+                    {m.code} - {m.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
+            <label className="block text-xl font-bold text-slate-700 mb-3 uppercase tracking-wide">
+              3. Cantidad Recibida
+            </label>
             <input 
-              type="text" 
+              ref={amountInputRef}
+              type="number" 
+              min="0.001"
+              step="0.001"
               required
-              value={identityTokenId}
-              onChange={(e) => setIdentityTokenId(e.target.value)}
-              className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono bg-yellow-50"
-              placeholder="Escanee QR"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
+              className="w-full border-2 border-slate-300 rounded-xl px-6 py-6 text-4xl font-black text-slate-900 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-mono bg-white shadow-inner"
+              placeholder="0.000"
             />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Ubicación (Rack/Zona)</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MapPin size={16} className="text-slate-400" />
-              </div>
-              <input 
-                type="text" 
-                required
-                value={locationId}
-                onChange={(e) => setLocationId(e.target.value)}
-                className="w-full border border-slate-300 rounded pl-10 pr-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">ID Operador</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User size={16} className="text-slate-400" />
-              </div>
-              <input 
-                type="text" 
-                required
-                value={operatorId}
-                onChange={(e) => setOperatorId(e.target.value)}
-                className="w-full border border-slate-300 rounded pl-10 pr-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-            <PackagePlus size={16} /> Carga de Inventario
-          </h3>
-          
-          <div className="bg-slate-50 p-4 rounded border border-slate-200">
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Material de Catálogo</label>
-              {loadingMaterials ? (
-                <div className="text-sm text-slate-500 flex items-center gap-2">
-                  <Loader2 className="animate-spin" size={16} /> Cargando catálogo...
-                </div>
-              ) : (
-                <select
-                  required
-                  value={materialId}
-                  onChange={(e) => setMaterialId(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                >
-                  <option value="" disabled>-- Seleccione un Material --</option>
-                  {materials?.map(m => (
-                    <option key={m.id} value={m.id}>
-                      [{m.code}] {m.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Cantidad Recibida</label>
-                <input 
-                  type="number" 
-                  min="0.1"
-                  step="0.1"
-                  required
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                />
-              </div>
-              <div className="w-24">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Unidad</label>
-                <input 
-                  type="text" 
-                  disabled
-                  value={currentUnit}
-                  className="w-full border border-slate-200 bg-slate-100 rounded px-3 py-2 text-lg text-slate-500 text-center font-bold"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-blue-600 mt-3 flex items-center gap-1">
-              <AlertCircle size={12} /> Se creará una unidad de stock trazable (StockUnit).
-            </p>
-          </div>
         </div>
       </div>
-
-      {mutation.isError && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-3">
-          <AlertCircle className="shrink-0 mt-0.5" size={18} />
-          <div>
-            <p className="font-bold text-sm">Fallo al registrar entrada</p>
-            <p className="text-sm mt-1">{mutation.error.message}</p>
-          </div>
-        </div>
-      )}
-
-      {mutation.isSuccess && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg flex justify-between items-center">
-          <div>
-            <p className="font-bold text-sm">Entrada Registrada Exitosamente</p>
-            <p className="text-sm mt-1 opacity-90">StockUnit ID: {mutation.data.stockUnitId}</p>
-          </div>
-          <div className="bg-blue-200 text-blue-800 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">
-            {mutation.data.status}
-          </div>
-        </div>
-      )}
 
       <button
         type="submit"
-        disabled={mutation.isPending || loadingMaterials}
-        className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-lg py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={mutation.isPending || loadingMaterials || !qrCode || !materialId || !amount}
+        className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-3xl tracking-wide py-8 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {mutation.isPending ? (
           <>
-            <Loader2 className="animate-spin" size={24} /> Registrando en Almacén...
+            <Loader2 className="animate-spin" size={36} /> REGISTRANDO...
           </>
         ) : (
           <>
-            <PackagePlus size={24} /> INGRESAR MATERIAL
+            <CheckCircle2 size={36} /> GUARDAR RECEPCIÓN
           </>
         )}
       </button>

@@ -82,6 +82,30 @@ router.delete(
 );
 
 router.get(
+  '/subcategories',
+  authorizePermission('materials.read'),
+  materialsController.getSubcategories
+);
+
+router.post(
+  '/subcategories',
+  authorizePermission('materials.create'),
+  materialsController.createSubcategory
+);
+
+router.get(
+  '/units',
+  authorizePermission('materials.read'),
+  materialsController.getUnits
+);
+
+router.post(
+  '/units',
+  authorizePermission('materials.create'),
+  materialsController.createUnit
+);
+
+router.get(
   '/',
   authorizePermission('materials.read'),
   materialsController.getMaterials

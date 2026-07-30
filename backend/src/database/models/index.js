@@ -11,7 +11,10 @@ const initQrCodeModel = require('../../modules/qrcodes/qrCode.model');
 const initQrEventModel = require('../../modules/qrcodes/qrEvent.model');
 
 const initMaterialCategoryModel = require('../../modules/materials/materialCategory.model');
+const initMaterialSubcategoryModel = require('../../modules/materials/materialSubcategory.model');
+const initMaterialUnitModel = require('../../modules/materials/materialUnit.model');
 const initMaterialModel = require('../../modules/materials/material.model');
+const initStockUnitModel = require('../../modules/warehouse/stockUnit.model');
 
 const initMaterialStockModel = require('../../modules/materialInventory/materialStock.model');
 const initMaterialLotModel = require('../../modules/materialInventory/materialLot.model');
@@ -60,7 +63,10 @@ db.QrCode = initQrCodeModel(sequelize, DataTypes);
 db.QrEvent = initQrEventModel(sequelize, DataTypes);
 
 db.MaterialCategory = initMaterialCategoryModel(sequelize, DataTypes);
+db.MaterialSubcategory = initMaterialSubcategoryModel(sequelize, DataTypes);
+db.MaterialUnit = initMaterialUnitModel(sequelize, DataTypes);
 db.Material = initMaterialModel(sequelize, DataTypes);
+db.StockUnit = initStockUnitModel(sequelize, DataTypes);
 
 db.MaterialStock = initMaterialStockModel(sequelize, DataTypes);
 db.MaterialLot = initMaterialLotModel(sequelize, DataTypes);
@@ -221,9 +227,39 @@ db.MaterialCategory.hasMany(db.Material, {
   as: 'materials',
 });
 
+db.MaterialCategory.hasMany(db.MaterialSubcategory, {
+  foreignKey: 'material_category_id',
+  as: 'subcategories',
+});
+
+db.MaterialSubcategory.belongsTo(db.MaterialCategory, {
+  foreignKey: 'material_category_id',
+  as: 'category',
+});
+
+db.MaterialSubcategory.hasMany(db.Material, {
+  foreignKey: 'subcategory_id',
+  as: 'materials',
+});
+
 db.Material.belongsTo(db.MaterialCategory, {
   foreignKey: 'material_category_id',
   as: 'category',
+});
+
+db.Material.belongsTo(db.MaterialSubcategory, {
+  foreignKey: 'subcategory_id',
+  as: 'subcategory',
+});
+
+db.MaterialUnit.hasMany(db.Material, {
+  foreignKey: 'unit_id',
+  as: 'materials',
+});
+
+db.Material.belongsTo(db.MaterialUnit, {
+  foreignKey: 'unit_id',
+  as: 'unit',
 });
 
 db.MaterialCategory.belongsTo(db.User, {
@@ -309,6 +345,30 @@ db.MaterialLot.belongsTo(db.User, {
 db.MaterialStockMovement.belongsTo(db.User, {
   foreignKey: 'created_by',
   as: 'creator',
+});
+
+/* =========================
+   WAREHOUSE
+========================= */
+
+db.StockUnit.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+db.Material.hasMany(db.StockUnit, {
+  foreignKey: 'material_id',
+  as: 'stock_units',
+});
+
+db.StockUnit.belongsTo(db.MaterialUnit, {
+  foreignKey: 'unit_id',
+  as: 'unit',
+});
+
+db.StockUnit.belongsTo(db.User, {
+  foreignKey: 'user_id',
+  as: 'user',
 });
 
 /* =========================

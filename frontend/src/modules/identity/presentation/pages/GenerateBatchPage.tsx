@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useGenerateBatchMutation } from '../hooks/useGenerateBatchMutation';
-import { useIdentityBatchesQuery } from '../hooks/useIdentityBatches';
+import { useIdentityBatchesQuery, downloadBatchPdf, downloadQrPdf } from '../hooks/useIdentityBatches';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
@@ -109,54 +109,31 @@ export function GenerateBatchPage() {
     toast.error('Error de validación: ' + Object.keys(errors).join(', '));
   };
 
-  const handleReprint = () => {
+  const handleReprint = async () => {
     if (!expandedBatch || !expandedBatch.tokens.length) {
       toast.error('No hay códigos QR para imprimir en este lote.');
       return;
     }
 
-    // Pipeline: Obtener QRs -> Generar HTML/Vista Previa -> Imprimir/Descargar PDF
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('Por favor permite las ventanas emergentes (pop-ups) para ver la vista previa.');
-      return;
+    try {
+      toast.info('Generando PDF del lote, por favor espera...');
+      await downloadBatchPdf(expandedBatch.id, expandedBatch.batchNumber);
+      toast.success('PDF descargado exitosamente.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Ocurrió un error al generar el PDF.');
     }
+  };
 
-    const htmlContent = `
-      <html>
-        <head>
-          <title>Lote ${expandedBatch.batchNumber}</title>
-          <style>
-            body { font-family: 'Courier New', Courier, monospace; padding: 20px; }
-            .label { border: 1px dashed #000; width: 250px; padding: 15px; margin: 10px; display: inline-block; text-align: center; }
-            .code { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
-            .area { font-size: 10px; background: #000; color: #fff; padding: 2px 5px; display: inline-block; }
-            @media print {
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="no-print" style="margin-bottom: 20px;">
-            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Imprimir / Guardar como PDF</button>
-            <p>Se ha generado la vista previa de <b>${expandedBatch.tokens.length}</b> etiquetas.</p>
-          </div>
-          <div>
-            ${expandedBatch.tokens.map(t => `
-              <div class="label">
-                <div class="code">${t.industrialCode}</div>
-                <div class="area">${expandedBatch.areaId}</div>
-              </div>
-            `).join('')}
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    
-    toast.success('Vista previa de impresión generada.');
+  const handlePrintSingle = async (tokenId: string, qrCode: string) => {
+    try {
+      toast.info('Generando PDF del QR...');
+      await downloadQrPdf(tokenId, qrCode);
+      toast.success('PDF descargado exitosamente.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Ocurrió un error al generar el PDF.');
+    }
   };
 
   const handleTraceability = (tokenId: string) => {
@@ -168,180 +145,219 @@ export function GenerateBatchPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto flex flex-col">
+    <div className="space-y-4 px-4 sm:px-6 md:px-8 py-4 md:py-6 pb-32 sm:pb-12 overflow-x-hidden flex flex-col">
       
       {/* HEADER ROW */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Centro de Identidad</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Centro de Identidad</h1>
           <p className="text-muted-foreground mt-1 text-sm">Gestiona y genera lotes de QRs para trazabilidad.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 shadow-sm"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 sm:py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-sm w-full sm:w-auto"
         >
           {isAdmin ? <Plus size={18} /> : <Send size={18} />}
           {isAdmin ? 'Generar Nuevo Lote' : 'Solicitar QRs'}
         </button>
       </div>
 
-      {/* BATCH LIST MAIN AREA */}
-      <div className="bg-card rounded-lg border border-border flex flex-col shadow-sm">
-        <div className="p-6 border-b border-border bg-muted/10">
-          <h2 className="text-xl font-semibold text-card-foreground flex items-center gap-2">
-            <Package2 size={24} className="text-muted-foreground" />
+      {/* BATCH LIST MAIN AREA (SPLIT SCREEN MASTER-DETAIL) */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Package2 size={24} className="text-muted-foreground" />
+          <h2 className="text-xl font-semibold text-foreground tracking-tight">
             Lotes {isAdmin ? 'Generados' : 'de mi Área'}
           </h2>
         </div>
         
-        <div className="p-6 bg-background">
+        <div className="w-full">
           {loadingBatches ? (
             <div className="py-12 text-center text-muted-foreground animate-pulse">Cargando lotes...</div>
           ) : batches && batches.length > 0 ? (
-            <div className="space-y-4">
-              {batches.map(batch => {
-                const isExpanded = expandedBatchId === batch.id;
-                const subData = getSubcategoryData(batch.areaId);
-                
-                return (
-                  <div key={batch.id} className="border border-border rounded-lg overflow-hidden bg-card shadow-sm transition-all duration-200">
-                    
-                    {/* ACCORDION HEADER */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+              
+              {/* MASTER LIST (LEFT PANE) */}
+              <div className={`w-full lg:w-1/3 xl:w-1/4 shrink-0 space-y-4 lg:max-h-[calc(100vh-250px)] lg:overflow-y-auto pr-2 ${expandedBatchId ? 'hidden lg:block' : 'block'}`}>
+                {batches.map(batch => {
+                  const isExpanded = expandedBatchId === batch.id;
+                  const subData = getSubcategoryData(batch.areaId);
+                  
+                  return (
                     <div 
+                      key={batch.id} 
                       onClick={() => toggleExpand(batch.id)}
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                      className={`border rounded-lg overflow-hidden transition-all duration-200 cursor-pointer ${
+                        isExpanded 
+                          ? 'border-primary ring-1 ring-primary shadow-md bg-card/90' 
+                          : 'border-border bg-card hover:bg-muted/50 shadow-sm'
+                      }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 text-primary p-2 rounded-md">
-                          <Printer size={20} />
+                      <div className="flex flex-col p-4 gap-3">
+                        <div className="flex items-center gap-3 min-w-0 w-full">
+                          <div className={`p-2 rounded-md shrink-0 ${isExpanded ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'}`}>
+                            <Printer size={20} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-foreground truncate">{batch.batchNumber}</h3>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {batch.generatedAmount} etiquetas • {new Date(batch.generatedAt).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">{batch.batchNumber}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {batch.generatedAmount} etiquetas • {new Date(batch.generatedAt).toLocaleString()}
-                          </p>
+                        
+                        <div className="flex items-center gap-3 w-full border-t border-border pt-3">
+                          <span className="px-3 py-1 bg-secondary text-secondary-foreground text-xs font-medium rounded-full flex items-center gap-2 truncate max-w-full">
+                            {subData && (
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: subData.color }}></span>
+                            )}
+                            <span className="truncate">{subData ? `${subData.areaName} - ${subData.name}` : batch.areaId}</span>
+                          </span>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <span className="px-3 py-1 bg-secondary text-secondary-foreground text-xs font-medium rounded-full flex items-center gap-2">
-                          {subData && (
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: subData.color }}></span>
-                          )}
-                          {subData ? `${subData.areaName} - ${subData.name}` : batch.areaId}
-                        </span>
-                        {isExpanded ? <ChevronUp size={20} className="text-muted-foreground" /> : <ChevronDown size={20} className="text-muted-foreground" />}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* ACCORDION BODY (EXPANDED) */}
-                    {isExpanded && (
-                      <div className="p-6 border-t border-border bg-muted/10">
-                        {loadingBatchDetails ? (
-                          <div className="py-8 text-center text-muted-foreground text-sm">Obteniendo detalles del lote...</div>
-                        ) : expandedBatch ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-4 duration-300">
-                            
-                            {/* Batch Info */}
-                            <div className="flex flex-col h-full">
-                              <div>
-                                <h4 className="font-bold text-foreground text-sm mb-4 border-b border-border pb-2 uppercase tracking-wider">Detalles del Lote</h4>
-                                <div className="space-y-3 text-sm text-muted-foreground">
-                                  <div className="flex justify-between">
-                                    <span>Lote ID:</span>
-                                    <strong className="text-foreground">{expandedBatch.batchNumber}</strong>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Área / Subcategoría:</span>
-                                    <strong className="text-foreground">
-                                      {subData ? `${subData.areaName} - ${subData.name}` : expandedBatch.areaId}
-                                    </strong>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Generado por:</span>
-                                    <strong className="text-foreground">{expandedBatch.requestedBy}</strong>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Total QRs Generados:</span>
-                                    <strong className="text-foreground">{expandedBatch.generatedAmount}</strong>
-                                  </div>
-                                </div>
+              {/* DETAIL PANE (RIGHT PANE) */}
+              <div className={`w-full lg:flex-1 ${expandedBatchId ? 'block animate-in fade-in slide-in-from-right-8 duration-300' : 'hidden lg:flex flex-col items-center justify-center p-12 border-2 border-dashed border-border rounded-xl bg-card/30 min-h-[500px]'}`}>
+                {expandedBatchId ? (
+                  <div className="bg-card rounded-xl border border-border shadow-sm p-6 w-full lg:min-h-[calc(100vh-250px)]">
+                    
+                    <div className="flex items-center gap-2 mb-6 lg:hidden">
+                      <button 
+                        onClick={() => toggleExpand(expandedBatchId)} 
+                        className="text-muted-foreground p-2 -ml-2 rounded-md hover:bg-muted bg-muted/50"
+                      >
+                        Volver a la lista
+                      </button>
+                    </div>
+
+                    {loadingBatchDetails ? (
+                      <div className="py-12 text-center text-muted-foreground animate-pulse">Obteniendo detalles del lote...</div>
+                    ) : expandedBatch ? (
+                      <div className="flex flex-col gap-8 h-full">
+                        
+                        {/* Batch Info */}
+                        <div className="flex flex-col xl:flex-row gap-8">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-foreground text-sm mb-4 border-b border-border pb-2 uppercase tracking-wider flex justify-between items-center">
+                              <span>Detalles del Lote</span>
+                              <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">{expandedBatch.batchNumber}</span>
+                            </h4>
+                            <div className="space-y-3 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg border border-border/50">
+                              <div className="flex justify-between items-center border-b border-border/50 pb-2">
+                                <span>Área / Subcategoría:</span>
+                                <strong className="text-foreground text-right ml-4">
+                                  {getSubcategoryData(expandedBatch.areaId) ? `${getSubcategoryData(expandedBatch.areaId)?.areaName} - ${getSubcategoryData(expandedBatch.areaId)?.name}` : expandedBatch.areaId}
+                               </strong>
                               </div>
-
-                              <div className="flex gap-4 w-full mt-auto pt-6">
-                                <button 
-                                  onClick={handleReprint}
-                                  className="flex-1 flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2 px-4 rounded-md transition-colors border border-border text-sm"
-                                >
-                                  <Printer size={16} />
-                                  Reimprimir Lote
-                                </button>
+                              <div className="flex justify-between items-center border-b border-border/50 pb-2">
+                                <span>Generado por:</span>
+                                <strong className="text-foreground text-right ml-4">{expandedBatch.requestedBy}</strong>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span>Total QRs Generados:</span>
+                                <strong className="text-foreground font-mono bg-background px-2 py-0.5 rounded border border-border text-right ml-4">{expandedBatch.generatedAmount}</strong>
                               </div>
                             </div>
+                          </div>
 
-                            {/* Tokens View */}
-                            <div className="bg-background rounded-lg border border-border overflow-hidden flex flex-col h-[300px]">
-                              <div className="bg-muted/50 p-3 border-b border-border font-semibold text-sm">
-                                Códigos ({expandedBatch.tokens.length})
-                              </div>
-                              <div className="overflow-y-auto p-4 space-y-3 flex-1">
-                                {expandedBatch.tokens.map((token: any) => (
-                                  <div key={token.tokenId} className="flex flex-col p-3 rounded-md border border-border/50 bg-card gap-3">
-                                    
-                                    {/* QR Físico Simulado */}
-                                    <div className="flex gap-4 items-center">
-                                      <div className="bg-white p-2 rounded-lg border border-slate-200 shrink-0 relative overflow-hidden flex flex-col items-center">
-                                        <QRCodeCanvas value={token.industrialCode} size={64} />
-                                        {/* Marca visual física del QR */}
-                                        <div 
-                                          className="w-full text-center text-[10px] font-bold mt-1 text-white uppercase"
-                                          style={{ backgroundColor: subData?.color || '#000' }}
-                                        >
-                                          {expandedBatch.areaId}
-                                        </div>
+                          <div className="flex flex-col justify-end xl:w-64 pt-6 xl:pt-0 shrink-0">
+                            <button 
+                              onClick={handleReprint}
+                              className="w-full flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-3 px-4 rounded-lg transition-colors border border-border shadow-sm"
+                            >
+                              <Printer size={18} />
+                              Reimprimir Lote Completo
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Tokens View */}
+                        <div className="bg-background rounded-lg border border-border overflow-hidden flex flex-col flex-1 min-h-[300px]">
+                          <div className="bg-muted/50 p-3 border-b border-border font-bold text-sm flex justify-between items-center">
+                            <span>Códigos Físicos del Lote</span>
+                            <span className="bg-background px-2 py-0.5 rounded-full border border-border text-xs">{expandedBatch.tokens.length} unidades</span>
+                          </div>
+                          <div className="overflow-y-auto p-4 flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                              {expandedBatch.tokens.map((token: any) => (
+                                <div key={token.tokenId} className="flex flex-col p-4 rounded-xl border border-border/60 bg-card hover:border-primary/50 transition-colors shadow-sm gap-4 group">
+                                  
+                                  {/* QR Físico Simulado */}
+                                  <div className="flex gap-4 items-center">
+                                    <div className="bg-white p-2 rounded-lg border border-slate-200 shrink-0 relative overflow-hidden flex flex-col items-center shadow-sm">
+                                      <QRCodeCanvas value={token.industrialCode} size={64} />
+                                      {/* Marca visual física del QR */}
+                                      <div 
+                                        className="w-full text-center text-[9px] font-black mt-1 text-white uppercase tracking-wider"
+                                        style={{ backgroundColor: getSubcategoryData(expandedBatch.areaId)?.color || '#000' }}
+                                      >
+                                        {expandedBatch.areaId}
                                       </div>
-                                      
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-mono text-xs font-bold truncate text-foreground">{token.industrialCode}</p>
-                                        <span className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                                          token.status === 'VIRGIN' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                      <p className="font-mono text-sm font-bold truncate text-foreground group-hover:text-primary transition-colors">{token.industrialCode}</p>
+                                      <div className="mt-1.5">
+                                        <span className={`inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                                          token.status === 'UNASSIGNED' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 
                                           'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                                         }`}>
                                           {token.status}
                                         </span>
                                       </div>
                                     </div>
-                                    
-                                    {/* Trazabilidad Action */}
-                                    {token.status !== 'VIRGIN' && (
+                                  </div>
+                                  
+                                  {/* Trazabilidad & Print Actions */}
+                                  <div className="flex flex-col gap-2 w-full mt-auto pt-3 border-t border-border/50">
+                                    {token.status !== 'UNASSIGNED' && (
                                       <button 
                                         onClick={() => handleTraceability(token.industrialCode)}
-                                        className="w-full flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary font-medium py-1.5 px-3 rounded text-xs transition-colors"
+                                        className="w-full flex items-center justify-center gap-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold py-2 px-2 rounded-md text-[11px] transition-colors"
                                       >
-                                        <TreeDeciduous size={14} />
-                                        Ver Trazabilidad
+                                        <TreeDeciduous size={14} className="shrink-0" />
+                                        <span>Trazabilidad</span>
                                       </button>
                                     )}
+                                    <button 
+                                      onClick={() => handlePrintSingle(token.tokenId, token.industrialCode)}
+                                      className="w-full flex items-center justify-center gap-1.5 bg-secondary/50 hover:bg-secondary text-secondary-foreground font-bold py-2 px-2 rounded-md text-[11px] transition-colors"
+                                    >
+                                      <Printer size={14} className="shrink-0" />
+                                      <span>Imprimir</span>
+                                    </button>
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              ))}
                             </div>
-
                           </div>
-                        ) : (
-                          <div className="py-8 text-center text-destructive text-sm">Error al cargar los detalles.</div>
-                        )}
-                      </div>
-                    )}
+                        </div>
 
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-destructive text-sm">Error al cargar los detalles.</div>
+                    )}
                   </div>
-                );
-              })}
+                ) : (
+                  <>
+                    <Package2 size={56} className="opacity-10 mb-4 text-primary" />
+                    <h3 className="text-lg font-bold text-foreground mb-1">Ningún lote seleccionado</h3>
+                    <p className="text-muted-foreground text-center max-w-sm">
+                      Selecciona un lote de la lista izquierda para visualizar su genealogía y los códigos QR generados.
+                    </p>
+                  </>
+                )}
+              </div>
+
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-lg p-12">
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-lg p-12 bg-card/30">
               <Package2 size={48} className="opacity-20 mb-4" />
-              <p className="text-center">No hay lotes {isAdmin ? 'generados' : 'asignados a tu área'} aún.</p>
+              <p className="text-center font-medium">No hay lotes {isAdmin ? 'generados' : 'asignados a tu área'} aún.</p>
             </div>
           )}
         </div>

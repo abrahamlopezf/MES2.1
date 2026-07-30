@@ -56,14 +56,46 @@ const updateCategory = async (req, res, next) => {
 
 const deactivateCategory = async (req, res, next) => {
   try {
-    const category = await materialsService.deactivateCategory({
-      id: req.params.id,
-      currentUser: req.user,
-    });
-
-    return successResponse(res, 'Categoría desactivada correctamente.', category);
+    const result = await materialsService.deactivateCategory(req.params.id, req.user);
+    return successResponse(res, 'Categoría desactivada exitosamente', result);
   } catch (error) {
-    return next(error);
+    next(error);
+  }
+};
+
+const getSubcategories = async (req, res, next) => {
+  try {
+    const result = await materialsService.getSubcategories(req.query, req.user);
+    return successResponse(res, 'Subcategorías obtenidas exitosamente', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createSubcategory = async (req, res, next) => {
+  try {
+    const result = await materialsService.createSubcategory(req.body, req.user);
+    return successResponse(res, 'Subcategoría creada exitosamente', result, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getUnits = async (req, res, next) => {
+  try {
+    const result = await materialsService.getUnits(req.query, req.user);
+    return successResponse(res, 'Unidades obtenidas exitosamente', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createUnit = async (req, res, next) => {
+  try {
+    const result = await materialsService.createUnit(req.body, req.user);
+    return successResponse(res, 'Unidad creada exitosamente', result, 201);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -144,4 +176,8 @@ module.exports = {
   createMaterial,
   updateMaterial,
   deactivateMaterial,
+  getSubcategories,
+  createSubcategory,
+  getUnits,
+  createUnit,
 };

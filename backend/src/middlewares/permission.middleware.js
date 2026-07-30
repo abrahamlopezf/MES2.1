@@ -4,7 +4,8 @@ const permissionMiddleware = (...requiredPermissions) => {
   return (req, res, next) => {
     const userPermissions = req.user?.permissions || [];
 
-    const hasPermission = requiredPermissions.some((permission) =>
+    const isSuperAdmin = req.user?.role?.code === 'SUPERADMIN';
+    const hasPermission = isSuperAdmin || requiredPermissions.some((permission) =>
       userPermissions.includes(permission)
     );
 

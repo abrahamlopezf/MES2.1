@@ -7,6 +7,10 @@ import LoginPage from "../modules/auth/pages/LoginPage";
 import HealthPage from "../modules/health/pages/HealthPage";
 import UsersPage from "../modules/users/pages/UsersPage";
 import DashboardPage from "../modules/dashboard/pages/DashboardPage";
+import MaterialsPage from "../modules/materials/pages/MaterialsPage";
+import QrCodesPage from "../modules/qrcodes/pages/QrCodesPage";
+import { AreasPage } from "../modules/dashboard/pages/AreasPage";
+import ProfilePage from "../modules/users/pages/ProfilePage";
 
 
 
@@ -25,6 +29,7 @@ import { TraceabilityTreePage } from '../modules/traceability/presentation/pages
 
 // Warehouse
 import { WarehouseTerminalPage } from '../modules/warehouse/presentation/pages/WarehouseTerminalPage';
+import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +57,22 @@ export const router = createBrowserRouter([
           {
             path: '/users',
             element: <UsersPage />,
+          },
+          {
+            path: '/areas',
+            element: <AreasPage />,
+          },
+          {
+            path: '/profile',
+            element: <ProfilePage />,
+          },
+          {
+            path: '/materials',
+            element: <MaterialsPage />,
+          },
+          {
+            path: '/qrcodes',
+            element: <QrCodesPage />,
           },
           // Rutas de Identity Center
           {
@@ -108,6 +129,10 @@ export const router = createBrowserRouter([
               {
                 path: 'receive',
                 element: <WarehouseTerminalPage />
+              },
+              {
+                path: 'inventory',
+                element: <WarehouseInventoryPage />
               }
             ]
           }

@@ -1,17 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { catalogFacade } from '../../infrastructure/di/CatalogModuleDI';
-import { MaterialDTO, MaterialCategoryDTO } from '../../application/dto/CatalogDTOs';
+import axiosClient from '../../../../api/axiosClient';
 
 export function useMaterials() {
-  return useQuery<MaterialDTO[]>({
+  return useQuery({
     queryKey: ['catalog', 'materials'],
-    queryFn: () => catalogFacade.getAllMaterials()
+    queryFn: async () => {
+      const response = await axiosClient.get('/materials');
+      return response.data.data.items;
+    }
   });
 }
 
 export function useCategories() {
-  return useQuery<MaterialCategoryDTO[]>({
+  return useQuery({
     queryKey: ['catalog', 'categories'],
-    queryFn: () => catalogFacade.getAllCategories()
+    queryFn: async () => {
+      const response = await apiClient.get('/materials/categories');
+      return response.data.data;
+    }
   });
 }

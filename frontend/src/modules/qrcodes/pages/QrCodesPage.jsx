@@ -51,7 +51,7 @@ const QrCodesPage = () => {
   };
 
   return (
-    <div className="h-full flex flex-col gap-6 pb-10 max-w-5xl mx-auto">
+    <div className="h-full flex flex-col gap-6 pb-10 max-w-5xl mx-auto px-4 sm:px-8 overflow-x-hidden">
       
       {/* Header Section */}
       <motion.div 

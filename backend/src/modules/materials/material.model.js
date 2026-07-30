@@ -1,4 +1,3 @@
-const { MATERIAL_TYPE, MATERIAL_UNIT } = require('./materials.constants');
 
 module.exports = (sequelize, DataTypes) => {
   const Material = sequelize.define(
@@ -23,13 +22,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(160),
         allowNull: false,
       },
-      material_type: {
-        type: DataTypes.ENUM(...Object.values(MATERIAL_TYPE)),
-        allowNull: false,
+      subcategory_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
       },
-      default_unit: {
-        type: DataTypes.ENUM(...Object.values(MATERIAL_UNIT)),
-        allowNull: false,
+      unit_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
       },
       description: {
         type: DataTypes.TEXT,

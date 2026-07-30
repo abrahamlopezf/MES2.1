@@ -3,7 +3,7 @@ const { Op } = require('sequelize');
 const db = require('../../database/models');
 const { throwHttpError } = require('../../shared/security/accessRules');
 
-const { MaterialCategory, Material } = db;
+const { MaterialCategory, MaterialSubcategory, MaterialUnit, Material, User } = db;
 
 const isAdminLike = (user) => {
   const roleCode = user?.role?.code;
@@ -25,25 +25,81 @@ const buildActiveWhere = (currentUser, includeInactive) => {
 };
 
 const getCategories = async ({ query = {}, currentUser }) => {
-  const where = {
-    ...buildActiveWhere(currentUser, query.include_inactive),
-  };
+  const { search, is_active } = query;
 
-  if (query.search) {
-    where[Op.or] = [
-      { code: { [Op.iLike]: `%${query.search}%` } },
-      { name: { [Op.iLike]: `%${query.search}%` } },
-      { description: { [Op.iLike]: `%${query.search}%` } },
-    ];
+  const where = {};
+  if (is_active !== undefined) {
+    where.is_active = is_active === 'true';
+  }
+
+  if (search) {
+    where.name = { [Op.iLike]: `%${search}%` };
   }
 
   return MaterialCategory.findAll({
     where,
-    order: [
-      ['is_active', 'DESC'],
-      ['name', 'ASC'],
+    order: [['name', 'ASC']],
+    include: [
+      {
+        model: User,
+        as: 'creator',
+        attributes: ['id', 'first_name', 'last_name'],
+      },
     ],
   });
+};
+
+const getSubcategories = async (params = {}, currentUser) => {
+  const { search, category_id, is_active } = params;
+  const where = {};
+  if (is_active !== undefined) {
+    where.is_active = is_active === 'true';
+  }
+  if (category_id) {
+    where.material_category_id = category_id;
+  }
+  if (search) {
+    where.name = { [Op.iLike]: `%${search}%` };
+  }
+
+  return MaterialSubcategory.findAll({
+    where,
+    order: [['name', 'ASC']],
+    include: [
+      {
+        model: MaterialCategory,
+        as: 'category',
+        attributes: ['id', 'name'],
+      }
+    ]
+  });
+};
+
+const createSubcategory = async (data, currentUser) => {
+  return MaterialSubcategory.create({
+    ...data,
+    created_by: currentUser.id,
+  });
+};
+
+const getUnits = async (params = {}, currentUser) => {
+  const { search, is_active } = params;
+  const where = {};
+  if (is_active !== undefined) {
+    where.is_active = is_active === 'true';
+  }
+  if (search) {
+    where.name = { [Op.iLike]: `%${search}%` };
+  }
+
+  return MaterialUnit.findAll({
+    where,
+    order: [['name', 'ASC']],
+  });
+};
+
+const createUnit = async (data, currentUser) => {
+  return MaterialUnit.create(data);
 };
 
 const getCategoryById = async ({ id, currentUser }) => {
@@ -190,6 +246,16 @@ const getMaterials = async ({ query = {}, currentUser }) => {
         as: 'category',
         attributes: ['id', 'code', 'name', 'is_active'],
       },
+      {
+        model: MaterialSubcategory,
+        as: 'subcategory',
+        attributes: ['id', 'name'],
+      },
+      {
+        model: MaterialUnit,
+        as: 'unit',
+        attributes: ['id', 'name', 'code'],
+      }
     ],
     order: [
       ['is_active', 'DESC'],
@@ -221,6 +287,16 @@ const getMaterialById = async ({ id, currentUser }) => {
         as: 'category',
         attributes: ['id', 'code', 'name', 'is_active'],
       },
+      {
+        model: MaterialSubcategory,
+        as: 'subcategory',
+        attributes: ['id', 'name'],
+      },
+      {
+        model: MaterialUnit,
+        as: 'unit',
+        attributes: ['id', 'name', 'code'],
+      }
     ],
   });
 
@@ -261,10 +337,10 @@ const createMaterial = async ({ payload, currentUser }) => {
 
   return Material.create({
     material_category_id: payload.material_category_id,
+    subcategory_id: payload.subcategory_id || null,
+    unit_id: payload.unit_id || null,
     code,
     name: payload.name.trim(),
-    material_type: payload.material_type,
-    default_unit: payload.default_unit,
     description: payload.description || null,
     technical_notes: payload.technical_notes || null,
     min_stock: payload.min_stock ?? null,
@@ -306,12 +382,12 @@ const updateMaterial = async ({ id, payload, currentUser }) => {
     material.name = payload.name.trim();
   }
 
-  if (payload.material_type !== undefined) {
-    material.material_type = payload.material_type;
+  if (payload.subcategory_id !== undefined) {
+    material.subcategory_id = payload.subcategory_id;
   }
 
-  if (payload.default_unit !== undefined) {
-    material.default_unit = payload.default_unit;
+  if (payload.unit_id !== undefined) {
+    material.unit_id = payload.unit_id;
   }
 
   if (payload.description !== undefined) {
@@ -363,4 +439,8 @@ module.exports = {
   createMaterial,
   updateMaterial,
   deactivateMaterial,
+  getSubcategories,
+  createSubcategory,
+  getUnits,
+  createUnit,
 };

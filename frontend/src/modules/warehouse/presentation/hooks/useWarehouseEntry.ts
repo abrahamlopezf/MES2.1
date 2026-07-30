@@ -1,10 +1,23 @@
-import { useMutation } from '@tanstack/react-query';
-import { warehouseFacade } from '../../infrastructure/di/WarehouseModuleDI';
-import { RegisterMaterialEntryRequestDTO } from '../../application/dto/WarehouseDTOs';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axiosClient from '../../../../api/axiosClient';
+
+interface ReceiveMaterialRequest {
+  qr_code: string;
+  material_id: number;
+  quantity: number;
+  location: string;
+}
 
 export function useWarehouseEntry() {
+  const queryClient = useQueryClient();
+  
   return useMutation({
-    mutationFn: (request: RegisterMaterialEntryRequestDTO) => 
-      warehouseFacade.registerMaterialEntry(request),
+    mutationFn: async (request: ReceiveMaterialRequest) => {
+      const response = await axiosClient.post('/warehouse/receive', request);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
+    },
   });
 }

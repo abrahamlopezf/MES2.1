@@ -24,7 +24,7 @@ export function IdentityCustodyPage() {
   };
 
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
       <h2 className="text-2xl font-bold text-slate-800">Transferencia de Custodia (Escáner)</h2>
 
       <div className="bg-white p-6 rounded-lg shadow border border-slate-200">

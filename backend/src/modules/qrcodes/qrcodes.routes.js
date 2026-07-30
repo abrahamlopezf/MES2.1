@@ -16,22 +16,12 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// --- RUTAS ESTÁTICAS ---
+
 router.get(
   '/codes',
-  permissionMiddleware('qr.read'),
+  permissionMiddleware('dashboard.read'),
   qrcodesController.getQrCodes
-);
-
-router.get(
-  '/codes/:id/events',
-  permissionMiddleware('qr.events.read'),
-  qrcodesController.getQrEvents
-);
-
-router.get(
-  '/scan/:qrCode',
-  permissionMiddleware('qr.read'),
-  qrcodesController.getQrCodeByValue
 );
 
 router.post(
@@ -43,7 +33,7 @@ router.post(
 
 router.get(
   '/batches',
-  permissionMiddleware('qr.read'),
+  permissionMiddleware('dashboard.read'),
   qrcodesController.getQrBatches
 );
 
@@ -61,11 +51,52 @@ router.post(
   qrcodesController.validateQrForUse
 );
 
+// --- RUTAS DINÁMICAS (Lotes) ---
+
+router.get(
+  '/batches/:id',
+  permissionMiddleware('dashboard.read'),
+  qrcodesController.getQrBatchById
+);
+
+router.post(
+  '/batches/:id/print',
+  permissionMiddleware('dashboard.read'),
+  qrcodesController.printQrBatch
+);
+
+// --- RUTAS DINÁMICAS (Códigos Individuales) ---
+
+router.post(
+  '/scan/:qrCode',
+  permissionMiddleware('qr.read'),
+  qrcodesController.getQrCodeByValue
+);
+
 router.post(
   '/codes/:id/cancel',
   permissionMiddleware('qr.cancel'),
   validate(cancelQrSchema),
   qrcodesController.cancelQrCode
+);
+
+router.post(
+  '/:uuid/print',
+  permissionMiddleware('dashboard.read'),
+  qrcodesController.printQrCode
+);
+
+router.get(
+  '/:id/events',
+  permissionMiddleware('dashboard.read'),
+  qrcodesController.getQrEvents
+);
+
+// ESTA RUTA DEBE IR AL FINAL PORQUE MATCHEA CON TODO
+router.get(
+  '/:qrCode',
+  permissionMiddleware('dashboard.read'),
+  qrcodesController.getQrCodeByValue
 );
 
 module.exports = router;

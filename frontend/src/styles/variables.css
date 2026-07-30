@@ -4,89 +4,89 @@
   :root {
     /* Shadcn standard tokens - Light Mode */
     --background: #F8FAFC;
-    --foreground: #111827;
+    --foreground: #0F172A;
 
     --card: #FFFFFF;
-    --card-foreground: #111827;
+    --card-foreground: #0F172A;
 
     --popover: #FFFFFF;
-    --popover-foreground: #111827;
+    --popover-foreground: #0F172A;
 
-    --primary: #2563EB;
+    --primary: #4338CA; /* Azul Índigo / Petróleo */
     --primary-foreground: #FFFFFF;
 
-    --secondary: #E5E7EB;
-    --secondary-foreground: #111827;
+    --secondary: #10B981; /* Verde Esmeralda */
+    --secondary-foreground: #FFFFFF;
 
     --muted: #F1F5F9;
     --muted-foreground: #64748B;
 
     --border: #E2E8F0;
     --input: #E2E8F0;
-    --ring: #2563EB;
-    --radius: 0.5rem;
+    --ring: #4338CA;
+    --radius: 0.75rem; /* 12px redondeado */
 
     /* Domain specific tokens */
-    --success: #16A34A;
+    --success: #10B981; /* Verde */
     --success-foreground: #FFFFFF;
     
-    --warning: #D97706;
+    --warning: #F59E0B; /* Ámbar */
     --warning-foreground: #FFFFFF;
     
-    --danger: #DC2626;
+    --danger: #EF4444; /* Rojo */
     --danger-foreground: #FFFFFF;
     
-    --quality: #9333EA;
+    --quality: #8B5CF6; /* Púrpura */
     --quality-foreground: #FFFFFF;
     
-    --material: #0891B2;
+    --material: #0F766E; /* Teal / Petróleo alternativo */
     --material-foreground: #FFFFFF;
     
-    --info: #0284C7;
+    --info: #3B82F6; /* Azul */
     --info-foreground: #FFFFFF;
   }
 
   .dark {
     /* Shadcn standard tokens - Dark Mode */
-    --background: #09090B;
-    --foreground: #FAFAFA;
+    --background: #0F172A; /* Slate 900 */
+    --foreground: #F8FAFC;
 
-    --card: #18181B;
-    --card-foreground: #FAFAFA;
+    --card: #1E293B; /* Slate 800 */
+    --card-foreground: #F8FAFC;
 
-    --popover: #18181B;
-    --popover-foreground: #FAFAFA;
+    --popover: #1E293B;
+    --popover-foreground: #F8FAFC;
 
-    --primary: #2563EB;
+    --primary: #6366F1; /* Indigo 500 */
     --primary-foreground: #FFFFFF;
 
-    --secondary: #27272A;
-    --secondary-foreground: #FAFAFA;
+    --secondary: #10B981; /* Emerald 500 */
+    --secondary-foreground: #FFFFFF;
 
-    --muted: #27272A;
-    --muted-foreground: #A1A1AA;
+    --muted: #334155; /* Slate 700 */
+    --muted-foreground: #94A3B8;
 
-    --border: #3F3F46;
-    --input: #3F3F46;
-    --ring: #2563EB;
+    --border: #334155;
+    --input: #334155;
+    --ring: #6366F1;
 
-    /* Domain specific tokens (adjusted for contrast if necessary, keeping base for now) */
-    --success: #16A34A;
+    /* Domain specific tokens */
+    --success: #10B981;
     --success-foreground: #FFFFFF;
     
-    --warning: #D97706;
+    --warning: #F59E0B;
     --warning-foreground: #FFFFFF;
     
-    --danger: #DC2626;
+    --danger: #EF4444;
     --danger-foreground: #FFFFFF;
     
-    --quality: #9333EA;
+    --quality: #8B5CF6;
     --quality-foreground: #FFFFFF;
     
-    --material: #0891B2;
+    --material: #14B8A6; /* Teal 500 */
     --material-foreground: #FFFFFF;
     
-    --info: #0284C7;
+    --info: #3B82F6;
     --info-foreground: #FFFFFF;
   }
 

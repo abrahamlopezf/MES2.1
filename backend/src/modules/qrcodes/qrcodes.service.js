@@ -305,7 +305,7 @@ const generateQrBatch = async (payload, currentUser) => {
     );
 
     const nomenclaturePrefix = payload.nomenclature_prefix || 'UND-UND-UND';
-    const status = assignedAreaId ? QR_STATUS.DISPONIBLE : QR_STATUS.GENERADO;
+    const status = assignedAreaId ? QR_STATUS.ASSIGNED : QR_STATUS.UNASSIGNED;
     const now = new Date();
 
     // Obtener los siguientes N seriales de la secuencia
@@ -477,7 +477,7 @@ const getQrBatches = async (query, currentUser) => {
   const items = await Promise.all(rows.map(async (batch) => {
     const plainBatch = batch.get ? batch.get({ plain: true }) : batch;
     
-    const available_quantity = batch.codes ? batch.codes.filter(c => c.status === QR_STATUS.GENERADO && c.is_active).length : 0;
+    const available_quantity = batch.codes ? batch.codes.filter(c => (c.status === QR_STATUS.UNASSIGNED || c.status === QR_STATUS.ASSIGNED) && c.is_active).length : 0;
     const tokens = batch.codes ? batch.codes.map(c => ({
       tokenId: c.uuid,
       industrialCode: c.qr_code,
@@ -496,6 +496,46 @@ const getQrBatches = async (query, currentUser) => {
     limit,
     offset,
     items,
+  };
+};
+
+const getQrBatchById = async (batchId, currentUser) => {
+  const batch = await QrBatch.findByPk(batchId, {
+    include: [
+      {
+        model: QrCode,
+        as: 'codes',
+        attributes: ['id', 'qr_code', 'status', 'is_active', 'serial', 'uuid'],
+      },
+      {
+        model: Area,
+        as: 'assignedArea',
+      },
+      {
+        model: User,
+        as: 'creator',
+        attributes: ['id', 'first_name', 'last_name', 'username'],
+      },
+    ],
+  });
+
+  if (!batch) {
+    throwHttpError('Lote no encontrado.', 404);
+  }
+
+  const plainBatch = batch.get({ plain: true });
+  
+  const available_quantity = batch.codes ? batch.codes.filter(c => (c.status === QR_STATUS.UNASSIGNED || c.status === QR_STATUS.ASSIGNED) && c.is_active).length : 0;
+  const tokens = batch.codes ? batch.codes.map(c => ({
+    tokenId: c.uuid,
+    industrialCode: c.qr_code,
+    status: c.status
+  })) : [];
+
+  return {
+    ...buildBatchResponse(batch),
+    available_quantity,
+    tokens
   };
 };
 
@@ -548,7 +588,7 @@ const assignQrCodes = async (payload, currentUser) => {
       qrCodes = await QrCode.findAll({
         where: {
           id: payload.qr_code_ids,
-          status: QR_STATUS.GENERADO,
+          status: QR_STATUS.UNASSIGNED,
           is_active: true,
           ...getQrVisibilityWhere(currentUser),
         },
@@ -562,7 +602,7 @@ const assignQrCodes = async (payload, currentUser) => {
       qrCodes = await QrCode.findAll({
         where: {
           batch_id: payload.batch_id,
-          status: QR_STATUS.GENERADO,
+          status: QR_STATUS.UNASSIGNED,
           is_active: true,
           ...getQrVisibilityWhere(currentUser),
         },
@@ -582,7 +622,7 @@ const assignQrCodes = async (payload, currentUser) => {
       {
         assigned_area_id: area.id,
         current_area_id: area.id,
-        status: QR_STATUS.DISPONIBLE,
+        status: QR_STATUS.ASSIGNED,
         assigned_by: currentUser.id,
         assigned_at: now,
       },
@@ -598,7 +638,7 @@ const assignQrCodes = async (payload, currentUser) => {
       qr_code_id: qrCode.id,
       event_type: QR_EVENT_TYPE.ASSIGNED,
       from_status: qrCode.status,
-      to_status: QR_STATUS.DISPONIBLE,
+      to_status: QR_STATUS.ASSIGNED,
       from_area_id: qrCode.current_area_id,
       to_area_id: area.id,
       performed_by: currentUser.id,
@@ -619,7 +659,7 @@ const assignQrCodes = async (payload, currentUser) => {
       const remainingQrs = await QrCode.count({
         where: {
           batch_id: payload.batch_id,
-          status: QR_STATUS.GENERADO,
+          status: QR_STATUS.UNASSIGNED,
           is_active: true,
         },
         transaction,
@@ -668,7 +708,7 @@ const validateQrForUse = async (payload, currentUser) => {
       throwHttpError('Este código QR no pertenece al área indicada.', 400);
     }
 
-    if (payload.require_available !== false && qrCode.status !== QR_STATUS.DISPONIBLE) {
+    if (payload.require_available !== false && qrCode.status !== QR_STATUS.ASSIGNED) {
       throwHttpError(`El código QR no está disponible. Estado actual: ${qrCode.status}.`, 400);
     }
 
@@ -765,4 +805,5 @@ module.exports = {
   validateQrForUse,
   cancelQrCode,
   getQrBatches,
+  getQrBatchById,
 };

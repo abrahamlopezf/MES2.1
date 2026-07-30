@@ -42,35 +42,35 @@ const CategoriesListSection = ({
 
       <TFCardContent>
         {categories.length === 0 ? (
-          <div className="grid min-h-44 place-items-center rounded-[2rem] border border-dashed border-[rgba(31,58,95,0.16)] bg-slate-50/80 p-6 text-center">
-            <div className="grid max-w-md gap-3">
-              <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-[rgba(31,58,95,0.10)] text-[var(--color-primary)]">
+          <div className="flex flex-col min-h-44 items-center justify-center rounded-2xl border border-dashed border-border bg-secondary/20 p-6 text-center">
+            <div className="flex flex-col max-w-md items-center gap-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Layers3 className="size-8" />
               </div>
 
-              <h3 className="m-0 text-2xl font-black text-[var(--color-primary)]">
+              <h3 className="m-0 text-xl font-bold text-foreground">
                 Aún no hay categorías
               </h3>
 
-              <p className="m-0 font-semibold text-[var(--color-muted)]">
+              <p className="m-0 font-medium text-muted-foreground">
                 Crea una categoría antes de registrar materiales.
               </p>
             </div>
           </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             {categories.map((category) => (
               <article
                 key={category.id}
-                className="grid gap-4 rounded-[1.6rem] border border-[rgba(31,58,95,0.10)] bg-slate-50/70 p-4"
+                className="flex flex-col gap-4 rounded-xl border border-border bg-card hover:border-primary/50 transition-colors p-5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="grid gap-1">
-                    <strong className="text-lg font-black text-[var(--color-primary)]">
+                  <div className="flex flex-col gap-1">
+                    <strong className="text-lg font-bold text-foreground">
                       {category.name}
                     </strong>
 
-                    <span className="text-sm font-black text-[var(--color-muted)]">
+                    <span className="text-sm font-bold text-muted-foreground">
                       {category.code}
                     </span>
                   </div>
@@ -81,7 +81,7 @@ const CategoriesListSection = ({
                 </div>
 
                 {category.description && (
-                  <p className="m-0 text-sm font-semibold leading-relaxed text-[var(--color-muted)]">
+                  <p className="m-0 text-sm font-medium leading-relaxed text-muted-foreground">
                     {category.description}
                   </p>
                 )}
