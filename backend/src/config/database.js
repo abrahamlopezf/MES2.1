@@ -26,6 +26,7 @@ const sequelize = isProduction
       },
 
       define: {
+        schema: 'public',
         timestamps: true,
         underscored: true,
         freezeTableName: true,
@@ -49,6 +50,7 @@ const sequelize = isProduction
       },
 
       define: {
+        schema: 'public',
         timestamps: true,
         underscored: true,
         freezeTableName: true,

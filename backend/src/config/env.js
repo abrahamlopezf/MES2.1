@@ -1,19 +1,18 @@
 require('dotenv').config();
 
-const nodeEnv = process.env.NODE_ENV || 'development';
-const isProduction = nodeEnv === 'production';
-
 const env = {
-  nodeEnv,
-  isProduction,
+  nodeEnv: process.env.NODE_ENV || 'development',
 
-  port: Number(process.env.PORT) || 4000,
+  isProduction:
+    process.env.NODE_ENV === 'production',
+
+  databaseUrl:
+    process.env.DATABASE_URL || null,
+
+  port: process.env.PORT || 4000,
 
   clientUrl:
-    process.env.CLIENT_URL ||
-    'http://localhost:5173',
-
-  databaseUrl: process.env.DATABASE_URL || null,
+    process.env.CLIENT_URL || 'http://localhost:5173',
 
   db: {
     host: process.env.DB_HOST || 'localhost',
@@ -25,12 +24,10 @@ const env = {
 
   jwt: {
     secret:
-      process.env.JWT_SECRET ||
-      'development_secret',
+      process.env.JWT_SECRET || 'development_secret',
 
     expiresIn:
-      process.env.JWT_EXPIRES_IN ||
-      '1h',
+      process.env.JWT_EXPIRES_IN || '1h',
   },
 };
 

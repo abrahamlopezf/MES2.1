@@ -1,7 +1,7 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const app = require('./app');
-const { testDatabaseConnection } = require('./config/database');
+const app = require("./app");
+const { testDatabaseConnection } = require("./config/database");
 
 const PORT = process.env.PORT || 4000;
 
@@ -10,10 +10,10 @@ const startServer = async () => {
     await testDatabaseConnection();
 
     app.listen(PORT, () => {
-      console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
+      console.log(`🚀 Backend ejecutándose en puerto ${PORT}`);
     });
   } catch (error) {
-    console.error('No se pudo iniciar el servidor:', error.message);
+    console.error("No se pudo iniciar el servidor:", error.message);
     process.exit(1);
   }
 };
