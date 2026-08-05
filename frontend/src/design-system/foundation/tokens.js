@@ -42,7 +42,14 @@ const primitive = {
     '72': '72px'
   },
   typography: {
-    sans: '"Inter", "Roboto", system-ui, sans-serif'
+    sans: '"Inter", "Roboto", system-ui, sans-serif',
+    sizes: {
+      sm: '14px',
+      md: '16px',
+      lg: '20px',
+      xl: '24px',
+      xxl: '32px'
+    }
   }
 };
 

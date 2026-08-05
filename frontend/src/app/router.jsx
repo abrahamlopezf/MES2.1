@@ -34,8 +34,8 @@ import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
 
 // Warehouse
-import { WarehouseTerminalPage } from '../modules/warehouse/presentation/pages/WarehouseTerminalPage';
-import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
+import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
+import { WarehouseProvider } from '../modules/warehouse/WarehouseProvider';
 
 export const router = createBrowserRouter([
   {
@@ -160,11 +160,11 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: 'receive',
-                element: <WarehouseTerminalPage />
+                element: <ReceptionProvider />
               },
               {
                 path: 'inventory',
-                element: <WarehouseInventoryPage />
+                element: <WarehouseProvider />
               }
             ]
           }

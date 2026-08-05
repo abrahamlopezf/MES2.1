@@ -3,46 +3,33 @@ import { UniversalActionBar } from '../../design-system/components/action-bar/Un
 import { ActionButton } from '../../design-system/components/button/ActionButton';
 import { DataCard } from '../../design-system/components/card/DataCard';
 import { StatusChip } from '../../design-system/components/chip/StatusChip';
-import { ScannerOverlay } from '../../design-system/components/scanner-overlay/ScannerOverlay';
+import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
 import { Input } from '../../design-system/components/input/Input';
 import { tokens } from '../../design-system/foundation/tokens';
 import { SubmitReceptionCommand } from './ReceptionCommands';
 
-/**
- * Reception Workspace
- * Totalmente declarativo. Solo observa estado del Workflow Engine 
- * y despacha comandos. Cero lógica de negocio.
- */
 export const ReceptionWorkspace = ({
   workflowState, // 'INITIAL' | 'SCANNING' | 'FORM_READY' | 'SUBMITTING' | 'SUCCESS'
   onDispatch,    // function para enviar transiciones a la máquina de estados
   onCommand,     // function para despachar Command Objects (Ej. SubmitReceptionCommand)
-  data           // Payload resuelto por el Runtime (Ej. { material: 'PP-001', lote: 'L-123' })
+  data,          // Payload resuelto por el Runtime (Ej. { material: 'PP-001', lote: 'L-123' })
+  onExit         // function para salir del módulo (volver atrás)
 }) => {
 
   const [quantity, setQuantity] = useState('');
   const [rack, setRack] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Fase de Escaneo
+  // Fase de Escaneo (Pantalla Completa)
   if (workflowState === 'INITIAL' || workflowState === 'SCANNING') {
     return (
-      <div style={{ padding: tokens.primitive.spacing['24'] }}>
-        <h1 style={{ fontSize: tokens.primitive.typography.sizes.xl, marginBottom: tokens.primitive.spacing['16'] }}>
-          Recepción de Material
-        </h1>
-        <p style={{ color: tokens.semantic.color.textMediumEmphasis }}>
-          Pulse el gatillo del escáner para comenzar.
-        </p>
-        
-        {workflowState === 'SCANNING' && (
-          <ScannerOverlay 
-            mode="SIMULATION"
-            onClose={() => onDispatch('CANCEL')}
-            onManualInput={() => onDispatch('START_MANUAL')}
-          />
-        )}
-      </div>
+      <CameraScanner 
+        onScan={(code) => {
+          onDispatch('QR_SCANNED');
+          onCommand({ type: 'RESOLVE_QR_COMMAND', payload: { qrCode: code } });
+        }}
+        onClose={onExit}
+      />
     );
   }
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ReceptionWorkspace } from './ReceptionWorkspace';
 import { createWorkflow } from '../../core/runtime/WorkflowEngine/createWorkflow';
 import { ReceptionWorkflow as ReceptionFSM } from './ReceptionWorkflow';
@@ -12,6 +13,7 @@ import { apiClient } from '../../core/api/apiClient';
  * Conecta la Máquina de Estados, el Frontend, los Comandos y el Backend.
  */
 export const ReceptionProvider = () => {
+  const navigate = useNavigate();
   // 1. Instanciar la Máquina de Estados (aislada de React)
   const workflow = useMemo(() => createWorkflow(ReceptionFSM), []);
   
@@ -106,10 +108,8 @@ export const ReceptionProvider = () => {
          handleCommand({ type: 'RESOLVE_QR_COMMAND', payload: { qrCode } });
       }
     };
-    EventBus.on(MES_EVENTS.SCANNER_READ, onScannerData);
-    return () => {
-      EventBus.off(MES_EVENTS.SCANNER_READ, onScannerData); // pseudo clean
-    };
+    const unsubscribe = EventBus.subscribe(MES_EVENTS.SCANNER_READ, onScannerData);
+    return () => unsubscribe();
   }, [workflow]);
 
   // Renderizar la Vista Pura pasando los Callbacks y el Estado
@@ -119,6 +119,7 @@ export const ReceptionProvider = () => {
       onDispatch={handleDispatch}
       onCommand={handleCommand}
       data={receptionData}
+      onExit={() => navigate(-1)}
     />
   );
 };
