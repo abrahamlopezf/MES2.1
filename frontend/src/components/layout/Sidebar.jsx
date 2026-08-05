@@ -35,7 +35,7 @@ const menuGroups = [
   {
     label: "Generación de QR",
     icon: QrCode,
-    permission: "dashboard.read", // Temporalmente
+    permission: "dashboard.read",
     isGroup: true,
     children: [
       { label: "Escanear QR", path: "#", icon: QrCode, permission: "dashboard.read", onClick: () => window.dispatchEvent(new Event('open-scanner')) },
@@ -46,30 +46,12 @@ const menuGroups = [
   {
     label: "Almacén",
     icon: Boxes,
-    permission: "dashboard.read", // Temporalmente
+    permission: "dashboard.read",
     isGroup: true,
     children: [
       { label: "Catálogo", path: "/materials", icon: Search, permission: "dashboard.read" },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "dashboard.read" },
       { label: "Recepción (Terminal)", path: "/warehouse/receive", icon: Boxes, permission: "dashboard.read" }
-    ]
-  },
-  {
-    label: "Extrusión",
-    icon: Factory,
-    permission: "dashboard.read", // Temporalmente
-    isGroup: true,
-    children: [
-      { label: "Terminal", path: "/production/extrusion", icon: Factory, permission: "dashboard.read" }
-    ]
-  },
-  {
-    label: "Telares",
-    icon: Combine,
-    permission: "dashboard.read", // Temporalmente
-    isGroup: true,
-    children: [
-      // En construcción o usar endpoints futuros
     ]
   }
 ];

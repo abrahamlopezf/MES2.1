@@ -8,6 +8,12 @@ import HealthPage from "../modules/health/pages/HealthPage";
 import UsersPage from "../modules/users/pages/UsersPage";
 import DashboardPage from "../modules/dashboard/pages/DashboardPage";
 import MaterialsPage from "../modules/materials/pages/MaterialsPage";
+import CategoriesPage from "../modules/materials/pages/CategoriesPage";
+import FamiliesPage from "../modules/materials/pages/FamiliesPage";
+import CodesPage from "../modules/materials/pages/CodesPage";
+import TypesPage from "../modules/materials/pages/TypesPage";
+import BrandsPage from "../modules/materials/pages/BrandsPage";
+import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
 import QrCodesPage from "../modules/qrcodes/pages/QrCodesPage";
 import { AreasPage } from "../modules/dashboard/pages/AreasPage";
 import ProfilePage from "../modules/users/pages/ProfilePage";
@@ -68,7 +74,33 @@ export const router = createBrowserRouter([
           },
           {
             path: '/materials',
-            element: <MaterialsPage />,
+            element: <MaterialsLayout />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="/materials/list" replace />
+              },
+              {
+                path: 'list',
+                element: <MaterialsPage />
+              },
+              {
+                path: 'families',
+                element: <FamiliesPage />
+              },
+              {
+                path: 'codes',
+                element: <CodesPage />
+              },
+              {
+                path: 'types',
+                element: <TypesPage />
+              },
+              {
+                path: 'brands',
+                element: <BrandsPage />
+              }
+            ]
           },
           {
             path: '/qrcodes',

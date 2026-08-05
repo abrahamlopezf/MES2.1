@@ -284,9 +284,11 @@ const generateQrBatch = async (payload, currentUser) => {
       }
     }
 
-    if (assignedAreaId) {
-      await assertCanUseArea(assignedAreaId, currentUser, transaction);
+    if (!assignedAreaId) {
+      throwHttpError('Debes seleccionar un área para generar los códigos QR.', 400);
     }
+
+    await assertCanUseArea(assignedAreaId, currentUser, transaction);
 
     const batchCode = generateBatchCode();
 
@@ -305,7 +307,7 @@ const generateQrBatch = async (payload, currentUser) => {
     );
 
     const nomenclaturePrefix = payload.nomenclature_prefix || 'UND-UND-UND';
-    const status = assignedAreaId ? QR_STATUS.ASSIGNED : QR_STATUS.UNASSIGNED;
+    const status = QR_STATUS.UNASSIGNED; // Starts unassigned despite area, waiting for warehouse reception
     const now = new Date();
 
     // Obtener los siguientes N seriales de la secuencia
@@ -796,6 +798,48 @@ const cancelQrCode = async (qrCodeId, payload, currentUser) => {
   });
 };
 
+const lookup = async (qr_code) => {
+  const qr = await QrCode.findOne({
+    where: { qr_code },
+    include: qrInclude,
+  });
+
+  if (!qr) {
+    throwHttpError('Código QR no encontrado.', 404);
+  }
+
+  const events = await QrEvent.findAll({
+    where: { qr_code_id: qr.id },
+    include: eventInclude,
+    order: [['created_at', 'ASC']],
+  });
+
+  // Try to find if it's associated with a StockUnit
+  const StockUnit = sequelize.models.StockUnit;
+  let inventoryData = null;
+
+  if (StockUnit) {
+    const stock = await StockUnit.findOne({
+      where: { qr_code_uuid: qr.uuid },
+      include: [
+        { model: sequelize.models.Material, as: 'material' },
+        { model: sequelize.models.MaterialUnit, as: 'unit' },
+        { model: sequelize.models.User, as: 'user', attributes: ['id', 'first_name', 'last_name'] }
+      ]
+    });
+    
+    if (stock) {
+      inventoryData = stock;
+    }
+  }
+
+  return {
+    qr: buildQrResponse(qr),
+    events: events.map(buildEventResponse),
+    inventory: inventoryData
+  };
+};
+
 module.exports = {
   generateQrBatch,
   getQrCodes,
@@ -806,4 +850,5 @@ module.exports = {
   cancelQrCode,
   getQrBatches,
   getQrBatchById,
+  lookup,
 };

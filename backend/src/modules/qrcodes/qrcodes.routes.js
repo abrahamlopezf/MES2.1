@@ -67,6 +67,12 @@ router.post(
 
 // --- RUTAS DINÁMICAS (Códigos Individuales) ---
 
+router.get(
+  '/lookup/:qrCode',
+  permissionMiddleware('qr.read'),
+  qrcodesController.lookup
+);
+
 router.post(
   '/scan/:qrCode',
   permissionMiddleware('qr.read'),

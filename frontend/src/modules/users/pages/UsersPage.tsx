@@ -141,38 +141,44 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="space-y-4 px-4 sm:px-6 md:px-8 py-4 md:py-6 pb-32 sm:pb-12 overflow-x-hidden">
-      <TopBar 
-        title="Gestión de Usuarios" 
-        rightAction={
-          <PermissionGate permission="users.create">
-            <Button size="icon" variant="ghost" onClick={openCreateForm}>
-              <Plus className="w-5 h-5 text-primary" />
-            </Button>
-          </PermissionGate>
-        }
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+        <div>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Gestión de Usuarios</h1>
+          <p className="text-muted-foreground font-semibold mt-1">Administra accesos, roles y áreas del personal.</p>
+        </div>
+        <PermissionGate permission="users.create">
+          <Button onClick={openCreateForm} size="lg" className="font-bold shadow-sm">
+            <Plus className="w-5 h-5 mr-2" />
+            Nuevo Usuario
+          </Button>
+        </PermissionGate>
+      </div>
 
       <div className="space-y-4">
-          <section className="bg-muted/50 p-4 rounded-lg border space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-medium text-sm">Filtros de Búsqueda</h3>
+          <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+              <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
                   <FilterX className="w-4 h-4 mr-2" />
-                  Limpiar
+                  Limpiar Filtros
                 </Button>
               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Input
-                placeholder="Buscar (Nómina, Nombre, Correo...)"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Nómina, Nombre, Correo..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 font-medium"
+                />
+              </div>
               
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
               >
@@ -183,7 +189,7 @@ const UsersPage: React.FC = () => {
               </select>
 
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
               >
@@ -194,7 +200,7 @@ const UsersPage: React.FC = () => {
               </select>
 
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >

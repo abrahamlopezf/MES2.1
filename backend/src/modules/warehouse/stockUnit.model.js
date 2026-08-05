@@ -16,6 +16,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: false,
       },
+      tracking_code: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+      },
       material_id: {
         type: DataTypes.INTEGER,
         allowNull: false,

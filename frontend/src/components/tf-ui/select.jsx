@@ -50,10 +50,12 @@ const TFSelect = React.forwardRef(
             aria-describedby={error ? `${name}-error` : undefined}
             {...props}
           >
-            <option value="">{placeholder}</option>
+            <option value="" className="bg-background text-foreground">
+              {placeholder}
+            </option>
 
             {options.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} className="bg-background text-foreground">
                 {option.label}
               </option>
             ))}

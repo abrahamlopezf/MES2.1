@@ -7,14 +7,19 @@ import { useIdentityBatchesQuery, downloadBatchPdf, downloadQrPdf } from '../hoo
 import { useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
-import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send } from 'lucide-react';
+import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from 'lucide-react';
 import nomenclature from '@shared/config/nomenclature.json';
 import { useAuth } from '../context/AuthContext';
 
+const getAreaIcon = (mainAreaId: string) => {
+  if (mainAreaId === 'ALM') return <Truck size={24} className="text-white" />;
+  if (mainAreaId === 'EXT') return <Factory size={24} className="text-white" />;
+  return <Package size={24} className="text-white" />;
+};
+
 const generateBatchSchema = z.object({
-  mainAreaId: z.string().min(1, 'Debes seleccionar un área principal'),
-  subAreaId: z.string().min(1, 'La subcategoría es requerida'),
-  categoryId: z.string().min(1, 'La categoría es requerida'),
+  mainAreaId: z.string().min(1, 'Debes seleccionar un área asignada'),
+  subAreaId: z.string().optional(),
   amount: z.number().min(1, 'La cantidad debe ser mayor a 0').max(50000, 'Máximo 50,000 etiquetas'),
 });
 
@@ -50,8 +55,7 @@ export function GenerateBatchPage() {
     resolver: zodResolver(generateBatchSchema),
     defaultValues: {
       mainAreaId: isAdmin ? nomenclature.areas[0].id : 'EXT',
-      subAreaId: isAdmin ? nomenclature.areas[0].subcategories[0].id : 'EXT',
-      categoryId: isAdmin ? nomenclature.areas[0].subcategories[0].categories[0].id : 'PTI',
+      subAreaId: isAdmin ? (nomenclature.areas[0].subcategories[0]?.id || '') : 'EXT',
       amount: 1,
     }
   });
@@ -61,12 +65,21 @@ export function GenerateBatchPage() {
 
   const availableAreas = nomenclature.areas;
   const availableSubcategories = useMemo(() => {
-    return availableAreas.find(a => a.id === selectedMainAreaId)?.subcategories || [];
-  }, [selectedMainAreaId]);
-  
-  const availableCategories = useMemo(() => {
-    return availableSubcategories.find(s => s.id === selectedSubAreaId)?.categories || [];
-  }, [selectedSubAreaId, availableSubcategories]);
+    if (selectedMainAreaId === 'EXT') {
+      const extArea = availableAreas.find(a => a.id === 'EXT');
+      return extArea?.subcategories.filter(sub => sub.id === 'MEZ') || [];
+    }
+    return [];
+  }, [selectedMainAreaId, availableAreas]);
+
+  React.useEffect(() => {
+    // Automatically reset subAreaId when mainAreaId changes so we don't submit ghost values
+    const validSubArea = availableSubcategories.length > 0 ? availableSubcategories[0].id : '';
+    reset(formValues => ({
+      ...formValues,
+      subAreaId: validSubArea
+    }));
+  }, [selectedMainAreaId, availableSubcategories, reset]);
 
   const getSubcategoryData = (id: string) => {
     for (const area of nomenclature.areas) {
@@ -86,8 +99,8 @@ export function GenerateBatchPage() {
     }
 
     mutation.mutate({
-      areaId: data.subAreaId,
-      nomenclature_prefix: `${data.mainAreaId}-${data.subAreaId}-${data.categoryId}`,
+      areaId: data.subAreaId || data.mainAreaId,
+      nomenclature_prefix: `${data.mainAreaId}${data.subAreaId ? `-${data.subAreaId}` : ''}`,
       amount: data.amount,
       plantId: 'MTY',
       tokenType: 'QR' as any,
@@ -289,7 +302,16 @@ export function GenerateBatchPage() {
                                   {/* QR Físico Simulado */}
                                   <div className="flex gap-4 items-center">
                                     <div className="bg-white p-2 rounded-lg border border-slate-200 shrink-0 relative overflow-hidden flex flex-col items-center shadow-sm">
-                                      <QRCodeCanvas value={token.industrialCode} size={64} />
+                                      <div className="relative">
+                                        <QRCodeCanvas value={token.industrialCode} size={64} />
+                                        {/* Icono Central Dinámico */}
+                                        <div 
+                                          className="absolute inset-0 m-auto flex items-center justify-center rounded-sm w-7 h-7 shadow-sm"
+                                          style={{ backgroundColor: getSubcategoryData(expandedBatch.areaId)?.color || '#000' }}
+                                        >
+                                          {getAreaIcon(getSubcategoryData(expandedBatch.areaId)?.areaId || 'ALM')}
+                                        </div>
+                                      </div>
                                       {/* Marca visual física del QR */}
                                       <div 
                                         className="w-full text-center text-[9px] font-black mt-1 text-white uppercase tracking-wider"
@@ -382,61 +404,76 @@ export function GenerateBatchPage() {
 
             <form onSubmit={handleSubmit(onSubmit, onErrorForm)} className="p-6 space-y-5">
               
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Área Principal</label>
-                <select 
-                  {...register('mainAreaId')} 
-                  disabled={!isAdmin}
-                  className="w-full bg-background border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
-                >
-                  {availableAreas.map(area => (
-                    <option key={area.id} value={area.id}>
-                      {area.name} ({area.id})
-                    </option>
-                  ))}
-                </select>
-                {errors.mainAreaId && <span className="text-xs text-destructive">{errors.mainAreaId.message}</span>}
-              </div>
+              <div className="flex gap-6">
+                {/* Campos del Formulario */}
+                <div className="flex-1 space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Área Asignada</label>
+                    <select 
+                      {...register('mainAreaId')} 
+                      disabled={!isAdmin}
+                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
+                    >
+                      {availableAreas.map(area => (
+                        <option key={area.id} value={area.id}>
+                          {area.name} ({area.id})
+                        </option>
+                      ))}
+                    </select>
+                    {errors.mainAreaId && <span className="text-xs text-destructive">{errors.mainAreaId.message}</span>}
+                  </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Subárea (Asignación)</label>
-                <select 
-                  {...register('subAreaId')} 
-                  className="w-full bg-background border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
-                >
-                  {availableSubcategories.map(sub => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name} ({sub.id})
-                    </option>
-                  ))}
-                </select>
-                {errors.subAreaId && <span className="text-xs text-destructive">{errors.subAreaId.message}</span>}
-              </div>
+                  {availableSubcategories.length > 0 && (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-foreground">Subárea (Opcional)</label>
+                      <select 
+                        {...register('subAreaId')} 
+                        className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
+                      >
+                        <option value="">-- Sin subárea --</option>
+                        {availableSubcategories.map(sub => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.name} ({sub.id})
+                          </option>
+                        ))}
+                      </select>
+                      {errors.subAreaId && <span className="text-xs text-destructive">{errors.subAreaId.message}</span>}
+                    </div>
+                  )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Categoría</label>
-                <select 
-                  {...register('categoryId')} 
-                  className="w-full bg-background border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
-                >
-                  {availableCategories.map(cat => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name} ({cat.id})
-                    </option>
-                  ))}
-                </select>
-                {errors.categoryId && <span className="text-xs text-destructive">{errors.categoryId.message}</span>}
-              </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Cantidad a {isAdmin ? 'generar' : 'solicitar'}</label>
+                    <input 
+                      type="number" 
+                      {...register('amount', { valueAsNumber: true })} 
+                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none font-mono" 
+                      placeholder="Ej. 100"
+                    />
+                    {errors.amount && <span className="text-xs text-destructive">{errors.amount.message}</span>}
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Cantidad a {isAdmin ? 'generar' : 'solicitar'}</label>
-                <input 
-                  type="number" 
-                  {...register('amount', { valueAsNumber: true })} 
-                  className="w-full bg-background border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none" 
-                  placeholder="Ej. 100"
-                />
-                {errors.amount && <span className="text-xs text-destructive">{errors.amount.message}</span>}
+                {/* Previsualizador */}
+                <div className="w-32 flex flex-col items-center justify-center shrink-0">
+                  <span className="text-xs font-semibold text-muted-foreground mb-3 text-center">Previsualizador<br/>QR Virgen</span>
+                  <div className="bg-white p-2 rounded-lg border border-slate-200 relative overflow-hidden flex flex-col items-center shadow-sm">
+                    <div className="relative">
+                      <QRCodeCanvas value={`SAMPLE-${selectedMainAreaId}-${selectedSubAreaId || 'XX'}`} size={80} />
+                      <div 
+                        className="absolute inset-0 m-auto flex items-center justify-center rounded-sm w-8 h-8 shadow-sm"
+                        style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
+                      >
+                        {getAreaIcon(selectedMainAreaId)}
+                      </div>
+                    </div>
+                    <div 
+                      className="w-full text-center text-[10px] font-black mt-1 text-white uppercase tracking-wider"
+                      style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
+                    >
+                      {selectedSubAreaId || selectedMainAreaId}
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <div className="pt-4 flex gap-3">

@@ -9,6 +9,18 @@ import {
   getMaterialsRequest,
   updateMaterialCategoryRequest,
   updateMaterialRequest,
+  getMaterialFamiliesRequest,
+  createMaterialFamilyRequest,
+  updateMaterialFamilyRequest,
+  getMaterialCodesRequest,
+  createMaterialCodeRequest,
+  updateMaterialCodeRequest,
+  getMaterialTypesRequest,
+  createMaterialTypeRequest,
+  updateMaterialTypeRequest,
+  getMaterialBrandsRequest,
+  createMaterialBrandRequest,
+  updateMaterialBrandRequest,
 } from '../services/materialsApi';
 
 export const materialQueryKeys = {
@@ -16,11 +28,16 @@ export const materialQueryKeys = {
   lists: () => [...materialQueryKeys.all, 'list'],
   list: (filters) => [...materialQueryKeys.lists(), filters],
   categories: (filters) => [...materialQueryKeys.all, 'categories', filters],
+  families: (filters) => [...materialQueryKeys.all, 'families', filters],
+  codes: (filters) => [...materialQueryKeys.all, 'codes', filters],
+  types: (filters) => [...materialQueryKeys.all, 'types', filters],
+  brands: (filters) => [...materialQueryKeys.all, 'brands', filters],
 };
 
 const buildMaterialParams = (filters = {}) => {
   const params = {
-    limit: 200,
+    pageSize: 20,
+    page: filters.page || 1,
   };
 
   if (filters.search) params.search = filters.search;
@@ -173,5 +190,117 @@ export const useDeactivateMaterialCategoryMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: materialQueryKeys.all });
     },
+  });
+};
+
+// --- FAMILIES ---
+export const useMaterialFamiliesQuery = (filters = {}) => {
+  return useQuery({
+    queryKey: materialQueryKeys.families(filters),
+    queryFn: async () => {
+      const response = await getMaterialFamiliesRequest(filters);
+      return normalizeCategoriesResponse(response);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useCreateMaterialFamilyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMaterialFamilyRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useUpdateMaterialFamilyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMaterialFamilyRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+// --- CODES (ARTICULOS) ---
+export const useMaterialCodesQuery = (filters = {}) => {
+  return useQuery({
+    queryKey: materialQueryKeys.codes(filters),
+    queryFn: async () => {
+      const response = await getMaterialCodesRequest(filters);
+      return normalizeCategoriesResponse(response);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useCreateMaterialCodeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMaterialCodeRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useUpdateMaterialCodeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMaterialCodeRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+// --- TYPES ---
+export const useMaterialTypesQuery = (filters = {}) => {
+  return useQuery({
+    queryKey: materialQueryKeys.types(filters),
+    queryFn: async () => {
+      const response = await getMaterialTypesRequest(filters);
+      return normalizeCategoriesResponse(response);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useCreateMaterialTypeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMaterialTypeRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useUpdateMaterialTypeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMaterialTypeRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+// --- BRANDS ---
+export const useMaterialBrandsQuery = (filters = {}) => {
+  return useQuery({
+    queryKey: materialQueryKeys.brands(filters),
+    queryFn: async () => {
+      const response = await getMaterialBrandsRequest(filters);
+      return normalizeCategoriesResponse(response);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useCreateMaterialBrandMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMaterialBrandRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useUpdateMaterialBrandMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMaterialBrandRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
   });
 };

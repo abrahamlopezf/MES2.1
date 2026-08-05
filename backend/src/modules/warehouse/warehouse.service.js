@@ -21,7 +21,10 @@ const receiveMaterial = async (data, currentUser) => {
 
   // 2. Verify Material exists
   const material = await Material.findByPk(material_id, {
-    include: [{ model: MaterialUnit, as: 'unit' }],
+    include: [
+      { model: MaterialUnit, as: 'unit' },
+      { model: sequelize.models.MaterialFamily, as: 'family' }
+    ],
   });
 
   if (!material) {
@@ -34,11 +37,18 @@ const receiveMaterial = async (data, currentUser) => {
 
   // Execute in transaction
   const result = await sequelize.transaction(async (t) => {
+    // Build tracking_code (e.g. ALM-[FAMILIA-ARTICULO]-[Hex])
+    const qrPrefix = qr.qr_code.split('-')[0] || 'ALM';
+    const qrSuffix = qr.qr_code.split('-')[1] || qr.qr_code;
+    const materialCode = material.internal_code || 'UNKNOWN';
+    const trackingCode = `${qrPrefix}-${materialCode}-${qrSuffix}`;
+
     // 3. Create StockUnit
     const stockUnit = await StockUnit.create(
       {
         qr_code_uuid: qr.uuid,
         qr_code_value: qr.qr_code,
+        tracking_code: trackingCode,
         material_id: material.id,
         quantity,
         unit_id: material.unit_id,
@@ -70,6 +80,7 @@ const receiveMaterial = async (data, currentUser) => {
           material_id: material.id,
           quantity,
           location,
+          tracking_code: trackingCode,
         },
       },
       { transaction: t }

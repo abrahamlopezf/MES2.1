@@ -20,6 +20,12 @@
 11. **Visual Consistency (Golden Rule #11).** Ningún módulo puede considerarse terminado sin validar compatibilidad completa con el Design System y ambos temas visuales.
 12. **Domain Color Integrity (Golden Rule #12).** Los colores del sistema representan significado operacional. Ningún componente puede alterar la semántica visual definida por el dominio. (Ej. Scrap SIEMPRE es Danger, Producción SIEMPRE es Primary).
 13. **Business Logic Prohibition (Golden Rule #13).** El frontend nunca inventará lógica de negocio. Toda regla operacional deberá existir en el backend. El frontend únicamente validará la experiencia del usuario (campos requeridos, formatos, navegación y retroalimentación visual), pero nunca tomará decisiones que puedan afectar la integridad de los datos.
+14. **Frontend is a Runtime, not just Views.** Ningún componente de interfaz podrá contener reglas de negocio. Toda decisión existirá en Workflow Engine, Domain Services, Use Cases o Capability Registry.
+15. **QR/Search Driven Operation.** Todo proceso operativo deberá poder ejecutarse únicamente mediante un escaneo QR o una búsqueda universal. El operador no navega por menús tradicionales (Sidebar eliminado).
+16. **Capability Registration First.** Todo módulo nuevo deberá registrarse en el Runtime (Capability Registry) antes de existir visualmente.
+17. **Industrial Design System Purism (Golden Rule #17).** Todo componente del Design System deberá existir porque resuelve un problema operativo identificado dentro de la planta. Ningún componente se desarrollará por razones exclusivamente estéticas o por reutilización hipotética.
+18. **Component Contracts (Golden Rule #18).** Todo componente del Design System deberá tener un contrato funcional, restricciones de uso y criterios de accesibilidad antes de implementarse. La implementación es un detalle; el contrato define el comportamiento esperado y garantiza la consistencia de la plataforma.
+19. **Quality is Architecture (Golden Rule #19).** Ningún componente, Runtime Service o Workspace podrá considerarse terminado hasta que su contrato, accesibilidad, interacción y comportamiento dentro del Runtime hayan sido validados por la infraestructura de pruebas. La calidad es un requisito de la arquitectura, no una etapa posterior del desarrollo.
 
 ## Strict Prohibitions
 - NO Glassmorphism, transparencies, or blurred backgrounds.

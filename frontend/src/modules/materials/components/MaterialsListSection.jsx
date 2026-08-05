@@ -1,4 +1,4 @@
-import { Boxes, FilterX, Plus } from 'lucide-react';
+import { Boxes, FilterX, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import {
   TFBadge,
@@ -22,7 +22,13 @@ const MaterialsListSection = ({
   onEdit,
   onDeactivate,
   onClearFilters,
+  page = 1,
+  total = 0,
+  pageSize = 20,
+  onPageChange,
 }) => {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
   return (
     <TFCard>
       <TFCardHeader>
@@ -103,6 +109,41 @@ const MaterialsListSection = ({
                 onDeactivate={onDeactivate}
               />
             </div>
+
+            {total > pageSize && (
+              <div className="flex items-center justify-between border-t border-border px-4 py-3 sm:px-6">
+                <div className="hidden sm:block">
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando del <span className="font-medium text-foreground">{((page - 1) * pageSize) + 1}</span> al{' '}
+                    <span className="font-medium text-foreground">{Math.min(page * pageSize, total)}</span> de{' '}
+                    <span className="font-medium text-foreground">{total}</span> resultados
+                  </p>
+                </div>
+                <div className="flex flex-1 justify-between sm:justify-end gap-2">
+                  <TFButton
+                    variant="secondary"
+                    size="sm"
+                    icon={ChevronLeft}
+                    onClick={() => onPageChange(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                  >
+                    Anterior
+                  </TFButton>
+                  <div className="flex items-center px-2 text-sm font-bold sm:hidden">
+                    {page} / {totalPages}
+                  </div>
+                  <TFButton
+                    variant="secondary"
+                    size="sm"
+                    iconRight={ChevronRight}
+                    onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+                    disabled={page === totalPages}
+                  >
+                    Siguiente
+                  </TFButton>
+                </div>
+              </div>
+            )}
           </>
         )}
       </TFCardContent>

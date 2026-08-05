@@ -57,8 +57,8 @@ const TFSheetContent = React.forwardRef(
               className={cn(
                 [
                   'absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-2xl',
-                  'bg-secondary text-primary',
-                  'transition-all hover:bg-secondary/80 focus:outline-none',
+                  'bg-muted text-muted-foreground',
+                  'transition-all hover:bg-muted/80 hover:text-foreground focus:outline-none',
                   'focus-visible:ring-4 focus-visible:ring-ring/20',
                 ].join(' ')
               )}
@@ -87,7 +87,7 @@ const TFSheetTitle = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <DialogPrimitive.Title
       ref={ref}
-      className={cn('text-2xl font-black text-primary', className)}
+      className={cn('text-2xl font-black text-foreground', className)}
       {...props}
     />
   );

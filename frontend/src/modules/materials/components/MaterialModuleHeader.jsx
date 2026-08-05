@@ -1,4 +1,4 @@
-import { Boxes, Layers3, Plus, RefreshCw } from 'lucide-react';
+import { Boxes, Layers3, Plus, RefreshCw, Archive, CheckCircle2 } from 'lucide-react';
 
 import {
   TFBadge,
@@ -9,58 +9,42 @@ import {
 
 const MaterialModuleHeader = ({
   total = 0,
+  activeCount = 0,
+  inactiveCount = 0,
+  categoryCount = 0,
   canCreate,
   onCreateMaterial,
-  onCreateCategory,
   onRefresh,
   isRefreshing = false,
 }) => {
   return (
-    <TFCard className="relative overflow-hidden border-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md">
-      <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary-foreground/10" />
-      <div className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary-foreground/10 blur-sm" />
-
-      <TFCardContent className="relative z-10 grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="grid gap-4">
-          <div className="flex w-fit items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 font-black backdrop-blur-md">
-            <Boxes className="size-5" />
-            <span>Catálogo maestro</span>
+    <TFCard className="flex flex-col gap-4 p-5 rounded-xl border border-border shadow-sm mb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
+            <Boxes className="size-6" />
           </div>
-
-          <div className="grid gap-2">
-            <h2 className="m-0 text-4xl font-black leading-none tracking-tight sm:text-5xl">
-              Materiales
+          <div>
+            <h2 className="text-xl font-bold text-foreground m-0 leading-tight">
+              Catálogo de Materiales
             </h2>
-
-            <p className="m-0 max-w-3xl text-base font-semibold leading-relaxed text-primary-foreground/90 sm:text-lg">
-              Controla materias primas, materiales secundarios y materiales generales
-              para evitar capturas libres y errores operativos.
+            <p className="text-sm text-muted-foreground font-medium m-0 mt-0.5">
+              Control general de materias primas y consumibles
             </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <TFBadge variant="neutral" className="bg-primary-foreground/20 text-primary-foreground border-transparent">
-              {total} materiales visibles
-            </TFBadge>
-
-            <TFBadge variant="success" className="bg-primary-foreground/20 text-primary-foreground border-transparent">
-              Catálogo controlado
-            </TFBadge>
-
-            {isRefreshing && (
-              <TFBadge variant="primary" className="bg-primary-foreground/20 text-primary-foreground border-transparent">
-                Sincronizando
-              </TFBadge>
-            )}
           </div>
         </div>
 
-        <div className="grid gap-3 sm:min-w-64">
+        <div className="flex flex-wrap items-center gap-2">
+          {isRefreshing && (
+            <span className="text-sm text-muted-foreground font-medium animate-pulse flex items-center gap-1 mr-2">
+              <RefreshCw className="size-4 animate-spin" /> Sincronizando
+            </span>
+          )}
+          
           <TFButton
-            variant="secondary"
-            fullWidth
+            variant="outline"
+            size="sm"
             icon={RefreshCw}
-            className="border border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
             onClick={onRefresh}
             isLoading={isRefreshing}
           >
@@ -68,30 +52,31 @@ const MaterialModuleHeader = ({
           </TFButton>
 
           {canCreate && (
-            <>
               <TFButton
-                variant="secondary"
-                fullWidth
+                variant="primary"
+                size="sm"
                 icon={Plus}
-                className="border border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
                 onClick={onCreateMaterial}
               >
-                Nuevo material
+                Material
               </TFButton>
-
-              <TFButton
-                variant="secondary"
-                fullWidth
-                icon={Layers3}
-                className="border border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                onClick={onCreateCategory}
-              >
-                Nueva categoría
-              </TFButton>
-            </>
           )}
         </div>
-      </TFCardContent>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground bg-secondary/50 px-3 py-1.5 rounded-md border border-border">
+          <span className="font-bold">{total}</span> Total
+        </div>
+        <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-md border border-emerald-500/20">
+          <CheckCircle2 className="size-4" />
+          <span className="font-bold">{activeCount}</span> Activos
+        </div>
+        <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-md border border-border">
+          <Archive className="size-4" />
+          <span className="font-bold">{inactiveCount}</span> Inactivos
+        </div>
+      </div>
     </TFCard>
   );
 };

@@ -45,3 +45,10 @@ export const scanQrRequest = async (qrCodeValue) => {
 
   return response.data;
 };
+
+export const lookupQrCodeRequest = async (qrCodeValue) => {
+  // We don't have API_ENDPOINTS.qr.lookup defined yet in this file, so we construct the URL
+  // based on the router path which is /api/qr/lookup/:qrCode
+  const response = await axiosClient.get(`/qr/lookup/${encodeURIComponent(qrCodeValue)}`);
+  return response.data;
+};

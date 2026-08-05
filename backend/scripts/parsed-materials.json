@@ -1,0 +1,3584 @@
+[
+  {
+    "familia": "LIM",
+    "articulo": "CUB-001",
+    "nomenclatura": "LIM-CUB-001",
+    "descripcion": "CUBETA",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "A1"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "DES-001",
+    "nomenclatura": "LIM-DES-001",
+    "descripcion": "DESTAPACAÑOS",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "A1"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "REC-001",
+    "nomenclatura": "LIM-REC-001",
+    "descripcion": "RECOGEDOR",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "A1"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "BOT-001",
+    "nomenclatura": "LIM-BOT-001",
+    "descripcion": "BOTE DE BASURA",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "A2"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "ESC-001",
+    "nomenclatura": "LIM-ESC-001",
+    "descripcion": "ESCOBA",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "A2"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "JAB-001",
+    "nomenclatura": "LIM-JAB-001",
+    "descripcion": "JABON EN POLVO",
+    "tipo": "ROMA",
+    "marca": "ROMA, SALVO ETC",
+    "localidad": "A3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "CEP-001",
+    "nomenclatura": "LIM-CEP-001",
+    "descripcion": "CEPILLO PARA WC",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "A3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "TOA-001",
+    "nomenclatura": "LIM-TOA-001",
+    "descripcion": "TOALLAS PARA MANOS",
+    "tipo": "PAPEL SANITAS",
+    "marca": "SANITAS",
+    "localidad": "A4"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "FRA-001",
+    "nomenclatura": "LIM-FRA-001",
+    "descripcion": "FRANELA",
+    "tipo": "TELA",
+    "marca": "GENERICA",
+    "localidad": "A4"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "JER-001",
+    "nomenclatura": "LIM-JER-001",
+    "descripcion": "JERGA",
+    "tipo": "TELA",
+    "marca": "GENERICA",
+    "localidad": "A4"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "FIB-001",
+    "nomenclatura": "LIM-FIB-001",
+    "descripcion": "FIBRA VERDE SIN ESPONJA",
+    "tipo": "FIBRA",
+    "marca": "SCOTCH",
+    "localidad": "A5"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "FIB-002",
+    "nomenclatura": "LIM-FIB-002",
+    "descripcion": "FIBRA METALICA",
+    "tipo": "METAL",
+    "marca": "GENERICA",
+    "localidad": "A5"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "ESP-002",
+    "nomenclatura": "LIM-ESP-002",
+    "descripcion": "ESPONJA GRUESA",
+    "tipo": "ANTIRAYADURAS",
+    "marca": "GENERICA",
+    "localidad": "A5"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "TAP-001",
+    "nomenclatura": "SEG-TAP-001",
+    "descripcion": "TAPON AUDITIVO",
+    "tipo": "REUSABLE",
+    "marca": "VARIAS",
+    "localidad": "B1"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "LEN-001",
+    "nomenclatura": "SEG-LEN-001",
+    "descripcion": "LENTE DE SEGURIDAD",
+    "tipo": "CLARO",
+    "marca": "DERMACAERE Y SUK",
+    "localidad": "B1"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "LEN-002",
+    "nomenclatura": "SEG-LEN-002",
+    "descripcion": "LENTE DE SEGURIDAD",
+    "tipo": "OBSCURO",
+    "marca": "VARIAS",
+    "localidad": "B1"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-001",
+    "nomenclatura": "SEG-GUA-001",
+    "descripcion": "GUANTE GISA FLEX",
+    "tipo": "NEGRO",
+    "marca": "VARIAS",
+    "localidad": "B2"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "COF-001",
+    "nomenclatura": "SEG-COF-001",
+    "descripcion": "COFIA DESECHABLE",
+    "tipo": "BLANCA",
+    "marca": "VARIAS",
+    "localidad": "B2"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-009",
+    "nomenclatura": "SEG-GUA-009",
+    "descripcion": "GUANTE ANTICORTE NIVEL 5",
+    "tipo": "PALMA DE NITRILO",
+    "marca": "DERMACARE",
+    "localidad": "B2"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-002",
+    "nomenclatura": "SEG-GUA-002",
+    "descripcion": "GUANTE DE ASBESTO",
+    "tipo": "CARNAZA",
+    "marca": "VARIAS",
+    "localidad": "B3"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-003",
+    "nomenclatura": "SEG-GUA-003",
+    "descripcion": "GUANTE DE PIEL",
+    "tipo": "PIEL",
+    "marca": "VARIAS",
+    "localidad": "B3"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-004",
+    "nomenclatura": "SEG-GUA-004",
+    "descripcion": "GUANTE DE PLASTICO",
+    "tipo": "No. 7",
+    "marca": "VARIAS",
+    "localidad": "B3"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-005",
+    "nomenclatura": "SEG-GUA-005",
+    "descripcion": "GUANTE DE PLASTICO",
+    "tipo": "No. 8",
+    "marca": "VARIAS",
+    "localidad": "B3"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-006",
+    "nomenclatura": "SEG-GUA-006",
+    "descripcion": "GUANTE JAPONES",
+    "tipo": "JAPONES",
+    "marca": "VARIAS",
+    "localidad": "B4"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-007",
+    "nomenclatura": "SEG-GUA-007",
+    "descripcion": "GUANTE CON PVC",
+    "tipo": "CON PVC",
+    "marca": "VARIAS",
+    "localidad": "B4"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GUA-008",
+    "nomenclatura": "SEG-GUA-008",
+    "descripcion": "GUANTE CON LATEX",
+    "tipo": "LATEX AZUL",
+    "marca": "VARIAS",
+    "localidad": "B4"
+  },
+  {
+    "familia": "HER",
+    "articulo": "CAJ-002",
+    "nomenclatura": "HER-CAJ-002",
+    "descripcion": "CAJA DE HERRAMIENTAS",
+    "tipo": "NEGRA",
+    "marca": "VARIAS",
+    "localidad": "B5"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "CAR-001",
+    "nomenclatura": "SEG-CAR-001",
+    "descripcion": "CARETA FACIAL",
+    "tipo": "PLASTICO",
+    "marca": "VARIAS",
+    "localidad": "C1"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "CUB-001",
+    "nomenclatura": "SEG-CUB-001",
+    "descripcion": "CUBREBOCAS",
+    "tipo": "TELA",
+    "marca": "VARIAS",
+    "localidad": "C1"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "GOG-001",
+    "nomenclatura": "SEG-GOG-001",
+    "descripcion": "GOGLE DE SEGURIDAD",
+    "tipo": "PLASTICO",
+    "marca": "VARIAS",
+    "localidad": "C1"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "FIL-001",
+    "nomenclatura": "SEG-FIL-001",
+    "descripcion": "FILTRO PARA PARTICULAS",
+    "tipo": "TELA",
+    "marca": "VARIAS",
+    "localidad": "C2"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "FAJ-001",
+    "nomenclatura": "SEG-FAJ-001",
+    "descripcion": "FAJA DE SEGURIDAD",
+    "tipo": "TELA",
+    "marca": "VARIAS",
+    "localidad": "C2"
+  },
+  {
+    "familia": "SEG",
+    "articulo": "MAN-001",
+    "nomenclatura": "SEG-MAN-001",
+    "descripcion": "MANGA DE SEGURIDAD",
+    "tipo": "TELA",
+    "marca": "KLEVAR",
+    "localidad": "C2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "ESL-001",
+    "nomenclatura": "MATCONS-ESL-001",
+    "descripcion": "ESLIGAS PARA CAMION",
+    "tipo": "NARANJAS",
+    "marca": "ACP",
+    "localidad": "C2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FIL-002",
+    "nomenclatura": "MATCONS-FIL-002",
+    "descripcion": "FILTRO SDC-25-1020",
+    "tipo": "CHICO",
+    "marca": "VARIAS",
+    "localidad": "C3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FIL-003",
+    "nomenclatura": "MATCONS-FIL-003",
+    "descripcion": "FILTRO EPM 20",
+    "tipo": "GRANDE",
+    "marca": "VARIAS",
+    "localidad": "C3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FIL-007",
+    "nomenclatura": "MATCONS-FIL-007",
+    "descripcion": "FILTRO PLISADO SPC-25",
+    "tipo": "CARTUCHO SPC-25-1005",
+    "marca": "VARIAS",
+    "localidad": "C3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FIL-005",
+    "nomenclatura": "MATCONS-FIL-005",
+    "descripcion": "FILTRO PARA AGUA FJU-01R",
+    "tipo": "ROTOPLAS JUMBO",
+    "marca": "VARIAS",
+    "localidad": "C3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FIL-006",
+    "nomenclatura": "MATCONS-FIL-006",
+    "descripcion": "FILTRO PLISADO SPC-45",
+    "tipo": "CARTUCHO SPC-45-1020",
+    "marca": "VARIAS",
+    "localidad": "C3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FIL-007",
+    "nomenclatura": "MATCONS-FIL-007",
+    "descripcion": "FILTRO PLISADO SPC-45",
+    "tipo": "CARTUCHO SPC-45-1005",
+    "marca": "VARIAS",
+    "localidad": "C3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "MOS-001",
+    "nomenclatura": "MATCONS-MOS-001",
+    "descripcion": "MALLA MOSQUITERO",
+    "tipo": "MALLA MOSQ.",
+    "marca": "GENERICA",
+    "localidad": "C4"
+  },
+  {
+    "familia": "REF",
+    "articulo": "MAL-001",
+    "nomenclatura": "REF-MAL-001",
+    "descripcion": "MALLA DE ACERO 80 X",
+    "tipo": "80",
+    "marca": "GENERICA",
+    "localidad": "C4"
+  },
+  {
+    "familia": "REF",
+    "articulo": "FIL-004",
+    "nomenclatura": "REF-FIL-004",
+    "descripcion": "FILTRO DE AIRE",
+    "tipo": "NARANJA",
+    "marca": "FRAM",
+    "localidad": "C4"
+  },
+  {
+    "familia": "HER",
+    "articulo": "CAJ-003",
+    "nomenclatura": "HER-CAJ-003",
+    "descripcion": "CAJA DE HERRAMIENTAS",
+    "tipo": "NEGRA",
+    "marca": "VARIAS",
+    "localidad": "C5"
+  },
+  {
+    "familia": "HER",
+    "articulo": "CAJ-001",
+    "nomenclatura": "HER-CAJ-001",
+    "descripcion": "CAJA TIPO CHALUPA",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "D1"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "SIL-001",
+    "nomenclatura": "PQ-SIL-001",
+    "descripcion": "SILICON TRANSPARENTE",
+    "tipo": "GEL",
+    "marca": "SISTA",
+    "localidad": "D2"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "SIL-002",
+    "nomenclatura": "PQ-SIL-002",
+    "descripcion": "SILICON NEGRO",
+    "tipo": "GEL",
+    "marca": "SISTA",
+    "localidad": "D2"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "SIL-003",
+    "nomenclatura": "PQ-SIL-003",
+    "descripcion": "SILICON ROJO",
+    "tipo": "GEL",
+    "marca": "SISTA",
+    "localidad": "D2"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "RES-001",
+    "nomenclatura": "PQ-RES-001",
+    "descripcion": "RESISTOL 5000",
+    "tipo": "LIQUIDO",
+    "marca": "RESISTOL 5000",
+    "localidad": "D2"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "AFL-001",
+    "nomenclatura": "PQ-AFL-001",
+    "descripcion": "AFLOJATODO",
+    "tipo": "SPRAY",
+    "marca": "VARIAS",
+    "localidad": "D2"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "DES-002",
+    "nomenclatura": "PQ-DES-002",
+    "descripcion": "DESMOLDANTE DS-50",
+    "tipo": "SPRAY",
+    "marca": "SANDYQUIM",
+    "localidad": "D2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "SOL-001",
+    "nomenclatura": "MATCONS-SOL-001",
+    "descripcion": "SOLDADURA 7018 1/8",
+    "tipo": "BARRA",
+    "marca": "VARIAS",
+    "localidad": "D3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "SOL-002",
+    "nomenclatura": "MATCONS-SOL-002",
+    "descripcion": "SOLDADURA 7018 3/32",
+    "tipo": "BARRA",
+    "marca": "VARIAS",
+    "localidad": "D3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "SOL-003",
+    "nomenclatura": "MATCONS-SOL-003",
+    "descripcion": "SOLDADURA 6013 1/8",
+    "tipo": "BARRA",
+    "marca": "VARIAS",
+    "localidad": "D4"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "SOL-004",
+    "nomenclatura": "MATCONS-SOL-004",
+    "descripcion": "SOLDADURA 6013 3/32",
+    "tipo": "BARRA",
+    "marca": "VARIAS",
+    "localidad": "D4"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "TRA-001",
+    "nomenclatura": "LIM-TRA-001",
+    "descripcion": "TRAPEADOR",
+    "tipo": "TRAPEADOR",
+    "marca": "VARIAS",
+    "localidad": "D6"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "JAL-001",
+    "nomenclatura": "LIM-JAL-001",
+    "descripcion": "JALADOR",
+    "tipo": "JALADOR",
+    "marca": "GENERICA",
+    "localidad": "D6"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-001",
+    "nomenclatura": "RF-ABR-001",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "15/16 A 3/4",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-002",
+    "nomenclatura": "RF-ABR-002",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "1/2",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-003",
+    "nomenclatura": "RF-ABR-003",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "1",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-004",
+    "nomenclatura": "RF-ABR-004",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "1 A 2",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-005",
+    "nomenclatura": "RF-ABR-005",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "1/8",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-006",
+    "nomenclatura": "RF-ABR-006",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "2 A 2 3/4",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-007",
+    "nomenclatura": "RF-ABR-007",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "1/8 A 3/32",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-008",
+    "nomenclatura": "RF-ABR-008",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "3 1/8 A 5",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ABR-009",
+    "nomenclatura": "RF-ABR-009",
+    "descripcion": "ABRAZADERA SIN FIN",
+    "tipo": "4 1/2 A 6",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "BRO-001",
+    "nomenclatura": "MATCONS-BRO-001",
+    "descripcion": "BROCHA CERDA NAT",
+    "tipo": "3\"",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "BRO-002",
+    "nomenclatura": "MATCONS-BRO-002",
+    "descripcion": "BROCHA CERDA NAT",
+    "tipo": "7\"",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "BRO-003",
+    "nomenclatura": "MATCONS-BRO-003",
+    "descripcion": "BROCHA CERDA NAT",
+    "tipo": "2\"",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "BRO-004",
+    "nomenclatura": "MATCONS-BRO-004",
+    "descripcion": "BROCHA CERDA NAT",
+    "tipo": "1\"",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "BRO-005",
+    "nomenclatura": "MATCONS-BRO-005",
+    "descripcion": "BROCHA CERDA NAT",
+    "tipo": "4\"",
+    "marca": "VARIAS",
+    "localidad": "E1"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "CIN-001",
+    "nomenclatura": "ELC-CIN-001",
+    "descripcion": "CINTA FIBRA DE VIDRIO ALTA",
+    "tipo": "TEMPERATURA",
+    "marca": "SCOTCH",
+    "localidad": "E2"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "CIN-002",
+    "nomenclatura": "ELC-CIN-002",
+    "descripcion": "CINTA DE AISLAR",
+    "tipo": "3/4",
+    "marca": "M3",
+    "localidad": "E2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "FOC-001",
+    "nomenclatura": "MATCONS-FOC-001",
+    "descripcion": "FOCO LED 12",
+    "tipo": "W",
+    "marca": "VARIAS",
+    "localidad": "E2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "PIL-001",
+    "nomenclatura": "MATCONS-PIL-001",
+    "descripcion": "PILA DURACEL 9",
+    "tipo": "V",
+    "marca": "DURACELL",
+    "localidad": "E2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "CIN-003",
+    "nomenclatura": "MATCONS-CIN-003",
+    "descripcion": "CINTA TEFLON SELLAROSC. BLANCA",
+    "tipo": "3/4",
+    "marca": "VARIAS",
+    "localidad": "E2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "PIL-002",
+    "nomenclatura": "MATCONS-PIL-002",
+    "descripcion": "PILA DURACEL",
+    "tipo": "AAA",
+    "marca": "DURACELL",
+    "localidad": "E2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "PIL-003",
+    "nomenclatura": "MATCONS-PIL-003",
+    "descripcion": "PILA DURACEL",
+    "tipo": "AA",
+    "marca": "DURACELL",
+    "localidad": "E2"
+  },
+  {
+    "familia": "HER",
+    "articulo": "LLA-001",
+    "nomenclatura": "HER-LLA-001",
+    "descripcion": "LLAVE ALLEN C/BOLA 6",
+    "tipo": "MM",
+    "marca": "VARIAS",
+    "localidad": "E2"
+  },
+  {
+    "familia": "HER",
+    "articulo": "NAV-001",
+    "nomenclatura": "HER-NAV-001",
+    "descripcion": "NAVAJA REPUESTO",
+    "tipo": "BLISTER",
+    "marca": "VARIAS",
+    "localidad": "E2"
+  },
+  {
+    "familia": "HER",
+    "articulo": "CON-001",
+    "nomenclatura": "HER-CON-001",
+    "descripcion": "CONTADOR MANUAL 4",
+    "tipo": "DIGITOS",
+    "marca": "VARIAS",
+    "localidad": "E2"
+  },
+  {
+    "familia": "HER",
+    "articulo": "SEG-001",
+    "nomenclatura": "HER-SEG-001",
+    "descripcion": "SEGUETA ROJA",
+    "tipo": "FINA",
+    "marca": "NICHOLSON",
+    "localidad": "E2"
+  },
+  {
+    "familia": "HER",
+    "articulo": "SEG-002",
+    "nomenclatura": "HER-SEG-002",
+    "descripcion": "SEGUETA ROJA",
+    "tipo": "ESTANDAR",
+    "marca": "NICHOLSON",
+    "localidad": "E2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "ENC-001",
+    "nomenclatura": "MATCONS-ENC-001",
+    "descripcion": "ENCENDEDOR",
+    "tipo": "GAS",
+    "marca": "TOKAI",
+    "localidad": "E2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TER-001",
+    "nomenclatura": "RF-TER-001",
+    "descripcion": "TERMINAL MECANICA TM",
+    "tipo": "95",
+    "marca": "VARIAS",
+    "localidad": "E3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TER-002",
+    "nomenclatura": "RF-TER-002",
+    "descripcion": "TERMINAL MECANICA TM",
+    "tipo": "94",
+    "marca": "VARIAS",
+    "localidad": "E3"
+  },
+  {
+    "familia": "HER",
+    "articulo": "FLE-001",
+    "nomenclatura": "HER-FLE-001",
+    "descripcion": "FLEXOMETRO 3",
+    "tipo": "MTS",
+    "marca": "SURTEK",
+    "localidad": "E3"
+  },
+  {
+    "familia": "HER",
+    "articulo": "FLE-002",
+    "nomenclatura": "HER-FLE-002",
+    "descripcion": "FLEXOMETRO 5",
+    "tipo": "MTS",
+    "marca": "SURTEK",
+    "localidad": "E3"
+  },
+  {
+    "familia": "HER",
+    "articulo": "FLE-003",
+    "nomenclatura": "HER-FLE-003",
+    "descripcion": "FLEXOMETRO 8",
+    "tipo": "MTS",
+    "marca": "SURTEK",
+    "localidad": "E3"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "SEL-001",
+    "nomenclatura": "MATEMP-SEL-001",
+    "descripcion": "SELLOS SIN DIENTES",
+    "tipo": "1/2",
+    "marca": "VARIAS",
+    "localidad": "E4"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "SEL-002",
+    "nomenclatura": "MATEMP-SEL-002",
+    "descripcion": "SELLOS DENTADOS",
+    "tipo": "1/2",
+    "marca": "VARIAS",
+    "localidad": "E4"
+  },
+  {
+    "familia": "HER",
+    "articulo": "PIN-001",
+    "nomenclatura": "HER-PIN-001",
+    "descripcion": "PINZA PARA",
+    "tipo": "GRAPAS",
+    "marca": "VARIAS",
+    "localidad": "E4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-001",
+    "nomenclatura": "RF-BAL-001",
+    "descripcion": "BALERO",
+    "tipo": "30308",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-002",
+    "nomenclatura": "RF-BAL-002",
+    "descripcion": "BALERO 321082",
+    "tipo": "2",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-003",
+    "nomenclatura": "RF-BAL-003",
+    "descripcion": "BALERO",
+    "tipo": "MA5208",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-004",
+    "nomenclatura": "RF-BAL-004",
+    "descripcion": "BALERO 1641",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-005",
+    "nomenclatura": "RF-BAL-005",
+    "descripcion": "BALERO LM60301",
+    "tipo": "1",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-006",
+    "nomenclatura": "RF-BAL-006",
+    "descripcion": "BALERO 2206",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-007",
+    "nomenclatura": "RF-BAL-007",
+    "descripcion": "BALERO",
+    "tipo": "32206",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-008",
+    "nomenclatura": "RF-BAL-008",
+    "descripcion": "BALERO",
+    "tipo": "JLM813049",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-009",
+    "nomenclatura": "RF-BAL-009",
+    "descripcion": "BALERO 60112",
+    "tipo": "2",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-010",
+    "nomenclatura": "RF-BAL-010",
+    "descripcion": "BALERO",
+    "tipo": "22206",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-011",
+    "nomenclatura": "RF-BAL-011",
+    "descripcion": "BALERO",
+    "tipo": "NU3119",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-012",
+    "nomenclatura": "RF-BAL-012",
+    "descripcion": "BALERO 3208",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-013",
+    "nomenclatura": "RF-BAL-013",
+    "descripcion": "BALERO 5206",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-014",
+    "nomenclatura": "RF-BAL-014",
+    "descripcion": "BALERO",
+    "tipo": "8856",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-015",
+    "nomenclatura": "RF-BAL-015",
+    "descripcion": "BALERO 30310",
+    "tipo": "A",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-016",
+    "nomenclatura": "RF-BAL-016",
+    "descripcion": "BALERO 32217",
+    "tipo": "A",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-017",
+    "nomenclatura": "RF-BAL-017",
+    "descripcion": "BALERO MA",
+    "tipo": "5213TV",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-018",
+    "nomenclatura": "RF-BAL-018",
+    "descripcion": "BALERO 32213",
+    "tipo": "A",
+    "marca": "VARIAS",
+    "localidad": "F1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-019",
+    "nomenclatura": "RF-BAL-019",
+    "descripcion": "BALERO 6300",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-020",
+    "nomenclatura": "RF-BAL-020",
+    "descripcion": "BALERO 6305",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-021",
+    "nomenclatura": "RF-BAL-021",
+    "descripcion": "BALERO 6310",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-022",
+    "nomenclatura": "RF-BAL-022",
+    "descripcion": "BALERO 6306",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-023",
+    "nomenclatura": "RF-BAL-023",
+    "descripcion": "BALERO 6311",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-024",
+    "nomenclatura": "RF-BAL-024",
+    "descripcion": "BALERO 6301",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-025",
+    "nomenclatura": "RF-BAL-025",
+    "descripcion": "BALERO 6312",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-026",
+    "nomenclatura": "RF-BAL-026",
+    "descripcion": "BALERO 6302",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-027",
+    "nomenclatura": "RF-BAL-027",
+    "descripcion": "BALERO 6307",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-028",
+    "nomenclatura": "RF-BAL-028",
+    "descripcion": "BALERO 6313",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-029",
+    "nomenclatura": "RF-BAL-029",
+    "descripcion": "BALERO 6303",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-030",
+    "nomenclatura": "RF-BAL-030",
+    "descripcion": "BALERO 6308",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-031",
+    "nomenclatura": "RF-BAL-031",
+    "descripcion": "BALERO 6314",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-032",
+    "nomenclatura": "RF-BAL-032",
+    "descripcion": "BALERO 6304",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-033",
+    "nomenclatura": "RF-BAL-033",
+    "descripcion": "BALERO 6309",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-034",
+    "nomenclatura": "RF-BAL-034",
+    "descripcion": "BALERO 6315",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-035",
+    "nomenclatura": "RF-BAL-035",
+    "descripcion": "BALERO 6008",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-036",
+    "nomenclatura": "RF-BAL-036",
+    "descripcion": "BALERO 606",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-037",
+    "nomenclatura": "RF-BAL-037",
+    "descripcion": "BALERO 607",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-038",
+    "nomenclatura": "RF-BAL-038",
+    "descripcion": "BALERO 608",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-039",
+    "nomenclatura": "RF-BAL-039",
+    "descripcion": "BALERO 609",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-040",
+    "nomenclatura": "RF-BAL-040",
+    "descripcion": "BALERO R 10",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-041",
+    "nomenclatura": "RF-BAL-041",
+    "descripcion": "BALERO 6009",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-042",
+    "nomenclatura": "RF-BAL-042",
+    "descripcion": "BALERO 6200",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-043",
+    "nomenclatura": "RF-BAL-043",
+    "descripcion": "BALERO 6201",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-044",
+    "nomenclatura": "RF-BAL-044",
+    "descripcion": "BALERO 6202",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-045",
+    "nomenclatura": "RF-BAL-045",
+    "descripcion": "BALERO 6203",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-046",
+    "nomenclatura": "RF-BAL-046",
+    "descripcion": "BALERO 6004",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-047",
+    "nomenclatura": "RF-BAL-047",
+    "descripcion": "BALERO 6010",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-048",
+    "nomenclatura": "RF-BAL-048",
+    "descripcion": "BALERO 601",
+    "tipo": "1",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-049",
+    "nomenclatura": "RF-BAL-049",
+    "descripcion": "BALERO",
+    "tipo": "6013",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-050",
+    "nomenclatura": "RF-BAL-050",
+    "descripcion": "BALERO 6910",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-051",
+    "nomenclatura": "RF-BAL-051",
+    "descripcion": "BALERO 6000",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-052",
+    "nomenclatura": "RF-BAL-052",
+    "descripcion": "BALERO 6001 2RS Y",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-053",
+    "nomenclatura": "RF-BAL-053",
+    "descripcion": "BALERO 6002 2RS y",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-054",
+    "nomenclatura": "RF-BAL-054",
+    "descripcion": "BALERO 6003",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-055",
+    "nomenclatura": "RF-BAL-055",
+    "descripcion": "BALERO 6012",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-056",
+    "nomenclatura": "RF-BAL-056",
+    "descripcion": "BALERO 629",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-057",
+    "nomenclatura": "RF-BAL-057",
+    "descripcion": "BALERO 624",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-058",
+    "nomenclatura": "RF-BAL-058",
+    "descripcion": "ROTULA",
+    "tipo": "DERECHA",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-059",
+    "nomenclatura": "RF-BAL-059",
+    "descripcion": "ROTULA",
+    "tipo": "IZQUIERDA",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-060",
+    "nomenclatura": "RF-BAL-060",
+    "descripcion": "BALERO 6205",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-061",
+    "nomenclatura": "RF-BAL-061",
+    "descripcion": "BALERO 6206",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-062",
+    "nomenclatura": "RF-BAL-062",
+    "descripcion": "BALERO 6208",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-063",
+    "nomenclatura": "RF-BAL-063",
+    "descripcion": "BALERO 6207",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-064",
+    "nomenclatura": "RF-BAL-064",
+    "descripcion": "BALERO P202",
+    "tipo": "K115",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-065",
+    "nomenclatura": "RF-BAL-065",
+    "descripcion": "BALERO 635 ZZ Y",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-066",
+    "nomenclatura": "RF-BAL-066",
+    "descripcion": "BALERO HK",
+    "tipo": "2520",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-067",
+    "nomenclatura": "RF-BAL-067",
+    "descripcion": "BALERO 625",
+    "tipo": "Y2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-068",
+    "nomenclatura": "RF-BAL-068",
+    "descripcion": "BALERO 626",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-069",
+    "nomenclatura": "RF-BAL-069",
+    "descripcion": "BALERO 634",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-070",
+    "nomenclatura": "RF-BAL-070",
+    "descripcion": "BALERO RIVA",
+    "tipo": "4904",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-071",
+    "nomenclatura": "RF-BAL-071",
+    "descripcion": "BALERO 6006",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-072",
+    "nomenclatura": "RF-BAL-072",
+    "descripcion": "BALERO 6005",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-073",
+    "nomenclatura": "RF-BAL-073",
+    "descripcion": "BALERO 016",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-074",
+    "nomenclatura": "RF-BAL-074",
+    "descripcion": "BALERO",
+    "tipo": "6007",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-075",
+    "nomenclatura": "RF-BAL-075",
+    "descripcion": "BALERO 6204",
+    "tipo": "zz",
+    "marca": "VARIAS",
+    "localidad": "F3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-076",
+    "nomenclatura": "RF-BAL-076",
+    "descripcion": "BALERO 6209",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-077",
+    "nomenclatura": "RF-BAL-077",
+    "descripcion": "BALERO 6210",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-078",
+    "nomenclatura": "RF-BAL-078",
+    "descripcion": "BALERO 6211",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-079",
+    "nomenclatura": "RF-BAL-079",
+    "descripcion": "BALERO 6212",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-080",
+    "nomenclatura": "RF-BAL-080",
+    "descripcion": "BALERO 6213",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-081",
+    "nomenclatura": "RF-BAL-081",
+    "descripcion": "BALERO 6214",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-082",
+    "nomenclatura": "RF-BAL-082",
+    "descripcion": "BALERO 6216",
+    "tipo": "2RS",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-083",
+    "nomenclatura": "RF-BAL-083",
+    "descripcion": "BALERO 6217",
+    "tipo": "ZAS",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-084",
+    "nomenclatura": "RF-BAL-084",
+    "descripcion": "BALERO 6218",
+    "tipo": "ZZ",
+    "marca": "VARIAS",
+    "localidad": "F4"
+  },
+  {
+    "familia": "RF",
+    "articulo": "EJE-001",
+    "nomenclatura": "RF-EJE-001",
+    "descripcion": "EJE REVERSIBLE",
+    "tipo": "ALUMINIO",
+    "marca": "VARIAS",
+    "localidad": "G1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "MAL-002",
+    "nomenclatura": "RF-MAL-002",
+    "descripcion": "MALLA BANDA ACERO INOX 152/30 X 12",
+    "tipo": "2",
+    "marca": "VARIAS",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "MAL-003",
+    "nomenclatura": "RF-MAL-003",
+    "descripcion": "MALLA BANDA ACERO INOX 152/30 X",
+    "tipo": "130",
+    "marca": "VARIAS",
+    "localidad": "G2"
+  },
+  {
+    "familia": "GOM",
+    "articulo": "GOM-001",
+    "nomenclatura": "GOM-001",
+    "descripcion": "GOMA SOSA",
+    "tipo": "HULE",
+    "marca": "VARIAS",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BRA-001",
+    "nomenclatura": "RF-BRA-001",
+    "descripcion": "BRAKET",
+    "tipo": "LESSONA",
+    "marca": "VARIAS",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAL-085",
+    "nomenclatura": "RF-BAL-085",
+    "descripcion": "BALERO L 1",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SOP-001",
+    "nomenclatura": "RF-SOP-001",
+    "descripcion": "SOPORTE CHALUPA",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "AIS-001",
+    "nomenclatura": "RF-AIS-001",
+    "descripcion": "AISLANTE DE TELAR",
+    "tipo": "PORCELANA",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "POR-001",
+    "nomenclatura": "RF-POR-001",
+    "descripcion": "PORTA BALERO",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "POL-001",
+    "nomenclatura": "RF-POL-001",
+    "descripcion": "POLEA NEGRA",
+    "tipo": "Z-64",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "GUI-001",
+    "nomenclatura": "RF-GUI-001",
+    "descripcion": "GUIA TIPO RASPADOR",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ROD-001",
+    "nomenclatura": "RF-ROD-001",
+    "descripcion": "RODILLO GUIA HILO",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "MED-001",
+    "nomenclatura": "RF-MED-001",
+    "descripcion": "MEDIA LUNA",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUB-001",
+    "nomenclatura": "RF-TUB-001",
+    "descripcion": "TUBO",
+    "tipo": "LESSONA",
+    "marca": "GENERICA",
+    "localidad": "G2"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "CAN-003",
+    "nomenclatura": "MATEMP-CAN-003",
+    "descripcion": "CANDADO METALICO AZUL/",
+    "tipo": "AUTLAN",
+    "marca": "GENERICA",
+    "localidad": "G3"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "ETI-001",
+    "nomenclatura": "MATEMP-ETI-001",
+    "descripcion": "ETIQUETA DE RIESGOS",
+    "tipo": "000A",
+    "marca": "GENERICA",
+    "localidad": "H1"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "ETI-002",
+    "nomenclatura": "MATEMP-ETI-002",
+    "descripcion": "ETIQUETA DE RIESGOS",
+    "tipo": "210E",
+    "marca": "GENERICA",
+    "localidad": "H1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-001",
+    "nomenclatura": "RF-TUE-001",
+    "descripcion": "TUERCA HEXAGONAL 10",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-002",
+    "nomenclatura": "RF-TUE-002",
+    "descripcion": "TUERCA HEXAGONAL 12",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-003",
+    "nomenclatura": "RF-TUE-003",
+    "descripcion": "TUERCA HEXAGONAL",
+    "tipo": "3/8",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-004",
+    "nomenclatura": "RF-TUE-004",
+    "descripcion": "TUERCA HEXAGONAL 14",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-001",
+    "nomenclatura": "RF-TOR-001",
+    "descripcion": "TORNILLO C/ALLEN 5 X",
+    "tipo": "16",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-002",
+    "nomenclatura": "RF-TOR-002",
+    "descripcion": "TORNILLO C/ALLEN 4 X",
+    "tipo": "10",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-003",
+    "nomenclatura": "RF-TOR-003",
+    "descripcion": "TORNILLO C/ALLEN 4 X",
+    "tipo": "15",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-004",
+    "nomenclatura": "RF-TOR-004",
+    "descripcion": "TORNILLO C/ALLEN 4 X",
+    "tipo": "20",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-005",
+    "nomenclatura": "RF-TOR-005",
+    "descripcion": "TORNILLO C/ALLEN 4 X",
+    "tipo": "25",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-006",
+    "nomenclatura": "RF-TOR-006",
+    "descripcion": "TORNILLO C/ALLEN 5 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-007",
+    "nomenclatura": "RF-TOR-007",
+    "descripcion": "TORNILLO C/ALLEN 5 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-008",
+    "nomenclatura": "RF-TOR-008",
+    "descripcion": "TORNILLO C/ALLEN 5 X",
+    "tipo": "20",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-009",
+    "nomenclatura": "RF-TOR-009",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "36",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-010",
+    "nomenclatura": "RF-TOR-010",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "55",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-011",
+    "nomenclatura": "RF-TOR-011",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-012",
+    "nomenclatura": "RF-TOR-012",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "20",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-013",
+    "nomenclatura": "RF-TOR-013",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "40",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-005",
+    "nomenclatura": "RF-TUE-005",
+    "descripcion": "TUERCA HEXAGONAL 6",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-006",
+    "nomenclatura": "RF-TUE-006",
+    "descripcion": "TUERCA HEXAGONAL 8",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-007",
+    "nomenclatura": "RF-TUE-007",
+    "descripcion": "TUERCA HEXAGONAL 5",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-008",
+    "nomenclatura": "RF-TUE-008",
+    "descripcion": "TUERCA HEXAGONAL 4",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUE-009",
+    "nomenclatura": "RF-TUE-009",
+    "descripcion": "TUERCA HEXAGONAL 3",
+    "tipo": "MM",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CLA-001",
+    "nomenclatura": "RF-CLA-001",
+    "descripcion": "CLAM",
+    "tipo": "969-1639",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-014",
+    "nomenclatura": "RF-TOR-014",
+    "descripcion": "TORNILLO C/ALLEN 3 X",
+    "tipo": "10",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-015",
+    "nomenclatura": "RF-TOR-015",
+    "descripcion": "TORNILLO C/ALLEN 4 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-016",
+    "nomenclatura": "RF-TOR-016",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "25",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-017",
+    "nomenclatura": "RF-TOR-017",
+    "descripcion": "TORNILLO C/PLANA 5 X",
+    "tipo": "6",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-018",
+    "nomenclatura": "RF-TOR-018",
+    "descripcion": "TORNILLO C/HEXAGONAL 4 X",
+    "tipo": "10",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-019",
+    "nomenclatura": "RF-TOR-019",
+    "descripcion": "TORNILLO C/PLANA 4 X",
+    "tipo": "15",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-020",
+    "nomenclatura": "RF-TOR-020",
+    "descripcion": "TORNILLO C/ALLEN 6 X 1",
+    "tipo": "2",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-021",
+    "nomenclatura": "RF-TOR-021",
+    "descripcion": "TORNILLO C/ALLEN 4 X 1",
+    "tipo": "2",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RON-001",
+    "nomenclatura": "RF-RON-001",
+    "descripcion": "RONDANA",
+    "tipo": "LESSONA",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "GUI-002",
+    "nomenclatura": "RF-GUI-002",
+    "descripcion": "GUIDE RINCI",
+    "tipo": "\"T\"",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-022",
+    "nomenclatura": "RF-TOR-022",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "70",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-023",
+    "nomenclatura": "RF-TOR-023",
+    "descripcion": "TORNILLO C/ALLEN 6 X",
+    "tipo": "40",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-024",
+    "nomenclatura": "RF-TOR-024",
+    "descripcion": "TORNILLO C/HEXAGONAL 6 X",
+    "tipo": "50",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-025",
+    "nomenclatura": "RF-TOR-025",
+    "descripcion": "TORNILLO C/HEXAGONAL 6 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-026",
+    "nomenclatura": "RF-TOR-026",
+    "descripcion": "TORNILLO C/HEXAGONAL 6 X 1",
+    "tipo": "2",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BUR-001",
+    "nomenclatura": "RF-BUR-001",
+    "descripcion": "BURIL DE COBALTO",
+    "tipo": "BARRA",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-027",
+    "nomenclatura": "RF-TOR-027",
+    "descripcion": "TORNILLO C/HEXAGONAL 5 X",
+    "tipo": "16",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-028",
+    "nomenclatura": "RF-TOR-028",
+    "descripcion": "TORNILLO C/HEXAGONAL 3 X",
+    "tipo": "10",
+    "marca": "GENERICA",
+    "localidad": "H2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "COR-001",
+    "nomenclatura": "RF-COR-001",
+    "descripcion": "CORCHO 1/4 90 X",
+    "tipo": "60",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "HOR-001",
+    "nomenclatura": "RF-HOR-001",
+    "descripcion": "HORQUILLA P/TELAR",
+    "tipo": "ALUMINIO",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "DIS-001",
+    "nomenclatura": "MATCONS-DIS-001",
+    "descripcion": "DISCO LATERAL",
+    "tipo": "PLASTICO",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "HOR-002",
+    "nomenclatura": "RF-HOR-002",
+    "descripcion": "HORQUILLA P/TELAR",
+    "tipo": "ALUMINIO",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SPR-001",
+    "nomenclatura": "RF-SPR-001",
+    "descripcion": "SPRING D 0.5 (WINDER-20-4)",
+    "tipo": "1124030430",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "POW-001",
+    "nomenclatura": "ELC-POW-001",
+    "descripcion": "POWER CABLE 1 ELECTRONIC GEARING",
+    "tipo": "1127044020",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "IDT-002",
+    "nomenclatura": "ELC-IDT-002",
+    "descripcion": "IDT CABLE ELECTRONIC GEARING",
+    "tipo": "1127044040",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "ANA-001",
+    "nomenclatura": "ELC-ANA-001",
+    "descripcion": "ANALOG SENSOR WHITH MOLEX CONN",
+    "tipo": "1127099310",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "FRO-001",
+    "nomenclatura": "RF-FRO-001",
+    "descripcion": "FRONT SLEEVE",
+    "tipo": "1130814610",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SLE-001",
+    "nomenclatura": "RF-SLE-001",
+    "descripcion": "SLEEVE BACK",
+    "tipo": "1130814620",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PRE-001",
+    "nomenclatura": "RF-PRE-001",
+    "descripcion": "PRESSURE ADJUSTOR",
+    "tipo": "1130857020",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BEA-001",
+    "nomenclatura": "RF-BEA-001",
+    "descripcion": "BEARING COVER",
+    "tipo": "1130863850",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "OSC-001",
+    "nomenclatura": "RF-OSC-001",
+    "descripcion": "OSCILLATING ROD",
+    "tipo": "11308644940",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ORI-002",
+    "nomenclatura": "RF-ORI-002",
+    "descripcion": "O RING",
+    "tipo": "1130865010",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PUL-001",
+    "nomenclatura": "RF-PUL-001",
+    "descripcion": "PULLEY ADOPTER",
+    "tipo": "1130865900",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TIM-001",
+    "nomenclatura": "RF-TIM-001",
+    "descripcion": "TIMING PULLEY 24 T",
+    "tipo": "1130869810",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TIM-002",
+    "nomenclatura": "RF-TIM-002",
+    "descripcion": "TIMING PULLET 35 T",
+    "tipo": "1130869830",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PUL-002",
+    "nomenclatura": "RF-PUL-002",
+    "descripcion": "PULLEY ADOPTER D15",
+    "tipo": "1130874840",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PRO-001",
+    "nomenclatura": "RF-PRO-001",
+    "descripcion": "PROGRAMED LS20 INVENTER",
+    "tipo": "1147250436",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PRO-002",
+    "nomenclatura": "RF-PRO-002",
+    "descripcion": "PROGRAMED LS20 INVENTER",
+    "tipo": "1147250436",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "ENC-001",
+    "nomenclatura": "ELC-ENC-001",
+    "descripcion": "ENCODER CABLE LTW200CE EXT SHIELDING 114725039",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "POW-002",
+    "nomenclatura": "ELC-POW-002",
+    "descripcion": "POWER CABLE SW TO CBM 114725039",
+    "tipo": "2",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "DOF-001",
+    "nomenclatura": "ELC-DOF-001",
+    "descripcion": "DOFFING LIGHT WITH CRIMPED TER",
+    "tipo": "1147250434",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "DCC-001",
+    "nomenclatura": "ELC-DCC-001",
+    "descripcion": "DC CABLE EG HEAD 24",
+    "tipo": "1147252540",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "JHO-001",
+    "nomenclatura": "RF-JHO-001",
+    "descripcion": "J HOOK CERAMIC 7MM",
+    "tipo": "1157007100",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUN-001",
+    "nomenclatura": "RF-TUN-001",
+    "descripcion": "TUNER SPRING",
+    "tipo": "1157040610",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TEN-001",
+    "nomenclatura": "RF-TEN-001",
+    "descripcion": "TENSION ARM",
+    "tipo": "1157044510",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "LEV-001",
+    "nomenclatura": "RF-LEV-001",
+    "descripcion": "LEVER HOLDER",
+    "tipo": "1157094300",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ROL-001",
+    "nomenclatura": "RF-ROL-001",
+    "descripcion": "ROLLER PIN",
+    "tipo": "1157098900",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "MID-001",
+    "nomenclatura": "RF-MID-001",
+    "descripcion": "MIDDLE TUBE",
+    "tipo": "1157108900",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TEW-001",
+    "nomenclatura": "RF-TEW-001",
+    "descripcion": "TE WITH CERAMIC 3MM -C/CE",
+    "tipo": "1157903400",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TGW-001",
+    "nomenclatura": "RF-TGW-001",
+    "descripcion": "TG WITH CERAMIC 6MM -C/CE",
+    "tipo": "1130878420",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "GUI-003",
+    "nomenclatura": "RF-GUI-003",
+    "descripcion": "GUIDE ROLLER S/ASSY",
+    "tipo": "1157926400",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "VGU-001",
+    "nomenclatura": "RF-VGU-001",
+    "descripcion": "V GUIDE ROLLER UNIT",
+    "tipo": "1300100004",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SWI-001",
+    "nomenclatura": "RF-SWI-001",
+    "descripcion": "SWITCH BOX ASSY COMPLETE EG",
+    "tipo": "1300900147",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PRE-002",
+    "nomenclatura": "RF-PRE-002",
+    "descripcion": "PRESSURE ROLLER SUB ASSY",
+    "tipo": "1301351020",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CAM-003",
+    "nomenclatura": "RF-CAM-003",
+    "descripcion": "CAM FOLLOWER",
+    "tipo": "1303541000",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SLE-002",
+    "nomenclatura": "RF-SLE-002",
+    "descripcion": "SLEDGE",
+    "tipo": "1304635000",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "REL-003",
+    "nomenclatura": "RF-REL-003",
+    "descripcion": "RELIEVER BLOCK",
+    "tipo": "1305268020",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TEN-002",
+    "nomenclatura": "RF-TEN-002",
+    "descripcion": "TENSION KNOB",
+    "tipo": "1306841010",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TUN-002",
+    "nomenclatura": "RF-TUN-002",
+    "descripcion": "TUNER HOUSING",
+    "tipo": "1306859000",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CBM-001",
+    "nomenclatura": "RF-CBM-001",
+    "descripcion": "CBM CARD PROGRAMMED-EG",
+    "tipo": "1932242000",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CAN-004",
+    "nomenclatura": "RF-CAN-004",
+    "descripcion": "CAN REPORTER MODIFIED",
+    "tipo": "1991000100",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ORI-003",
+    "nomenclatura": "RF-ORI-003",
+    "descripcion": "O RING NBR ID41 X 2(90° + 5)A",
+    "tipo": "2362104100",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ORI-004",
+    "nomenclatura": "RF-ORI-004",
+    "descripcion": "O RING NBR ID50 X 2.5(90° + 5)A",
+    "tipo": "2362105000",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ORI-005",
+    "nomenclatura": "RF-ORI-005",
+    "descripcion": "O RING NBR ID55 X 2 (90° +5)A 236210550",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "GRE-001",
+    "nomenclatura": "RF-GRE-001",
+    "descripcion": "GREASE ORELUBE BM50",
+    "tipo": "2460040003",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TIM-003",
+    "nomenclatura": "RF-TIM-003",
+    "descripcion": "TIMING BELT 140XL050",
+    "tipo": "2490100005",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ROT-002",
+    "nomenclatura": "RF-ROT-002",
+    "descripcion": "4037501600",
+    "tipo": "4037501600",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "HRC-001",
+    "nomenclatura": "RF-HRC-001",
+    "descripcion": "HRC FUSE AC 400V CYL 14 X 51 50A 120K A BRK 405010500",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "2CH-001",
+    "nomenclatura": "RF-2CH-001",
+    "descripcion": "2 CH OPTICAL ENCODER 100 PPR 8MM",
+    "tipo": "4450108000",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "FUS-001",
+    "nomenclatura": "RF-FUS-001",
+    "descripcion": "FUSE 2A 250V FAST",
+    "tipo": "5300000105",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "FUS-002",
+    "nomenclatura": "RF-FUS-002",
+    "descripcion": "FUSE 356 SERIES 3.15A 440V SLOW BLOW",
+    "tipo": "5300000108",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "FUS-003",
+    "nomenclatura": "RF-FUS-003",
+    "descripcion": "FUSE 12.5A 500V FAST 530000011",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SMP-001",
+    "nomenclatura": "RF-SMP-001",
+    "descripcion": "SMPS 230 VAC 24VDC 150W PANEL DIN-RAIL",
+    "tipo": "5410120100",
+    "marca": "GENERICA",
+    "localidad": "H3"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "ETI-003",
+    "nomenclatura": "MATEMP-ETI-003",
+    "descripcion": "ETIQUETA AMARILLA",
+    "tipo": "NYLON",
+    "marca": "GENERICA",
+    "localidad": "I1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-029",
+    "nomenclatura": "RF-TOR-029",
+    "descripcion": "TORNILLO C/HEXAGONAL 8 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-030",
+    "nomenclatura": "RF-TOR-030",
+    "descripcion": "TORNILLO C/HEXAGONAL 8 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-031",
+    "nomenclatura": "RF-TOR-031",
+    "descripcion": "TORNILLO C/HEXAGONAL 8 X",
+    "tipo": "60",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-032",
+    "nomenclatura": "RF-TOR-032",
+    "descripcion": "TORNILLO ALLEN C/BOTON 8 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-033",
+    "nomenclatura": "RF-TOR-033",
+    "descripcion": "TORNILLO C/ALLEN 10 X",
+    "tipo": "60",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-034",
+    "nomenclatura": "RF-TOR-034",
+    "descripcion": "TORNILLO C/ALLEN C/PLANA 10 X",
+    "tipo": "60",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BOL-001",
+    "nomenclatura": "RF-BOL-001",
+    "descripcion": "BOLT HBO 133100",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "GENERICA12"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BUJ-001",
+    "nomenclatura": "RF-BUJ-001",
+    "descripcion": "BUJE",
+    "tipo": "EXCENTRICO",
+    "marca": "N/A",
+    "localidad": "GENERICA12"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BUJ-002",
+    "nomenclatura": "RF-BUJ-002",
+    "descripcion": "BUJE TOR",
+    "tipo": "2",
+    "marca": "GENERICA",
+    "localidad": "GENERICA12"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BUJ-001",
+    "nomenclatura": "RF-BUJ-001",
+    "descripcion": "BUJE TOR",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "GENERICA12"
+  },
+  {
+    "familia": "RF",
+    "articulo": "ORI-001",
+    "nomenclatura": "RF-ORI-001",
+    "descripcion": "O RING",
+    "tipo": "N804313007",
+    "marca": "GENERICA",
+    "localidad": "GENERICA12"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BRA-002",
+    "nomenclatura": "RF-BRA-002",
+    "descripcion": "BRACKET",
+    "tipo": "089-14-15",
+    "marca": "GENERICA",
+    "localidad": "GENERICA12"
+  },
+  {
+    "familia": "RF",
+    "articulo": "POL-002",
+    "nomenclatura": "RF-POL-002",
+    "descripcion": "POLEA METALICA 4-110",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-035",
+    "nomenclatura": "RF-TOR-035",
+    "descripcion": "TORNILLO ALLEN C/BOTON 10 X",
+    "tipo": "25",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-036",
+    "nomenclatura": "RF-TOR-036",
+    "descripcion": "TRNILLO C/ALLEN 5 X",
+    "tipo": "40",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-037",
+    "nomenclatura": "RF-TOR-037",
+    "descripcion": "TRNILLO C/ALLEN 5 X",
+    "tipo": "50",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-038",
+    "nomenclatura": "RF-TOR-038",
+    "descripcion": "TRNILLO C/ALLEN 6 X",
+    "tipo": "25",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-039",
+    "nomenclatura": "RF-TOR-039",
+    "descripcion": "TRNILLO C/BOTON 6 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-040",
+    "nomenclatura": "RF-TOR-040",
+    "descripcion": "TRNILLO C/ALLEN 6 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-041",
+    "nomenclatura": "RF-TOR-041",
+    "descripcion": "TRNILLO C/ALLEN 6 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-042",
+    "nomenclatura": "RF-TOR-042",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "10",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-043",
+    "nomenclatura": "RF-TOR-043",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "25",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-044",
+    "nomenclatura": "RF-TOR-044",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-045",
+    "nomenclatura": "RF-TOR-045",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "45",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-046",
+    "nomenclatura": "RF-TOR-046",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-047",
+    "nomenclatura": "RF-TOR-047",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "60",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-048",
+    "nomenclatura": "RF-TOR-048",
+    "descripcion": "TRNILLO C/ALLEN 8 X",
+    "tipo": "70",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-049",
+    "nomenclatura": "RF-TOR-049",
+    "descripcion": "TORNILLO C/HEXAGONAL 8 X",
+    "tipo": "70",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-050",
+    "nomenclatura": "RF-TOR-050",
+    "descripcion": "TORNILLO C/HEXAGONAL 12 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-051",
+    "nomenclatura": "RF-TOR-051",
+    "descripcion": "TORNILLO C/HEXAGONAL 12 X",
+    "tipo": "30",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-052",
+    "nomenclatura": "RF-TOR-052",
+    "descripcion": "TORNILLO C/HEXAGONAL 12 X",
+    "tipo": "60",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-053",
+    "nomenclatura": "RF-TOR-053",
+    "descripcion": "TORNILLO C/HEXAGONAL 12 X",
+    "tipo": "50",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-054",
+    "nomenclatura": "RF-TOR-054",
+    "descripcion": "TORNILLO C/HEXAGONAL 3/8 X 1",
+    "tipo": "1/2",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-055",
+    "nomenclatura": "RF-TOR-055",
+    "descripcion": "TORNILLO C/ALLEN 10 X",
+    "tipo": "70",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-056",
+    "nomenclatura": "RF-TOR-056",
+    "descripcion": "TORNILLO C/HEXAGONAL 10 X",
+    "tipo": "70",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-057",
+    "nomenclatura": "RF-TOR-057",
+    "descripcion": "TORNILLO C/HEXAGONAL 10 X",
+    "tipo": "50",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-058",
+    "nomenclatura": "RF-TOR-058",
+    "descripcion": "TORNILLO C/HEXAGONAL 8 X",
+    "tipo": "40",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "TOR-059",
+    "nomenclatura": "RF-TOR-059",
+    "descripcion": "TORNILLO C/ALLEN 10 X",
+    "tipo": "35",
+    "marca": "GENERICA",
+    "localidad": "I2"
+  },
+  {
+    "familia": "PQ",
+    "articulo": "FLU-001",
+    "nomenclatura": "PQ-FLU-001",
+    "descripcion": "FLUIDO DE SILICON FS",
+    "tipo": "18-350",
+    "marca": "N/A",
+    "localidad": "I3"
+  },
+  {
+    "familia": "MATEMP",
+    "articulo": "CIN-004",
+    "nomenclatura": "MATEMP-CIN-004",
+    "descripcion": "CINTA CANELA 2\" Y",
+    "tipo": "3\"",
+    "marca": "GENERICA",
+    "localidad": "J1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "CIN-005",
+    "nomenclatura": "MATCONS-CIN-005",
+    "descripcion": "CINTA MASKING TAPE ROJO 1.7",
+    "tipo": "CM",
+    "marca": "ADHECINTAS",
+    "localidad": "J1"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "CIN-006",
+    "nomenclatura": "MATCONS-CIN-006",
+    "descripcion": "CINTA MASKIN TAPE BEIGE 2.5",
+    "tipo": "CM",
+    "marca": "TUK",
+    "localidad": "J1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-001",
+    "nomenclatura": "RF-RES-001",
+    "descripcion": "RESORTE MEDIA LUNA",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-002",
+    "nomenclatura": "RF-RES-002",
+    "descripcion": "RESORTE DE TENSION",
+    "tipo": "SBY",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-003",
+    "nomenclatura": "RF-RES-003",
+    "descripcion": "RESORTE MEDIANO",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-004",
+    "nomenclatura": "RF-RES-004",
+    "descripcion": "RESORTE 24F",
+    "tipo": "00387",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-005",
+    "nomenclatura": "RF-RES-005",
+    "descripcion": "RESORTE 24F",
+    "tipo": "0008A-IM",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-006",
+    "nomenclatura": "RF-RES-006",
+    "descripcion": "RESORTE 24F",
+    "tipo": "0053B",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-007",
+    "nomenclatura": "RF-RES-007",
+    "descripcion": "RESORTE LESSONA",
+    "tipo": "MUELLER",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-008",
+    "nomenclatura": "RF-RES-008",
+    "descripcion": "RESORTE DE TENSION",
+    "tipo": "20",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-009",
+    "nomenclatura": "RF-RES-009",
+    "descripcion": "RESORTE TIPO DONA",
+    "tipo": "DONA",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "LAN-001",
+    "nomenclatura": "RF-LAN-001",
+    "descripcion": "LANZADERA PARA TELAR DE",
+    "tipo": "BANDA",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-010",
+    "nomenclatura": "RF-RES-010",
+    "descripcion": "RESORTE TIPO BARRIL",
+    "tipo": "BARRIL",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-011",
+    "nomenclatura": "RF-RES-011",
+    "descripcion": "RESORTE CONICO",
+    "tipo": "CONICO",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-012",
+    "nomenclatura": "RF-RES-012",
+    "descripcion": "RESORTE",
+    "tipo": "HDN8",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-013",
+    "nomenclatura": "RF-RES-013",
+    "descripcion": "RESORTE DE PRESION",
+    "tipo": "6",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-014",
+    "nomenclatura": "RF-RES-014",
+    "descripcion": "RESORTE LOHIA",
+    "tipo": "LOHIA",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-015",
+    "nomenclatura": "RF-RES-015",
+    "descripcion": "RESORTE ALPHA",
+    "tipo": "ALPHA",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-016",
+    "nomenclatura": "RF-RES-016",
+    "descripcion": "RESORTE TORII",
+    "tipo": "TORII",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-017",
+    "nomenclatura": "RF-RES-017",
+    "descripcion": "RESORTE DE COMPRESION",
+    "tipo": "COMPRESION",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-018",
+    "nomenclatura": "RF-RES-018",
+    "descripcion": "RESORTE TIPO ALFILER",
+    "tipo": "ALFILER",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-019",
+    "nomenclatura": "RF-RES-019",
+    "descripcion": "RESORTE HDN4",
+    "tipo": "HDN4",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-020",
+    "nomenclatura": "RF-RES-020",
+    "descripcion": "RESORTE DE COMPENSACION",
+    "tipo": "COMPENSACION",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-021",
+    "nomenclatura": "RF-RES-021",
+    "descripcion": "RESORTE DE CARACOL",
+    "tipo": "IZQUIERDO",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-022",
+    "nomenclatura": "RF-RES-022",
+    "descripcion": "RESORTE DE CARACOL",
+    "tipo": "DERECHO",
+    "marca": "GENERICA",
+    "localidad": "J2"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "HIP-001",
+    "nomenclatura": "LIM-HIP-001",
+    "descripcion": "HIPOCLORITO",
+    "tipo": "LIQUIDO",
+    "marca": "GENERICA",
+    "localidad": "J3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "CLO-001",
+    "nomenclatura": "LIM-CLO-001",
+    "descripcion": "CLORO",
+    "tipo": "LIQUIDO",
+    "marca": "GENERICA",
+    "localidad": "J3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "PIN-002",
+    "nomenclatura": "LIM-PIN-002",
+    "descripcion": "PINO BASE",
+    "tipo": "LIQUIDO",
+    "marca": "GENERICA",
+    "localidad": "J3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "PIN-003",
+    "nomenclatura": "LIM-PIN-003",
+    "descripcion": "PINO",
+    "tipo": "LIQUIDO",
+    "marca": "GENERICA",
+    "localidad": "J3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "GEL-001",
+    "nomenclatura": "LIM-GEL-001",
+    "descripcion": "GEL ANTIBACTERIAL",
+    "tipo": "GEL P/MANOS",
+    "marca": "GENERICA",
+    "localidad": "J3"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "CIN-007",
+    "nomenclatura": "MATCONS-CIN-007",
+    "descripcion": "CINTA DE FILAMENTOS 48 X",
+    "tipo": "50",
+    "marca": "TUK",
+    "localidad": "K1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "MAL-006",
+    "nomenclatura": "RF-MAL-006",
+    "descripcion": "MALLA PARA TELAR 18.5",
+    "tipo": "CM",
+    "marca": "GENERICA",
+    "localidad": "K2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "MAL-007",
+    "nomenclatura": "RF-MAL-007",
+    "descripcion": "MALLA PARA TELAR 18",
+    "tipo": "CM",
+    "marca": "GENERICA",
+    "localidad": "K2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "POR-002",
+    "nomenclatura": "RF-POR-002",
+    "descripcion": "PORTA ESCUADRA",
+    "tipo": "FIERRO",
+    "marca": "GENERICA",
+    "localidad": "K2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "AGU-001",
+    "nomenclatura": "RF-AGU-001",
+    "descripcion": "AGUJA DIAMANT",
+    "tipo": "G54B",
+    "marca": "GENERICA",
+    "localidad": "K2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "AGU-002",
+    "nomenclatura": "RF-AGU-002",
+    "descripcion": "AGUJA PARA CINTURON VO SPEC",
+    "tipo": "79-108",
+    "marca": "GENERICA",
+    "localidad": "K2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CON-002",
+    "nomenclatura": "RF-CON-002",
+    "descripcion": "COMPENSADOR CERAMICO",
+    "tipo": "CERAMICA",
+    "marca": "GENERICA",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-001",
+    "nomenclatura": "MATCONS-LIJ-001",
+    "descripcion": "LIJA DE AGUA IV",
+    "tipo": "400",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-002",
+    "nomenclatura": "MATCONS-LIJ-002",
+    "descripcion": "LIJA DE AGUA IV",
+    "tipo": "360",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-003",
+    "nomenclatura": "MATCONS-LIJ-003",
+    "descripcion": "LIJA DE AGUA IV",
+    "tipo": "120",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-004",
+    "nomenclatura": "MATCONS-LIJ-004",
+    "descripcion": "LIJA DE AGUA IV",
+    "tipo": "180",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-005",
+    "nomenclatura": "MATCONS-LIJ-005",
+    "descripcion": "LIJA DE AGUA IV",
+    "tipo": "80",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-006",
+    "nomenclatura": "MATCONS-LIJ-006",
+    "descripcion": "LIJA DE AGUA IV",
+    "tipo": "60",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-007",
+    "nomenclatura": "MATCONS-LIJ-007",
+    "descripcion": "LIJA DE ESMERIL N",
+    "tipo": "120",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-008",
+    "nomenclatura": "MATCONS-LIJ-008",
+    "descripcion": "LIJA DE ESMERIL N",
+    "tipo": "80",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "MATCONS",
+    "articulo": "LIJ-009",
+    "nomenclatura": "MATCONS-LIJ-009",
+    "descripcion": "LIJA DE ESMERIL N",
+    "tipo": "50",
+    "marca": "FANDELI",
+    "localidad": "K2"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "SHA-001",
+    "nomenclatura": "LIM-SHA-001",
+    "descripcion": "SHAMPOO PARA MANOS",
+    "tipo": "LIQUIDO",
+    "marca": "N/A",
+    "localidad": "K3"
+  },
+  {
+    "familia": "LIM",
+    "articulo": "ESC-001",
+    "nomenclatura": "LIM-ESC-001",
+    "descripcion": "ESCENCIA DE MAR FRESCO",
+    "tipo": "LIQUIDO",
+    "marca": "N/A",
+    "localidad": "K3"
+  },
+  {
+    "familia": "RF",
+    "articulo": "DIS-002",
+    "nomenclatura": "RF-DIS-002",
+    "descripcion": "DISCO 10629800",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "HOR-003",
+    "nomenclatura": "RF-HOR-003",
+    "descripcion": "HORQUILLA 10516800",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "GUA-009",
+    "nomenclatura": "RF-GUA-009",
+    "descripcion": "GUARDA 14887500",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PRO-001",
+    "nomenclatura": "RF-PRO-001",
+    "descripcion": "PROTECTOR 14887400",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BUJ-001",
+    "nomenclatura": "RF-BUJ-001",
+    "descripcion": "BUJE DE",
+    "tipo": "POLEA",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BOR-001",
+    "nomenclatura": "RF-BOR-001",
+    "descripcion": "BORRA",
+    "tipo": "81-134-0",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAS-001",
+    "nomenclatura": "RF-BAS-001",
+    "descripcion": "BASE GUARDA AGUJA",
+    "tipo": "18876",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "NAV-004",
+    "nomenclatura": "RF-NAV-004",
+    "descripcion": "NAVAJA PENTAGONAL",
+    "tipo": "ULTRASONICA",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "SEN-001",
+    "nomenclatura": "ELC-SEN-001",
+    "descripcion": "SENSOR PARA CORTE",
+    "tipo": "CABLE",
+    "marca": "EFKA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CON-003",
+    "nomenclatura": "RF-CON-003",
+    "descripcion": "CONVERTER C50-20-SHV-PLUG",
+    "tipo": "CORTE",
+    "marca": "EFKA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "ELC",
+    "articulo": "ULT-001",
+    "nomenclatura": "ELC-ULT-001",
+    "descripcion": "ULTRASONIC CABLE FOR",
+    "tipo": "GENERATOR",
+    "marca": "EFKA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CAN-001",
+    "nomenclatura": "RF-CAN-001",
+    "descripcion": "CANDADO BLOCK",
+    "tipo": "5",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PIN-004",
+    "nomenclatura": "RF-PIN-004",
+    "descripcion": "PIN",
+    "tipo": "US",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "BAR-002",
+    "nomenclatura": "RF-BAR-002",
+    "descripcion": "BARRA DE",
+    "tipo": "AGUJA",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "NEE-001",
+    "nomenclatura": "RF-NEE-001",
+    "descripcion": "NEEDLE BAR",
+    "tipo": "LINK",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "CON-003",
+    "nomenclatura": "RF-CON-003",
+    "descripcion": "CONNECTION",
+    "tipo": "CONNECTION",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "SIN-001",
+    "nomenclatura": "RF-SIN-001",
+    "descripcion": "SINCRONIZADOR",
+    "tipo": "EFKA",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "PIN-004",
+    "nomenclatura": "RF-PIN-004",
+    "descripcion": "PIN",
+    "tipo": "US",
+    "marca": "GENERICA",
+    "localidad": "L1"
+  },
+  {
+    "familia": "RF",
+    "articulo": "OPR-001",
+    "nomenclatura": "RF-OPR-001",
+    "descripcion": "OPRESOR 01376161",
+    "tipo": "2",
+    "marca": "GENERICA",
+    "localidad": "L2"
+  },
+  {
+    "familia": "RF",
+    "articulo": "RES-023",
+    "nomenclatura": "RF-RES-023",
+    "descripcion": "RESORTE 10522700",
+    "tipo": "1",
+    "marca": "GENERICA",
+    "localidad": "L2"
+  }
+]

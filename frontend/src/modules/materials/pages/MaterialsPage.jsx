@@ -8,25 +8,18 @@ import LoadingState from '../../../components/feedback/LoadingState';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useAuthStore } from '../../../store/authStore';
 
-import CategoriesListSection from '../components/CategoriesListSection';
-import CategoryDeactivateDialog from '../components/CategoryDeactivateDialog';
-import CategoryForm from '../components/CategoryForm';
 import MaterialActionSheet from '../components/MaterialActionSheet';
 import MaterialDeactivateDialog from '../components/MaterialDeactivateDialog';
 import MaterialFiltersPanel from '../components/MaterialFiltersPanel';
 import MaterialForm from '../components/MaterialForm';
 import MaterialModuleHeader from '../components/MaterialModuleHeader';
 import MaterialsListSection from '../components/MaterialsListSection';
-import QrSummaryCard from '../../qrcodes/components/QrSummaryCard';
 
 import {
-  useCreateMaterialCategoryMutation,
   useCreateMaterialMutation,
-  useDeactivateMaterialCategoryMutation,
   useDeactivateMaterialMutation,
-  useMaterialCategoriesQuery,
+  useMaterialFamiliesQuery,
   useMaterialsQuery,
-  useUpdateMaterialCategoryMutation,
   useUpdateMaterialMutation,
 } from '../hooks/useMaterialsQueries';
 
@@ -60,6 +53,10 @@ const MaterialsPage = () => {
   const canUpdate = hasPermission('materials.update');
   const canDelete = hasPermission('materials.delete');
   const canViewInactive = canUpdate || canDelete;
+  
+  // Asumimos que SUPERADMIN y ADMIN tienen permisos especiales o roles
+  const { user } = useAuthStore();
+  const canManageCatalogs = user?.role?.name === 'SUPERADMIN' || user?.role?.name === 'ADMIN' || hasPermission('masterdata.manage');
 
   const [operationMessage, setOperationMessage] = useState(null);
   const [operationError, setOperationError] = useState(null);
@@ -68,23 +65,20 @@ const MaterialsPage = () => {
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [materialToDeactivate, setMaterialToDeactivate] = useState(null);
 
-  const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [categoryToDeactivate, setCategoryToDeactivate] = useState(null);
-
   const [filters, setFilters] = useState({
     search: '',
-    material_category_id: '',
+    family_uuid: '',
     material_type: '',
     default_unit: '',
     status: 'active',
+    page: 1,
   });
 
   const debouncedFilters = useDebouncedValue(filters, 300);
 
   const materialsQuery = useMaterialsQuery(debouncedFilters);
 
-  const categoriesQuery = useMaterialCategoriesQuery({
+  const familiesQuery = useMaterialFamiliesQuery({
     include_inactive: canViewInactive ? 'true' : undefined,
   });
 
@@ -92,33 +86,29 @@ const MaterialsPage = () => {
   const updateMaterialMutation = useUpdateMaterialMutation();
   const deactivateMaterialMutation = useDeactivateMaterialMutation();
 
-  const createCategoryMutation = useCreateMaterialCategoryMutation();
-  const updateCategoryMutation = useUpdateMaterialCategoryMutation();
-  const deactivateCategoryMutation = useDeactivateMaterialCategoryMutation();
-
   const materials = Array.isArray(materialsQuery.data?.items)
     ? materialsQuery.data.items
     : [];
 
   const total = Number(materialsQuery.data?.total) || materials.length;
 
-  const categories = Array.isArray(categoriesQuery.data)
-    ? categoriesQuery.data
+  const families = Array.isArray(familiesQuery.data)
+    ? familiesQuery.data
     : [];
 
   const isInitialLoading =
-    (materialsQuery.isLoading || categoriesQuery.isLoading) &&
+    (materialsQuery.isLoading || familiesQuery.isLoading) &&
     !materialsQuery.data &&
-    !categoriesQuery.data;
+    !familiesQuery.data;
 
-  const loadError = materialsQuery.error || categoriesQuery.error;
+  const loadError = materialsQuery.error || familiesQuery.error;
 
   const isRefreshing =
     materialsQuery.isFetching && !materialsQuery.isLoading;
 
   const hasActiveFilters = Boolean(
     filters.search ||
-    filters.material_category_id ||
+    filters.family_uuid ||
     filters.material_type ||
     filters.default_unit ||
     filters.status === 'all'
@@ -132,7 +122,7 @@ const MaterialsPage = () => {
     return materials.filter((material) => !material.is_active).length;
   }, [materials]);
 
-  const categoryCount = categories.length;
+  const categoryCount = families.length;
 
   const updateFilter = (key, value) => {
     setFilters((currentFilters) => ({
@@ -144,16 +134,20 @@ const MaterialsPage = () => {
   const clearFilters = () => {
     setFilters({
       search: '',
-      material_category_id: '',
+      family_uuid: '',
       material_type: '',
       default_unit: '',
       status: 'active',
+      page: 1,
     });
+  };
+
+  const handlePageChange = (newPage) => {
+    updateFilter('page', newPage);
   };
 
   const handleRefresh = () => {
     materialsQuery.refetch();
-    categoriesQuery.refetch();
   };
 
   const openCreateMaterial = () => {
@@ -173,25 +167,6 @@ const MaterialsPage = () => {
   const closeMaterialSheet = () => {
     setIsMaterialSheetOpen(false);
     setSelectedMaterial(null);
-  };
-
-  const openCreateCategory = () => {
-    setSelectedCategory(null);
-    setOperationMessage(null);
-    setOperationError(null);
-    setIsCategorySheetOpen(true);
-  };
-
-  const openEditCategory = (category) => {
-    setSelectedCategory(category);
-    setOperationMessage(null);
-    setOperationError(null);
-    setIsCategorySheetOpen(true);
-  };
-
-  const closeCategorySheet = () => {
-    setIsCategorySheetOpen(false);
-    setSelectedCategory(null);
   };
 
   const handleSubmitMaterial = async (payload) => {
@@ -217,28 +192,7 @@ const MaterialsPage = () => {
     }
   };
 
-  const handleSubmitCategory = async (payload) => {
-    setOperationMessage(null);
-    setOperationError(null);
 
-    try {
-      if (selectedCategory?.id) {
-        await updateCategoryMutation.mutateAsync({
-          id: selectedCategory.id,
-          payload,
-        });
-
-        setOperationMessage('Categoría actualizada correctamente.');
-      } else {
-        await createCategoryMutation.mutateAsync(payload);
-        setOperationMessage('Categoría creada correctamente.');
-      }
-
-      closeCategorySheet();
-    } catch (error) {
-      setOperationError(getApiErrorMessage(error));
-    }
-  };
 
   const handleDeactivateMaterial = async () => {
     if (!materialToDeactivate?.id) return;
@@ -254,7 +208,7 @@ const MaterialsPage = () => {
       setMaterialToDeactivate(null);
 
       await materialsQuery.refetch();
-      await categoriesQuery.refetch();
+      await familiesQuery.refetch();
 
       setOperationMessage(
         `Material "${selectedMaterial.code} — ${selectedMaterial.name}" desactivado correctamente.`
@@ -269,40 +223,13 @@ const MaterialsPage = () => {
     }
   };
 
-  const handleDeactivateCategory = async () => {
-    if (!categoryToDeactivate?.id) return;
 
-    const selectedCategory = categoryToDeactivate;
-
-    setOperationMessage(null);
-    setOperationError(null);
-
-    try {
-      await deactivateCategoryMutation.mutateAsync(selectedCategory.id);
-
-      setCategoryToDeactivate(null);
-
-      await categoriesQuery.refetch();
-      await materialsQuery.refetch();
-
-      setOperationMessage(
-        `Categoría "${selectedCategory.code} — ${selectedCategory.name}" desactivada correctamente.`
-      );
-    } catch (error) {
-      setCategoryToDeactivate(null);
-
-      setOperationError(
-        getApiErrorMessage(error) ||
-        `No se pudo desactivar la categoría "${selectedCategory.code}".`
-      );
-    }
-  };
 
   if (isInitialLoading) {
     return (
       <LoadingState
         title="Cargando catálogo de materiales"
-        message="Estamos consultando materiales y categorías disponibles."
+        message="Estamos consultando materiales y familias disponibles."
       />
     );
   }
@@ -349,42 +276,18 @@ const MaterialsPage = () => {
 
       <MaterialModuleHeader
         total={total || materials.length}
+        activeCount={activeCount}
+        inactiveCount={inactiveCount}
+        categoryCount={categoryCount}
         canCreate={canCreate}
         onCreateMaterial={openCreateMaterial}
-        onCreateCategory={openCreateCategory}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <QrSummaryCard
-          title="Activos"
-          value={activeCount}
-          description="Disponibles para operación"
-          icon={PackageCheck}
-          tone="success"
-        />
-
-        <QrSummaryCard
-          title="Categorías"
-          value={categoryCount}
-          description="Clasificación del catálogo"
-          icon={Layers3}
-          tone="primary"
-        />
-
-        <QrSummaryCard
-          title="Inactivos"
-          value={inactiveCount}
-          description="Ocultos para operación"
-          icon={Boxes}
-          tone="warning"
-        />
-      </div>
-
       <MaterialFiltersPanel
         filters={filters}
-        categories={categories}
+        families={families}
         canViewInactive={canViewInactive}
         onFilterChange={updateFilter}
         onClearFilters={clearFilters}
@@ -406,16 +309,6 @@ const MaterialsPage = () => {
         />
       )}
 
-      <CategoriesListSection
-        categories={categories}
-        canCreate={canCreate}
-        canUpdate={canUpdate}
-        canDelete={canDelete}
-        onCreate={openCreateCategory}
-        onEdit={openEditCategory}
-        onDeactivate={setCategoryToDeactivate}
-      />
-
       <MaterialsListSection
         materials={materials}
         canCreate={canCreate}
@@ -426,6 +319,10 @@ const MaterialsPage = () => {
         onEdit={openEditMaterial}
         onDeactivate={setMaterialToDeactivate}
         onClearFilters={clearFilters}
+        page={filters.page}
+        total={total}
+        pageSize={20}
+        onPageChange={handlePageChange}
       />
 
       <MaterialActionSheet
@@ -439,7 +336,6 @@ const MaterialsPage = () => {
         }
       >
         <MaterialForm
-          categories={categories}
           initialData={selectedMaterial}
           isSubmitting={
             createMaterialMutation.isPending || updateMaterialMutation.isPending
@@ -449,40 +345,12 @@ const MaterialsPage = () => {
         />
       </MaterialActionSheet>
 
-      <MaterialActionSheet
-        open={isCategorySheetOpen}
-        onClose={closeCategorySheet}
-        title={selectedCategory ? 'Editar categoría' : 'Nueva categoría'}
-        description={
-          selectedCategory
-            ? 'Actualiza la información de la categoría seleccionada.'
-            : 'Registra una categoría para clasificar materiales del catálogo.'
-        }
-      >
-        <CategoryForm
-          initialData={selectedCategory}
-          isSubmitting={
-            createCategoryMutation.isPending || updateCategoryMutation.isPending
-          }
-          onSubmit={handleSubmitCategory}
-          onCancel={closeCategorySheet}
-        />
-      </MaterialActionSheet>
-
       <MaterialDeactivateDialog
         open={Boolean(materialToDeactivate)}
         material={materialToDeactivate}
         isLoading={deactivateMaterialMutation.isPending}
         onConfirm={handleDeactivateMaterial}
         onClose={() => setMaterialToDeactivate(null)}
-      />
-
-      <CategoryDeactivateDialog
-        open={Boolean(categoryToDeactivate)}
-        category={categoryToDeactivate}
-        isLoading={deactivateCategoryMutation.isPending}
-        onConfirm={handleDeactivateCategory}
-        onClose={() => setCategoryToDeactivate(null)}
       />
     </div>
   );

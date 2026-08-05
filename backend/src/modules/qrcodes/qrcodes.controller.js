@@ -110,6 +110,15 @@ const getQrCodeByValue = async (req, res, next) => {
   }
 };
 
+const lookup = async (req, res, next) => {
+  try {
+    const result = await qrcodesService.lookup(req.params.qrCode);
+    return successResponse(res, 'Información del QR obtenida correctamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getQrEvents = async (req, res, next) => {
   try {
     const result = await qrcodesService.getQrEvents(req.params.id, req.user);
@@ -162,4 +171,5 @@ module.exports = {
   getQrBatchById,
   printQrBatch,
   printQrCode,
+  lookup,
 };

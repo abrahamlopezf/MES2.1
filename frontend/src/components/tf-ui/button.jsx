@@ -21,7 +21,7 @@ const buttonVariants = cva(
         primary:
           'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 hover:-translate-y-0.5',
         secondary:
-          'border border-border bg-card text-primary hover:bg-secondary/60 hover:-translate-y-0.5',
+          'border border-border bg-card text-foreground hover:bg-secondary/60 hover:-translate-y-0.5',
         success:
           'bg-success text-success-foreground shadow-lg hover:bg-success/90 hover:-translate-y-0.5',
         warning:
@@ -60,6 +60,7 @@ const TFButton = React.forwardRef(
       asChild = false,
       isLoading = false,
       icon: Icon,
+      iconRight: IconRight,
       children,
       disabled,
       type = 'button',
@@ -94,6 +95,7 @@ const TFButton = React.forwardRef(
       >
         {Icon && <Icon className="size-5 shrink-0" />}
         <span>{isLoading ? 'Procesando...' : children}</span>
+        {IconRight && <IconRight className="size-5 shrink-0" />}
       </button>
     );
   }

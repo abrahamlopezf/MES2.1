@@ -26,54 +26,23 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      assigned_area_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
+      purpose: {
+        type: DataTypes.STRING(40),
+        allowNull: false,
+        defaultValue: 'RECEPTION',
       },
-      current_area_id: {
+      assigned_area_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
       status: {
         type: DataTypes.STRING(40),
         allowNull: false,
-        defaultValue: 'GENERADO',
-      },
-      entity_type: {
-        type: DataTypes.STRING(80),
-        allowNull: true,
-      },
-      entity_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
+        defaultValue: 'GENERATED',
       },
       created_by: {
         type: DataTypes.INTEGER,
         allowNull: false,
-      },
-      assigned_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      assigned_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      used_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      used_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      cancelled_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      cancelled_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
       },
       cancel_reason: {
         type: DataTypes.TEXT,

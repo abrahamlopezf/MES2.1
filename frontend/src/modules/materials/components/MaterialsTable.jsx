@@ -1,8 +1,6 @@
 import { Edit3, ShieldAlert } from 'lucide-react';
 
 import { TFBadge, TFButton } from '../../../components/tf-ui';
-import { getMaterialUnitLabel } from '../constants/materialsUi';
-import MaterialTypeBadge from './MaterialTypeBadge';
 
 const MaterialsTable = ({
   materials = [],
@@ -12,29 +10,29 @@ const MaterialsTable = ({
   onDeactivate,
 }) => {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[880px] border-separate border-spacing-0">
+    <div className="w-full pb-2">
+      <table className="w-full border-separate border-spacing-0">
         <thead>
           <tr>
-            <th className="rounded-l-2xl bg-slate-50 px-4 py-4 text-left text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
-              Código
+            <th className="rounded-l-xl bg-secondary/50 px-2 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Familia
             </th>
-            <th className="bg-slate-50 px-4 py-4 text-left text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
-              Material
+            <th className="bg-secondary/50 px-2 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Articulo/Consecutivo
             </th>
-            <th className="bg-slate-50 px-4 py-4 text-left text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
-              Categoría
+            <th className="bg-secondary/50 px-2 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Descripcion
             </th>
-            <th className="bg-slate-50 px-4 py-4 text-left text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
+            <th className="bg-secondary/50 px-2 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">
               Tipo
             </th>
-            <th className="bg-slate-50 px-4 py-4 text-left text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
-              Unidad
+            <th className="bg-secondary/50 px-2 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Marca
             </th>
-            <th className="bg-slate-50 px-4 py-4 text-left text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
-              Estado
+            <th className="bg-secondary/50 px-2 py-3 text-left text-xs font-black uppercase tracking-wider text-muted-foreground">
+              Localidad
             </th>
-            <th className="rounded-r-2xl bg-slate-50 px-4 py-4 text-right text-xs font-black uppercase tracking-[0.12em] text-[var(--color-muted)]">
+            <th className="rounded-r-xl bg-secondary/50 px-2 py-3 text-right text-xs font-black uppercase tracking-wider text-muted-foreground">
               Acciones
             </th>
           </tr>
@@ -42,57 +40,52 @@ const MaterialsTable = ({
 
         <tbody>
           {materials.map((material) => (
-            <tr key={material.id} className="group">
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <strong className="font-black text-[var(--color-primary)]">
-                  {material.code}
+            <tr key={material.id} className="group hover:bg-muted/20 transition-colors">
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <span className="font-bold text-sm text-foreground">
+                  {material.family?.name || '---'}
+                </span>
+              </td>
+
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <strong className="font-black text-primary">
+                  {material.internal_code ? material.internal_code.split('-').slice(1).join('-') : (material.code || '---')}
                 </strong>
               </td>
 
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <div className="grid gap-1">
-                  <strong className="font-black text-[var(--color-text)]">
-                    {material.name}
-                  </strong>
-
-                  {material.description && (
-                    <span className="line-clamp-2 text-sm font-semibold text-[var(--color-muted)]">
-                      {material.description}
-                    </span>
-                  )}
-                </div>
-              </td>
-
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <span className="font-bold text-[var(--color-text)]">
-                  {material.category?.name || 'Sin categoría'}
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <span className="font-bold text-sm text-foreground">
+                  {material.name || '---'}
                 </span>
               </td>
 
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <MaterialTypeBadge type={material.material_type} />
-              </td>
-
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <span className="font-bold text-[var(--color-text)]">
-                  {getMaterialUnitLabel(material.default_unit)}
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <span className="font-bold text-sm text-foreground">
+                  {material.type?.name || '---'}
                 </span>
               </td>
 
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <TFBadge variant={material.is_active ? 'success' : 'danger'}>
-                  {material.is_active ? 'Activo' : 'Inactivo'}
-                </TFBadge>
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <span className="font-bold text-sm text-foreground">
+                  {material.brand?.name || '---'}
+                </span>
               </td>
 
-              <td className="border-b border-slate-100 px-4 py-4 align-top">
-                <div className="flex justify-end gap-2">
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <span className="font-bold text-sm text-foreground leading-tight">
+                  {material.default_location?.code || material.default_location?.name || '---'}
+                </span>
+              </td>
+
+              <td className="border-b border-border/50 px-2 py-3 align-middle">
+                <div className="flex flex-col lg:flex-row justify-end gap-2">
                   {canUpdate && (
                     <TFButton
                       variant="secondary"
                       size="sm"
                       icon={Edit3}
                       onClick={() => onEdit?.(material)}
+                      className="whitespace-nowrap"
                     >
                       Editar
                     </TFButton>
@@ -104,6 +97,7 @@ const MaterialsTable = ({
                       size="sm"
                       icon={ShieldAlert}
                       onClick={() => onDeactivate?.(material)}
+                      className="whitespace-nowrap"
                     >
                       Desactivar
                     </TFButton>

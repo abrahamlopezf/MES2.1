@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useWarehouseEntry } from '../hooks/useWarehouseEntry';
-import { useMaterials } from '../../../catalog/presentation/hooks/useCatalog';
+import { useMaterialsQuery } from '../../../materials/hooks/useMaterialsQueries';
 import { PackagePlus, QrCode, MapPin, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const WarehouseEntryForm: React.FC = () => {
   const mutation = useWarehouseEntry();
-  const { data: materials, isLoading: loadingMaterials } = useMaterials();
+  const { data: materialsData, isLoading: loadingMaterials } = useMaterialsQuery({});
+  const materials = materialsData?.items || [];
 
   const [qrCode, setQrCode] = useState('');
   const [materialId, setMaterialId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [locationId, setLocationId] = useState('ALMACEN-PRINCIPAL');
   
@@ -20,6 +22,12 @@ export const WarehouseEntryForm: React.FC = () => {
   useEffect(() => {
     qrInputRef.current?.focus();
   }, []);
+
+  const filteredMaterials = materials.filter((m: any) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return m.code?.toLowerCase().includes(term) || m.name?.toLowerCase().includes(term);
+  });
 
   const handleQrKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -126,20 +134,32 @@ export const WarehouseEntryForm: React.FC = () => {
                 <Loader2 className="animate-spin" size={24} /> Cargando catálogo...
               </div>
             ) : (
-              <select
-                id="material-select"
-                required
-                value={materialId}
-                onChange={handleMaterialChange}
-                className="w-full border-2 border-slate-300 rounded-xl px-4 py-6 text-2xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
-              >
-                <option value="" disabled>-- SELECCIONE MATERIAL --</option>
-                {materials?.map((m: any) => (
-                  <option key={m.id} value={m.id}>
-                    {m.code} - {m.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col gap-3">
+                <input 
+                  type="text" 
+                  placeholder="Buscador Inteligente (Ej. PLAS-BOLS-001 o Bobina...)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg font-medium text-slate-700 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+                />
+                <select
+                  id="material-select"
+                  required
+                  value={materialId}
+                  onChange={handleMaterialChange}
+                  className="w-full border-2 border-slate-300 rounded-xl px-4 py-4 text-xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+                >
+                  <option value="" disabled>-- SELECCIONE MATERIAL --</option>
+                  {filteredMaterials?.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.code} - {m.name}
+                    </option>
+                  ))}
+                </select>
+                {filteredMaterials.length === 0 && (
+                  <span className="text-sm text-red-500 font-bold">No se encontraron materiales.</span>
+                )}
+              </div>
             )}
           </div>
 

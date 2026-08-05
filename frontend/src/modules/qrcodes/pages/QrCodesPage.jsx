@@ -1,14 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Printer, QrCode as QrIcon, CheckCircle2, XCircle } from 'lucide-react';
+import { Camera, Printer, QrCode as QrIcon, CheckCircle2, XCircle, Truck, Factory, Package, Loader2, AlertCircle } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useAreasQuery, useGenerateQrBatchMutation } from '../hooks/useQrQueries';
+import { lookupQrCodeRequest } from '../services/qrcodesApi';
 
 const QrCodesPage = () => {
   const [activeTab, setActiveTab] = useState('scan');
   const [scanResult, setScanResult] = useState(null);
+  const [qrInfo, setQrInfo] = useState(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [printerFormat, setPrinterFormat] = useState('zebra'); // 'zebra' | 'a4'
+
+  // Generación State
+  const [quantity, setQuantity] = useState(1);
+  const [assignedAreaId, setAssignedAreaId] = useState('');
+  
+  const { data: areasData, isLoading: isLoadingAreas } = useAreasQuery();
+  const generateBatchMutation = useGenerateQrBatchMutation();
+
+  const areas = areasData?.data || [];
+  
+  const handleGenerate = () => {
+    if (!assignedAreaId || quantity < 1) return;
+    
+    generateBatchMutation.mutate({
+      quantity: Number(quantity),
+      assigned_area_id: Number(assignedAreaId)
+    }, {
+      onSuccess: () => {
+        // Here we could open a print dialog or show a success message
+        alert(`Lote de ${quantity} QRs generado exitosamente.`);
+      },
+      onError: (err) => {
+        alert(err.response?.data?.message || 'Error al generar el lote QR');
+      }
+    });
+  };
+
+  const getAreaIcon = (areaName) => {
+    if (!areaName) return <QrIcon size={24} className="text-black" />;
+    const name = areaName.toLowerCase();
+    if (name.includes('almac')) return <Truck size={24} className="text-black" />;
+    if (name.includes('prod') || name.includes('mezcl')) return <Factory size={24} className="text-black" />;
+    return <Package size={24} className="text-black" />;
+  };
+
+  const selectedArea = areas.find(a => a.id === Number(assignedAreaId));
 
   // --- ESCÁNER LOGIC ---
   useEffect(() => {
@@ -23,10 +63,20 @@ const QrCodesPage = () => {
       );
       
       scanner.render(
-        (decodedText) => {
+        async (decodedText) => {
           setScanResult({ success: true, text: decodedText });
-          // Opcional: pausar el escáner al leer
           scanner.pause();
+          
+          setIsLookingUp(true);
+          try {
+            const result = await lookupQrCodeRequest(decodedText);
+            setQrInfo(result.data);
+          } catch (error) {
+            console.error('Error fetching QR Info', error);
+            setQrInfo({ error: error.response?.data?.message || 'Error al obtener la información del QR' });
+          } finally {
+            setIsLookingUp(false);
+          }
         },
         (error) => {
           // Ignoramos errores de cuadros sin QR
@@ -43,6 +93,7 @@ const QrCodesPage = () => {
 
   const resetScanner = () => {
     setScanResult(null);
+    setQrInfo(null);
     setIsScanning(true);
     // Para reactivar, tendríamos que re-instanciar o si el scanner estaba pausado, resumirlo.
     // Como la limpieza es compleja por ahora forzamos re-render de la pestaña
@@ -139,23 +190,70 @@ const QrCodesPage = () => {
               ) : (
                 <div className="flex flex-col gap-4">
                   <div className="p-4 bg-background border border-border rounded-lg shadow-inner">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">ID Encriptado</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Código Físico QR</span>
                     <p className="text-lg font-mono text-foreground break-all mt-1 font-bold">{scanResult.text}</p>
                   </div>
                   
-                  <div className="p-4 bg-surface border border-warning rounded-lg shadow-sm">
-                    <h3 className="text-warning font-bold flex items-center gap-2 mb-2">
-                      <CheckCircle2 size={18} /> Validación de Sistema
-                    </h3>
-                    <p className="text-sm font-semibold text-foreground">Este código corresponde a una bobina de Materia Prima lista para el área de Mezclado.</p>
-                  </div>
+                  {isLookingUp ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-slate-500">
+                      <Loader2 className="animate-spin mb-2" size={32} />
+                      <span className="font-bold">Buscando información...</span>
+                    </div>
+                  ) : qrInfo?.error ? (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm">
+                      <h3 className="text-red-600 font-bold flex items-center gap-2 mb-2">
+                        <XCircle size={18} /> Error de Búsqueda
+                      </h3>
+                      <p className="text-sm font-semibold text-red-800">{qrInfo.error}</p>
+                    </div>
+                  ) : qrInfo ? (
+                    <>
+                      <div className="p-4 bg-surface border border-primary/30 rounded-lg shadow-sm">
+                        <h3 className="text-primary font-bold flex items-center gap-2 mb-2">
+                          <CheckCircle2 size={18} /> Historial de Lote QR
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                          <span className="font-semibold text-muted-foreground">Estado:</span>
+                          <span className="font-bold text-foreground">{qrInfo.status}</span>
+                          <span className="font-semibold text-muted-foreground">Área:</span>
+                          <span className="font-bold text-foreground">{qrInfo.area_name || 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      {qrInfo.reception ? (
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+                          <h3 className="text-blue-700 font-bold flex items-center gap-2 mb-2">
+                            <Package size={18} /> Recepción de Inventario
+                          </h3>
+                          <div className="grid grid-cols-1 gap-2 text-sm mt-2">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-blue-600/70 text-xs uppercase tracking-wider">Tracking Code Extendido</span>
+                              <span className="font-black text-blue-900 font-mono text-base break-all">{qrInfo.reception.tracking_code || 'No asignado'}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              <span className="font-semibold text-blue-800/70">Material:</span>
+                              <span className="font-bold text-blue-900">{qrInfo.reception.material_code}</span>
+                              <span className="font-semibold text-blue-800/70">Cantidad:</span>
+                              <span className="font-bold text-blue-900">{qrInfo.reception.quantity}</span>
+                              <span className="font-semibold text-blue-800/70">Ubicación:</span>
+                              <span className="font-bold text-blue-900">{qrInfo.reception.location}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg shadow-sm">
+                          <h3 className="text-orange-700 font-bold flex items-center gap-2 mb-2">
+                            <AlertCircle size={18} /> Etiqueta sin Recibir
+                          </h3>
+                          <p className="text-sm font-semibold text-orange-900">Esta etiqueta aún no ha sido utilizada para dar entrada a material en el sistema.</p>
+                        </div>
+                      )}
+                    </>
+                  ) : null}
 
                   <div className="mt-auto pt-6 flex gap-3">
-                    <button className="flex-1 py-3 bg-success text-success-foreground font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm">
-                      Aprobar Ingreso
-                    </button>
-                    <button className="px-4 py-3 bg-card border-2 border-danger text-danger font-bold rounded-lg hover:bg-danger hover:text-danger-foreground transition-colors">
-                      Rechazar
+                    <button onClick={resetScanner} className="flex-1 py-3 bg-primary text-primary-foreground font-bold rounded-lg hover:opacity-90 transition-opacity shadow-sm">
+                      Escanear Nuevo Código
                     </button>
                   </div>
                 </div>
@@ -195,29 +293,51 @@ const QrCodesPage = () => {
               <div className="lg:col-span-2 flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-bold text-foreground">Tipo de Material</label>
-                    <select className="p-3 rounded-lg bg-background border border-border text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-semibold">
-                      <option>Materia Prima (MP)</option>
-                      <option>Material Intermedio (MI)</option>
-                      <option>Producto Terminado (PT)</option>
+                    <label className="text-sm font-bold text-foreground">Área Asignada</label>
+                    <select 
+                      value={assignedAreaId}
+                      onChange={(e) => setAssignedAreaId(e.target.value)}
+                      className="p-3 rounded-lg bg-background border border-border text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-semibold"
+                    >
+                      <option value="">Selecciona un área...</option>
+                      {areas.map(area => (
+                        <option key={area.id} value={area.id}>{area.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-bold text-foreground">Lote Interno</label>
-                    <input type="text" defaultValue="L-20260714-001" className="p-3 rounded-lg bg-background border border-border text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-mono font-bold" />
+                    <label className="text-sm font-bold text-foreground">Cantidad de Etiquetas</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="1000"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      className="p-3 rounded-lg bg-background border border-border text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-mono font-bold" 
+                    />
                   </div>
                 </div>
                 
-                <button className="mt-4 py-4 bg-primary text-primary-foreground font-black rounded-lg hover:opacity-90 transition-opacity shadow-sm w-full text-lg">
+                <button 
+                  onClick={handleGenerate}
+                  disabled={!assignedAreaId || generateBatchMutation.isPending}
+                  className="mt-4 py-4 bg-primary text-primary-foreground font-black rounded-lg hover:opacity-90 transition-opacity shadow-sm w-full text-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {generateBatchMutation.isPending && <Loader2 size={20} className="animate-spin" />}
                   Generar y Mandar a Imprimir
                 </button>
               </div>
 
               <div className="flex flex-col items-center justify-center p-6 bg-background border border-border rounded-lg shadow-inner">
-                <div className="bg-card p-4 rounded-md shadow-sm border border-border">
-                  <QRCodeCanvas value="L-20260714-001" size={160} level="H" />
+                <div className="bg-card p-4 rounded-md shadow-sm border border-border relative">
+                  <QRCodeCanvas value="VISTA-PREVIA-001" size={160} level="H" />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white p-1 rounded-sm flex items-center justify-center shadow-sm">
+                      {getAreaIcon(selectedArea?.name)}
+                    </div>
+                  </div>
                 </div>
-                <span className="mt-4 font-mono font-black text-lg text-foreground">L-20260714-001</span>
+                <span className="mt-4 font-mono font-black text-lg text-foreground">VISTA-PREVIA-001</span>
                 <span className="text-xs font-bold text-muted-foreground mt-1 uppercase tracking-wider">Vista Previa</span>
               </div>
             </div>
