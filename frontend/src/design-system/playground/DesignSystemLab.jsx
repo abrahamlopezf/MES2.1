@@ -16,7 +16,7 @@ export const DesignSystemLab = () => {
   const [activeTab, setActiveTab] = useState('GALLERY');
 
   const tabs = [
-    'GALLERY', 'ACCESSIBILITY', 'STRESS', 'PERFORMANCE', 'HARDWARE', 'CONTRACTS', 'TOKENS'
+    'GALLERY', 'ACCESSIBILITY', 'STRESS', 'PERFORMANCE', 'HARDWARE', 'CONTRACTS', 'TOKENS', 'DIAGNOSTICS'
   ];
 
   const renderTab = () => {
@@ -76,6 +76,17 @@ export const DesignSystemLab = () => {
             <pre style={{ background: '#222', padding: '16px', borderRadius: '8px' }}>
               {JSON.stringify(StatusChip.metadata, null, 2)}
             </pre>
+          </div>
+        );
+      case 'DIAGNOSTICS':
+        return (
+          <div>
+            <h2>Diagnostics (SLA & Runtime)</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <DataCard title="Performance" data={{ 'FPS': '60', 'Render Count': '12', 'Active Timers': '0' }} />
+              <DataCard title="Runtime" data={{ 'Event Listeners': '3', 'Active Scanner': 'Idle', 'Workflow State': 'SCANNING' }} />
+              <DataCard title="SLA Metricas (Ultimo Flujo)" data={{ 'QR Resolution': '120ms (OK)', 'Transition Ready->Success': '45ms (OK)' }} />
+            </div>
           </div>
         );
       default:

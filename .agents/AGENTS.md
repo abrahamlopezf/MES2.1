@@ -26,6 +26,7 @@
 17. **Industrial Design System Purism (Golden Rule #17).** Todo componente del Design System deberá existir porque resuelve un problema operativo identificado dentro de la planta. Ningún componente se desarrollará por razones exclusivamente estéticas o por reutilización hipotética.
 18. **Component Contracts (Golden Rule #18).** Todo componente del Design System deberá tener un contrato funcional, restricciones de uso y criterios de accesibilidad antes de implementarse. La implementación es un detalle; el contrato define el comportamiento esperado y garantiza la consistencia de la plataforma.
 19. **Quality is Architecture (Golden Rule #19).** Ningún componente, Runtime Service o Workspace podrá considerarse terminado hasta que su contrato, accesibilidad, interacción y comportamiento dentro del Runtime hayan sido validados por la infraestructura de pruebas. La calidad es un requisito de la arquitectura, no una etapa posterior del desarrollo.
+20. **Workspace Constraints (Golden Rule #20).** Los Workspaces son consumidores del Runtime, nunca orquestadores del sistema. Un Workspace únicamente representa el estado actual del Workflow, despacha Commands y renderiza componentes del Design System. Toda coordinación entre módulos pertenece al Runtime, a los Workflows o a los Domain Services.
 
 ## Strict Prohibitions
 - NO Glassmorphism, transparencies, or blurred backgrounds.

@@ -621,4 +621,24 @@
     at StockUnit._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
     at StockUnit.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
     at StockUnit.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
-    at Object.getInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:110:34)\n\n
+    at Object.getInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:110:34)\n\n2026-08-05T03:21:02.322Z\nMessage: Cannot read properties of undefined (reading 'findAndCountAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAndCountAll')
+    at Object.getInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:110:34)
+    at getInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n2026-08-05T03:21:03.367Z\nMessage: Cannot read properties of undefined (reading 'findAndCountAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAndCountAll')
+    at Object.getInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:110:34)
+    at getInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n
