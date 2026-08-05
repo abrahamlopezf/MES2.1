@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { tokens } from '../foundation/tokens';
-import { PrimitiveButton } from '../components/button/PrimitiveButton';
-import { ActionButton } from '../components/button/ActionButton';
+import { PrimitiveButton } from '../components/Button/PrimitiveButton';
+import { ActionButton } from '../components/Button/ActionButton';
 import { StatusChip } from '../components/chip/StatusChip';
 import { UniversalActionBar } from '../components/action-bar/UniversalActionBar';
 import { ScannerOverlay } from '../components/scanner-overlay/ScannerOverlay';
-import { Input } from '../components/input/Input';
-import { DataCard } from '../components/card/DataCard';
+import { Input } from '../components/Input/Input';
+import { DataCard } from '../components/Card/DataCard';
 
 /**
  * Design System Lab

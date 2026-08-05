@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { DataCard } from '../../design-system/components/card/DataCard';
+import { DataCard } from '../../design-system/components/Card/DataCard';
 import { StatusChip } from '../../design-system/components/chip/StatusChip';
-import { Input } from '../../design-system/components/input/Input';
+import { Input } from '../../design-system/components/Input/Input';
 import { tokens } from '../../design-system/foundation/tokens';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
 import { QrCode } from 'lucide-react';

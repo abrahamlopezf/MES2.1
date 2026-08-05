@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ActionButton } from '../components/button/ActionButton';
-import { Input } from '../components/input/Input';
-import { PrimitiveCard } from '../components/card/PrimitiveCard';
-import { DataCard } from '../components/card/DataCard';
+import { ActionButton } from '../components/Button/ActionButton';
+import { Input } from '../components/Input/Input';
+import { PrimitiveCard } from '../components/Card/PrimitiveCard';
+import { DataCard } from '../components/Card/DataCard';
 import { StatusChip } from '../components/chip/StatusChip';
 import { UniversalActionBar } from '../components/action-bar/UniversalActionBar';
 import { ScannerOverlay } from '../components/scanner-overlay/ScannerOverlay';
