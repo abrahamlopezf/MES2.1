@@ -20,16 +20,19 @@ export const WarehouseProvider = () => {
 
   // Escuchar el escáner del hardware
   useEffect(() => {
-    const onScannerRead = (event) => {
-      const qrCode = event.payload?.barcode;
-      if (qrCode) {
+    const onScannerRead = ({ code }) => {
+      if (code) {
         setIsScannerActive(false);
-        handleSearch(qrCode);
+        handleSearch(code);
       }
     };
 
-    EventBus.on(MES_EVENTS.SCANNER_READ, onScannerRead);
-    return () => EventBus.off(MES_EVENTS.SCANNER_READ, onScannerRead);
+    const unsubscribe = EventBus.subscribe(
+      MES_EVENTS.QR_SCANNED,
+      onScannerRead
+    );
+
+    return unsubscribe;
   }, []);
 
   const handleSearch = async (qrCode) => {
