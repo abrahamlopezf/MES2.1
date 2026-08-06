@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
 import { SubmitReceptionCommand } from './commands';
 import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
+import { useOperationalAreasQuery } from '../materials/hooks/useMaterialsQueries';
 import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
 import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode } from 'lucide-react';
 import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
@@ -22,6 +23,10 @@ export const ReceptionWorkspace = ({
 
   // Fetch materials catalogue via TanStack query
   const { data: materials = [], isLoading: isLoadingMaterials } = useMaterialListQuery();
+
+  // Fetch operational areas
+  const { data: operationalAreasData = { items: [] }, isLoading: isLoadingAreas } = useOperationalAreasQuery();
+  const operationalAreas = operationalAreasData.items || [];
 
   // Selected material logic
   const selectedMaterial = useMemo(() => {
@@ -198,14 +203,19 @@ export const ReceptionWorkspace = ({
                 </div>
               </div>
 
-              <div>
+              <div className="z-10 relative">
                 <label className="block text-sm font-medium text-foreground mb-1.5">Rack / Localidad</label>
-                <TFInput 
+                <SearchSelect
+                  options={operationalAreas}
                   value={rack}
-                  onChange={e => setRack(e.target.value)}
+                  onChange={setRack}
+                  getLabel={(a) => `${a.code} - ${a.name}`}
+                  getValue={(a) => a.uuid}
+                  searchable={true}
+                  placeholder="Seleccionar localidad..."
+                  loading={isLoadingAreas}
+                  emptyMessage="Sin localidades disponibles"
                   disabled={workflowState === 'SUBMITTING'}
-                  placeholder="Ej. A-01"
-                  icon={Layers}
                 />
               </div>
 

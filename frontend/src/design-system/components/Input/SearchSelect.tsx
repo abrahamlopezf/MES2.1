@@ -63,13 +63,13 @@ export function SearchSelect<T>({
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
-          flex items-center justify-between px-4 min-h-[48px]
+          flex items-center justify-between px-4 py-3 min-h-[48px]
           bg-card border rounded-2xl transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed border-border' : 'cursor-pointer hover:border-primary'}
           ${isOpen ? 'border-primary shadow-[0_0_0_4px] shadow-ring/20' : 'border-border'}
         `}
       >
-        <span className={`truncate text-base font-semibold ${selectedOption ? 'text-foreground' : 'text-muted-foreground'}`}>
+        <span className={`text-base font-semibold leading-tight line-clamp-2 pr-2 ${selectedOption ? 'text-foreground' : 'text-muted-foreground'}`}>
           {selectedOption ? getLabel(selectedOption) : placeholder}
         </span>
         {loading ? (
