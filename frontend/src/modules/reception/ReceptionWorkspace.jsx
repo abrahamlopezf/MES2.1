@@ -7,7 +7,7 @@ import { CameraScanner } from '../../design-system/components/scanner-overlay/Ca
 import { Input } from '../../design-system/components/Input/Input';
 import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
 import { tokens } from '../../design-system/foundation/tokens';
-import { SubmitReceptionCommand } from './ReceptionCommands';
+import { SubmitReceptionCommand } from './commands';
 import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
 
 export const ReceptionWorkspace = ({
