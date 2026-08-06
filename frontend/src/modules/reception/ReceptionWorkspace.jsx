@@ -205,7 +205,7 @@ export const ReceptionWorkspace = ({
                   onChange={e => setRack(e.target.value)}
                   disabled={workflowState === 'SUBMITTING'}
                   placeholder="Ej. A-01"
-                  icon={<Layers className="w-4 h-4" />}
+                  icon={Layers}
                 />
               </div>
 

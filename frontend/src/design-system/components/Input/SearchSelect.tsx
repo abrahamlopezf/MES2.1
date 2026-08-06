@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { tokens } from '../../foundation/tokens';
 import { Search, ChevronDown, Loader2 } from 'lucide-react';
+import { cn } from '../../../lib/utils'; // Optional if available, otherwise just template literals
 
 export interface SearchSelectProps<T> {
   options: T[];
@@ -44,7 +44,7 @@ export function SearchSelect<T>({
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
     const lowerTerm = searchTerm.toLowerCase();
-    return options.filter(opt => getLabel(opt).toLowerCase().includes(lowerTerm));
+    return options.filter(opt => getLabel(opt)?.toLowerCase().includes(lowerTerm));
   }, [options, searchable, searchTerm, getLabel]);
 
   const selectedOption = useMemo(() => {
@@ -58,112 +58,61 @@ export function SearchSelect<T>({
   };
 
   return (
-    <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
+    <div ref={wrapperRef} className="relative w-full">
       {/* Trigger Button */}
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: tokens.primitive.spacing['12'] + ' ' + tokens.primitive.spacing['16'],
-          backgroundColor: tokens.semantic.color.surface,
-          border: `2px solid ${isOpen ? tokens.semantic.color.primary : tokens.semantic.color.borderDefault}`,
-          borderRadius: tokens.primitive.spacing['8'],
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          color: selectedOption ? tokens.semantic.color.textHighEmphasis : tokens.semantic.color.textMediumEmphasis,
-          opacity: disabled ? 0.5 : 1,
-          transition: 'border-color 0.2s',
-          minHeight: '48px'
-        }}
+        className={`
+          flex items-center justify-between px-4 min-h-[48px]
+          bg-card border rounded-2xl transition-all duration-200
+          ${disabled ? 'opacity-50 cursor-not-allowed border-border' : 'cursor-pointer hover:border-primary'}
+          ${isOpen ? 'border-primary shadow-[0_0_0_4px] shadow-ring/20' : 'border-border'}
+        `}
       >
-        <span style={{ 
-          whiteSpace: 'nowrap', 
-          overflow: 'hidden', 
-          textOverflow: 'ellipsis',
-          fontSize: tokens.primitive.typography.sizes.md 
-        }}>
+        <span className={`truncate text-base font-semibold ${selectedOption ? 'text-foreground' : 'text-muted-foreground'}`}>
           {selectedOption ? getLabel(selectedOption) : placeholder}
         </span>
         {loading ? (
-          <Loader2 size={18} className="animate-spin" color={tokens.semantic.color.textMediumEmphasis} />
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground shrink-0" />
         ) : (
-          <ChevronDown size={18} color={tokens.semantic.color.textMediumEmphasis} />
+          <ChevronDown className={`w-5 h-5 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         )}
       </div>
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 8px)',
-          left: 0,
-          right: 0,
-          backgroundColor: tokens.semantic.color.surface,
-          border: `2px solid ${tokens.semantic.color.borderDefault}`,
-          borderRadius: tokens.primitive.spacing['8'],
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-          zIndex: 50,
-          maxHeight: '300px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
+        <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-popover border border-border rounded-xl shadow-lg z-50 max-h-[300px] flex flex-col overflow-hidden">
           
           {searchable && (
-            <div style={{ 
-              padding: tokens.primitive.spacing['8'], 
-              borderBottom: `2px solid ${tokens.semantic.color.borderDefault}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: tokens.primitive.spacing['8']
-            }}>
-              <Search size={16} color={tokens.semantic.color.textMediumEmphasis} />
+            <div className="p-3 border-b border-border flex items-center gap-2 bg-muted/30">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
                 autoFocus
                 type="text"
                 placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: tokens.semantic.color.textHighEmphasis,
-                  fontSize: tokens.primitive.typography.sizes.sm
-                }}
+                className="w-full bg-transparent border-none outline-none text-foreground text-sm font-medium placeholder:text-muted-foreground placeholder:font-normal"
               />
             </div>
           )}
 
-          <div style={{ overflowY: 'auto', flex: 1 }}>
+          <div className="overflow-y-auto flex-1 p-1">
             {filteredOptions.length === 0 ? (
-              <div style={{
-                padding: tokens.primitive.spacing['12'],
-                textAlign: 'center',
-                color: tokens.semantic.color.textMediumEmphasis,
-                fontSize: tokens.primitive.typography.sizes.sm
-              }}>
+              <div className="p-4 text-center text-muted-foreground text-sm font-medium">
                 {loading ? 'Cargando...' : emptyMessage}
               </div>
             ) : (
-              filteredOptions.map((opt, i) => {
+              filteredOptions.map((opt, idx) => {
                 const isSelected = getValue(opt) === value;
                 return (
                   <div
-                    key={i}
+                    key={idx}
                     onClick={() => handleSelect(opt)}
-                    style={{
-                      padding: tokens.primitive.spacing['12'] + ' ' + tokens.primitive.spacing['16'],
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                      color: isSelected ? tokens.semantic.color.primary : tokens.semantic.color.textHighEmphasis,
-                      fontSize: tokens.primitive.typography.sizes.sm,
-                      transition: 'background-color 0.15s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                    className={`
+                      px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors
+                      ${isSelected ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}
+                    `}
                   >
                     {getLabel(opt)}
                   </div>
