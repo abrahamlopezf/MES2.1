@@ -27,10 +27,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       purpose: {
-        type: DataTypes.STRING(40),
+        type: DataTypes.STRING(100),
         allowNull: false,
-        defaultValue: 'RECEPTION',
+        defaultValue: 'general',
       },
+
       assigned_area_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

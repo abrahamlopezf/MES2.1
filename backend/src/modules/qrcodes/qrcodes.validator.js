@@ -7,11 +7,11 @@ const generateQrBatchSchema = Joi.object({
     'number.max': 'No puedes generar más de 50,000 códigos QR por lote.',
     'any.required': 'La cantidad es obligatoria.',
   }),
-  assigned_area_id: Joi.number().integer().min(1).required().messages({
+  assigned_area_id: Joi.number().integer().min(1).allow(null).optional().messages({
     'number.base': 'El ID del área asignada debe ser un número entero',
     'number.min': 'ID de área no válido',
-    'any.required': 'Debes seleccionar un área obligatoriamente.',
   }),
+  area_code: Joi.string().min(2).max(20).optional(),
   nomenclature_prefix: Joi.string().min(3).max(50).optional(),
   notes: Joi.string().allow('', null).max(500).optional(),
 });

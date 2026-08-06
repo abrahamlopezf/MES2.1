@@ -14,13 +14,9 @@ module.exports = {
       ];
 
       for (const col of columnsToRemove) {
-        const tableDesc = await queryInterface.describeTable('qr_codes');
+        const tableDesc = await queryInterface.describeTable('qr_codes', { transaction });
         if (tableDesc[col]) {
-          // If it's a foreign key, we need to remove the constraint first.
-          // Since it's hard to guess the constraint name dynamically in all cases, 
-          // we'll try to remove columns directly. Sequelize might throw if FK exists.
-          // For safety, let's query the constraints.
-          const constraints = await queryInterface.showConstraint('qr_codes');
+          const constraints = await queryInterface.showConstraint('qr_codes', { transaction });
           const colConstraints = constraints.filter(c => c.columnNames && c.columnNames.includes(col) && c.constraintType === 'FOREIGN KEY');
           for (const c of colConstraints) {
             await queryInterface.removeConstraint('qr_codes', c.constraintName, { transaction });
@@ -30,8 +26,8 @@ module.exports = {
       }
 
       // 2. Add UUID column
-      const tableDesc = await queryInterface.describeTable('qr_codes');
-      if (!tableDesc.uuid) {
+      const tableDesc2 = await queryInterface.describeTable('qr_codes', { transaction });
+      if (!tableDesc2.uuid) {
         await queryInterface.addColumn('qr_codes', 'uuid', {
           type: Sequelize.UUID,
           defaultValue: Sequelize.UUIDV4,

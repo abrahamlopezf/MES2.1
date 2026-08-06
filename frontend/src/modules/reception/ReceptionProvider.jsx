@@ -43,8 +43,7 @@ export const ReceptionProvider = () => {
       const { qrCode } = command.payload;
       const start = performance.now();
       try {
-        // Interacción real con Backend
-        const response = await apiClient.get(`/qrcodes/lookup/${qrCode}`);
+        const response = await apiClient.get(`/qr/lookup/${qrCode}`);
         const data = response.data.data;
         
         setReceptionData({

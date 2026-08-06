@@ -1,0 +1,48 @@
+name: Database Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Número de pasos a revertir (1 para la última migración)'
+        required: true
+        default: '1'
+        type: string
+      confirm:
+        description: 'Escribe CONFIRMAR para proceder'
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    environment: production
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'CONFIRMAR'
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run rollback (Undo)
+        run: |
+          echo "Revertiendo ${STEPS} migración(es)..."
+          for i in $(seq 1 $STEPS); do
+            npm run db:migrate:undo
+          done
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STEPS: ${{ github.event.inputs.step }}

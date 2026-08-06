@@ -4,7 +4,7 @@ const {
   sequelize,
   QrBatch,
   QrCode,
-  QrEvent,
+  TraceabilityEvent,
   Area,
   User,
 } = require('../../database/models');
@@ -69,7 +69,7 @@ const getQrVisibilityWhere = (currentUser) => {
   return {
     [Op.or]: [
       { assigned_area_id: userAreaId },
-      { current_area_id: userAreaId },
+      { assigned_area_id: userAreaId },
     ],
   };
 };
@@ -136,21 +136,9 @@ const buildQrResponse = (qrCode) => {
         }
       : null,
     assigned_area: buildAreaResponse(plainQr.assignedArea),
-    current_area: buildAreaResponse(plainQr.currentArea),
     status: plainQr.status,
-    entity_type: plainQr.entity_type,
-    entity_id: plainQr.entity_id,
     is_active: plainQr.is_active,
     created_by: buildUserMiniResponse(plainQr.creator),
-    assigned_by: buildUserMiniResponse(plainQr.assignedByUser),
-    used_by: buildUserMiniResponse(plainQr.usedByUser),
-    cancelled_by: buildUserMiniResponse(plainQr.cancelledByUser),
-    assigned_at: plainQr.assigned_at,
-    used_at: plainQr.used_at,
-    cancelled_at: plainQr.cancelled_at,
-    cancel_reason: plainQr.cancel_reason,
-    created_at: plainQr.created_at,
-    updated_at: plainQr.updated_at,
   };
 };
 
@@ -185,7 +173,7 @@ const buildEventResponse = (event) => {
     from_area: buildAreaResponse(plainEvent.fromArea),
     to_area: buildAreaResponse(plainEvent.toArea),
     performed_by: buildUserMiniResponse(plainEvent.performedByUser),
-    description: plainEvent.description,
+    notes: plainEvent.notes,
     metadata: plainEvent.metadata || {},
     created_at: plainEvent.created_at,
   };
@@ -201,27 +189,8 @@ const qrInclude = [
     as: 'assignedArea',
   },
   {
-    model: Area,
-    as: 'currentArea',
-  },
-  {
     model: User,
     as: 'creator',
-    attributes: ['id', 'first_name', 'last_name', 'username'],
-  },
-  {
-    model: User,
-    as: 'assignedByUser',
-    attributes: ['id', 'first_name', 'last_name', 'username'],
-  },
-  {
-    model: User,
-    as: 'usedByUser',
-    attributes: ['id', 'first_name', 'last_name', 'username'],
-  },
-  {
-    model: User,
-    as: 'cancelledByUser',
     attributes: ['id', 'first_name', 'last_name', 'username'],
   },
 ];
@@ -242,7 +211,7 @@ const eventInclude = [
   },
 ];
 
-const createQrEvent = async ({
+const createTraceabilityEvent = async ({
   qrCodeId,
   eventType,
   fromStatus = null,
@@ -254,7 +223,7 @@ const createQrEvent = async ({
   metadata = {},
   transaction = null,
 }) => {
-  return QrEvent.create(
+  return TraceabilityEvent.create(
     {
       qr_code_id: qrCodeId,
       event_type: eventType,
@@ -263,7 +232,7 @@ const createQrEvent = async ({
       from_area_id: fromAreaId,
       to_area_id: toAreaId,
       performed_by: performedBy,
-      description,
+      notes: description,
       metadata,
     },
     {
@@ -275,6 +244,11 @@ const createQrEvent = async ({
 const generateQrBatch = async (payload, currentUser) => {
   return sequelize.transaction(async (transaction) => {
     let assignedAreaId = payload.assigned_area_id || null;
+
+    if (!assignedAreaId && payload.area_code) {
+      const area = await Area.findOne({ where: { code: payload.area_code }, transaction });
+      if (area) assignedAreaId = area.id;
+    }
 
     if (!canManageAllAreas(currentUser)) {
       assignedAreaId = getUserAreaId(currentUser);
@@ -332,11 +306,8 @@ const generateQrBatch = async (payload, currentUser) => {
           qr_code: buildQrCodeValue(nomenclaturePrefix, serial),
           batch_id: batch.id,
           assigned_area_id: assignedAreaId,
-          current_area_id: assignedAreaId,
           status,
           created_by: currentUser.id,
-          assigned_by: assignedAreaId ? currentUser.id : null,
-          assigned_at: assignedAreaId ? now : null,
           is_active: true,
           created_at: now,
           updated_at: now,
@@ -364,7 +335,7 @@ const generateQrBatch = async (payload, currentUser) => {
       from_area_id: null,
       to_area_id: assignedAreaId,
       performed_by: currentUser.id,
-      description: assignedAreaId
+      notes: assignedAreaId
         ? 'Código QR generado y asignado al área.'
         : 'Código QR generado sin área asignada.',
       metadata: {
@@ -375,7 +346,7 @@ const generateQrBatch = async (payload, currentUser) => {
     }));
 
     for (let start = 0; start < eventRows.length; start += CHUNK_SIZE) {
-      await QrEvent.bulkCreate(eventRows.slice(start, start + CHUNK_SIZE), {
+      await TraceabilityEvent.bulkCreate(eventRows.slice(start, start + CHUNK_SIZE), {
         transaction,
       });
     }
@@ -417,7 +388,7 @@ const getQrCodes = async (query, currentUser) => {
 
     where[Op.or] = [
       { assigned_area_id: Number(query.area_id) },
-      { current_area_id: Number(query.area_id) },
+      { assigned_area_id: Number(query.area_id) },
     ];
   }
 
@@ -542,11 +513,23 @@ const getQrBatchById = async (batchId, currentUser) => {
 };
 
 const getQrCodeByValue = async (qrCodeValue, currentUser) => {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(qrCodeValue);
+  
+  const where = {
+    ...getQrVisibilityWhere(currentUser),
+  };
+  
+  if (isUuid) {
+    where[Op.or] = [
+      { qr_code: qrCodeValue },
+      { uuid: qrCodeValue }
+    ];
+  } else {
+    where.qr_code = qrCodeValue;
+  }
+
   const qrCode = await QrCode.findOne({
-    where: {
-      qr_code: qrCodeValue,
-      ...getQrVisibilityWhere(currentUser),
-    },
+    where,
     include: qrInclude,
   });
 
@@ -569,7 +552,7 @@ const getQrEvents = async (qrCodeId, currentUser) => {
     throwHttpError('Código QR no encontrado.', 404);
   }
 
-  const events = await QrEvent.findAll({
+  const events = await TraceabilityEvent.findAll({
     where: {
       qr_code_id: qrCode.id,
     },
@@ -623,10 +606,7 @@ const assignQrCodes = async (payload, currentUser) => {
     await QrCode.update(
       {
         assigned_area_id: area.id,
-        current_area_id: area.id,
         status: QR_STATUS.ASSIGNED,
-        assigned_by: currentUser.id,
-        assigned_at: now,
       },
       {
         where: {
@@ -641,10 +621,10 @@ const assignQrCodes = async (payload, currentUser) => {
       event_type: QR_EVENT_TYPE.ASSIGNED,
       from_status: qrCode.status,
       to_status: QR_STATUS.ASSIGNED,
-      from_area_id: qrCode.current_area_id,
+      from_area_id: qrCode.assigned_area_id,
       to_area_id: area.id,
       performed_by: currentUser.id,
-      description: 'Código QR asignado al área.',
+      notes: 'Código QR asignado al área.',
       metadata: {
         area_code: area.code,
         area_name: area.name,
@@ -653,7 +633,7 @@ const assignQrCodes = async (payload, currentUser) => {
       updated_at: now,
     }));
 
-    await QrEvent.bulkCreate(eventRows, {
+    await TraceabilityEvent.bulkCreate(eventRows, {
       transaction,
     });
 
@@ -706,7 +686,7 @@ const validateQrForUse = async (payload, currentUser) => {
       throwHttpError('El código QR está inactivo.', 400);
     }
 
-    if (targetAreaId && Number(qrCode.current_area_id) !== Number(targetAreaId)) {
+    if (targetAreaId && Number(qrCode.assigned_area_id) !== Number(targetAreaId)) {
       throwHttpError('Este código QR no pertenece al área indicada.', 400);
     }
 
@@ -714,15 +694,15 @@ const validateQrForUse = async (payload, currentUser) => {
       throwHttpError(`El código QR no está disponible. Estado actual: ${qrCode.status}.`, 400);
     }
 
-    await createQrEvent({
+    await createTraceabilityEvent({
       qrCodeId: qrCode.id,
       eventType: QR_EVENT_TYPE.VALIDATED,
       fromStatus: qrCode.status,
       toStatus: qrCode.status,
-      fromAreaId: qrCode.current_area_id,
-      toAreaId: qrCode.current_area_id,
+      fromAreaId: qrCode.assigned_area_id,
+      toAreaId: qrCode.assigned_area_id,
       performedBy: currentUser.id,
-      description: 'Código QR validado para operación.',
+      notes: 'Código QR validado para operación.',
       metadata: {
         require_available: payload.require_available !== false,
       },
@@ -765,8 +745,6 @@ const cancelQrCode = async (qrCodeId, payload, currentUser) => {
       {
         status: QR_STATUS.CANCELADO,
         is_active: false,
-        cancelled_by: currentUser.id,
-        cancelled_at: now,
         cancel_reason: payload.reason,
       },
       {
@@ -774,15 +752,15 @@ const cancelQrCode = async (qrCodeId, payload, currentUser) => {
       }
     );
 
-    await createQrEvent({
+    await createTraceabilityEvent({
       qrCodeId: qrCode.id,
       eventType: QR_EVENT_TYPE.CANCELLED,
       fromStatus: previousStatus,
       toStatus: QR_STATUS.CANCELADO,
-      fromAreaId: qrCode.current_area_id,
-      toAreaId: qrCode.current_area_id,
+      fromAreaId: qrCode.assigned_area_id,
+      toAreaId: qrCode.assigned_area_id,
       performedBy: currentUser.id,
-      description: payload.reason,
+      notes: payload.reason,
       metadata: {
         reason: payload.reason,
       },
@@ -808,7 +786,7 @@ const lookup = async (qr_code) => {
     throwHttpError('Código QR no encontrado.', 404);
   }
 
-  const events = await QrEvent.findAll({
+  const events = await TraceabilityEvent.findAll({
     where: { qr_code_id: qr.id },
     include: eventInclude,
     order: [['created_at', 'ASC']],

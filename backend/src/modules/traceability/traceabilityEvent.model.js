@@ -7,12 +7,6 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
         primaryKey: true,
       },
-      uuid: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        allowNull: false,
-        unique: true,
-      },
       qr_code_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -20,14 +14,6 @@ module.exports = (sequelize, DataTypes) => {
       event_type: {
         type: DataTypes.STRING(60),
         allowNull: false,
-      },
-      entity_type: {
-        type: DataTypes.STRING(80),
-        allowNull: true,
-      },
-      entity_id: {
-        type: DataTypes.STRING(80),
-        allowNull: true,
       },
       from_status: {
         type: DataTypes.STRING(40),

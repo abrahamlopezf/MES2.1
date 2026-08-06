@@ -123,29 +123,11 @@ db.QrCode.belongsTo(db.Area, {
   as: 'assignedArea',
 });
 
-db.QrCode.belongsTo(db.Area, {
-  foreignKey: 'current_area_id',
-  as: 'currentArea',
-});
+
 
 db.QrCode.belongsTo(db.User, {
   foreignKey: 'created_by',
   as: 'creator',
-});
-
-db.QrCode.belongsTo(db.User, {
-  foreignKey: 'assigned_by',
-  as: 'assignedByUser',
-});
-
-db.QrCode.belongsTo(db.User, {
-  foreignKey: 'used_by',
-  as: 'usedByUser',
-});
-
-db.QrCode.belongsTo(db.User, {
-  foreignKey: 'cancelled_by',
-  as: 'cancelledByUser',
 });
 
 db.QrCode.hasMany(db.TraceabilityEvent, {

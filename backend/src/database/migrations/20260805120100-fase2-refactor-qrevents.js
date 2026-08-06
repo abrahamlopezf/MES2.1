@@ -10,12 +10,22 @@ module.exports = {
       // Rename description to notes
       await queryInterface.renameColumn('traceability_events', 'description', 'notes', { transaction });
 
-      // Add uuid
+      // Add uuid allowing null first, to prevent crashes on existing rows
       await queryInterface.addColumn('traceability_events', 'uuid', {
         type: Sequelize.UUID,
-        defaultValue: Sequelize.UUIDV4,
-        allowNull: false,
+        allowNull: true,
         unique: true
+      }, { transaction });
+
+      // Populate existing rows with a generated UUID
+      await queryInterface.sequelize.query(`UPDATE traceability_events SET uuid = gen_random_uuid() WHERE uuid IS NULL`, { transaction });
+
+      // Now enforce NOT NULL
+      await queryInterface.changeColumn('traceability_events', 'uuid', {
+        type: Sequelize.UUID,
+        allowNull: false,
+        unique: true,
+        defaultValue: Sequelize.UUIDV4
       }, { transaction });
 
       // Add entity_type and entity_id

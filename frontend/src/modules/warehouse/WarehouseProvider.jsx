@@ -40,7 +40,7 @@ export const WarehouseProvider = () => {
 
     try {
       // CQRS: Consulta 1 - Obtener info de identidad del QR
-      const qrResponse = await apiClient.get(`/qrcodes/lookup/${qrCode}`);
+      const qrResponse = await apiClient.get(`/qr/lookup/${qrCode}`);
       const qr = qrResponse.data?.data;
       
       if (!qr) {

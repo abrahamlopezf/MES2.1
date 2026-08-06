@@ -99,6 +99,7 @@ export function GenerateBatchPage() {
     }
 
     mutation.mutate({
+      mainAreaId: data.mainAreaId,
       areaId: data.subAreaId || data.mainAreaId,
       nomenclature_prefix: `${data.mainAreaId}${data.subAreaId ? `-${data.subAreaId}` : ''}`,
       amount: data.amount,
