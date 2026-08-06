@@ -1,4 +1,4 @@
-import { GenerateBatchRequestDTO, GenerateBatchResponseDTO } from '../../application/dto/GenerateBatchDTOs';
+import { GenerateBatchRequestDTO, GenerateBatchResponseDTO, BatchSnapshotDTO, BatchDetailsDTO } from '../../application/dto/GenerateBatchDTOs';
 import { ApproveRequestDTO, RejectRequestDTO } from '../../application/dto/ApprovalDTOs';
 import { CreatePrintJobRequestDTO, PrintJobResponseDTO } from '../../application/dto/PrintDTOs';
 import { TransferCustodyRequestDTO, CustodySnapshotDTO, CustodyTimelineDTO } from '../../application/dto/CustodyDTOs';

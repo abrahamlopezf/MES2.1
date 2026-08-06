@@ -5,6 +5,7 @@ export type AppPermission =
   | 'identity.batch.generate'
   | 'identity.batch.approve'
   | 'identity.print'
+  | 'identity.read'
   | 'identity.custody.transfer';
 
 /**
