@@ -144,7 +144,7 @@ export const ReceptionWorkspace = ({
             value={selectedMaterialId}
             onChange={setSelectedMaterialId}
             getLabel={(m) => m.material_code?.code ? `${m.material_code.code} - ${m.name}` : m.name}
-            getValue={(m) => m.id || m.uuid}
+            getValue={(m) => m.id}
             searchable={true}
             placeholder="Buscar por código o nombre..."
             loading={isLoadingMaterials}
@@ -223,7 +223,7 @@ export const ReceptionWorkspace = ({
                   value={rack}
                   onChange={setRack}
                   getLabel={(a) => `${a.code} - ${a.name}`}
-                  getValue={(a) => a.uuid}
+                  getValue={(a) => a.id}
                   searchable={true}
                   placeholder="Seleccionar localidad..."
                   loading={isLoadingAreas}

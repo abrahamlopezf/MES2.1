@@ -46,6 +46,13 @@ export const ReceptionProvider = () => {
         const response = await apiClient.get(`/qr/lookup/${qrCode}`);
         const data = response.data.data;
         
+        // Si el QR ya tiene estado de uso, enviamos al historial
+        if (data.status && data.status !== 'CREATED' && data.status !== 'VIRGIN') {
+          EventBus.emit('SLA_OK', { metric: 'QR_RESOLUTION', duration: performance.now() - start });
+          navigate(`/traceability/genealogy?tokenId=${qrCode}`);
+          return;
+        }
+        
         setReceptionData({
           qrCode: data.qr_code,
           materialId: data.material_id, // Puede venir nulo si es virgen
@@ -77,8 +84,8 @@ export const ReceptionProvider = () => {
         await apiClient.post('/reception', {
           qr_code_value: qrCode,
           material_id: materialId,
-          location_id: 1, // Mock de Rack/Ubicación temporal
-          unit_id: 1, // Mock de unidad temporal
+          location_id: rack || 1, // Fallback si no seleccionó rack, pero el form no deja guardar sin ello si fuera requerido
+          unit_id: 1, // TODO: Debería venir del unit_id base del material, pero por ahora se asume 1 (Ej. KG)
           quantity: Number(quantity),
           notes: observations
         });
