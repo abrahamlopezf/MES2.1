@@ -34,7 +34,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="flex flex-col h-full bg-background relative pb-24 overflow-x-hidden">
+    <div className="flex flex-col h-full bg-background relative pb-28 overflow-x-hidden">
       
       {/* Real Camera Scanner (Solo se monta si está activo) */}
       {isScannerActive && (
@@ -55,7 +55,7 @@ export const WarehouseInventoryPage: React.FC = () => {
             className="w-full"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           {search && (
             <Button variant="secondary" onClick={() => { setSearch(''); setPage(1); }}>
               <FilterX className="mr-2" size={16} /> Limpiar
@@ -66,6 +66,7 @@ export const WarehouseInventoryPage: React.FC = () => {
             size="icon" 
             onClick={() => refetch()} 
             title="Refrescar"
+            className="shrink-0 aspect-square"
           >
             <RefreshCw className={isRefetching ? "animate-spin" : ""} size={20} />
           </Button>
@@ -74,7 +75,8 @@ export const WarehouseInventoryPage: React.FC = () => {
 
       <div className="flex-1 p-4 sm:p-6 overflow-auto">
         <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>
@@ -156,6 +158,70 @@ export const WarehouseInventoryPage: React.FC = () => {
             </table>
           </div>
           
+          {/* Mobile Card View */}
+          <div className="md:hidden flex flex-col gap-3 p-3 bg-secondary/5">
+            {isLoading ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Loader2 className="animate-spin mx-auto mb-4" size={32} />
+                Cargando inventario...
+              </div>
+            ) : data?.items?.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
+                No se encontraron unidades en stock.
+              </div>
+            ) : (
+              data?.items?.map((item: any) => (
+                <div key={item.id} className="bg-card rounded-xl p-4 border border-border shadow-sm flex flex-col gap-3">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-foreground text-sm leading-tight truncate" title={item.material?.name}>
+                        {item.material?.name || '---'}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.material?.internal_code || '---'}</p>
+                    </div>
+                    <Badge variant={item.status === 'AVAILABLE' ? 'success' : 'default'} className="whitespace-nowrap shrink-0 text-[10px]">
+                      {item.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Lote (QR)</span>
+                      <span className="font-mono text-xs break-all leading-tight">{item.qr_code_value}</span>
+                    </div>
+                    <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Cantidad</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-bold text-primary text-base leading-none">{Number(item.available_quantity).toFixed(2)}</span>
+                        <span className="text-[10px] text-muted-foreground leading-none">{item.unit?.code}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center text-xs text-foreground font-medium bg-secondary/20 p-2.5 rounded-lg border border-border/50">
+                    <MapPin size={14} className="text-primary/70 mr-1.5 shrink-0" />
+                    <span className="truncate">{item.location}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-1 border-t border-border pt-3">
+                    <span className="text-[11px] text-muted-foreground font-medium">
+                      {new Date(item.received_at).toLocaleDateString()}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="sm" className="h-8 px-3" onClick={() => setSelectedItem(item)}>
+                        <Info size={14} className="mr-1" /> Info
+                      </Button>
+                      <Button variant="destructive" size="sm" className="h-8 px-3 opacity-50 cursor-not-allowed" disabled={true}>
+                        <ShieldAlert size={14} className="mr-1" /> Baja
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+
           {/* Pagination Controls */}
           {!isLoading && totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-secondary/20">
@@ -186,7 +252,7 @@ export const WarehouseInventoryPage: React.FC = () => {
       </div>
 
       {/* Floating Scanner Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className="fixed bottom-24 right-6 z-40">
         <Button 
           onClick={() => setIsScannerActive(true)}
           className="h-16 w-16 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center transition-transform hover:scale-105"
@@ -198,8 +264,8 @@ export const WarehouseInventoryPage: React.FC = () => {
       {/* Info Modal */}
       {selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-secondary/30">
+          <div className="bg-card w-full max-w-lg max-h-[85vh] rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-secondary/30 shrink-0">
               <h3 className="font-bold text-lg text-foreground">Información del Lote</h3>
               <button 
                 onClick={() => setSelectedItem(null)}
@@ -208,7 +274,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Material</p>
                 <p className="text-foreground font-medium">{selectedItem.material?.name || '---'}</p>
@@ -261,13 +327,13 @@ export const WarehouseInventoryPage: React.FC = () => {
 
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Recepcionado por</p>
-                <p className="text-sm text-foreground font-medium flex items-center">
+                <div className="text-sm text-foreground font-medium flex items-center">
                   <Badge variant="secondary" className="mr-2">USUARIO</Badge>
                   {selectedItem.received_by || 'Sistema / Desconocido'}
-                </p>
+                </div>
               </div>
             </div>
-            <div className="p-4 border-t border-border bg-muted/20 flex justify-end">
+            <div className="p-4 border-t border-border bg-muted/20 flex justify-end shrink-0">
               <Button variant="secondary" onClick={() => setSelectedItem(null)}>
                 Cerrar
               </Button>
