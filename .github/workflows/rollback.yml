@@ -45,4 +45,5 @@ jobs:
           done
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
           STEPS: ${{ github.event.inputs.step }}
