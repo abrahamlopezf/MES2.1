@@ -100,15 +100,15 @@ export const ReceptionProvider = () => {
   // 5. Simular lectura de Scanner de hardware
   useEffect(() => {
     // Si estuviéramos en producción, aquí escucharíamos `ScannerAdapter.onScan`
-    const onScannerData = (event) => {
-      const qrCode = event.payload?.barcode;
+    const onScannerData = ({ code }) => {
+      if (!code) return;
       if (workflow.getState() === 'SCANNING' || workflow.getState() === 'INITIAL') {
          workflow.dispatch('QR_SCANNED');
-         handleCommand({ type: 'RESOLVE_QR_COMMAND', payload: { qrCode } });
+         handleCommand({ type: 'RESOLVE_QR_COMMAND', payload: { qrCode: code } });
       }
     };
-    const unsubscribe = EventBus.subscribe(MES_EVENTS.SCANNER_READ, onScannerData);
-    return () => unsubscribe();
+    const unsubscribe = EventBus.subscribe(MES_EVENTS.QR_SCANNED, onScannerData);
+    return unsubscribe;
   }, [workflow]);
 
   // Renderizar la Vista Pura pasando los Callbacks y el Estado

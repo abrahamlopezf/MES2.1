@@ -43,7 +43,7 @@ describe('Reception Workspace Acceptance (PR-004.6)', () => {
 
     // 2. Simular Escaneo
     await act(async () => {
-      EventBus.emit(MES_EVENTS.SCANNER_READ, { payload: { barcode: 'QR-REC-001' } });
+      EventBus.emit(MES_EVENTS.QR_SCANNED, { code: 'QR-REC-001', hardware: 'TEST_HARNESS' });
       // Darle un instante para que el Provider procese la promesa mockeada
       await new Promise(resolve => setTimeout(resolve, 0));
     });
