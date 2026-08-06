@@ -16,6 +16,7 @@ const initMaterialBrandModel = require('../../modules/materials/materialBrand.mo
 const initMaterialTypeModel = require('../../modules/materials/materialType.model');
 const initOperationalAreaModel = require('../../modules/materials/operationalArea.model');
 const initMaterialModel = require('../../modules/materials/material.model');
+const initMaterialUnitModel = require('../../modules/materials/materialUnit.model');
 const initInventoryModel = require('../../modules/warehouse/inventory.model');
 const initInventoryMovementModel = require('../../modules/warehouse/inventoryMovement.model');
 
@@ -46,6 +47,7 @@ db.MaterialBrand = initMaterialBrandModel(sequelize, DataTypes);
 db.MaterialType = initMaterialTypeModel(sequelize, DataTypes);
 db.OperationalArea = initOperationalAreaModel(sequelize, DataTypes);
 db.Material = initMaterialModel(sequelize, DataTypes);
+db.MaterialUnit = initMaterialUnitModel(sequelize, DataTypes);
 db.Inventory = initInventoryModel(sequelize, DataTypes);
 db.InventoryMovement = initInventoryMovementModel(sequelize, DataTypes);
 
@@ -149,7 +151,7 @@ db.TraceabilityEvent.belongsTo(db.User, {
   as: 'performedByUser',
 });
 
-['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'OperationalArea', 'Material'].forEach(modelName => {
+['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'OperationalArea', 'Material', 'MaterialUnit'].forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
   }

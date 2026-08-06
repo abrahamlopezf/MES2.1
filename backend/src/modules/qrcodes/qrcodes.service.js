@@ -796,17 +796,16 @@ const lookup = async (qr_code) => {
     order: [['created_at', 'ASC']],
   });
 
-  // Try to find if it's associated with a StockUnit
-  const StockUnit = sequelize.models.StockUnit;
+  // Try to find if it's associated with an Inventory
+  const Inventory = sequelize.models.Inventory;
   let inventoryData = null;
 
-  if (StockUnit) {
-    const stock = await StockUnit.findOne({
+  if (Inventory) {
+    const stock = await Inventory.findOne({
       where: { qr_code_uuid: qr.uuid },
       include: [
         { model: sequelize.models.Material, as: 'material' },
-        { model: sequelize.models.MaterialUnit, as: 'unit' },
-        { model: sequelize.models.User, as: 'user', attributes: ['id', 'first_name', 'last_name'] }
+        { model: sequelize.models.MaterialUnit, as: 'unit' }
       ]
     });
     
