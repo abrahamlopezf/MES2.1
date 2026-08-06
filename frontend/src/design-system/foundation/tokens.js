@@ -54,6 +54,10 @@ const primitive = {
   animation: {
     success: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     danger: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+  },
+  elevation: {
+    base: '0 1px 3px rgba(0,0,0,0.5)',
+    overlay: '0 10px 25px rgba(0,0,0,0.8)'
   }
 };
 
