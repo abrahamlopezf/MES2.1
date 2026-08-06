@@ -24,7 +24,13 @@ module.exports = (sequelize, DataTypes) => {
     base_unit_id: DataTypes.INTEGER,
     stock_unit_id: DataTypes.INTEGER,
     
-    default_location_id: DataTypes.INTEGER,
+    /**
+     * Suggested initial location for Reception.
+     *
+     * Does NOT indicate current inventory location.
+     * Real inventory lives in Inventory (or InventoryItem).
+     */
+    default_location_id: { type: DataTypes.INTEGER, allowNull: true },
     
     primary_image_path: DataTypes.STRING,
     

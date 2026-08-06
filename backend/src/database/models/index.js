@@ -20,7 +20,7 @@ const initMaterialUnitModel = require('../../modules/materials/materialUnit.mode
 const initInventoryModel = require('../../modules/warehouse/inventory.model');
 const initInventoryMovementModel = require('../../modules/warehouse/inventoryMovement.model');
 
-
+// WMS Master Data
 const initQrAreaAssignmentModel = require('../../modules/traceability/qrAreaAssignment.model');
 const initTraceableItemModel = require('../../modules/traceability/traceableItem.model');
 const initTraceabilityMovementModel = require('../../modules/traceability/traceabilityMovement.model');

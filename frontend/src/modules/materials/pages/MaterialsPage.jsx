@@ -90,10 +90,10 @@ const MaterialsPage = () => {
     ? materialsQuery.data.items
     : [];
 
-  const total = Number(materialsQuery.data?.total) || materials.length;
+  const total = Number(materialsQuery.data?.meta?.total) || materials.length;
 
-  const families = Array.isArray(familiesQuery.data)
-    ? familiesQuery.data
+  const families = Array.isArray(familiesQuery.data?.items)
+    ? familiesQuery.data.items
     : [];
 
   const isInitialLoading =
@@ -176,7 +176,7 @@ const MaterialsPage = () => {
     try {
       if (selectedMaterial?.id) {
         await updateMaterialMutation.mutateAsync({
-          id: selectedMaterial.id,
+          id: selectedMaterial.uuid || selectedMaterial.id,
           payload,
         });
 
@@ -203,7 +203,7 @@ const MaterialsPage = () => {
     setOperationError(null);
 
     try {
-      await deactivateMaterialMutation.mutateAsync(selectedMaterial.id);
+      await deactivateMaterialMutation.mutateAsync(selectedMaterial.uuid || selectedMaterial.id);
 
       setMaterialToDeactivate(null);
 

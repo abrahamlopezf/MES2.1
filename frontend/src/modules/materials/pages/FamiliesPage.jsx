@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
 import { Factory } from 'lucide-react';
 import { 
@@ -7,12 +8,15 @@ import {
 } from '../hooks/useMaterialsQueries';
 
 const FamiliesPage = () => {
-  const query = useMaterialFamiliesQuery();
+  const [page, setPage] = useState(1);
+  const query = useMaterialFamiliesQuery({ page, limit: 20 });
   const createMut = useCreateMaterialFamilyMutation();
   const updateMut = useUpdateMaterialFamilyMutation();
 
   return (
     <SubcatalogPageTemplate
+      page={page}
+      setPage={setPage}
       title="Familias de Materiales"
       description="Agrupa los materiales por su rama o linaje principal."
       icon={Factory}

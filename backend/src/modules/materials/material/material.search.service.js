@@ -45,8 +45,12 @@ class MaterialSearchService {
     if (type) include.push({ model: MaterialType, as: 'type', where: { uuid: type } });
     else include.push({ model: MaterialType, as: 'type', required: false });
 
-    // Include OperationalArea for default_location and MaterialCode for material_code mapping
-    include.push({ model: OperationalArea, as: 'default_location', required: false });
+    include.push({ 
+      model: OperationalArea, 
+      as: 'default_location', 
+      required: false,
+      attributes: ['uuid', 'code', 'name']
+    });
     include.push({ model: MaterialCode, as: 'material_code', required: false });
 
     const { count, rows } = await Material.findAndCountAll({

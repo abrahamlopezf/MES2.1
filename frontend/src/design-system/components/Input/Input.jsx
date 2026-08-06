@@ -23,7 +23,9 @@ export const Input = forwardRef(({
   };
 
   const labelStyle = {
-    fontSize: '14px',
+    display: 'block',
+    marginBottom: tokens.primitive.spacing['4'],
+    fontSize: tokens.primitive.typography.sizes.sm,
     fontWeight: 500,
     color: error ? tokens.semantic.color.danger : tokens.semantic.color.textHighEmphasis,
   };

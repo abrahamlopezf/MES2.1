@@ -1,31 +1,29 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Boxes, Layers3, Hash, Tag, Award, Factory, MapPin } from "lucide-react";
+import { Warehouse, MapPin, Map, Navigation, AlignVerticalSpaceAround } from "lucide-react";
 import { TFCard } from "../../../components/tf-ui";
 
-const MaterialsLayout = () => {
+const CatalogsLayout = () => {
   const tabs = [
-    { name: "Materiales", path: "/materials/list", icon: Boxes },
-    { name: "Familias", path: "/materials/families", icon: Factory },
-    { name: "Artículos", path: "/materials/codes", icon: Hash },
-    { name: "Tipos", path: "/materials/types", icon: Tag },
-    { name: "Marcas", path: "/materials/brands", icon: Award },
-    { name: "Localidades", path: "/materials/locations", icon: MapPin },
+    { name: "Almacenes", path: "/catalogs/warehouses", icon: Warehouse },
+    { name: "Localidades", path: "/catalogs/storage-locations", icon: MapPin },
+    { name: "Tipos de Localidad", path: "/catalogs/storage-location-types", icon: Map },
+    { name: "Estatus de Localidad", path: "/catalogs/storage-location-statuses", icon: Navigation },
   ];
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-      {/* Módulo Master Data Header */}
+      {/* Módulo WMS Catalogs Header */}
       <div>
-        <h1 className="text-3xl font-black text-foreground m-0 tracking-tight">Master Data</h1>
+        <h1 className="text-3xl font-black text-foreground m-0 tracking-tight">Catálogos WMS</h1>
         <p className="text-muted-foreground mt-1 text-sm font-medium">
-          Administración centralizada de catálogos y subcatálogos del sistema.
+          Administración de Almacenes, Localidades y su configuración.
         </p>
       </div>
 
       {/* Tabs Navigation */}
       <div className="flex justify-center w-full">
-        <TFCard className="p-1 border-border shadow-sm bg-card rounded-xl w-fit inline-flex">
-          <nav className="flex items-center justify-center gap-1 overflow-x-auto hide-scrollbar" aria-label="Tabs">
+        <TFCard className="p-1 border-border shadow-sm bg-card rounded-xl w-fit inline-flex max-w-full overflow-hidden">
+          <nav className="flex items-center justify-start sm:justify-center gap-1 overflow-x-auto hide-scrollbar" aria-label="Tabs">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -50,12 +48,12 @@ const MaterialsLayout = () => {
         </TFCard>
       </div>
 
-      {/* Contenido Dinámico de la Pestaña Activa */}
-      <div className="flex-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* Main Content Area */}
+      <div className="w-full">
         <Outlet />
       </div>
     </div>
   );
 };
 
-export default MaterialsLayout;
+export default CatalogsLayout;

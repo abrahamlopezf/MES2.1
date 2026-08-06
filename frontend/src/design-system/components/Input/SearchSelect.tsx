@@ -67,8 +67,8 @@ export function SearchSelect<T>({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: tokens.primitive.spacing['12'] + ' ' + tokens.primitive.spacing['16'],
-          backgroundColor: tokens.primitive.colors.zinc900,
-          border: `1px solid ${isOpen ? tokens.semantic.color.primary : tokens.primitive.colors.zinc800}`,
+          backgroundColor: tokens.semantic.color.surface,
+          border: `2px solid ${isOpen ? tokens.semantic.color.primary : tokens.semantic.color.borderDefault}`,
           borderRadius: tokens.primitive.spacing['8'],
           cursor: disabled ? 'not-allowed' : 'pointer',
           color: selectedOption ? tokens.semantic.color.textHighEmphasis : tokens.semantic.color.textMediumEmphasis,
@@ -99,8 +99,8 @@ export function SearchSelect<T>({
           top: 'calc(100% + 8px)',
           left: 0,
           right: 0,
-          backgroundColor: tokens.primitive.colors.zinc900,
-          border: `1px solid ${tokens.primitive.colors.zinc800}`,
+          backgroundColor: tokens.semantic.color.surface,
+          border: `2px solid ${tokens.semantic.color.borderDefault}`,
           borderRadius: tokens.primitive.spacing['8'],
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
           zIndex: 50,
@@ -113,7 +113,7 @@ export function SearchSelect<T>({
           {searchable && (
             <div style={{ 
               padding: tokens.primitive.spacing['8'], 
-              borderBottom: `1px solid ${tokens.primitive.colors.zinc800}`,
+              borderBottom: `2px solid ${tokens.semantic.color.borderDefault}`,
               display: 'flex',
               alignItems: 'center',
               gap: tokens.primitive.spacing['8']

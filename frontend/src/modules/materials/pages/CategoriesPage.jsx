@@ -34,15 +34,24 @@ const CategoriesPage = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryToDeactivate, setCategoryToDeactivate] = useState(null);
 
+  const [page, setPage] = useState(1);
+
   const categoriesQuery = useMaterialCategoriesQuery({
     include_inactive: canViewInactive ? 'true' : undefined,
+    page,
+    limit: 20
   });
 
   const createCategoryMutation = useCreateMaterialCategoryMutation();
   const updateCategoryMutation = useUpdateMaterialCategoryMutation();
   const deactivateCategoryMutation = useDeactivateMaterialCategoryMutation();
 
-  const categories = Array.isArray(categoriesQuery.data) ? categoriesQuery.data : [];
+  const categories = Array.isArray(categoriesQuery.data?.items) 
+    ? categoriesQuery.data.items 
+    : (Array.isArray(categoriesQuery.data) ? categoriesQuery.data : []);
+    
+  const meta = categoriesQuery.data?.meta;
+  const totalPages = meta ? Math.ceil(meta.total / (meta.pageSize || 20)) : 1;
 
   const openCreateCategory = () => {
     setSelectedCategory(null);
@@ -126,6 +135,33 @@ const CategoriesPage = () => {
         onEdit={openEditCategory}
         onDeactivate={setCategoryToDeactivate}
       />
+
+      {/* Pagination Controls */}
+      {categories.length > 0 && meta && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-border pt-4 mt-4">
+          <span className="text-sm text-muted-foreground">
+            Página {page} de {totalPages} ({meta.total} registros)
+          </span>
+          <div className="flex items-center gap-2">
+            <TFButton 
+              variant="secondary" 
+              size="sm" 
+              disabled={page <= 1} 
+              onClick={() => setPage(page - 1)}
+            >
+              Anterior
+            </TFButton>
+            <TFButton 
+              variant="secondary" 
+              size="sm" 
+              disabled={page >= totalPages} 
+              onClick={() => setPage(page + 1)}
+            >
+              Siguiente
+            </TFButton>
+          </div>
+        </div>
+      )}
 
       <CategoryActionSheet
         open={isCategorySheetOpen}

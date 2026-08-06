@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
 import { Hash } from 'lucide-react';
 import { 
@@ -7,12 +8,15 @@ import {
 } from '../hooks/useMaterialsQueries';
 
 const CodesPage = () => {
-  const query = useMaterialCodesQuery();
+  const [page, setPage] = useState(1);
+  const query = useMaterialCodesQuery({ page, limit: 20 });
   const createMut = useCreateMaterialCodeMutation();
   const updateMut = useUpdateMaterialCodeMutation();
 
   return (
     <SubcatalogPageTemplate
+      page={page}
+      setPage={setPage}
       title="Artículos (Códigos)"
       description="Define los consecutivos o artículos base para generar la nomenclatura del material."
       icon={Hash}

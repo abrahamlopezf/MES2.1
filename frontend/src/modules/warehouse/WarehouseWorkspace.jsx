@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { DataCard } from '../../design-system/components/Card/DataCard';
-import { StatusChip } from '../../design-system/components/chip/StatusChip';
-import { Input } from '../../design-system/components/Input/Input';
-import { tokens } from '../../design-system/foundation/tokens';
+import { Search, QrCode, Package, Clock, Hash, Layers } from 'lucide-react';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
-import { QrCode } from 'lucide-react';
+import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
 
 export const WarehouseWorkspace = ({ 
   qrData, 
@@ -30,8 +27,7 @@ export const WarehouseWorkspace = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: tokens.semantic.color.background, position: 'relative' }}>
-      
+    <div className="flex flex-col h-full bg-background relative pb-24">
       {/* Real Camera Scanner (Solo se monta si está activo) */}
       {isScannerActive && (
         <CameraScanner 
@@ -41,89 +37,140 @@ export const WarehouseWorkspace = ({
       )}
 
       {/* Header Fijo */}
-      <header style={{ padding: tokens.primitive.spacing['16'], borderBottom: `1px solid ${tokens.semantic.color.borderDefault}`, display: 'flex', alignItems: 'center', gap: tokens.primitive.spacing['16'] }}>
-        <h1 style={{ fontSize: tokens.primitive.typography.sizes.lg, margin: 0, color: tokens.semantic.color.textHighEmphasis }}>Inventario (MES 3.0)</h1>
+      <header className="px-6 py-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
+            <Package className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground m-0">Inventario</h1>
+            <p className="text-sm text-muted-foreground m-0">Trazabilidad física de materiales</p>
+          </div>
+        </div>
       </header>
 
-      {/* Area de Busqueda (Buscador manual opcional) */}
-      <div style={{ padding: tokens.primitive.spacing['16'], backgroundColor: tokens.primitive.colors.zinc900, display: 'flex', gap: tokens.primitive.spacing['12'] }}>
-        <form onSubmit={handleSearch} style={{ flex: 1, display: 'flex', gap: tokens.primitive.spacing['12'] }}>
-          <div style={{ flex: 1 }}>
-            <Input 
+      {/* Area de Busqueda */}
+      <div className="p-6 bg-background/50 border-b border-border">
+        <form onSubmit={handleSearch} className="flex gap-3 max-w-3xl">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <TFInput 
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="Escanear QR o introducir Lote..."
               disabled={loading}
+              className="w-full pl-10"
             />
           </div>
-          <button 
+          <TFButton 
             type="submit" 
+            variant="primary"
             disabled={loading}
-            style={{ 
-              backgroundColor: tokens.semantic.color.primary, 
-              color: tokens.primitive.colors.zinc50, 
-              border: 'none', 
-              padding: `0 ${tokens.primitive.spacing['24']}`, 
-              borderRadius: tokens.primitive.spacing['8'], 
-              cursor: 'pointer',
-              fontWeight: 600,
-              opacity: loading ? 0.7 : 1
-            }}
+            className="min-w-[120px]"
           >
             {loading ? 'Buscando...' : 'Buscar'}
-          </button>
+          </TFButton>
         </form>
       </div>
 
-      <main style={{ flex: 1, overflowY: 'auto', padding: tokens.primitive.spacing['16'], paddingBottom: '100px' }}>
+      <main className="flex-1 overflow-y-auto p-6">
         {!qrData && !loading && (
-          <div style={{ textAlign: 'center', marginTop: '100px', color: tokens.semantic.color.textMediumEmphasis }}>
-            <h2>No hay QR seleccionado</h2>
-            <p>Utilice el botón flotante del escáner para consultar la trazabilidad física de un material.</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
+            <div className="w-20 h-20 bg-muted/30 rounded-full flex items-center justify-center mb-6">
+              <QrCode className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h2 className="text-xl font-medium text-foreground mb-2">No hay QR seleccionado</h2>
+            <p className="text-muted-foreground">
+              Utilice el botón flotante del escáner para consultar la trazabilidad física de un material o ingrese el lote manualmente en el buscador.
+            </p>
           </div>
         )}
 
         {qrData && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: tokens.primitive.spacing['24'] }}>
-            
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl">
             {/* Detalle Principal Inmutable */}
-            <DataCard 
-              title={inventoryData?.materialName || 'Material Desconocido'}
-              subtitle={`QR: ${qrData.code}`}
-              status={qrData.status}
-              headerRight={<StatusChip status={qrData.status} />}
-              data={{
-                'Propósito QR': qrData.purpose,
-                'Cantidad Física': `${inventoryData?.quantity || 0} ${inventoryData?.unit || 'KG'}`,
-                'Ubicación (Rack)': inventoryData?.location || 'No asignada',
-                'Fecha de Activación': qrData.activated_at ? new Date(qrData.activated_at).toLocaleString() : 'N/A'
-              }}
-            />
+            <TFCard className="flex flex-col">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-1">
+                    {inventoryData?.materialName || 'Material Desconocido'}
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Hash className="w-4 h-4" />
+                    <span>{qrData.code}</span>
+                  </div>
+                </div>
+                <TFBadge 
+                  variant={qrData.status === 'ACTIVE' ? 'success' : qrData.status === 'INACTIVE' ? 'danger' : 'default'}
+                >
+                  {qrData.status || 'DESCONOCIDO'}
+                </TFBadge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <span className="block text-sm text-muted-foreground mb-1">Propósito QR</span>
+                  <span className="font-medium text-foreground">{qrData.purpose || 'N/A'}</span>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <span className="block text-sm text-muted-foreground mb-1">Cantidad Física</span>
+                  <span className="font-medium text-foreground">
+                    {inventoryData?.quantity || 0} {inventoryData?.unit || 'KG'}
+                  </span>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <span className="block text-sm text-muted-foreground mb-1">Ubicación (Rack)</span>
+                  <div className="flex items-center gap-2 font-medium text-foreground">
+                    <Layers className="w-4 h-4 text-primary" />
+                    {inventoryData?.location || 'No asignada'}
+                  </div>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-lg">
+                  <span className="block text-sm text-muted-foreground mb-1">Fecha Activación</span>
+                  <span className="font-medium text-foreground">
+                    {qrData.activated_at ? new Date(qrData.activated_at).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </TFCard>
 
             {/* Línea de Tiempo (Historial inmutable) */}
-            <div>
-              <h3 style={{ color: tokens.semantic.color.textHighEmphasis, marginBottom: tokens.primitive.spacing['16'] }}>Historial y Trazabilidad</h3>
-              {historyData && historyData.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {historyData.map((event, idx) => (
-                    <div key={idx} style={{ padding: '16px', backgroundColor: tokens.primitive.colors.zinc800, borderRadius: '8px', borderLeft: `4px solid ${tokens.semantic.color.primary}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <strong style={{ color: tokens.semantic.color.textHighEmphasis }}>{event.type}</strong>
-                        <span style={{ color: tokens.semantic.color.textMediumEmphasis, fontSize: '12px' }}>
-                          {new Date(event.timestamp).toLocaleString()}
-                        </span>
+            <TFCard className="flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-6">
+                <Clock className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-bold text-foreground m-0">Historial y Trazabilidad</h3>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto pr-2">
+                {historyData && historyData.length > 0 ? (
+                  <div className="relative border-l border-muted ml-3 space-y-6">
+                    {historyData.map((event, idx) => (
+                      <div key={idx} className="relative pl-6">
+                        {/* Dot */}
+                        <div className="absolute left-[-5px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-background" />
+                        
+                        <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+                          <div className="flex items-center justify-between mb-2">
+                            <strong className="text-foreground">{event.type}</strong>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(event.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground m-0">
+                            {event.notes || event.description || 'Sin detalles registrados.'}
+                          </p>
+                        </div>
                       </div>
-                      <p style={{ margin: 0, color: tokens.semantic.color.textMediumEmphasis, fontSize: '14px' }}>
-                        {event.notes || event.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ color: tokens.semantic.color.textMediumEmphasis }}>No hay eventos registrados para este QR.</p>
-              )}
-            </div>
-
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 text-center">
+                    <Clock className="w-8 h-8 text-muted-foreground mb-3 opacity-50" />
+                    <p className="text-muted-foreground m-0">No hay eventos registrados para este QR.</p>
+                  </div>
+                )}
+              </div>
+            </TFCard>
           </div>
         )}
       </main>
@@ -131,27 +178,11 @@ export const WarehouseWorkspace = ({
       {/* Botón Flotante para Escanear (Mobile First) */}
       <button
         onClick={() => onScannerToggle(true)}
-        style={{
-          position: 'fixed',
-          bottom: '100px', // por encima del BottomNavigation de la app
-          right: tokens.primitive.spacing['24'],
-          width: '64px',
-          height: '64px',
-          borderRadius: '32px',
-          backgroundColor: tokens.semantic.color.primary,
-          color: tokens.primitive.colors.zinc50,
-          border: 'none',
-          boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 40
-        }}
+        className="fixed bottom-[100px] right-6 w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all z-40 border-none outline-none cursor-pointer"
+        aria-label="Escanear QR"
       >
-        <QrCode size={32} />
+        <QrCode className="w-8 h-8" />
       </button>
-
     </div>
   );
 };

@@ -1,4 +1,4 @@
-const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType } = require('../../../database/models');
+const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, OperationalArea } = require('../../../database/models');
 const { NotFoundError } = require('../../../services/BaseCatalogService');
 
 class MaterialCrudService {
@@ -24,6 +24,19 @@ class MaterialCrudService {
     if (data.type_uuid) {
       const type = await MaterialType.findOne({ where: { uuid: data.type_uuid } });
       if (type) typeId = type.id;
+    }
+    
+    let locationId = null;
+    if (data.location_uuid) {
+      const location = await OperationalArea.findOne({ 
+        where: { uuid: data.location_uuid }
+      });
+      if (location) {
+        if (!location.is_active) {
+          throw new Error('La localidad sugerida se encuentra inactiva.');
+        }
+        locationId = location.id;
+      }
     }
 
     // 2. Generar internal_consecutive (Búsqueda del último consecutivo)
@@ -58,7 +71,8 @@ class MaterialCrudService {
       minimum_stock: data.minimum_stock || 0,
       maximum_stock: data.maximum_stock,
       reorder_point: data.reorder_point || 0,
-      status: data.status || 'ACTIVE'
+      status: data.status || 'ACTIVE',
+      default_location_id: locationId
     };
 
     return await Material.create(materialData);
@@ -71,6 +85,23 @@ class MaterialCrudService {
     }
 
     // El esquema Zod de updateSchema ya filtra los UUIDs, así que es seguro aplicar
+    
+    if (data.location_uuid) {
+      const location = await OperationalArea.findOne({ 
+        where: { uuid: data.location_uuid }
+      });
+      if (location) {
+        if (!location.is_active) {
+          throw new Error('La localidad sugerida se encuentra inactiva.');
+        }
+        data.default_location_id = location.id;
+      }
+      delete data.location_uuid;
+    } else if (data.location_uuid === null) {
+      data.default_location_id = null;
+      delete data.location_uuid;
+    }
+    
     return await material.update(data);
   }
 

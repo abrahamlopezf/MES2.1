@@ -81,8 +81,8 @@ export const ReceptionWorkspace = ({
           ←
         </button>
         <h1 style={{ fontSize: tokens.primitive.typography.sizes.lg, margin: 0 }}>Recepción</h1>
-        <span style={{ marginLeft: 'auto', color: tokens.semantic.color.textMediumEmphasis, fontFamily: 'monospace' }}>
-          {data?.qrCode || 'QR-UNKNOWN'}
+        <span style={{ marginLeft: 'auto', color: tokens.semantic.color.textMediumEmphasis, fontFamily: 'monospace', fontSize: tokens.primitive.typography.sizes.sm }}>
+          {data?.qrCode || ''}
         </span>
       </header>
 
@@ -91,7 +91,13 @@ export const ReceptionWorkspace = ({
         
         {/* Selection / Catalogue Integration */}
         <div style={{ marginBottom: tokens.primitive.spacing['24'] }}>
-          <label style={{ display: 'block', color: tokens.semantic.color.textMediumEmphasis, marginBottom: tokens.primitive.spacing['8'], fontSize: tokens.primitive.typography.sizes.sm }}>
+          <label style={{ 
+            display: 'block', 
+            color: tokens.semantic.color.textHighEmphasis, 
+            marginBottom: tokens.primitive.spacing['4'], 
+            fontSize: tokens.primitive.typography.sizes.sm,
+            fontWeight: 500
+          }}>
             Material a Recepcionar
           </label>
           <SearchSelect
@@ -113,7 +119,6 @@ export const ReceptionWorkspace = ({
           <DataCard
             title={selectedMaterial.name}
             subtitle={selectedMaterial.brand?.name ? `Marca: ${selectedMaterial.brand.name}` : `Familia: ${selectedMaterial.family?.name || 'Genérico'}`}
-            status="AVAILABLE"
             headerRight={<StatusChip status="AVAILABLE" />}
             style={{ marginBottom: tokens.primitive.spacing['24'] }}
             data={{

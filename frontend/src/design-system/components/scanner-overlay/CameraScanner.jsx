@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { tokens } from '../../foundation/tokens';
+import { X, Camera } from 'lucide-react';
 
 export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }) => {
   const onScanRef = React.useRef(onScan);
@@ -32,15 +32,15 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: tokens.primitive.colors.zinc950, display: 'flex', flexDirection: 'column' }}>
+    <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
       <style>{`
         /* Overrides for html5-qrcode default UI */
         #qr-reader-container {
           border: none !important;
-          border-radius: ${tokens.primitive.spacing['16']} !important;
+          border-radius: var(--radius) !important;
           overflow: hidden;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
-          background-color: ${tokens.primitive.colors.zinc900} !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+          background-color: var(--card) !important;
         }
         
         /* Remove ALL borders from inner injected elements */
@@ -59,33 +59,33 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
         
         /* Soften the big camera icon */
         #qr-reader-container img {
-          opacity: 0.2 !important; 
+          opacity: 0.1 !important; 
         }
 
         /* Text inside the dashboard */
         #qr-reader-container__dashboard_section_csr span {
-          color: ${tokens.semantic.color.textHighEmphasis} !important;
-          font-family: ${tokens.primitive.typography.sans} !important;
-          font-size: ${tokens.primitive.typography.sizes.md} !important;
+          color: var(--foreground) !important;
+          font-family: inherit !important;
+          font-size: 1rem !important;
         }
 
         /* Style the 'Request Permissions' button */
         #qr-reader-container__dashboard_section_csr button {
-          background-color: ${tokens.semantic.color.primary} !important;
-          color: ${tokens.primitive.colors.zinc50} !important;
-          padding: ${tokens.primitive.spacing['16']} ${tokens.primitive.spacing['32']} !important;
-          border-radius: ${tokens.primitive.spacing['8']} !important;
-          font-family: ${tokens.primitive.typography.sans} !important;
-          font-size: ${tokens.primitive.typography.sizes.md} !important;
+          background-color: var(--primary) !important;
+          color: var(--primary-foreground) !important;
+          padding: 12px 24px !important;
+          border-radius: var(--radius) !important;
+          font-family: inherit !important;
+          font-size: 0.875rem !important;
           font-weight: 600 !important;
           cursor: pointer !important;
-          margin-top: ${tokens.primitive.spacing['24']} !important;
-          transition: all 0.2s ease;
+          margin-top: 16px !important;
+          transition: opacity 0.2s ease;
           width: auto !important;
         }
         
         #qr-reader-container__dashboard_section_csr button:hover {
-          background-color: ${tokens.semantic.color.primaryHover} !important;
+          opacity: 0.9 !important;
         }
 
         /* HIDE the 'Scan an Image File' link */
@@ -95,34 +95,44 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
 
         /* Style the camera select dropdown */
         #qr-reader-container select {
-          background-color: ${tokens.primitive.colors.zinc800} !important;
-          color: ${tokens.semantic.color.textHighEmphasis} !important;
-          border: 1px solid ${tokens.semantic.color.borderDefault} !important;
-          padding: ${tokens.primitive.spacing['12']} ${tokens.primitive.spacing['16']} !important;
-          border-radius: ${tokens.primitive.spacing['8']} !important;
-          font-family: ${tokens.primitive.typography.sans} !important;
-          margin-bottom: ${tokens.primitive.spacing['16']} !important;
+          background-color: var(--input) !important;
+          color: var(--foreground) !important;
+          border: 1px solid var(--border) !important;
+          padding: 8px 12px !important;
+          border-radius: var(--radius) !important;
+          font-family: inherit !important;
+          margin-bottom: 16px !important;
           width: 100%;
           outline: none !important;
         }
 
         /* Style the video feed */
         #qr-reader-container video {
-          border-radius: ${tokens.primitive.spacing['16']} !important;
+          border-radius: var(--radius) !important;
           object-fit: cover;
         }
       `}</style>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: tokens.primitive.spacing['16'], backgroundColor: tokens.primitive.colors.zinc900, borderBottom: `1px solid ${tokens.semantic.color.borderDefault}` }}>
-        <h2 style={{ color: tokens.semantic.color.textHighEmphasis, margin: 0, fontSize: tokens.primitive.typography.sizes.lg, fontWeight: 600 }}>{title}</h2>
+
+      {/* Header */}
+      <header className="px-6 py-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
+            <Camera className="w-5 h-5" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground m-0">{title}</h2>
+        </div>
         <button 
           onClick={onClose} 
-          style={{ backgroundColor: 'transparent', border: 'none', color: tokens.semantic.color.danger, fontSize: tokens.primitive.typography.sizes.md, fontWeight: 'bold', cursor: 'pointer', padding: tokens.primitive.spacing['8'] }}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-danger hover:bg-danger/10 rounded-md transition-colors"
         >
+          <X className="w-4 h-4" />
           Cerrar
         </button>
-      </div>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.primitive.colors.zinc950, padding: tokens.primitive.spacing['24'] }}>
-        <div id="qr-reader-container" style={{ width: '100%', maxWidth: '500px' }}></div>
+      </header>
+
+      {/* Scanner Container */}
+      <div className="flex-1 flex items-center justify-center bg-background/95 p-6">
+        <div id="qr-reader-container" className="w-full max-w-[500px] border border-border shadow-xl rounded-xl"></div>
       </div>
     </div>
   );

@@ -6,7 +6,8 @@ import {
   useMaterialFamiliesQuery,
   useMaterialCodesQuery,
   useMaterialTypesQuery,
-  useMaterialBrandsQuery
+  useMaterialBrandsQuery,
+  useOperationalAreasQuery
 } from '../hooks/useMaterialsQueries';
 
 const MaterialForm = ({
@@ -17,17 +18,24 @@ const MaterialForm = ({
 }) => {
   const isEditing = Boolean(initialData?.id);
 
-  // Consultas de catálogos
-  const { data: families = [] } = useMaterialFamiliesQuery();
-  const { data: codes = [] } = useMaterialCodesQuery();
-  const { data: types = [] } = useMaterialTypesQuery();
-  const { data: brands = [] } = useMaterialBrandsQuery();
+  const { data: familiesData } = useMaterialFamiliesQuery();
+  const { data: codesData } = useMaterialCodesQuery();
+  const { data: typesData } = useMaterialTypesQuery();
+  const { data: brandsData } = useMaterialBrandsQuery();
+  const { data: locationsData } = useOperationalAreasQuery();
+
+  const families = familiesData?.items || [];
+  const codes = codesData?.items || [];
+  const types = typesData?.items || [];
+  const brands = brandsData?.items || [];
+  const locations = locationsData?.items || [];
 
   const [formData, setFormData] = useState({
     family_uuid: initialData?.family?.uuid || '',
     material_code_uuid: initialData?.material_code?.uuid || '',
     type_uuid: initialData?.type?.uuid || '',
     brand_uuid: initialData?.brand?.uuid || '',
+    location_uuid: initialData?.location?.uuid || '',
     name: initialData?.name || '',
     description: initialData?.description || '',
     is_active: initialData?.is_active ?? true,
@@ -42,6 +50,7 @@ const MaterialForm = ({
         material_code_uuid: initialData?.material_code?.uuid || '',
         type_uuid: initialData?.type?.uuid || '',
         brand_uuid: initialData?.brand?.uuid || '',
+        location_uuid: initialData?.location?.uuid || '',
         name: initialData.name || '',
         description: initialData.description || '',
         is_active: initialData.is_active ?? true,
@@ -57,6 +66,10 @@ const MaterialForm = ({
   const codeOptions = codes.map(c => ({ value: c.uuid, label: `${c.code} - ${c.name}` }));
   const typeOptions = types.map(t => ({ value: t.uuid, label: `${t.code} - ${t.name}` }));
   const brandOptions = brands.map(b => ({ value: b.uuid, label: `${b.code} - ${b.name}` }));
+  const locationOptions = locations.map(l => ({ 
+    value: l.uuid, 
+    label: `${l.code} - ${l.name}` 
+  }));
 
   const selectedFamily = families.find(f => f.uuid === formData.family_uuid);
   const selectedCode = codes.find(c => c.uuid === formData.material_code_uuid);
@@ -84,6 +97,7 @@ const MaterialForm = ({
       material_code_uuid: formData.material_code_uuid,
       type_uuid: formData.type_uuid || null,
       brand_uuid: formData.brand_uuid || null,
+      location_uuid: formData.location_uuid || null,
       name: formData.name.trim(),
       description: formData.description.trim() || null,
     };
@@ -158,6 +172,16 @@ const MaterialForm = ({
               value={formData.type_uuid}
               onChange={(e) => updateField('type_uuid', e.target.value)}
               options={typeOptions}
+              disabled={isSubmitting}
+            />
+
+            <TFSelect
+              label="Localidad Sugerida (Recepción)"
+              name="location_uuid"
+              placeholder="Selecciona Localidad (Opcional)"
+              value={formData.location_uuid}
+              onChange={(e) => updateField('location_uuid', e.target.value)}
+              options={locationOptions}
               disabled={isSubmitting}
             />
 

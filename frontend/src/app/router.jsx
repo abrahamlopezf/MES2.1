@@ -13,10 +13,13 @@ import FamiliesPage from "../modules/materials/pages/FamiliesPage";
 import CodesPage from "../modules/materials/pages/CodesPage";
 import TypesPage from "../modules/materials/pages/TypesPage";
 import BrandsPage from "../modules/materials/pages/BrandsPage";
+import LocationsPage from "../modules/materials/pages/LocationsPage";
 import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
 import QrCodesPage from "../modules/qrcodes/pages/QrCodesPage";
 import { AreasPage } from "../modules/dashboard/pages/AreasPage";
 import ProfilePage from "../modules/users/pages/ProfilePage";
+
+
 
 
 
@@ -99,6 +102,10 @@ export const router = createBrowserRouter([
               {
                 path: 'brands',
                 element: <BrandsPage />
+              },
+              {
+                path: 'locations',
+                element: <LocationsPage />
               }
             ]
           },

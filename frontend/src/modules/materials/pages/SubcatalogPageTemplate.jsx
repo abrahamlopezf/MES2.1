@@ -15,6 +15,7 @@ const SubcatalogPageTemplate = ({
   createMutation,
   updateMutation,
   labels,
+  ...props
 }) => {
   const { hasPermission } = useAuthStore();
   const { user } = useAuthStore();
@@ -26,7 +27,12 @@ const SubcatalogPageTemplate = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const items = Array.isArray(dataQuery.data) ? dataQuery.data : [];
+  const items = Array.isArray(dataQuery.data?.items) ? dataQuery.data.items : (Array.isArray(dataQuery.data) ? dataQuery.data : []);
+  const meta = dataQuery.data?.meta;
+
+  const page = props.page || 1;
+  const setPage = props.setPage || (() => {});
+  const totalPages = meta ? Math.ceil(meta.total / (meta.pageSize || 20)) : 1;
 
   const handleOpenCreate = () => {
     setSelectedItem(null);
@@ -56,7 +62,9 @@ const SubcatalogPageTemplate = ({
     setOperationError(null);
     try {
       if (selectedItem?.id) {
-        await updateMutation.mutateAsync({ id: selectedItem.id, payload });
+        // Usa el UUID si está disponible, de lo contrario fallback al ID
+        const targetId = selectedItem.uuid || selectedItem.id;
+        await updateMutation.mutateAsync({ id: targetId, payload });
         setOperationMessage('Registro actualizado correctamente.');
       } else {
         await createMutation.mutateAsync(payload);
@@ -135,6 +143,33 @@ const SubcatalogPageTemplate = ({
               )}
             </TFCard>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {items.length > 0 && meta && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-border pt-4 mt-4">
+          <span className="text-sm text-muted-foreground">
+            Página {page} de {totalPages} ({meta.total} registros)
+          </span>
+          <div className="flex items-center gap-2">
+            <TFButton 
+              variant="secondary" 
+              size="sm" 
+              disabled={page <= 1} 
+              onClick={() => setPage(page - 1)}
+            >
+              Anterior
+            </TFButton>
+            <TFButton 
+              variant="secondary" 
+              size="sm" 
+              disabled={page >= totalPages} 
+              onClick={() => setPage(page + 1)}
+            >
+              Siguiente
+            </TFButton>
+          </div>
         </div>
       )}
 

@@ -21,6 +21,9 @@ import {
   getMaterialBrandsRequest,
   createMaterialBrandRequest,
   updateMaterialBrandRequest,
+  getOperationalAreasRequest,
+  createOperationalAreaRequest,
+  updateOperationalAreaRequest,
 } from '../services/materialsApi';
 
 export const materialQueryKeys = {
@@ -32,6 +35,7 @@ export const materialQueryKeys = {
   codes: (filters) => [...materialQueryKeys.all, 'codes', filters],
   types: (filters) => [...materialQueryKeys.all, 'types', filters],
   brands: (filters) => [...materialQueryKeys.all, 'brands', filters],
+  locations: (filters) => [...materialQueryKeys.all, 'locations', filters],
 };
 
 const buildMaterialParams = (filters = {}) => {
@@ -69,12 +73,13 @@ const getPayload = (response) => {
 };
 
 const normalizeMaterialsResponse = (response) => {
+  const root = response?.data ?? response;
   const payload = getPayload(response);
 
   if (Array.isArray(payload)) {
     return {
       items: payload,
-      total: payload.length,
+      meta: root?.meta || { total: payload.length },
     };
   }
 
@@ -86,15 +91,16 @@ const normalizeMaterialsResponse = (response) => {
 
   return {
     items: Array.isArray(items) ? items : [],
-    total: Number(payload?.total) || items.length || 0,
+    meta: root?.meta || { total: Number(payload?.total) || items.length || 0 },
   };
 };
 
 const normalizeCategoriesResponse = (response) => {
   const payload = getPayload(response);
 
+  const root = response?.data ?? response;
   if (Array.isArray(payload)) {
-    return payload;
+    return { items: payload, meta: root?.meta || { total: payload.length } };
   }
 
   const items =
@@ -103,7 +109,10 @@ const normalizeCategoriesResponse = (response) => {
     payload?.rows ??
     [];
 
-  return Array.isArray(items) ? items : [];
+  return { 
+    items: Array.isArray(items) ? items : [], 
+    meta: root?.meta || { total: items.length } 
+  };
 };
 
 export const useMaterialsQuery = (filters) => {
@@ -302,5 +311,25 @@ export const useUpdateMaterialBrandMutation = () => {
   return useMutation({
     mutationFn: updateMaterialBrandRequest,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useOperationalAreasQuery = (filters = { pageSize: 100 }) => {
+  return useQuery({
+    queryKey: materialQueryKeys.locations(filters),
+    queryFn: () => getOperationalAreasRequest(filters),
+    select: normalizeCategoriesResponse,
+  });
+};
+
+export const useOperationalAreaMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data) =>
+      data.id ? updateOperationalAreaRequest(data) : createOperationalAreaRequest(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: materialQueryKeys.all });
+    },
   });
 };

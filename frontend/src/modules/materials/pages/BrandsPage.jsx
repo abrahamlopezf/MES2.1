@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
 import { Award } from 'lucide-react';
 import { 
@@ -7,12 +8,15 @@ import {
 } from '../hooks/useMaterialsQueries';
 
 const BrandsPage = () => {
-  const query = useMaterialBrandsQuery();
+  const [page, setPage] = useState(1);
+  const query = useMaterialBrandsQuery({ page, limit: 20 });
   const createMut = useCreateMaterialBrandMutation();
   const updateMut = useUpdateMaterialBrandMutation();
 
   return (
     <SubcatalogPageTemplate
+      page={page}
+      setPage={setPage}
       title="Marcas de Material"
       description="Define las marcas comerciales aprobadas."
       icon={Award}

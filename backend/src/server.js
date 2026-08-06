@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 4000;
 const startServer = async () => {
   try {
     await testDatabaseConnection();
+    
+    // Sync for default_location_id rollback
+    const db = require('./database/models');
+    await db.Material.sync({ alter: true });
 
     app.listen(PORT, () => {
       console.log(`🚀 Backend ejecutándose en puerto ${PORT}`);
