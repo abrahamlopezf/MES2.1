@@ -28,11 +28,12 @@ export const useIdentityBatchesQuery = () => {
           id: item.id,
           batchNumber: item.batch_code,
           plantId: 'PLANT-01',
-          areaId: subAreaCode || (item.assigned_area?.id ? String(item.assigned_area.id) : ''),
+          areaId: subAreaCode || (item.assigned_area?.code ? String(item.assigned_area.code) : ''),
           tokenType: 'QR',
           generatedAmount: item.quantity,
           generatedAt: item.created_at,
           tokens: tokens,
+          requestedBy: item.created_by ? `${item.created_by.first_name || ''} ${item.created_by.last_name || ''}`.trim() : 'Sistema',
         };
       });
     },
@@ -56,11 +57,12 @@ export const useBatchByIdQuery = (batchId: string | null) => {
         id: item.id,
         batchNumber: item.batch_code,
         plantId: 'PLANT-01',
-        areaId: subAreaCode || (item.assigned_area?.id ? String(item.assigned_area.id) : ''),
+        areaId: subAreaCode || (item.assigned_area?.code ? String(item.assigned_area.code) : ''),
         tokenType: 'QR',
         generatedAmount: item.quantity,
         generatedAt: item.created_at,
         tokens: tokens,
+        requestedBy: item.created_by ? `${item.created_by.first_name || ''} ${item.created_by.last_name || ''}`.trim() : 'Sistema',
       };
     },
     enabled: !!batchId,

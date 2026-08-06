@@ -323,7 +323,7 @@ export function GenerateBatchPage() {
                                     </div>
                                     
                                     <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                      <p className="font-mono text-sm font-bold truncate text-foreground group-hover:text-primary transition-colors">{token.industrialCode}</p>
+                                      <p className="font-mono text-[13px] sm:text-sm font-bold break-all text-foreground group-hover:text-primary transition-colors">{token.industrialCode}</p>
                                       <div className="mt-1.5">
                                         <span className={`inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
                                           token.status === 'UNASSIGNED' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 

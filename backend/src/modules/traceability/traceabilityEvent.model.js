@@ -11,6 +11,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      uuid: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        allowNull: false,
+        unique: true,
+      },
+      entity_type: {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+      },
+      entity_id: {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+      },
       event_type: {
         type: DataTypes.STRING(60),
         allowNull: false,

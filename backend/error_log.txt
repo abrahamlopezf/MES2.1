@@ -5,45 +5,15 @@ Error
     at async PostgresQueryInterface.bulkInsert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:346:21)
     at async recursiveBulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1697:25)
     at async TraceabilityEvent.bulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1786:12)
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:380:7
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:349:7
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)2026-08-06T02:12:47.747Z\nMessage: no existe la relación «public.traceability_events»\nStack: Error
+    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)2026-08-06T03:09:06.581Z\nMessage: el valor nulo en la columna «uuid» de la relación «traceability_events» viola la restricción “not-null”\nStack: Error
     at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
     at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
     at async PostgresQueryInterface.bulkInsert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:346:21)
     at async recursiveBulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1697:25)
     at async TraceabilityEvent.bulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1786:12)
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:380:7
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:349:7
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)\n\n2026-08-06T02:28:16.823Z\nMessage: Area is associated to QrCode using an alias. You've included an alias (currentArea), but it does not match the alias(es) defined in your association (assignedArea).\nStack: SequelizeEagerLoadingError: Area is associated to QrCode using an alias. You've included an alias (currentArea), but it does not match the alias(es) defined in your association (assignedArea).
-    at QrCode._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:574:15)
-    at QrCode._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at QrCode._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at QrCode.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async QrCode.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.getQrCodeByValue (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:547:18)
-    at async printQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:134:18)\n\n2026-08-06T02:34:58.163Z\nMessage: Area is associated to QrCode using an alias. You've included an alias (currentArea), but it does not match the alias(es) defined in your association (assignedArea).\nStack: SequelizeEagerLoadingError: Area is associated to QrCode using an alias. You've included an alias (currentArea), but it does not match the alias(es) defined in your association (assignedArea).
-    at QrCode._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:574:15)
-    at QrCode._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at QrCode._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at QrCode.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async QrCode.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.getQrCodeByValue (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:547:18)
-    at async printQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:187:18)\n\n2026-08-06T02:35:39.716Z\nMessage: Area is associated to QrCode using an alias. You've included an alias (currentArea), but it does not match the alias(es) defined in your association (assignedArea).\nStack: SequelizeEagerLoadingError: Area is associated to QrCode using an alias. You've included an alias (currentArea), but it does not match the alias(es) defined in your association (assignedArea).
-    at QrCode._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:574:15)
-    at QrCode._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at QrCode._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at QrCode.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async QrCode.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.getQrCodeByValue (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:547:18)
-    at async printQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:187:18)\n\n
+    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)\n\n
