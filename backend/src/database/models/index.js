@@ -190,12 +190,12 @@ db.Inventory.hasMany(db.InventoryMovement, {
 });
 
 // Pendiente para Fase 1.5 (Units)
-// db.StockUnit.belongsTo(db.MaterialUnit, {
-//   foreignKey: 'unit_id',
-//   as: 'unit',
-// });
+db.Inventory.belongsTo(db.MaterialUnit, {
+  foreignKey: 'unit_id',
+  as: 'unit',
+});
 
-// db.StockUnit.belongsTo(db.User, {
+// db.Inventory.belongsTo(db.User, {
 //   foreignKey: 'user_id',
 //   as: 'user',
 // });

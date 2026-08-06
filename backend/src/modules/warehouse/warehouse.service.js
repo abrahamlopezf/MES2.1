@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { sequelize, StockUnit, Material, MaterialUnit, QrCode, QrEvent, User } = require('../../database/models');
+const { sequelize, Inventory, Material, MaterialUnit, QrCode, QrEvent, User } = require('../../database/models');
 const { throwHttpError } = require('../../shared/security/accessRules');
 const { QR_STATUS, QR_EVENT_TYPE } = require('../qrcodes/qr.constants');
 
@@ -43,17 +43,16 @@ const receiveMaterial = async (data, currentUser) => {
     const materialCode = material.internal_code || 'UNKNOWN';
     const trackingCode = `${qrPrefix}-${materialCode}-${qrSuffix}`;
 
-    // 3. Create StockUnit
-    const stockUnit = await StockUnit.create(
+    // 3. Create Inventory
+    const stockUnit = await Inventory.create(
       {
         qr_code_uuid: qr.uuid,
         qr_code_value: qr.qr_code,
         tracking_code: trackingCode,
         material_id: material.id,
-        quantity,
+        available_quantity: quantity,
         unit_id: material.unit_id,
         location,
-        user_id: currentUser.id,
         status: 'AVAILABLE',
       },
       { transaction: t }
@@ -76,7 +75,7 @@ const receiveMaterial = async (data, currentUser) => {
         performed_by: currentUser.id,
         notes: `Recepción de material. Cantidad: ${quantity} ${material.unit ? material.unit.code : ''}. Ubicación: ${location}`,
         metadata: {
-          stock_unit_id: stockUnit.id,
+          inventory_id: stockUnit.id,
           material_id: material.id,
           quantity,
           location,
@@ -107,7 +106,7 @@ const getInventory = async (query = {}, currentUser) => {
   const limit = Math.min(Number(query.limit) || 100, 300);
   const offset = Number(query.offset) || 0;
 
-  const result = await StockUnit.findAndCountAll({
+  const result = await Inventory.findAndCountAll({
     where,
     include: [
       {
@@ -119,11 +118,6 @@ const getInventory = async (query = {}, currentUser) => {
         model: MaterialUnit,
         as: 'unit',
         attributes: ['id', 'code', 'name'],
-      },
-      {
-        model: User,
-        as: 'user',
-        attributes: ['id', 'first_name', 'last_name'],
       },
     ],
     order: [['received_at', 'DESC']],

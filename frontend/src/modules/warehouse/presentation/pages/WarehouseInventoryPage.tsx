@@ -71,7 +71,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Cantidad</p>
                     <p className="font-mono font-bold text-lg text-foreground">
-                      {Number(item.quantity).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{item.unit?.code}</span>
+                      {Number(item.available_quantity).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{item.unit?.code}</span>
                     </p>
                   </div>
                   <div>

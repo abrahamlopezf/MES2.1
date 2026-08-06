@@ -1,0 +1,4 @@
+=== QR_CODES COLUMNS ===
+id, qr_code, batch_id, assigned_area_id, status, created_by, cancel_reason, is_active, created_at, updated_at, uuid, serial, purpose
+
+ERROR: No description found for "stock_units" table. Check the table name and schema; remember, they _are_ case sensitive.
