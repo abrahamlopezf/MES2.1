@@ -16,4 +16,22 @@ Error
     at async TraceabilityEvent.bulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1786:12)
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:349:7
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)\n\n
+    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)\n\n2026-08-06T06:56:27.430Z\nMessage: Area is not associated to TraceabilityEvent!\nStack: SequelizeEagerLoadingError: Area is not associated to TraceabilityEvent!
+    at TraceabilityEvent._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
+    at TraceabilityEvent._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
+    at Array.map (<anonymous>)
+    at TraceabilityEvent._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
+    at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n2026-08-06T06:56:27.468Z\nMessage: Area is not associated to TraceabilityEvent!\nStack: SequelizeEagerLoadingError: Area is not associated to TraceabilityEvent!
+    at TraceabilityEvent._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
+    at TraceabilityEvent._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
+    at Array.map (<anonymous>)
+    at TraceabilityEvent._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
+    at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n

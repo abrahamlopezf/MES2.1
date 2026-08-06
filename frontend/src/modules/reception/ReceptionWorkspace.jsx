@@ -1,24 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { UniversalActionBar } from '../../design-system/components/action-bar/UniversalActionBar';
 import { ActionButton } from '../../design-system/components/Button/ActionButton';
 import { DataCard } from '../../design-system/components/Card/DataCard';
 import { StatusChip } from '../../design-system/components/chip/StatusChip';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
 import { Input } from '../../design-system/components/Input/Input';
+import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
 import { tokens } from '../../design-system/foundation/tokens';
 import { SubmitReceptionCommand } from './ReceptionCommands';
+import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
 
 export const ReceptionWorkspace = ({
   workflowState, // 'INITIAL' | 'SCANNING' | 'FORM_READY' | 'SUBMITTING' | 'SUCCESS'
   onDispatch,    // function para enviar transiciones a la máquina de estados
   onCommand,     // function para despachar Command Objects (Ej. SubmitReceptionCommand)
-  data,          // Payload resuelto por el Runtime (Ej. { material: 'PP-001', lote: 'L-123' })
+  data,          // Payload resuelto por el Runtime (Ej. { qrCode: 'QR-001', materialId?: 15, ... })
   onExit         // function para salir del módulo (volver atrás)
 }) => {
 
+  const [selectedMaterialId, setSelectedMaterialId] = useState(data?.materialId || null);
   const [quantity, setQuantity] = useState('');
   const [rack, setRack] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Fetch materials catalogue via TanStack query
+  const { data: materials = [], isLoading: isLoadingMaterials } = useMaterialListQuery();
+
+  // Selected material logic (Dumb DataCard source)
+  const selectedMaterial = useMemo(() => {
+    if (!selectedMaterialId) return null;
+    return materials.find(m => m.id === selectedMaterialId) || null;
+  }, [materials, selectedMaterialId]);
 
   // Fase de Escaneo (Pantalla Completa)
   if (workflowState === 'INITIAL' || workflowState === 'SCANNING') {
@@ -46,6 +58,20 @@ export const ReceptionWorkspace = ({
     );
   }
 
+  const handleSave = () => {
+    if (!selectedMaterialId) return;
+    onDispatch('SUBMIT');
+    onCommand(new SubmitReceptionCommand({
+      qrCode: data?.qrCode,
+      materialId: selectedMaterialId,
+      quantity: Number(quantity),
+      rack,
+      observations: notes
+    }));
+  };
+
+  const isFormValid = selectedMaterialId && quantity !== '';
+
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: tokens.semantic.color.background }}>
@@ -63,49 +89,68 @@ export const ReceptionWorkspace = ({
       {/* Contenido (Scrollable) */}
       <main style={{ flex: 1, overflowY: 'auto', padding: tokens.primitive.spacing['16'], paddingBottom: '120px' }}>
         
-        {/* Banner QR */}
-        <div style={{ backgroundColor: tokens.primitive.colors.zinc800, padding: tokens.primitive.spacing['24'], borderRadius: tokens.primitive.spacing['12'], textAlign: 'center', marginBottom: tokens.primitive.spacing['24'] }}>
-          <h2 style={{ margin: 0, color: tokens.semantic.color.textHighEmphasis }}>QR Escaneado</h2>
+        {/* Selection / Catalogue Integration */}
+        <div style={{ marginBottom: tokens.primitive.spacing['24'] }}>
+          <label style={{ display: 'block', color: tokens.semantic.color.textMediumEmphasis, marginBottom: tokens.primitive.spacing['8'], fontSize: tokens.primitive.typography.sizes.sm }}>
+            Material a Recepcionar
+          </label>
+          <SearchSelect
+            options={materials}
+            value={selectedMaterialId}
+            onChange={setSelectedMaterialId}
+            getLabel={(m) => m.name}
+            getValue={(m) => m.id}
+            searchable={true}
+            placeholder="Buscar material..."
+            loading={isLoadingMaterials}
+            emptyMessage="Sin resultados"
+            disabled={workflowState === 'SUBMITTING'}
+          />
         </div>
 
         {/* Info de Material (Solo vista) */}
-        <DataCard
-          title={data?.materialName || "Polipropileno (PP-001)"}
-          subtitle={`Proveedor: ${data?.provider || 'SABIC'}`}
-          status="AVAILABLE"
-          headerRight={<StatusChip status="AVAILABLE" />}
-          style={{ marginBottom: tokens.primitive.spacing['24'] }}
-          data={{
-             'Lote Prov': data?.lote || 'L-999',
-             'Fecha': new Date().toLocaleDateString()
-          }}
-        />
+        {selectedMaterial && (
+          <DataCard
+            title={selectedMaterial.name}
+            subtitle={selectedMaterial.brand?.name ? `Marca: ${selectedMaterial.brand.name}` : `Familia: ${selectedMaterial.family?.name || 'Genérico'}`}
+            status="AVAILABLE"
+            headerRight={<StatusChip status="AVAILABLE" />}
+            style={{ marginBottom: tokens.primitive.spacing['24'] }}
+            data={{
+               'Código Interno': selectedMaterial.internal_code,
+               'Unidad': selectedMaterial.base_unit_id ? 'KG' : '—', // Fallback neutro
+               'Fecha': data?.activatedAt ? new Date(data.activatedAt).toLocaleDateString() : new Date().toLocaleDateString()
+            }}
+          />
+        )}
 
         {/* Inputs del Operador */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.primitive.spacing['24'] }}>
-          <Input 
-            label="Cantidad (kg)" 
-            type="number"
-            value={quantity}
-            onChange={e => setQuantity(e.target.value)}
-            disabled={workflowState === 'SUBMITTING'}
-            placeholder="Ej. 1000"
-          />
-          <Input 
-            label="Rack" 
-            value={rack}
-            onChange={e => setRack(e.target.value)}
-            disabled={workflowState === 'SUBMITTING'}
-            placeholder="Ej. A-01"
-          />
-          <Input 
-            label="Observaciones (Opcional)" 
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            disabled={workflowState === 'SUBMITTING'}
-            placeholder="Ej. Empaque dañado"
-          />
-        </div>
+        {selectedMaterial && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.primitive.spacing['24'] }}>
+            <Input 
+              label="Cantidad" 
+              type="number"
+              value={quantity}
+              onChange={e => setQuantity(e.target.value)}
+              disabled={workflowState === 'SUBMITTING'}
+              placeholder="Ej. 1000"
+            />
+            <Input 
+              label="Rack" 
+              value={rack}
+              onChange={e => setRack(e.target.value)}
+              disabled={workflowState === 'SUBMITTING'}
+              placeholder="Ej. A-01"
+            />
+            <Input 
+              label="Observaciones (Opcional)" 
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              disabled={workflowState === 'SUBMITTING'}
+              placeholder="Ej. Empaque dañado"
+            />
+          </div>
+        )}
       </main>
 
       {/* Acciones fijas al fondo */}
@@ -120,12 +165,8 @@ export const ReceptionWorkspace = ({
             key="save" 
             variant="primary" 
             loading={workflowState === 'SUBMITTING'}
-            onClick={() => {
-              // 1. Decirle a la máquina de estados que intente someter (para que cambie la UI)
-              onDispatch('SUBMIT');
-              // 2. Despachar el Comando de Negocio, el Runtime sabrá qué hacer
-              onCommand(new SubmitReceptionCommand(data?.materialId, quantity, rack, notes));
-            }}
+            disabled={!isFormValid || workflowState === 'SUBMITTING'}
+            onClick={handleSave}
           >
             Guardar
           </ActionButton>

@@ -48,10 +48,11 @@ export const ReceptionProvider = () => {
         
         setReceptionData({
           qrCode: data.qr_code,
-          materialId: data.material_id || 1, // En base real el lookup debe traer esto
-          materialName: data.material_name || "Polipropileno (PP-001)",
-          provider: data.provider || "SABIC",
-          lote: data.lote || "L-001"
+          materialId: data.material_id, // Puede venir nulo si es virgen
+          materialName: data.material_name,
+          provider: data.provider,
+          lote: data.lote,
+          activatedAt: data.activated_at || data.created_at
         });
 
         // Registrar SLA
@@ -70,16 +71,16 @@ export const ReceptionProvider = () => {
     }
 
     if (command.type === 'SUBMIT_RECEPTION_COMMAND') {
-      const { materialId, quantity, rack, notes } = command.payload;
+      const { qrCode, materialId, quantity, rack, observations } = command.payload;
       const start = performance.now();
       try {
         await apiClient.post('/reception', {
-          qr_code_value: receptionData.qrCode,
+          qr_code_value: qrCode,
           material_id: materialId,
-          location_id: 1, // Mock de Rack/Ubicación para este ejemplo
-          unit_id: 1, // Mock de unidad
+          location_id: 1, // Mock de Rack/Ubicación temporal
+          unit_id: 1, // Mock de unidad temporal
           quantity: Number(quantity),
-          notes
+          notes: observations
         });
 
         const duration = performance.now() - start;
