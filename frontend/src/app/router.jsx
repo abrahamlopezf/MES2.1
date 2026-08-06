@@ -39,6 +39,7 @@ import { TraceabilityTreePage } from '../modules/traceability/presentation/pages
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
 import { WarehouseProvider } from '../modules/warehouse/WarehouseProvider';
+import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
 
 export const router = createBrowserRouter([
   {
@@ -171,6 +172,10 @@ export const router = createBrowserRouter([
               },
               {
                 path: 'inventory',
+                element: <WarehouseInventoryPage />
+              },
+              {
+                path: 'traceability',
                 element: <WarehouseProvider />
               }
             ]

@@ -4,21 +4,37 @@ import { X, Camera } from 'lucide-react';
 
 export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }) => {
   const onScanRef = React.useRef(onScan);
+  const hasScannedRef = React.useRef(false);
+
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
 
   useEffect(() => {
-    // Configuración optimizada para escaneo rápido en móviles
+    // Configuración optimizada para escaneo de QRs industriales complejos (con logos)
     const scanner = new Html5QrcodeScanner('qr-reader-container', { 
       fps: 10, 
-      qrbox: { width: 250, height: 250 },
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+        const minEdgePercentage = 0.7; // 70% of the screen
+        const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+        const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+        return {
+          width: qrboxSize,
+          height: qrboxSize
+        };
+      },
       aspectRatio: 1.0,
-      showTorchButtonIfSupported: true
+      showTorchButtonIfSupported: true,
+      formatsToSupport: [ 0 ] // 0 es Html5QrcodeSupportedFormats.QR_CODE (acelera la lectura ignorando códigos de barras)
     }, false);
     
     scanner.render((text) => {
-      scanner.clear();
+      if (hasScannedRef.current) return;
+      hasScannedRef.current = true;
+      
+      // Intentar pausar/limpiar silenciosamente si es posible
+      try { scanner.pause(true); } catch(e) {}
+
       if (onScanRef.current) {
         onScanRef.current(text);
       }
@@ -27,7 +43,13 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
     });
 
     return () => {
-      scanner.clear().catch(console.error);
+      try {
+        if (scanner) {
+          scanner.clear().catch(() => {});
+        }
+      } catch (e) {
+        console.warn("Scanner unmount error ignored", e);
+      }
     };
   }, []);
 

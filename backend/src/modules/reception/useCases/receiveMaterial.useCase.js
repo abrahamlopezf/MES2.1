@@ -1,4 +1,4 @@
-const { sequelize, QrCode, Material, OperationalArea } = require('../../../database/models');
+const { sequelize, QrCode, Material, OperationalArea, MaterialUnit } = require('../../../database/models');
 const qrDomainService = require('../../qrcodes/qrDomain.service');
 const inventoryDomainService = require('../../warehouse/inventoryDomain.service');
 const traceabilityDomainService = require('../../traceability/traceabilityDomain.service');
@@ -31,13 +31,13 @@ class ReceiveMaterialUseCase {
         throw new Error(`El QR ${qr_code_value} no existe en el sistema.`);
       }
 
-      // Validar propósito (Debe ser de Recepción)
-      if (qrCode.purpose !== 'RECEPTION') {
+      // Validar propósito (Puede ser general o específico de Recepción)
+      if (qrCode.purpose !== 'RECEPTION' && qrCode.purpose !== 'general') {
         throw new Error(`El QR ${qr_code_value} tiene propósito ${qrCode.purpose} y no puede ser usado para recepción.`);
       }
 
       // Validar que el QR esté disponible (QrDomainService)
-      await qrDomainService.validateQrStatus(qr_code_value, ['AVAILABLE'], t);
+      await qrDomainService.validateQrStatus(qr_code_value, ['GENERATED', 'UNASSIGNED', 'ASSIGNED'], t);
 
       // Validar catálogos
       const material = await Material.findByPk(material_id, { transaction: t });
@@ -46,6 +46,13 @@ class ReceiveMaterialUseCase {
       const location = await OperationalArea.findByPk(location_id, { transaction: t });
       if (!location) throw new Error(`La ubicación con ID ${location_id} no existe.`);
 
+      const [unitRecord] = await MaterialUnit.findOrCreate({
+        where: { code: 'PZA' },
+        defaults: { name: 'Pieza', is_active: true },
+        transaction: t
+      });
+      const finalUnitId = unitRecord.id;
+
       // 2. Crear Inventario (InventoryDomainService)
       const inventory = await inventoryDomainService.createInventory({
         qr_code_id: qrCode.id,
@@ -53,7 +60,7 @@ class ReceiveMaterialUseCase {
         qr_code_value: qrCode.qr_code,
         material_id,
         location_id,
-        unit_id,
+        unit_id: finalUnitId,
         quantity,
         status: 'AVAILABLE',
         notes

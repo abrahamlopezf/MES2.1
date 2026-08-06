@@ -151,6 +151,16 @@ db.TraceabilityEvent.belongsTo(db.User, {
   as: 'performedByUser',
 });
 
+db.TraceabilityEvent.belongsTo(db.Area, {
+  foreignKey: 'from_area_id',
+  as: 'fromArea',
+});
+
+db.TraceabilityEvent.belongsTo(db.Area, {
+  foreignKey: 'to_area_id',
+  as: 'toArea',
+});
+
 ['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'OperationalArea', 'Material', 'MaterialUnit'].forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);

@@ -26,7 +26,7 @@ class QrDomainService {
    * Activa un QR disponible, cambiándolo a estado ACTIVE.
    */
   async activateQr(qrCodeRecord, transaction = null) {
-    if (qrCodeRecord.status !== 'AVAILABLE') {
+    if (!['GENERATED', 'UNASSIGNED', 'ASSIGNED'].includes(qrCodeRecord.status)) {
       throw new Error(`El QR ${qrCodeRecord.qr_code} no puede ser activado porque su estado actual es ${qrCodeRecord.status}.`);
     }
 

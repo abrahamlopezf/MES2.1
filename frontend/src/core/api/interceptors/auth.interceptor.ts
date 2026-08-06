@@ -5,7 +5,7 @@ import { InternalAxiosRequestConfig } from 'axios';
  */
 export const authInterceptor = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   // TODO: Leer token del state (ej. Zustand) o de localStorage
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('auth_token');
   
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);

@@ -43,23 +43,34 @@ export const ReceptionProvider = () => {
       const { qrCode } = command.payload;
       const start = performance.now();
       try {
-        const response = await apiClient.get(`/qr/lookup/${qrCode}`);
-        const data = response.data.data;
+        let cleanQrCode = qrCode;
+        try {
+          if (cleanQrCode.includes('http')) {
+            const urlObj = new URL(cleanQrCode);
+            const tokenId = urlObj.searchParams.get('tokenId');
+            if (tokenId) cleanQrCode = tokenId;
+          }
+        } catch(e) {}
+
+        const response = await apiClient.get(`/qr/lookup/${cleanQrCode}`);
+        const responseData = response.data || response;
+        const resultData = responseData.data || responseData;
+        const qrData = resultData.qr || resultData; 
         
-        // Si el QR ya tiene estado de uso, enviamos al historial
-        if (data.status && data.status !== 'CREATED' && data.status !== 'VIRGIN') {
+        // Si el QR ya tiene estado de uso (diferente a GENERATED, UNASSIGNED o ASSIGNED), enviamos al historial
+        if (qrData.status && !['GENERATED', 'UNASSIGNED', 'ASSIGNED'].includes(qrData.status)) {
           EventBus.emit('SLA_OK', { metric: 'QR_RESOLUTION', duration: performance.now() - start });
           navigate(`/traceability/genealogy?tokenId=${qrCode}`);
           return;
         }
         
         setReceptionData({
-          qrCode: data.qr_code,
-          materialId: data.material_id, // Puede venir nulo si es virgen
-          materialName: data.material_name,
-          provider: data.provider,
-          lote: data.lote,
-          activatedAt: data.activated_at || data.created_at
+          qrCode: qrData.qr_code || qrCode,
+          materialId: qrData.material_id, // Puede venir nulo si es virgen
+          materialName: qrData.material_name || '',
+          provider: qrData.provider || '',
+          lote: qrData.lote,
+          activatedAt: qrData.activated_at || qrData.created_at
         });
 
         // Registrar SLA
@@ -84,7 +95,7 @@ export const ReceptionProvider = () => {
         await apiClient.post('/reception', {
           qr_code_value: qrCode,
           material_id: materialId,
-          location_id: rack || 1, // Fallback si no seleccionó rack, pero el form no deja guardar sin ello si fuera requerido
+          location_id: rack,
           unit_id: 1, // TODO: Debería venir del unit_id base del material, pero por ahora se asume 1 (Ej. KG)
           quantity: Number(quantity),
           notes: observations

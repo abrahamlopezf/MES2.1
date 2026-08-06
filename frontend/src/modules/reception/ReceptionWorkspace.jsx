@@ -27,7 +27,7 @@ export const ReceptionWorkspace = ({
     if (workflowState === 'SUCCESS') {
       // Breve delay para que el usuario pueda ver el estado de éxito si es muy rápido
       setTimeout(() => {
-        navigate('/warehouse');
+        navigate('/warehouse/inventory');
       }, 1500);
     }
   }, [workflowState, navigate]);
@@ -55,8 +55,8 @@ export const ReceptionWorkspace = ({
     
     if (!selectedMaterial) return baseQr;
     
-    // Attempt to get the material code (e.g. PP-001)
-    const materialCode = selectedMaterial.material_code?.code || selectedMaterial.internal_code || selectedMaterial.code || 'MAT';
+    // Prefer internal_code to get the consecutive (e.g. BAL-001 or FAM-BAL-001)
+    const materialCode = selectedMaterial.internal_code || selectedMaterial.material_code?.code || selectedMaterial.code || 'MAT';
     
     // If QR is like ALM-000163, insert material code in the middle
     const parts = baseQr.split('-');
@@ -106,7 +106,7 @@ export const ReceptionWorkspace = ({
     }));
   };
 
-  const isFormValid = selectedMaterialId && quantity !== '';
+  const isFormValid = selectedMaterialId && quantity !== '' && rack !== '';
 
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (

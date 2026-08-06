@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { sequelize, Inventory, Material, MaterialUnit, QrCode, QrEvent, User } = require('../../database/models');
+const { sequelize, Inventory, Material, MaterialUnit, QrCode, QrEvent, User, OperationalArea, TraceabilityEvent } = require('../../database/models');
 const { throwHttpError } = require('../../shared/security/accessRules');
 const { QR_STATUS, QR_EVENT_TYPE } = require('../qrcodes/qr.constants');
 
@@ -112,7 +112,7 @@ const getInventory = async (query = {}, currentUser) => {
       {
         model: Material,
         as: 'material',
-        attributes: ['id', 'code', 'name'],
+        attributes: ['id', 'internal_code', 'name'],
       },
       {
         model: MaterialUnit,
@@ -125,8 +125,47 @@ const getInventory = async (query = {}, currentUser) => {
     offset,
   });
 
+  const areas = await OperationalArea.findAll();
+  const areaMap = {};
+  areas.forEach(a => { areaMap[String(a.id)] = `${a.code} - ${a.name}`; });
+
+  // Obtener los usuarios que realizaron la recepción
+  const inventoryUuids = result.rows.map(r => r.uuid);
+  const events = await TraceabilityEvent.findAll({
+    where: {
+      entity_type: 'INVENTORY',
+      event_type: 'RECEPTION',
+      entity_id: inventoryUuids
+    },
+    include: [{ model: User, as: 'performedByUser', attributes: ['id', 'first_name', 'last_name', 'email'] }]
+  });
+
+  const eventMap = {};
+  events.forEach(e => {
+    if (!eventMap[e.entity_id]) {
+      eventMap[e.entity_id] = e.performedByUser;
+    }
+  });
+
+  const items = result.rows.map(row => {
+    const plain = row.get({ plain: true });
+    if (areaMap[plain.location]) {
+      plain.location = areaMap[plain.location];
+    }
+    
+    // Add received_by information
+    const user = eventMap[plain.uuid];
+    if (user) {
+      plain.received_by = `${user.first_name} ${user.last_name}`;
+    } else {
+      plain.received_by = 'Sistema / Desconocido';
+    }
+
+    return plain;
+  });
+
   return {
-    items: result.rows,
+    items,
     total: result.count,
     limit,
     offset,

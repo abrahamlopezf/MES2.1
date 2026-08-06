@@ -11,6 +11,7 @@ import { PrintBatchPage } from '../modules/identity/presentation/pages/PrintBatc
 import { IdentityCustodyPage } from '../modules/identity/presentation/pages/IdentityCustodyPage';
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
 import { WarehouseProvider } from '../modules/warehouse/WarehouseProvider';
+import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
 import { MixingTerminalPage } from '../modules/production/presentation/pages/MixingTerminalPage';
 import { AndonBoardPage } from '../modules/production/presentation/pages/AndonBoardPage';
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
@@ -60,7 +61,8 @@ export const AppRouter = () => {
           {/* Warehouse */}
           <Route path="/warehouse">
             <Route path="receive" element={<ReceptionProvider />} />
-            <Route path="inventory" element={<WarehouseProvider />} />
+            <Route path="inventory" element={<WarehouseInventoryPage />} />
+            <Route path="traceability" element={<WarehouseProvider />} />
           </Route>
         </Route>
     </Routes>

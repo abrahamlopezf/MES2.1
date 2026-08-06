@@ -147,7 +147,8 @@ const generatePDFForQRs = async (codes) => {
         const barHeight = 18;
         const barMarginX = 15;
         const barX = x + barMarginX;
-        const barY = y + cellSize - barHeight - 15;
+        // Fix: Position the bar BELOW the QR code so it doesn't corrupt the bottom modules
+        const barY = qrY + qrSize + 4;
         const barWidth = cellSize - (barMarginX * 2);
         
         doc.rect(barX, barY, barWidth, barHeight).fill('black');

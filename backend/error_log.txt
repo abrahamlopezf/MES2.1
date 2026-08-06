@@ -167,4 +167,13 @@ Error
     at async Promise.all (index 0)
     at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
     at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T20:34:44.507Z\nMessage: Area is not associated to TraceabilityEvent!\nStack: SequelizeEagerLoadingError: Area is not associated to TraceabilityEvent!
+    at TraceabilityEvent._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
+    at TraceabilityEvent._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
+    at Array.map (<anonymous>)
+    at TraceabilityEvent._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
+    at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n

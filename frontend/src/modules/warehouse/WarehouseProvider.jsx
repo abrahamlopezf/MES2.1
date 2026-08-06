@@ -42,9 +42,23 @@ export const WarehouseProvider = () => {
     setHistoryData([]);
 
     try {
+      // Si el código viene como URL completa (ej. al escanear un QR físico que tiene el link)
+      let cleanQrCode = qrCode;
+      try {
+        if (cleanQrCode.includes('http')) {
+          const urlObj = new URL(cleanQrCode);
+          const tokenId = urlObj.searchParams.get('tokenId');
+          if (tokenId) cleanQrCode = tokenId;
+        }
+      } catch(e) {}
+
       // CQRS: Consulta 1 - Obtener info de identidad del QR
-      const qrResponse = await apiClient.get(`/qr/lookup/${qrCode}`);
-      const qr = qrResponse.data?.data;
+      const qrResponse = await apiClient.get(`/qr/lookup/${cleanQrCode}`);
+      
+      // Manejar las múltiples formas en las que puede venir envuelta la respuesta en Axios/API
+      const responseData = qrResponse.data || qrResponse;
+      const resultData = responseData.data || responseData;
+      const qr = resultData.qr || resultData;
       
       if (!qr) {
         throw new Error('QR No encontrado');
@@ -57,30 +71,27 @@ export const WarehouseProvider = () => {
         activated_at: qr.activated_at
       });
 
-      // Si el QR está activo, simulamos (o le pegamos real si existe) 
-      // la llamada al inventario actual
-      if (qr.status === 'ACTIVE' || qr.status === 'CONSUMED') {
-        // En una app completa sería un llamado real a /api/inventory/qr/:qrCode
+      // Usar datos reales del backend
+      if (resultData.inventory) {
         setInventoryData({
-          materialName: qr.material_name || "Polipropileno Random (PP-001)",
-          quantity: 1000,
-          unit: 'KG',
-          location: 'Rack A-01 (Almacén General)'
+          materialName: resultData.inventory.material?.name || 'Material Desconocido',
+          quantity: resultData.inventory.available_quantity,
+          unit: resultData.inventory.unit?.code || 'PZA',
+          location: resultData.inventory.location || 'Desconocida'
         });
+      }
 
-        // CQRS: Consulta 2 - Historial inmutable
-        // En una app completa: /api/traceability/qr/:qrCode
-        setHistoryData([
-          { type: 'GENERATED', timestamp: new Date(Date.now() - 86400000).toISOString(), notes: 'Lote creado por Admin' },
-          { type: 'PRINTED', timestamp: new Date(Date.now() - 80000000).toISOString(), notes: 'Impreso en Zebra ZT411' },
-          { type: 'RECEPTION', timestamp: new Date(Date.now() - 40000000).toISOString(), notes: 'Material ingresado por Juan Pérez' }
-        ]);
+      if (resultData.events && resultData.events.length > 0) {
+        const history = resultData.events.map(ev => ({
+          type: ev.event_type,
+          timestamp: ev.created_at,
+          notes: ev.notes || 'Evento registrado'
+        }));
+        // Order descending for the UI
+        setHistoryData(history.reverse());
       } else {
-        // Si no está activo (ej. AVAILABLE), no hay inventario físico aún
         setHistoryData([
-          { type: 'GENERATED', timestamp: new Date(Date.now() - 86400000).toISOString(), notes: 'Lote creado por Admin' },
-          { type: 'PRINTED', timestamp: new Date(Date.now() - 80000000).toISOString(), notes: 'Impreso en Zebra ZT411' },
-          { type: 'AVAILABLE', timestamp: new Date(Date.now() - 80000000).toISOString(), notes: 'Listo para ser recepcionado' }
+          { type: 'GENERATED', timestamp: new Date(Date.now()).toISOString(), notes: 'Sin historial' }
         ]);
       }
 
