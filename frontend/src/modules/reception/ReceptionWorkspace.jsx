@@ -1,14 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { UniversalActionBar } from '../../design-system/components/action-bar/UniversalActionBar';
-import { ActionButton } from '../../design-system/components/Button/ActionButton';
-import { DataCard } from '../../design-system/components/Card/DataCard';
-import { StatusChip } from '../../design-system/components/chip/StatusChip';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
-import { Input } from '../../design-system/components/Input/Input';
-import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
-import { tokens } from '../../design-system/foundation/tokens';
 import { SubmitReceptionCommand } from './commands';
 import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
+import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
+import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode } from 'lucide-react';
+import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
+import { tokens } from '../../design-system/foundation/tokens';
 
 export const ReceptionWorkspace = ({
   workflowState, // 'INITIAL' | 'SCANNING' | 'FORM_READY' | 'SUBMITTING' | 'SUCCESS'
@@ -26,16 +23,34 @@ export const ReceptionWorkspace = ({
   // Fetch materials catalogue via TanStack query
   const { data: materials = [], isLoading: isLoadingMaterials } = useMaterialListQuery();
 
-  // Selected material logic (Dumb DataCard source)
+  // Selected material logic
   const selectedMaterial = useMemo(() => {
     if (!selectedMaterialId) return null;
-    return materials.find(m => m.id === selectedMaterialId) || null;
+    return materials.find(m => m.id === selectedMaterialId || m.uuid === selectedMaterialId) || null;
   }, [materials, selectedMaterialId]);
+
+  // Generate QR Preview
+  const qrPreview = useMemo(() => {
+    const baseQr = data?.qrCode || 'UNKNOWN';
+    if (!selectedMaterial) return baseQr;
+    
+    // Attempt to get the material code (e.g. PP-001)
+    const materialCode = selectedMaterial.material_code?.code || selectedMaterial.internal_code || selectedMaterial.code || 'MAT';
+    
+    // If QR is like ALM-000163, insert material code in the middle
+    const parts = baseQr.split('-');
+    if (parts.length === 2) {
+      return `${parts[0]}-${materialCode}-${parts[1]}`;
+    }
+    
+    return `${baseQr}-${materialCode}`;
+  }, [data?.qrCode, selectedMaterial]);
 
   // Fase de Escaneo (Pantalla Completa)
   if (workflowState === 'INITIAL' || workflowState === 'SCANNING') {
     return (
       <CameraScanner 
+        title="Recepción de Material"
         onScan={(code) => {
           onDispatch('QR_SCANNED');
           onCommand({ type: 'RESOLVE_QR_COMMAND', payload: { qrCode: code } });
@@ -48,12 +63,15 @@ export const ReceptionWorkspace = ({
   // Pantalla de Éxito
   if (workflowState === 'SUCCESS') {
     return (
-      <div style={{ padding: tokens.primitive.spacing['24'], textAlign: 'center', marginTop: '100px' }}>
-        <h1 style={{ fontSize: tokens.primitive.typography.sizes.xxl, color: tokens.semantic.color.success }}>✅ ¡Recepción Exitosa!</h1>
-        <p style={{ margin: '24px 0', color: tokens.semantic.color.textMediumEmphasis }}>El material ha sido ingresado al almacén.</p>
-        <ActionButton variant="primary" onClick={() => onDispatch('RESTART')}>
-          Escanear Siguiente
-        </ActionButton>
+      <div className="flex flex-col items-center justify-center h-full bg-background p-6 text-center">
+        <div className="w-24 h-24 bg-success/20 text-success rounded-full flex items-center justify-center mb-6">
+          <PackageOpen className="w-12 h-12" />
+        </div>
+        <h1 className="text-3xl font-bold text-success m-0 mb-4">¡Recepción Exitosa!</h1>
+        <p className="text-lg text-muted-foreground mb-8">El material ha sido ingresado al almacén correctamente.</p>
+        <TFButton variant="primary" size="lg" onClick={() => onDispatch('RESTART')}>
+          Escanear Siguiente QR
+        </TFButton>
       </div>
     );
   }
@@ -74,109 +92,156 @@ export const ReceptionWorkspace = ({
 
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: tokens.semantic.color.background }}>
+    <div className="flex flex-col h-full bg-background relative pb-24">
       {/* Header Fijo */}
-      <header style={{ padding: tokens.primitive.spacing['16'], borderBottom: `1px solid ${tokens.semantic.color.borderDefault}`, display: 'flex', alignItems: 'center', gap: tokens.primitive.spacing['16'] }}>
-        <button onClick={() => onDispatch('CANCEL')} style={{ background: 'transparent', border: 'none', color: tokens.semantic.color.textHighEmphasis, fontSize: '24px', cursor: 'pointer' }}>
-          ←
-        </button>
-        <h1 style={{ fontSize: tokens.primitive.typography.sizes.lg, margin: 0 }}>Recepción</h1>
-        <span style={{ marginLeft: 'auto', color: tokens.semantic.color.textMediumEmphasis, fontFamily: 'monospace', fontSize: tokens.primitive.typography.sizes.sm }}>
-          {data?.qrCode || ''}
-        </span>
+      <header className="px-4 py-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => onDispatch('CANCEL')} 
+            className="p-2 hover:bg-muted rounded-full transition-colors border-none bg-transparent cursor-pointer text-foreground"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground m-0 leading-tight">Recepción</h1>
+            <p className="text-sm text-muted-foreground m-0">Registrar nuevo material</p>
+          </div>
+        </div>
+        <div className="bg-muted px-3 py-1.5 rounded-md flex items-center gap-2 border border-border">
+          <QrCode className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-mono font-medium text-foreground">{data?.qrCode || 'UNKNOWN'}</span>
+        </div>
       </header>
 
       {/* Contenido (Scrollable) */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: tokens.primitive.spacing['16'], paddingBottom: '120px' }}>
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:max-w-4xl lg:mx-auto lg:w-full">
         
-        {/* Selection / Catalogue Integration */}
-        <div style={{ marginBottom: tokens.primitive.spacing['24'] }}>
-          <label style={{ 
-            display: 'block', 
-            color: tokens.semantic.color.textHighEmphasis, 
-            marginBottom: tokens.primitive.spacing['4'], 
-            fontSize: tokens.primitive.typography.sizes.sm,
-            fontWeight: 500
-          }}>
+        {/* Selección de Material */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Material a Recepcionar
           </label>
           <SearchSelect
             options={materials}
             value={selectedMaterialId}
             onChange={setSelectedMaterialId}
-            getLabel={(m) => m.name}
-            getValue={(m) => m.id}
+            getLabel={(m) => m.material_code?.code ? `${m.material_code.code} - ${m.name}` : m.name}
+            getValue={(m) => m.id || m.uuid}
             searchable={true}
-            placeholder="Buscar material..."
+            placeholder="Buscar por código o nombre..."
             loading={isLoadingMaterials}
             emptyMessage="Sin resultados"
             disabled={workflowState === 'SUBMITTING'}
           />
         </div>
 
-        {/* Info de Material (Solo vista) */}
         {selectedMaterial && (
-          <DataCard
-            title={selectedMaterial.name}
-            subtitle={selectedMaterial.brand?.name ? `Marca: ${selectedMaterial.brand.name}` : `Familia: ${selectedMaterial.family?.name || 'Genérico'}`}
-            headerRight={<StatusChip status="AVAILABLE" />}
-            style={{ marginBottom: tokens.primitive.spacing['24'] }}
-            data={{
-               'Código Interno': selectedMaterial.internal_code,
-               'Unidad': selectedMaterial.base_unit_id ? 'KG' : '—', // Fallback neutro
-               'Fecha': data?.activatedAt ? new Date(data.activatedAt).toLocaleDateString() : new Date().toLocaleDateString()
-            }}
-          />
-        )}
+          <div className="space-y-6">
+            
+            {/* Vista Previa del Código Generado */}
+            <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+              <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Vista Previa QR Final</span>
+              <span className="text-lg md:text-xl font-mono font-bold text-foreground break-all">
+                {qrPreview}
+              </span>
+            </div>
 
-        {/* Inputs del Operador */}
-        {selectedMaterial && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.primitive.spacing['24'] }}>
-            <Input 
-              label="Cantidad" 
-              type="number"
-              value={quantity}
-              onChange={e => setQuantity(e.target.value)}
-              disabled={workflowState === 'SUBMITTING'}
-              placeholder="Ej. 1000"
-            />
-            <Input 
-              label="Rack" 
-              value={rack}
-              onChange={e => setRack(e.target.value)}
-              disabled={workflowState === 'SUBMITTING'}
-              placeholder="Ej. A-01"
-            />
-            <Input 
-              label="Observaciones (Opcional)" 
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              disabled={workflowState === 'SUBMITTING'}
-              placeholder="Ej. Empaque dañado"
-            />
+            {/* Info de Material (Solo vista) */}
+            <TFCard className="!p-0 overflow-hidden border-border/50">
+              <div className="bg-card p-5 border-b border-border/50 flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground m-0 mb-1">{selectedMaterial.name}</h3>
+                  <p className="text-sm text-muted-foreground m-0">
+                    {selectedMaterial.brand?.name ? `Marca: ${selectedMaterial.brand.name}` : `Familia: ${selectedMaterial.family?.name || 'Genérico'}`}
+                  </p>
+                </div>
+                <TFBadge variant="success">Disponible</TFBadge>
+              </div>
+              <div className="bg-muted/30 p-5 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-xs text-muted-foreground mb-1">Código</span>
+                  <span className="font-medium text-foreground flex items-center gap-1.5">
+                    <Hash className="w-3.5 h-3.5 text-primary" />
+                    {selectedMaterial.material_code?.code || selectedMaterial.internal_code || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs text-muted-foreground mb-1">Fecha</span>
+                  <span className="font-medium text-foreground flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    {data?.activatedAt ? new Date(data.activatedAt).toLocaleDateString() : new Date().toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </TFCard>
+
+            {/* Inputs del Operador */}
+            <div className="space-y-4 bg-card p-5 rounded-xl border border-border shadow-sm">
+              <h4 className="text-base font-semibold text-foreground m-0 mb-4">Datos de Recepción</h4>
+              
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Cantidad Recibida <span className="text-danger">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <TFInput 
+                    type="number"
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)}
+                    disabled={workflowState === 'SUBMITTING'}
+                    placeholder="Ej. 1000"
+                    className="flex-1"
+                  />
+                  <div className="bg-muted border border-border rounded-lg px-4 flex items-center justify-center font-medium text-muted-foreground shrink-0 min-w-[80px]">
+                    {selectedMaterial.default_unit?.code || selectedMaterial.base_unit_id ? 'KG' : '—'}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Rack / Localidad</label>
+                <TFInput 
+                  value={rack}
+                  onChange={e => setRack(e.target.value)}
+                  disabled={workflowState === 'SUBMITTING'}
+                  placeholder="Ej. A-01"
+                  icon={<Layers className="w-4 h-4" />}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Observaciones</label>
+                <TFInput 
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  disabled={workflowState === 'SUBMITTING'}
+                  placeholder="Ej. Empaque dañado"
+                />
+              </div>
+            </div>
           </div>
         )}
       </main>
 
-      {/* Acciones fijas al fondo */}
-      <UniversalActionBar 
-        secondaryActions={[
-          <ActionButton key="cancel" variant="ghost" onClick={() => onDispatch('CANCEL')} disabled={workflowState === 'SUBMITTING'}>
-            Cancelar
-          </ActionButton>
-        ]}
-        primaryActions={[
-          <ActionButton 
-            key="save" 
-            variant="primary" 
-            loading={workflowState === 'SUBMITTING'}
-            disabled={!isFormValid || workflowState === 'SUBMITTING'}
-            onClick={handleSave}
-          >
-            Guardar
-          </ActionButton>
-        ]}
-      />
+      {/* Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border shadow-[0_-4px_12px_rgba(0,0,0,0.1)] flex justify-end gap-3 z-20">
+        <TFButton 
+          variant="outline" 
+          onClick={() => onDispatch('CANCEL')} 
+          disabled={workflowState === 'SUBMITTING'}
+          className="min-w-[120px]"
+        >
+          Cancelar
+        </TFButton>
+        <TFButton 
+          variant="primary" 
+          onClick={handleSave}
+          disabled={!isFormValid || workflowState === 'SUBMITTING'}
+          className="min-w-[120px]"
+        >
+          {workflowState === 'SUBMITTING' ? 'Guardando...' : 'Guardar'}
+        </TFButton>
+      </div>
     </div>
   );
 };
