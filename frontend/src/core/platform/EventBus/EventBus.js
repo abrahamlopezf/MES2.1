@@ -54,6 +54,22 @@ class EventBusService {
       }
     }
   }
+
+  /**
+   * Alias de subscribe para compatibilidad con código antiguo
+   */
+  on(eventName, callback) {
+    return this.subscribe(eventName, callback);
+  }
+
+  /**
+   * Método de compatibilidad para desuscribir directamente
+   */
+  off(eventName, callback) {
+    if (this.listeners.has(eventName)) {
+      this.listeners.get(eventName).delete(callback);
+    }
+  }
 }
 
 export const EventBus = new EventBusService();
