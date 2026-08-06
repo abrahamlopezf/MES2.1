@@ -26,7 +26,7 @@ export const ReceptionWorkflow = {
       on: { VALIDATE_OK: 'FORM_READY', CANCEL: 'INITIAL' }
     },
     FORM_READY: {
-      on: { SUBMIT: 'VALIDATING', CANCEL: 'INITIAL' }
+      on: { SUBMIT: 'SUBMITTING', CANCEL: 'INITIAL' }
     },
     VALIDATING: {
       on: { SUCCESS: 'SUBMITTING', FAILURE: 'FORM_READY' }

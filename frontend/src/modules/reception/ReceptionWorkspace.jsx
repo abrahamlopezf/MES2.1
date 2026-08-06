@@ -7,6 +7,7 @@ import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
 import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode } from 'lucide-react';
 import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
 import { tokens } from '../../design-system/foundation/tokens';
+import { useNavigate } from 'react-router-dom';
 
 export const ReceptionWorkspace = ({
   workflowState, // 'INITIAL' | 'SCANNING' | 'FORM_READY' | 'SUBMITTING' | 'SUCCESS'
@@ -20,6 +21,16 @@ export const ReceptionWorkspace = ({
   const [quantity, setQuantity] = useState('');
   const [rack, setRack] = useState('');
   const [notes, setNotes] = useState('');
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (workflowState === 'SUCCESS') {
+      // Breve delay para que el usuario pueda ver el estado de éxito si es muy rápido
+      setTimeout(() => {
+        navigate('/warehouse');
+      }, 1500);
+    }
+  }, [workflowState, navigate]);
 
   // Fetch materials catalogue via TanStack query
   const { data: materials = [], isLoading: isLoadingMaterials } = useMaterialListQuery();
@@ -78,10 +89,7 @@ export const ReceptionWorkspace = ({
           <PackageOpen className="w-12 h-12" />
         </div>
         <h1 className="text-3xl font-bold text-success m-0 mb-4">¡Recepción Exitosa!</h1>
-        <p className="text-lg text-muted-foreground mb-8">El material ha sido ingresado al almacén correctamente.</p>
-        <TFButton variant="primary" size="lg" onClick={() => onDispatch('RESTART')}>
-          Escanear Siguiente QR
-        </TFButton>
+        <p className="text-lg text-muted-foreground mb-8">Redirigiendo al Inventario...</p>
       </div>
     );
   }
