@@ -36,7 +36,12 @@ export const ReceptionWorkspace = ({
 
   // Generate QR Preview
   const qrPreview = useMemo(() => {
-    const baseQr = data?.qrCode || 'UNKNOWN';
+    let baseQr = data?.qrCode;
+    // Si no hay QR o dice UNKNOWN, usamos un placeholder genérico
+    if (!baseQr || baseQr === 'UNKNOWN' || baseQr === 'QR-UNKNOWN') {
+      baseQr = 'ALM-XXXX';
+    }
+    
     if (!selectedMaterial) return baseQr;
     
     // Attempt to get the material code (e.g. PP-001)
@@ -44,8 +49,8 @@ export const ReceptionWorkspace = ({
     
     // If QR is like ALM-000163, insert material code in the middle
     const parts = baseQr.split('-');
-    if (parts.length === 2) {
-      return `${parts[0]}-${materialCode}-${parts[1]}`;
+    if (parts.length >= 2) {
+      return `${parts[0]}-${materialCode}-${parts.slice(1).join('-')}`;
     }
     
     return `${baseQr}-${materialCode}`;
@@ -234,7 +239,7 @@ export const ReceptionWorkspace = ({
       </main>
 
       {/* Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border shadow-[0_-4px_12px_rgba(0,0,0,0.1)] flex justify-end gap-3 z-20">
+      <div className="mt-auto p-4 bg-card border-t border-border flex justify-end gap-3 shrink-0">
         <TFButton 
           variant="outline" 
           onClick={() => onDispatch('CANCEL')} 
