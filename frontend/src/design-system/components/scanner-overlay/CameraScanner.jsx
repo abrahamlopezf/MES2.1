@@ -3,6 +3,11 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import { tokens } from '../../foundation/tokens';
 
 export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }) => {
+  const onScanRef = React.useRef(onScan);
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
   useEffect(() => {
     // Configuración optimizada para escaneo rápido en móviles
     const scanner = new Html5QrcodeScanner('qr-reader-container', { 
@@ -14,7 +19,9 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
     
     scanner.render((text) => {
       scanner.clear();
-      onScan(text);
+      if (onScanRef.current) {
+        onScanRef.current(text);
+      }
     }, (err) => {
       // Errores de frame (normales durante escaneo), no hacer nada
     });
@@ -22,7 +29,7 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
     return () => {
       scanner.clear().catch(console.error);
     };
-  }, [onScan]);
+  }, []);
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: tokens.primitive.colors.zinc950, display: 'flex', flexDirection: 'column' }}>
