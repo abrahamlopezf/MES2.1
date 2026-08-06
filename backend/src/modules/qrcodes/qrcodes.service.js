@@ -301,7 +301,9 @@ const generateQrBatch = async (payload, currentUser) => {
 
       for (let i = start; i < end; i++) {
         const serial = serials[i];
+        const crypto = require('crypto');
         rows.push({
+          uuid: crypto.randomUUID(),
           serial,
           qr_code: buildQrCodeValue(nomenclaturePrefix, serial),
           batch_id: batch.id,
@@ -327,23 +329,25 @@ const generateQrBatch = async (payload, currentUser) => {
       transaction,
     });
 
-    const eventRows = generatedCodes.map((code) => ({
-      qr_code_id: code.id,
-      event_type: assignedAreaId ? QR_EVENT_TYPE.ASSIGNED : QR_EVENT_TYPE.GENERATED,
-      from_status: null,
-      to_status: status,
-      from_area_id: null,
-      to_area_id: assignedAreaId,
-      performed_by: currentUser.id,
-      notes: assignedAreaId
-        ? 'Código QR generado y asignado al área.'
-        : 'Código QR generado sin área asignada.',
-      metadata: {
-        batch_code: batchCode,
-      },
-      created_at: now,
-      updated_at: now,
-    }));
+      const crypto = require('crypto');
+      const eventRows = generatedCodes.map((code) => ({
+        uuid: crypto.randomUUID(),
+        qr_code_id: code.id,
+        event_type: assignedAreaId ? QR_EVENT_TYPE.ASSIGNED : QR_EVENT_TYPE.GENERATED,
+        from_status: null,
+        to_status: status,
+        from_area_id: null,
+        to_area_id: assignedAreaId,
+        performed_by: currentUser.id,
+        notes: assignedAreaId
+          ? 'Código QR generado y asignado al área.'
+          : 'Código QR generado sin área asignada.',
+        metadata: {
+          batch_code: batchCode,
+        },
+        created_at: now,
+        updated_at: now,
+      }));
 
     for (let start = 0; start < eventRows.length; start += CHUNK_SIZE) {
       await TraceabilityEvent.bulkCreate(eventRows.slice(start, start + CHUNK_SIZE), {
