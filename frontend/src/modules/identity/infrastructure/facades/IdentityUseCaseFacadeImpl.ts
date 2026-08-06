@@ -97,4 +97,8 @@ export class IdentityUseCaseFacadeImpl implements IdentityUseCaseFacade {
   async getBatchById(batchId: string): Promise<BatchDetailsDTO | null> {
     return this.identityReadRepository.getBatchDetails(batchId);
   }
+
+  async getTokenById(tokenId: string): Promise<any | null> {
+    return this.identityReadRepository.getTokenById(tokenId);
+  }
 }

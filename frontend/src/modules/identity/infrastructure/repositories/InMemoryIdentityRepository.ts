@@ -98,6 +98,20 @@ export class InMemoryIdentityRepository implements IdentityCommandRepository, Id
       .map(t => ({ id: t.id, code: t.industrialCode.value, status: t.status.value }));
   }
 
+  async getTokenById(tokenId: string): Promise<any | null> {
+    // Busca por id o por código industrial simulando la base de datos
+    const token = Array.from(this.tokens.values()).find(
+      t => t.id === tokenId || t.industrialCode.value === tokenId
+    );
+    if (!token) return null;
+    return {
+      id: token.id,
+      code: token.industrialCode.value,
+      status: token.status.value,
+      batchId: token.batchId
+    };
+  }
+
   // Utilidad
   private delay(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));

@@ -13,4 +13,5 @@ export interface IdentityUseCaseFacade {
   getCustodyTimeline(identityTokenId: string): Promise<CustodyTimelineDTO | null>;
   getAllBatches(): Promise<BatchSnapshotDTO[]>;
   getBatchById(batchId: string): Promise<BatchDetailsDTO | null>;
+  getTokenById(tokenId: string): Promise<any | null>;
 }

@@ -26,6 +26,7 @@ export interface IdentityReadRepository {
   listPendingRequests(): Promise<any[]>; // TODO: Tipar DTO
   getDashboardStats(): Promise<any>; // TODO: Tipar DTO
   searchTokens(query: string): Promise<any[]>; // TODO: Tipar DTO
+  getTokenById(tokenId: string): Promise<any | null>;
   listBatches(): Promise<any[]>;
   getBatchDetails(batchId: string): Promise<any | null>;
 }
