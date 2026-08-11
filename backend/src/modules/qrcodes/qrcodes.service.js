@@ -810,7 +810,18 @@ const lookup = async (qr_code) => {
     });
     
     if (stock) {
-      inventoryData = stock;
+      inventoryData = stock.toJSON(); // Convert to plain object so we can add fields
+      const AreaModel = sequelize.models.OperationalArea;
+      if (AreaModel && inventoryData.location) {
+        const loc = await AreaModel.findByPk(Number(inventoryData.location));
+        if (loc) {
+          inventoryData.location_detail = {
+            id: loc.id,
+            code: loc.code,
+            name: loc.name
+          };
+        }
+      }
     }
   }
 

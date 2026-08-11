@@ -32,23 +32,31 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
       if (hasScannedRef.current) return;
       hasScannedRef.current = true;
       
-      // Intentar pausar/limpiar silenciosamente si es posible
-      try { scanner.pause(true); } catch(e) {}
-
-      if (onScanRef.current) {
-        onScanRef.current(text);
+      // Detener el escáner ANTES de disparar onScan para evitar que
+      // React desmonte el DOM mientras la librería sigue procesando.
+      try {
+        scanner.clear().then(() => {
+          if (onScanRef.current) onScanRef.current(text);
+        }).catch(() => {
+          if (onScanRef.current) onScanRef.current(text);
+        });
+      } catch(e) {
+        if (onScanRef.current) onScanRef.current(text);
       }
+
     }, (err) => {
       // Errores de frame (normales durante escaneo), no hacer nada
     });
 
     return () => {
-      try {
-        if (scanner) {
-          scanner.clear().catch(() => {});
+      if (!hasScannedRef.current) {
+        try {
+          if (scanner) {
+            scanner.clear().catch(() => {});
+          }
+        } catch (e) {
+          console.warn("Scanner unmount error ignored", e);
         }
-      } catch (e) {
-        console.warn("Scanner unmount error ignored", e);
       }
     };
   }, []);

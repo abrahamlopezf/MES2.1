@@ -110,7 +110,7 @@ export const ReceptionWorkspace = ({
 
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (
-    <div className="flex flex-col h-full bg-background relative pb-24">
+    <div className="flex flex-col h-full bg-background relative pb-24 overflow-y-auto">
       {/* Header Fijo */}
       <header className="px-4 py-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -132,7 +132,7 @@ export const ReceptionWorkspace = ({
       </header>
 
       {/* Contenido (Scrollable) */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:max-w-4xl lg:mx-auto lg:w-full">
+      <main className="flex-1 p-4 md:p-6 lg:max-w-4xl lg:mx-auto lg:w-full">
         
         {/* Selección de Material */}
         <div className="mb-6">
@@ -143,7 +143,11 @@ export const ReceptionWorkspace = ({
             options={materials}
             value={selectedMaterialId}
             onChange={setSelectedMaterialId}
-            getLabel={(m) => m.material_code?.code ? `${m.material_code.code} - ${m.name}` : m.name}
+            getLabel={(m) => {
+              const code = m.internal_code || m.material_code?.code || '';
+              const cat = m.category?.code ? `${m.category.code} ` : '';
+              return `${cat}${code} - ${m.name}`;
+            }}
             getValue={(m) => m.id}
             searchable={true}
             placeholder="Buscar por código o nombre..."
@@ -247,12 +251,12 @@ export const ReceptionWorkspace = ({
       </main>
 
       {/* Action Bar */}
-      <div className="mt-auto p-4 bg-card border-t border-border flex justify-end gap-3 shrink-0">
+      <div className="sticky bottom-0 mt-auto p-4 sm:p-6 bg-card border-t border-border/30 shadow-[0_-12px_40px_-5px_rgba(0,0,0,0.15)] flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 shrink-0 z-[20] lg:rounded-b-2xl">
         <TFButton 
           variant="outline" 
           onClick={() => onDispatch('CANCEL')} 
           disabled={workflowState === 'SUBMITTING'}
-          className="min-w-[120px]"
+          className="w-full sm:w-[140px] h-14 sm:h-12 text-base font-semibold border-2 rounded-xl"
         >
           Cancelar
         </TFButton>
@@ -260,9 +264,9 @@ export const ReceptionWorkspace = ({
           variant="primary" 
           onClick={handleSave}
           disabled={!isFormValid || workflowState === 'SUBMITTING'}
-          className="min-w-[120px]"
+          className="w-full sm:w-auto sm:min-w-[200px] h-14 sm:h-12 text-base font-bold rounded-xl shadow-lg shadow-primary/25"
         >
-          {workflowState === 'SUBMITTING' ? 'Guardando...' : 'Guardar'}
+          {workflowState === 'SUBMITTING' ? 'Guardando...' : 'Guardar Material'}
         </TFButton>
       </div>
     </div>

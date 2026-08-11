@@ -14,8 +14,8 @@ export interface MaterialDTO {
 
 export const MaterialService = {
   async getAll(): Promise<MaterialDTO[]> {
-    const response: any = await apiClient.get('/materials');
-    // Asumiendo que el backend retorna { success: true, data: [...] }
-    return response.data?.data || response.data || response;
+    const response: any = await apiClient.get('/materials?pageSize=10000&_t=' + Date.now());
+    // Asumiendo que el backend retorna { success: true, data: { items: [...] } }
+    return response.items || response.data?.items || response.data?.data?.items || response.data?.data || response.data || response;
   }
 };

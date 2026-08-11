@@ -176,4 +176,63 @@ Error
     at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
     at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n2026-08-07T14:00:08.040Z\nMessage: Código QR no encontrado.\nStack: Error: Código QR no encontrado.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:16:17)
+    at Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:790:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:211:20)\n\n2026-08-07T14:10:28.982Z\nMessage: Código QR no encontrado.\nStack: Error: Código QR no encontrado.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:16:17)
+    at Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:790:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:212:20)\n\n2026-08-07T14:10:38.995Z\nMessage: Código QR no encontrado.\nStack: Error: Código QR no encontrado.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:16:17)
+    at Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:790:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:212:20)\n\n2026-08-07T14:24:47.891Z\nMessage: no existe la columna material.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:24:56.462Z\nMessage: no existe la columna material.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:25:47.099Z\nMessage: no existe la columna material.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:35:15.956Z\nMessage: no existe la columna material.material_type\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:35:41.258Z\nMessage: no existe la columna material.material_type\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:45:41.016Z\nMessage: no existe la columna performedByUser.name\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:581:32)
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n

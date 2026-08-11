@@ -14,6 +14,16 @@ const validate = require('../../middlewares/validation.middleware');
 
 const router = express.Router();
 
+router.get('/test/:qr', async (req, res) => {
+  const { QrCode } = require('../../database/models');
+  try {
+    const all = await QrCode.findAll({ attributes: ['qr_code', 'id'] });
+    res.json({ all });
+  } catch (e) {
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
 router.use(authMiddleware);
 
 // --- RUTAS ESTÁTICAS ---

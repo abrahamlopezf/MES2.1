@@ -417,7 +417,7 @@ const buildMaterialDto = (material) => {
 
     return {
         id: material.id,
-        code: material.code,
+        code: material.internal_code || material.code,
         name: material.name,
         material_type: material.material_type,
         default_unit: material.default_unit,
@@ -507,10 +507,8 @@ const scanQrCode = async ({ scannedCode, user }) => {
                 as: 'material',
                 attributes: [
                     'id',
-                    'code',
+                    'internal_code',
                     'name',
-                    'material_type',
-                    'default_unit',
                     'is_active',
                 ],
                 required: false,
@@ -579,6 +577,19 @@ const scanQrCode = async ({ scannedCode, user }) => {
             limit: 10,
         })
         : [];
+
+    const traceabilityEvents = await db.TraceabilityEvent.findAll({
+        where: { qr_code_id: qr.id },
+        include: [
+            {
+                model: db.User,
+                as: 'performedByUser',
+                attributes: ['id', 'username', 'email', 'first_name', 'last_name'],
+                required: false,
+            }
+        ],
+        order: [['created_at', 'ASC']],
+    });
 
     const actionContext = getAllowedActions({
         qr,
@@ -654,6 +665,20 @@ const scanQrCode = async ({ scannedCode, user }) => {
                 unit: link.unit,
             })),
         },
+        traceability_events: traceabilityEvents.map(evt => ({
+            id: evt.id,
+            event_type: evt.event_type,
+            entity_type: evt.entity_type,
+            entity_id: evt.entity_id,
+            notes: evt.notes,
+            metadata: evt.metadata,
+            created_at: evt.created_at || evt.createdAt,
+            performed_by: evt.performedByUser ? {
+                id: evt.performedByUser.id,
+                name: (evt.performedByUser.first_name && evt.performedByUser.last_name) ? `${evt.performedByUser.first_name} ${evt.performedByUser.last_name}` : evt.performedByUser.username,
+                username: evt.performedByUser.username,
+            } : null
+        })),
         mobile_context: {
             access: actionContext.access,
             primary_action: primaryAction,

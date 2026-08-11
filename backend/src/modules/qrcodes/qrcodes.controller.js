@@ -208,7 +208,8 @@ const getQrCodeByValue = async (req, res, next) => {
 
 const lookup = async (req, res, next) => {
   try {
-    const result = await qrcodesService.lookup(req.params.qrCode);
+    const cleanCode = String(req.params.qrCode || '').trim();
+    const result = await qrcodesService.lookup(cleanCode);
     return successResponse(res, 'Información del QR obtenida correctamente.', result);
   } catch (error) {
     return next(error);

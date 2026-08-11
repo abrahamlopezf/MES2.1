@@ -43,12 +43,12 @@ export const ReceptionProvider = () => {
       const { qrCode } = command.payload;
       const start = performance.now();
       try {
-        let cleanQrCode = qrCode;
+        let cleanQrCode = String(qrCode || '').trim();
         try {
           if (cleanQrCode.includes('http')) {
             const urlObj = new URL(cleanQrCode);
             const tokenId = urlObj.searchParams.get('tokenId');
-            if (tokenId) cleanQrCode = tokenId;
+            if (tokenId) cleanQrCode = String(tokenId).trim();
           }
         } catch(e) {}
 

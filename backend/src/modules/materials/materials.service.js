@@ -235,7 +235,7 @@ const getMaterials = async ({ query = {}, currentUser }) => {
     where.default_unit = query.default_unit;
   }
 
-  const limit = Math.min(Number(query.limit) || 100, 300);
+  const limit = query.limit === 'all' ? 10000 : Math.min(Number(query.limit) || 100, 5000);
   const offset = Number(query.offset) || 0;
 
   const result = await Material.findAndCountAll({

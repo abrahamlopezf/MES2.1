@@ -214,13 +214,13 @@ const QrCodesPage = () => {
                         </h3>
                         <div className="grid grid-cols-2 gap-2 text-sm mt-2">
                           <span className="font-semibold text-muted-foreground">Estado:</span>
-                          <span className="font-bold text-foreground">{qrInfo.status}</span>
+                          <span className="font-bold text-foreground">{qrInfo.qr?.status || qrInfo.status}</span>
                           <span className="font-semibold text-muted-foreground">Área:</span>
-                          <span className="font-bold text-foreground">{qrInfo.area_name || 'N/A'}</span>
+                          <span className="font-bold text-foreground">{qrInfo.qr?.assigned_area?.name || qrInfo.area_name || 'N/A'}</span>
                         </div>
                       </div>
 
-                      {qrInfo.reception ? (
+                      {qrInfo.inventory || qrInfo.reception ? (
                         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
                           <h3 className="text-blue-700 font-bold flex items-center gap-2 mb-2">
                             <Package size={18} /> Recepción de Inventario
@@ -228,15 +228,21 @@ const QrCodesPage = () => {
                           <div className="grid grid-cols-1 gap-2 text-sm mt-2">
                             <div className="flex flex-col">
                               <span className="font-semibold text-blue-600/70 text-xs uppercase tracking-wider">Tracking Code Extendido</span>
-                              <span className="font-black text-blue-900 font-mono text-base break-all">{qrInfo.reception.tracking_code || 'No asignado'}</span>
+                              <span className="font-black text-blue-900 font-mono text-base break-all">
+                                {qrInfo.inventory ? `${qrInfo.inventory.qr_code_value}-${qrInfo.inventory.material?.internal_code}` : (qrInfo.reception?.tracking_code || 'No asignado')}
+                              </span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 mt-2">
                               <span className="font-semibold text-blue-800/70">Material:</span>
-                              <span className="font-bold text-blue-900">{qrInfo.reception.material_code}</span>
+                              <span className="font-bold text-blue-900">{qrInfo.inventory?.material?.name || qrInfo.reception?.material_code}</span>
                               <span className="font-semibold text-blue-800/70">Cantidad:</span>
-                              <span className="font-bold text-blue-900">{qrInfo.reception.quantity}</span>
+                              <span className="font-bold text-blue-900">{qrInfo.inventory?.available_quantity || qrInfo.inventory?.quantity_current || qrInfo.inventory?.quantity || qrInfo.reception?.quantity} {qrInfo.inventory?.unit?.symbol || qrInfo.inventory?.unit?.name || ''}</span>
                               <span className="font-semibold text-blue-800/70">Ubicación:</span>
-                              <span className="font-bold text-blue-900">{qrInfo.reception.location}</span>
+                              <span className="font-bold text-blue-900">
+                                {qrInfo.inventory?.location_detail 
+                                  ? `${qrInfo.inventory.location_detail.code} - ${qrInfo.inventory.location_detail.name}` 
+                                  : (qrInfo.inventory?.location || qrInfo.reception?.location)}
+                              </span>
                             </div>
                           </div>
                         </div>
