@@ -99,9 +99,15 @@ export class InMemoryIdentityRepository implements IdentityCommandRepository, Id
   }
 
   async getTokenById(tokenId: string): Promise<any | null> {
-    // Busca por id o por código industrial simulando la base de datos
+    // Busca por id o por código industrial simulando la base de datos,
+    // permitiendo coincidencias parciales (útil para pruebas manuales sin el prefijo del año)
+    // Además, ignoramos los ceros a la izquierda para evitar errores de tipeo comunes (ej. ALM-0000140 vs ALM-000140)
+    const cleanTokenId = tokenId.replace(/-0+/g, '-');
     const token = Array.from(this.tokens.values()).find(
-      t => t.id === tokenId || t.industrialCode.value === tokenId
+      t => t.id === tokenId || 
+           t.industrialCode.value === tokenId || 
+           t.industrialCode.value.endsWith(tokenId) ||
+           t.industrialCode.value.replace(/-0+/g, '-').endsWith(cleanTokenId)
     );
     if (!token) return null;
     return {

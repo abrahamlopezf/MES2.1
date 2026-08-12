@@ -116,6 +116,21 @@ export const ReceptionProvider = () => {
     }
   };
 
+  // 4.5. Check for QR in URL (e.g. from Global Scanner)
+  const [searchParams] = window.location.search ? [new URLSearchParams(window.location.search)] : [new URLSearchParams()];
+  useEffect(() => {
+    const qrFromUrl = searchParams.get('qr');
+    if (qrFromUrl && workflow.getState() === 'INITIAL') {
+      // Clean up the URL so returning to INITIAL state (e.g., via Cancel) doesn't re-trigger it
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      workflow.dispatch('QR_SCANNED');
+      setTimeout(() => {
+        handleCommand({ type: 'RESOLVE_QR_COMMAND', payload: { qrCode: qrFromUrl } });
+      }, 100);
+    }
+  }, [searchParams, workflow]);
+
   // 5. Simular lectura de Scanner de hardware
   useEffect(() => {
     // Si estuviéramos en producción, aquí escucharíamos `ScannerAdapter.onScan`

@@ -60,6 +60,22 @@ import { IdentificationRequest } from '../../domain/entities/IdentificationReque
 const mockRequest = IdentificationRequest.create(uuidGenerator.generate(), 'MTY' as any, 'EXT' as any, 'QR', 500, 'supervisor-1' as any, clock);
 repository.saveRequest(mockRequest);
 
+// MOCK: Seed ALM tokens for manual testing (survives refreshes)
+import { IdentityToken } from '../../domain/entities/IdentityToken';
+import { IndustrialCode } from '@shared/valueObjects/IndustrialCode';
+const year = new Date().getFullYear().toString().slice(-2);
+const dummyBatchId = uuidGenerator.generate();
+[139, 140, 141].forEach(num => {
+  const codeString = `${year}-ALM-${num.toString().padStart(6, '0')}`;
+  const token = IdentityToken.create(
+    uuidGenerator.generate(),
+    IndustrialCode.create(codeString),
+    'AVAILABLE',
+    dummyBatchId
+  );
+  repository.saveToken(token);
+});
+
 // Print Pipeline Dependencies
 import { InMemoryPrintJobRepository } from '../repositories/InMemoryPrintJobRepository';
 import { CreatePrintJobHandler } from '../../application/handlers/CreatePrintJobHandler';

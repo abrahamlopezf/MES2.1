@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
-import { Activity, Package, Layers, AlertTriangle } from 'lucide-react';
+import { Activity, Package, Layers, AlertTriangle, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import axiosClient from '../../api/axiosClient';
 
 const StatCard = ({ title, value, icon: Icon, color, delay }) => (
   <motion.div 
@@ -23,13 +25,22 @@ const StatCard = ({ title, value, icon: Icon, color, delay }) => (
 );
 
 const Dashboard = () => {
-  // Mock data for initial render, later connected to API
-  const [stats] = useState({
-    rawMaterial: '1,450 kg',
-    yieldRate: '94.2%',
-    activeRolls: '128',
-    monthlyScrap: '45 kg'
+  const { data: apiData, isLoading } = useQuery({
+    queryKey: ['dashboard', 'operations'],
+    queryFn: async () => {
+      const response = await axiosClient.get('/dashboard/operations');
+      return response.data.message;
+    },
+    refetchInterval: 60000, // Recarga cada 1 minuto
   });
+
+  // Data from API or fallbacks
+  const stats = {
+    rawMaterial: apiData?.kpis?.production?.value ? `${apiData.kpis.production.value} kg` : '0 kg',
+    yieldRate: apiData?.kpis?.yield?.value ? `${apiData.kpis.yield.value}%` : '---',
+    activeRolls: apiData?.active_runs?.length || '0',
+    monthlyScrap: apiData?.kpis?.scrap?.value ? `${apiData.kpis.scrap.value} kg` : '0 kg'
+  };
 
   const yieldData = [
     { name: 'Lun', entradas: 400, salidas: 380 },
@@ -46,21 +57,35 @@ const Dashboard = () => {
     { area: 'Telares', kg: 5 },
   ];
 
+  if (isLoading && !apiData) {
+    return (
+      <div className="p-6 h-full flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
+        <p className="text-muted-foreground">Cargando datos en tiempo real...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 h-full overflow-y-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
-          Dashboard Ejecutivo
-        </h1>
-        <p className="text-muted-foreground">Resumen en tiempo real del ciclo productivo.</p>
+      <div className="mb-8 flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
+            Dashboard Ejecutivo
+          </h1>
+          <p className="text-muted-foreground">Resumen en tiempo real del ciclo productivo.</p>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Última actualización: {apiData?.last_update ? new Date(apiData.last_update).toLocaleTimeString() : '---'}
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard delay={0.1} title="Materia Prima Stock" value={stats.rawMaterial} icon={Package} color="bg-blue-500" />
+        <StatCard delay={0.1} title="Producción Actual" value={stats.rawMaterial} icon={Package} color="bg-blue-500" />
         <StatCard delay={0.2} title="Rendimiento (Yield)" value={stats.yieldRate} icon={Activity} color="bg-green-500" />
-        <StatCard delay={0.3} title="Rollos Terminados" value={stats.activeRolls} icon={Layers} color="bg-purple-500" />
-        <StatCard delay={0.4} title="Merma Acumulada" value={stats.monthlyScrap} icon={AlertTriangle} color="bg-red-500" />
+        <StatCard delay={0.3} title="Corridas Activas" value={stats.activeRolls} icon={Layers} color="bg-purple-500" />
+        <StatCard delay={0.4} title="Scrap Generado" value={stats.monthlyScrap} icon={AlertTriangle} color="bg-red-500" />
       </div>
 
       {/* Charts Row */}
@@ -75,7 +100,7 @@ const Dashboard = () => {
         >
           <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
             <Activity size={18} className="text-blue-400" /> 
-            Rendimiento (Entradas vs Salidas)
+            Rendimiento Semanal (Entradas vs Salidas)
           </h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
