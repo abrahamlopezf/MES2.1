@@ -795,10 +795,33 @@ const lookup = async (qr_code) => {
     include: eventInclude,
     order: [['created_at', 'ASC']],
   });
+  
+  // Find associated Lote (Inventory) to show reception details
+  const { Lote, Material, Location } = require('../../database/models');
+  const lote = await Lote.findOne({
+    where: { qr_id: qr.id },
+    include: [
+      { model: Material, as: 'material' },
+      { model: Location, as: 'location' }
+    ],
+    order: [['created_at', 'DESC']]
+  });
+
+  let inventory = null;
+  if (lote) {
+    inventory = {
+      qr_code_value: qr.qr_code,
+      material: lote.material ? lote.material.get({ plain: true }) : null,
+      quantity: lote.amount,
+      location_detail: lote.location ? lote.location.get({ plain: true }) : null,
+      is_active: lote.is_active
+    };
+  }
 
   return {
     qr: buildQrResponse(qr),
-    events: events.map(buildEventResponse)
+    events: events.map(buildEventResponse),
+    inventory
   };
 };
 
