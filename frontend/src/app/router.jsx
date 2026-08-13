@@ -40,6 +40,8 @@ import { TraceabilityTreePage } from '../modules/traceability/presentation/pages
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
 import { WarehouseProvider } from '../modules/warehouse/WarehouseProvider';
 import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
+import { MaterialLotesPage } from '../modules/warehouse/presentation/pages/MaterialLotesPage';
+import { LoteDetailsPage } from '../modules/warehouse/presentation/pages/LoteDetailsPage';
 
 export const router = createBrowserRouter([
   {
@@ -173,6 +175,14 @@ export const router = createBrowserRouter([
               {
                 path: 'inventory',
                 element: <WarehouseInventoryPage />
+              },
+              {
+                path: 'materials/:materialId/lotes',
+                element: <MaterialLotesPage />
+              },
+              {
+                path: 'lotes/:id',
+                element: <LoteDetailsPage />
               },
               {
                 path: 'traceability',

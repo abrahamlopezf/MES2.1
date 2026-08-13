@@ -7,7 +7,8 @@ import {
   useMaterialCodesQuery,
   useMaterialTypesQuery,
   useMaterialBrandsQuery,
-  useOperationalAreasQuery
+  useOperationalAreasQuery,
+  useRankingsQuery
 } from '../hooks/useMaterialsQueries';
 
 const MaterialForm = ({
@@ -23,14 +24,17 @@ const MaterialForm = ({
   const { data: typesData } = useMaterialTypesQuery();
   const { data: brandsData } = useMaterialBrandsQuery();
   const { data: locationsData } = useOperationalAreasQuery();
+  const { data: rankingsData } = useRankingsQuery();
 
   const families = familiesData?.items || [];
   const codes = codesData?.items || [];
   const types = typesData?.items || [];
   const brands = brandsData?.items || [];
   const locations = locationsData?.items || [];
+  const rankings = rankingsData?.items || [];
 
   const [formData, setFormData] = useState({
+    ranking_id: initialData?.ranking_id || '',
     family_uuid: initialData?.family?.uuid || '',
     material_code_uuid: initialData?.material_code?.uuid || '',
     type_uuid: initialData?.type?.uuid || '',
@@ -46,6 +50,7 @@ const MaterialForm = ({
   useEffect(() => {
     if (initialData) {
       setFormData({
+        ranking_id: initialData?.ranking_id || '',
         family_uuid: initialData?.family?.uuid || '',
         material_code_uuid: initialData?.material_code?.uuid || '',
         type_uuid: initialData?.type?.uuid || '',
@@ -70,6 +75,7 @@ const MaterialForm = ({
     value: l.uuid, 
     label: `${l.code} - ${l.name}` 
   }));
+  const rankingOptions = rankings.map(r => ({ value: String(r.id), label: `${r.nomenclature} - ${r.name}` }));
 
   const selectedFamily = families.find(f => f.uuid === formData.family_uuid);
   const selectedCode = codes.find(c => c.uuid === formData.material_code_uuid);
@@ -85,14 +91,15 @@ const MaterialForm = ({
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!formData.family_uuid || !formData.material_code_uuid || !formData.name.trim()) {
-      setFormError('Por favor complete todos los campos obligatorios (Familia, Artículo y Nombre).');
+    if (!formData.family_uuid || !formData.material_code_uuid || !formData.name.trim() || !formData.ranking_id) {
+      setFormError('Por favor complete todos los campos obligatorios (Familia, Artículo, Nombre y Ranking).');
       return;
     }
 
     setFormError(null);
 
     const payload = {
+      ranking_id: parseInt(formData.ranking_id, 10),
       family_uuid: formData.family_uuid,
       material_code_uuid: formData.material_code_uuid,
       type_uuid: formData.type_uuid || null,
@@ -131,6 +138,17 @@ const MaterialForm = ({
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
+            <TFSelect
+              label="Ranking *"
+              name="ranking_id"
+              placeholder="Selecciona el Ranking"
+              value={formData.ranking_id}
+              onChange={(e) => updateField('ranking_id', e.target.value)}
+              options={rankingOptions}
+              disabled={isSubmitting}
+              required
+            />
+
             <TFSelect
               label="Familia *"
               name="family_uuid"

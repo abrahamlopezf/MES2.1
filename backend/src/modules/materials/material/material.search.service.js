@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, OperationalArea } = require('../../../database/models');
+const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location } = require('../../../database/models');
 const { NotFoundError } = require('../../../services/BaseCatalogService'); // Importar el error custom
 
 class MaterialSearchService {
@@ -45,12 +45,17 @@ class MaterialSearchService {
     if (type) include.push({ model: MaterialType, as: 'type', where: { uuid: type } });
     else include.push({ model: MaterialType, as: 'type', required: false });
 
-    include.push({ 
-      model: OperationalArea, 
-      as: 'default_location', 
-      required: false,
-      attributes: ['uuid', 'code', 'name']
-    });
+    if (Location) {
+      include.push({ 
+        model: Location, 
+        as: 'default_location', 
+        required: false,
+        attributes: ['id', 'code', 'name']
+      });
+    } else {
+      console.error('Location model is undefined in material.search.service.js');
+    }
+    
     include.push({ model: MaterialCode, as: 'material_code', required: false });
 
     const { count, rows } = await Material.findAndCountAll({

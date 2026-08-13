@@ -63,6 +63,10 @@ class DashboardMapper {
         production_current: `${run.total_output || 0} kg`,
         alerts: 0 // Si tuvieramos tabla de eventos vinculados, se mapearían aquí
       })),
+      charts: {
+        yieldData: raw.yieldData,
+        scrapData: raw.scrapData
+      },
       alerts: [
         ...lowStockAlerts.map(material => ({
           id: `stk-${material.id}`,

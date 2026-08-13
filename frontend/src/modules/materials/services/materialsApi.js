@@ -7,6 +7,9 @@ export const createMaterialCategoryRequest = (payload) => axiosClient.post('/mat
 export const updateMaterialCategoryRequest = ({ id, payload }) => axiosClient.patch(`/material-categories/${id}`, payload);
 export const deactivateMaterialCategoryRequest = (id) => axiosClient.delete(`/material-categories/${id}`);
 
+// === RANKINGS ===
+export const getRankingsRequest = () => axiosClient.get('/materials/rankings');
+
 // === FAMILIES ===
 export const getMaterialFamiliesRequest = (params = {}) => axiosClient.get('/material-families', { params });
 export const createMaterialFamilyRequest = (payload) => axiosClient.post('/material-families', payload);

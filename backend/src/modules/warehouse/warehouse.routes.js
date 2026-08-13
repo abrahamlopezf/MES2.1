@@ -15,17 +15,42 @@ const validateRequest = validationMiddleware.validateRequest || validationMiddle
 
 router.use(authenticate);
 
-router.post(
-  '/receive',
-  authorizePermission('warehouse.receive'),
-  validateRequest(receiveMaterialSchema),
-  warehouseController.receiveMaterial
-);
-
 router.get(
   '/inventory',
   authorizePermission('warehouse.read'),
   warehouseController.getInventory
+);
+
+router.get(
+  '/inventory/:material_id/lotes',
+  authorizePermission('warehouse.read'),
+  warehouseController.getMaterialLotes
+);
+
+router.get(
+  '/lotes/:id',
+  authorizePermission('warehouse.read'),
+  warehouseController.getLoteDetails
+);
+
+router.post(
+  '/inventory/dispose',
+  authorizePermission('warehouse.dispose'),
+  warehouseController.disposeLotes
+);
+
+router.get(
+  '/tipo-baja',
+  authorizePermission('warehouse.read'),
+  async (req, res, next) => {
+    try {
+      const { TipoBaja } = require('../../database/models');
+      const tipos = await TipoBaja.findAll({ where: { is_active: true } });
+      res.status(200).json({ success: true, data: tipos });
+    } catch (e) {
+      next(e);
+    }
+  }
 );
 
 module.exports = router;

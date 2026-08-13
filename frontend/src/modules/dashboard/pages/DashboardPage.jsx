@@ -6,30 +6,38 @@ import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../design-system';
 
-const StatCard = ({ title, value, icon: Icon, colorClass, delay }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.4, ease: "easeOut" }}
-  >
-    <Card className="flex flex-col justify-between h-full shadow-sm">
-      <CardHeader className="flex flex-row justify-between items-start pb-2">
-        <div className={`p-3 rounded-lg flex items-center justify-center ${colorClass}`}>
-          <Icon size={26} />
-        </div>
-        <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md border border-border">
-          <TrendingUp size={14} className="text-success" />
-          <span className="text-foreground text-xs font-bold">+12%</span>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        <CardTitle className="text-foreground opacity-70 text-sm font-bold uppercase tracking-wider mb-1">{title}</CardTitle>
-        <p className="text-4xl font-black text-foreground tracking-tight">{value}</p>
-      </CardContent>
-    </Card>
-  </motion.div>
-);
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '../../../core/api/apiClient';
+
+const StatCard = ({ title, value, unit = '', icon: Icon, colorClass, delay, status = 'DEFAULT' }) => {
+  // Opcional: Podríamos usar el 'status' para mostrar un semáforo (ej. GOOD, WARNING, CRITICAL)
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4, ease: "easeOut" }}
+    >
+      <Card className="flex flex-col justify-between h-full shadow-sm">
+        <CardHeader className="flex flex-row justify-between items-start pb-2">
+          <div className={`p-3 rounded-lg flex items-center justify-center ${colorClass}`}>
+            <Icon size={26} />
+          </div>
+          <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md border border-border">
+            <TrendingUp size={14} className={status === 'CRITICAL' ? 'text-danger' : 'text-success'} />
+            <span className="text-foreground text-xs font-bold">{status}</span>
+          </div>
+        </CardHeader>
+        
+        <CardContent>
+          <CardTitle className="text-foreground opacity-70 text-sm font-bold uppercase tracking-wider mb-1">{title}</CardTitle>
+          <p className="text-4xl font-black text-foreground tracking-tight">
+            {value} <span className="text-xl font-medium opacity-60">{unit}</span>
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
 
 const DashboardPage = () => {
   const { user } = useAuthStore();
@@ -43,28 +51,41 @@ const DashboardPage = () => {
   const tooltipBg = isDark ? '#18181b' : '#ffffff'; // card bg
   const tooltipBorder = isDark ? '#27272a' : '#e4e4e7'; // border
 
-  // Mock data para KPIs
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ['dashboard', 'operations'],
+    queryFn: async () => {
+      const response = await apiClient.get('/dashboard/operations');
+      const responseData = response.data || response;
+      return responseData.data || responseData;
+    },
+    refetchInterval: 60000, // Recarga cada 60 segundos
+  });
+
+  // Extraemos KPIs del payload
+  const kpis = dashboardData?.kpis || {};
+  const activeRuns = dashboardData?.active_runs || [];
+  const activeRollsCount = activeRuns.length; // Simplificamos usando la cuenta de active runs como active rolls por ahora
+  
   const stats = {
-    rawMaterial: '4,250 kg',
-    yieldRate: '92.4%',
-    activeRolls: '315',
-    monthlyScrap: '142 kg'
+    rawMaterial: kpis.production?.value || 0,
+    rawMaterialUnit: kpis.production?.unit || 'kg',
+    yieldRate: kpis.yield?.value || '---',
+    yieldRateUnit: kpis.yield?.unit || '%',
+    activeRolls: activeRollsCount,
+    monthlyScrap: kpis.scrap?.value || 0,
+    monthlyScrapUnit: kpis.scrap?.unit || 'kg',
   };
 
-  const yieldData = [
-    { name: 'Lun', entradas: 800, salidas: 760 },
-    { name: 'Mar', entradas: 650, salidas: 610 },
-    { name: 'Mie', entradas: 900, salidas: 870 },
-    { name: 'Jue', entradas: 400, salidas: 380 },
-    { name: 'Vie', entradas: 750, salidas: 710 },
-    { name: 'Sab', entradas: 300, salidas: 280 },
-  ];
+  const yieldData = dashboardData?.charts?.yieldData || [];
+  const scrapData = dashboardData?.charts?.scrapData || [];
 
-  const scrapData = [
-    { area: 'Mezclado', kg: 45 },
-    { area: 'Extrusión', kg: 85 },
-    { area: 'Telares', kg: 12 },
-  ];
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Dashboard en Tiempo Real...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col gap-8 px-4 sm:px-6 md:px-8 pb-32 sm:pb-12 overflow-x-hidden">
@@ -90,10 +111,10 @@ const DashboardPage = () => {
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard delay={0.1} title="Materia Prima" value={stats.rawMaterial} icon={Package} colorClass="bg-primary text-primary-foreground" />
-        <StatCard delay={0.2} title="Rendimiento Global" value={stats.yieldRate} icon={Activity} colorClass="bg-success text-success-foreground" />
-        <StatCard delay={0.3} title="Rollos Activos" value={stats.activeRolls} icon={Layers} colorClass="bg-secondary text-secondary-foreground" />
-        <StatCard delay={0.4} title="Merma Acumulada" value={stats.monthlyScrap} icon={AlertTriangle} colorClass="bg-danger text-danger-foreground" />
+        <StatCard delay={0.1} title="Materia Prima" value={stats.rawMaterial} unit={stats.rawMaterialUnit} status={kpis.production?.status} icon={Package} colorClass="bg-primary text-primary-foreground" />
+        <StatCard delay={0.2} title="Rendimiento Global" value={stats.yieldRate} unit={stats.yieldRateUnit} status={kpis.yield?.status} icon={Activity} colorClass="bg-success text-success-foreground" />
+        <StatCard delay={0.3} title="Rollos Activos" value={stats.activeRolls} unit="" status="GOOD" icon={Layers} colorClass="bg-secondary text-secondary-foreground" />
+        <StatCard delay={0.4} title="Merma Acumulada" value={stats.monthlyScrap} unit={stats.monthlyScrapUnit} status={kpis.scrap?.status} icon={AlertTriangle} colorClass="bg-danger text-danger-foreground" />
       </div>
 
       {/* Charts Grid */}

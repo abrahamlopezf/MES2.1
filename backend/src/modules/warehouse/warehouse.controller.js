@@ -1,15 +1,6 @@
 const warehouseService = require('./warehouse.service');
 const { successResponse } = require('../../shared/responses/apiResponse');
 
-const receiveMaterial = async (req, res, next) => {
-  try {
-    const result = await warehouseService.receiveMaterial(req.body, req.user);
-    return successResponse(res, 'Material recibido exitosamente.', result, 201);
-  } catch (error) {
-    return next(error);
-  }
-};
-
 const getInventory = async (req, res, next) => {
   try {
     const result = await warehouseService.getInventory(req.query, req.user);
@@ -19,7 +10,36 @@ const getInventory = async (req, res, next) => {
   }
 };
 
+const getMaterialLotes = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getMaterialLotes(req.params.material_id);
+    return successResponse(res, 'Lotes obtenidos correctamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const disposeLotes = async (req, res, next) => {
+  try {
+    const result = await warehouseService.disposeLotes(req.body, req.user);
+    return successResponse(res, 'Baja registrada exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getLoteDetails = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getLoteDetails(req.params.id);
+    return successResponse(res, 'Detalles del lote obtenidos.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
-  receiveMaterial,
   getInventory,
+  getMaterialLotes,
+  disposeLotes,
+  getLoteDetails
 };

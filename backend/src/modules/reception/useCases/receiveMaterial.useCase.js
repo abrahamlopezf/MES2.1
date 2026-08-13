@@ -40,11 +40,22 @@ class ReceiveMaterialUseCase {
       await qrDomainService.validateQrStatus(qr_code_value, ['GENERATED', 'UNASSIGNED', 'ASSIGNED'], t);
 
       // Validar catálogos
+      const { Material, Location, MaterialUnit } = require('../../database/models');
+      
       const material = await Material.findByPk(material_id, { transaction: t });
       if (!material) throw new Error(`El material con ID ${material_id} no existe.`);
 
-      const location = await OperationalArea.findByPk(location_id, { transaction: t });
-      if (!location) throw new Error(`La ubicación con ID ${location_id} no existe.`);
+      // Use the material's default location if one wasn't passed, or fall back to the first available Location
+      let finalLocationId = location_id || material.default_location_id;
+      let location = null;
+      if (finalLocationId) {
+        location = await Location.findByPk(finalLocationId, { transaction: t });
+      } else {
+        location = await Location.findOne({ transaction: t });
+        finalLocationId = location ? location.id : null;
+      }
+      
+      if (!location) throw new Error(`No se pudo determinar una ubicación válida para la recepción.`);
 
       const [unitRecord] = await MaterialUnit.findOrCreate({
         where: { code: 'PZA' },
@@ -53,46 +64,34 @@ class ReceiveMaterialUseCase {
       });
       const finalUnitId = unitRecord.id;
 
-      // 2. Crear Inventario (InventoryDomainService)
-      const inventory = await inventoryDomainService.createInventory({
-        qr_code_id: qrCode.id,
-        qr_code_uuid: qrCode.uuid,
-        qr_code_value: qrCode.qr_code,
+      // 2. Crear Lote e Inventario Consolidado (InventoryDomainService)
+      const { lote, inventory } = await inventoryDomainService.receiveLote({
         material_id,
-        location_id,
-        unit_id: finalUnitId,
+        user_id: userId,
+        qr_id: qrCode.id,
+        location_id: finalLocationId,
         quantity,
-        status: 'AVAILABLE',
         notes
       }, t);
 
-      // 3. Crear Movimiento de Inventario de Entrada
-      const movement = await inventoryDomainService.recordMovement({
-        inventory_id: inventory.id,
-        type: 'IN',
-        quantity_change: quantity,
-        to_location_id: location_id,
-        performed_by: userId,
-        notes: 'Entrada inicial por recepción'
-      }, t);
-
-      // 4. Activar el QR (QrDomainService)
+      // 3. Activar el QR (QrDomainService)
       await qrDomainService.activateQr(qrCode, t);
 
-      // 5. Registrar Evento de Trazabilidad (TraceabilityDomainService)
+      // 4. Registrar Evento de Trazabilidad (TraceabilityDomainService)
       await traceabilityDomainService.createEvent({
         qr_id: qrCode.id,
         event_type: 'RECEPTION',
-        entity_type: 'INVENTORY',
-        entity_id: inventory.uuid,
+        entity_type: 'LOTE',
+        entity_id: lote.id.toString(), // Entity ID of Lote
         performed_by: userId,
         notes
       }, t);
 
       return {
         success: true,
-        message: 'Material recibido correctamente',
+        message: 'Material recibido correctamente en Lote',
         data: {
+          lote_id: lote.id,
           inventory_uuid: inventory.uuid,
           qr_code: qrCode.qr_code,
           material: material.description

@@ -7,6 +7,11 @@ const asyncHandler = require('../../../utils/asyncHandler');
 
 // Endpoints de Búsqueda y Lectura
 router.get('/', validateRequest(schema.searchSchema, 'query'), asyncHandler(controller.search));
+router.get('/rankings', asyncHandler(async (req, res) => {
+  const { Ranking } = require('../../../database/models');
+  const rankings = await Ranking.findAll({ where: { is_active: true } });
+  res.status(200).json({ success: true, data: rankings });
+}));
 router.get('/:uuid', asyncHandler(controller.getByUuid));
 
 // Endpoints de Mutación (CRUD)

@@ -6,21 +6,25 @@ const createSchema = z.object({
 
   brand_uuid: z.string().uuid('UUID de marca inválido').optional().nullable(),
   type_uuid: z.string().uuid('UUID de tipo inválido').optional().nullable(),
+  ranking_id: z.number().int({ message: 'La clasificación (Ranking) es obligatoria' }),
   name: z.string().min(1, 'El nombre es obligatorio').max(150),
   description: z.string().optional().nullable(),
   minimum_stock: z.number().min(0).optional(),
   maximum_stock: z.number().min(0).optional().nullable(),
   reorder_point: z.number().min(0).optional(),
-  status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional()
+  status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional(),
+  location_uuid: z.string().uuid('UUID de localidad inválido').optional().nullable()
 });
 
 const updateSchema = z.object({
   name: z.string().min(1).max(150).optional(),
   description: z.string().optional().nullable(),
+  ranking_id: z.number().int().optional(),
   minimum_stock: z.number().min(0).optional(),
   maximum_stock: z.number().min(0).optional().nullable(),
   reorder_point: z.number().min(0).optional(),
-  status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional()
+  status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional(),
+  location_uuid: z.string().uuid('UUID de localidad inválido').optional().nullable()
   // No permitimos actualizar los UUIDs de clasificación (family, code, etc) aquí
   // para proteger la identidad del Material y su código generado.
 });

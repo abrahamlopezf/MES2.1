@@ -1,64 +1,90 @@
-const { Inventory, InventoryMovement } = require('../../database/models');
+const { Inventory, Lote, InventoryMovement, TipoBaja } = require('../../database/models');
 
 class InventoryDomainService {
   /**
-   * Crea un nuevo registro de inventario físico (Ej: Recepción inicial)
+   * Registra la recepción de un Lote y actualiza el inventario consolidado.
    */
-  async createInventory(payload, transaction = null) {
+  async receiveLote(payload, transaction = null) {
     const {
-      qr_code_id,
-      qr_code_uuid,
-      qr_code_value,
       material_id,
+      user_id,
+      qr_id,
       location_id,
-      unit_id,
-      quantity, // cantidad inicial que entrará a available
-      status = 'AVAILABLE',
+      quantity,
       notes = null
     } = payload;
 
-    const inventory = await Inventory.create({
-      qr_code_id,
-      qr_code_uuid,
-      qr_code_value,
+    // 1. Crear el Lote
+    const lote = await Lote.create({
       material_id,
-      available_quantity: quantity,
-      reserved_quantity: 0,
-      damaged_quantity: 0,
-      unit_id,
-      location: String(location_id), // Temporal mapping for existing column
-      status,
-      notes
+      user_id,
+      qr_id,
+      location_id,
+      amount: quantity,
+      notes,
+      is_active: true
     }, { transaction });
 
-    return inventory;
+    // 2. Upsert Inventario (Consolidado por material_id)
+    let inventory = await Inventory.findOne({
+      where: { material_id },
+      transaction
+    });
+
+    if (inventory) {
+      inventory.amount = Number(inventory.amount) + Number(quantity);
+      await inventory.save({ transaction });
+    } else {
+      inventory = await Inventory.create({
+        material_id,
+        amount: quantity
+      }, { transaction });
+    }
+
+    return { lote, inventory };
   }
 
   /**
-   * Registra un movimiento inmutable asociado a un inventario.
+   * Dar de baja lotes específicos.
    */
-  async recordMovement(payload, transaction = null) {
-    const {
-      inventory_id,
-      type, // IN, OUT, MOVE, ADJ
-      quantity_change,
-      from_location_id = null,
-      to_location_id = null,
-      performed_by,
-      notes = null
-    } = payload;
+  async disposeLotes(payload, transaction = null) {
+    const { material_id, lote_ids, tipo_baja_id, user_id, notes } = payload;
 
-    const movement = await InventoryMovement.create({
-      inventory_id,
-      type,
-      quantity_change,
-      from_location_id,
-      to_location_id,
-      performed_by,
-      notes
-    }, { transaction });
+    // Obtener lotes activos correspondientes
+    const lotes = await Lote.findAll({
+      where: {
+        id: lote_ids,
+        material_id,
+        is_active: true
+      },
+      transaction
+    });
 
-    return movement;
+    if (lotes.length !== lote_ids.length) {
+      throw new Error('Algunos lotes seleccionados no existen o ya fueron dados de baja.');
+    }
+
+    let totalDisposed = 0;
+    for (const lote of lotes) {
+      totalDisposed += Number(lote.amount);
+      lote.is_active = false;
+      await lote.save({ transaction });
+    }
+
+    // Descontar del inventario consolidado
+    const inventory = await Inventory.findOne({
+      where: { material_id },
+      transaction
+    });
+
+    if (!inventory) {
+      throw new Error('No hay inventario registrado para este material.');
+    }
+
+    inventory.amount = Math.max(0, Number(inventory.amount) - totalDisposed);
+    await inventory.save({ transaction });
+
+    return { lotes, totalDisposed, inventory };
   }
 }
 

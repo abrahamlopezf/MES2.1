@@ -20,6 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     
     brand_id: { type: DataTypes.INTEGER },
     type_id: { type: DataTypes.INTEGER },
+    ranking_id: { type: DataTypes.INTEGER, allowNull: true },
     
     base_unit_id: DataTypes.INTEGER,
     stock_unit_id: DataTypes.INTEGER,
@@ -86,7 +87,7 @@ module.exports = (sequelize, DataTypes) => {
     Material.belongsTo(models.MaterialCode, { foreignKey: 'material_code_id', as: 'material_code' });
     Material.belongsTo(models.MaterialBrand, { foreignKey: 'brand_id', as: 'brand' });
     Material.belongsTo(models.MaterialType, { foreignKey: 'type_id', as: 'type' });
-    Material.belongsTo(models.OperationalArea, { foreignKey: 'default_location_id', as: 'default_location' });
+    Material.belongsTo(models.Location, { foreignKey: 'default_location_id', as: 'default_location' });
     
     // Unlink these until Phase 1.5 units are created
     // if (models.MaterialUnit) {

@@ -4,68 +4,46 @@ const DashboardMapper = require('./dashboard.mapper');
 
 class DashboardService {
   /**
-   * Obtiene el payload del Dashboard Operativo respetando fuentes únicas de verdad.
+   * Obtiene el payload del Dashboard Operativo.
+   * NOTA: Actualmente se está utilizando MOCK DATA porque los modelos 
+   * (ProcessRun, ScrapMovement) aún no están definidos en la base de datos (Fase 3/4).
    */
   static async getOperationsDashboard() {
     try {
-      // 1. Obtener Corridas Activas
-      const activeRuns = await ProcessRun.findAll({
-        where: {
-          status: {
-            [Op.in]: ['EN_PROCESO', 'PAUSADA']
-          }
-        },
-        raw: true
-      });
-
-      const activeRunIds = activeRuns.map(r => r.id);
-
-      // 2. Producción Total de Corridas Activas
-      let productionTotal = 0;
-      if (activeRunIds.length > 0) {
-        const outputs = await ProcessRunOutput.findAll({
-          where: { process_run_id: activeRunIds },
-          raw: true
-        });
-        productionTotal = outputs.reduce((acc, curr) => acc + (Number(curr.quantity) || 0), 0);
-      }
-
-      // 3. Insumos Consumidos (Para Yield)
-      let totalInput = 0;
-      if (activeRunIds.length > 0) {
-        const inputs = await ProcessRunInput.findAll({
-          where: { process_run_id: activeRunIds },
-          raw: true
-        });
-        totalInput = inputs.reduce((acc, curr) => acc + (Number(curr.quantity_used) || 0), 0);
-      }
-
-      // 4. Scrap Generado (Para Scrap y Yield)
-      let scrapTotal = 0;
-      if (activeRunIds.length > 0) {
-        const scraps = await ScrapMovement.findAll({
-          where: { process_run_id: activeRunIds },
-          raw: true
-        });
-        scrapTotal = scraps.reduce((acc, curr) => acc + (Number(curr.weight) || 0), 0);
-      }
-
-      // 5. Alertas de Inventario
-      // MaterialStock join Material (stock_actual < min_stock)
-      // Como no tenemos min_stock explícito en todos, simularemos temporalmente el query real
-      // asumiendo que min_stock existe en Material (normalmente es así).
-      // Para evitar error si no existe min_stock, buscaremos stock_actual < 100 como fallback
-      // o revisamos la estructura de MaterialStock.
+      // Mock data para KPIs
+      const productionTotal = 4250;
+      const totalInput = 4600;
+      const scrapTotal = 142;
+      const activeRuns = [
+        { id: 1, code: 'RUN-EXT-001', total_output: 1200 },
+        { id: 2, code: 'RUN-EXT-002', total_output: 800 },
+      ];
+      const lowStockAlerts = [];
       
-      const lowStockAlerts = []; // Pendiente cruce con `Material.min_stock` si existe en schema
+      // Mock Data para Gráficas
+      const yieldData = [
+        { name: 'Lun', entradas: 800, salidas: 760, dateStr: '2023-10-01' },
+        { name: 'Mar', entradas: 650, salidas: 610, dateStr: '2023-10-02' },
+        { name: 'Mie', entradas: 900, salidas: 870, dateStr: '2023-10-03' },
+        { name: 'Jue', entradas: 400, salidas: 380, dateStr: '2023-10-04' },
+        { name: 'Vie', entradas: 750, salidas: 710, dateStr: '2023-10-05' },
+        { name: 'Sab', entradas: 300, salidas: 280, dateStr: '2023-10-06' },
+      ];
+      
+      const scrapData = [
+        { area: 'Mezclado', kg: 45 },
+        { area: 'Extrusión', kg: 85 },
+        { area: 'Telares', kg: 12 },
+      ];
 
-      // Preparar raw data para el Mapper
       const rawData = {
         productionTotal,
         totalInput,
         scrapTotal,
         activeRuns,
-        lowStockAlerts
+        lowStockAlerts,
+        yieldData,
+        scrapData
       };
 
       return DashboardMapper.toPayload(rawData);

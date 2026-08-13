@@ -9,6 +9,7 @@ import {
   getMaterialsRequest,
   updateMaterialCategoryRequest,
   updateMaterialRequest,
+  getRankingsRequest,
   getMaterialFamiliesRequest,
   createMaterialFamilyRequest,
   updateMaterialFamilyRequest,
@@ -31,6 +32,7 @@ export const materialQueryKeys = {
   lists: () => [...materialQueryKeys.all, 'list'],
   list: (filters) => [...materialQueryKeys.lists(), filters],
   categories: (filters) => [...materialQueryKeys.all, 'categories', filters],
+  rankings: () => [...materialQueryKeys.all, 'rankings'],
   families: (filters) => [...materialQueryKeys.all, 'families', filters],
   codes: (filters) => [...materialQueryKeys.all, 'codes', filters],
   types: (filters) => [...materialQueryKeys.all, 'types', filters],
@@ -133,6 +135,17 @@ export const useMaterialCategoriesQuery = (filters = {}) => {
       return normalizeCategoriesResponse(response);
     },
     staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useRankingsQuery = () => {
+  return useQuery({
+    queryKey: materialQueryKeys.rankings(),
+    queryFn: async () => {
+      const response = await getRankingsRequest();
+      return normalizeCategoriesResponse(response); // We can reuse this normalizer
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
   });
 };
 

@@ -796,39 +796,9 @@ const lookup = async (qr_code) => {
     order: [['created_at', 'ASC']],
   });
 
-  // Try to find if it's associated with an Inventory
-  const Inventory = sequelize.models.Inventory;
-  let inventoryData = null;
-
-  if (Inventory) {
-    const stock = await Inventory.findOne({
-      where: { qr_code_uuid: qr.uuid },
-      include: [
-        { model: sequelize.models.Material, as: 'material' },
-        { model: sequelize.models.MaterialUnit, as: 'unit' }
-      ]
-    });
-    
-    if (stock) {
-      inventoryData = stock.toJSON(); // Convert to plain object so we can add fields
-      const AreaModel = sequelize.models.OperationalArea;
-      if (AreaModel && inventoryData.location) {
-        const loc = await AreaModel.findByPk(Number(inventoryData.location));
-        if (loc) {
-          inventoryData.location_detail = {
-            id: loc.id,
-            code: loc.code,
-            name: loc.name
-          };
-        }
-      }
-    }
-  }
-
   return {
     qr: buildQrResponse(qr),
-    events: events.map(buildEventResponse),
-    inventory: inventoryData
+    events: events.map(buildEventResponse)
   };
 };
 

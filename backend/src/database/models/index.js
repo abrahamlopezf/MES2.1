@@ -14,11 +14,15 @@ const initMaterialCodeModel = require('../../modules/materials/materialCode.mode
 const initMaterialFamilyModel = require('../../modules/materials/materialFamily.model');
 const initMaterialBrandModel = require('../../modules/materials/materialBrand.model');
 const initMaterialTypeModel = require('../../modules/materials/materialType.model');
-const initOperationalAreaModel = require('../../modules/materials/operationalArea.model');
+const initLocationModel = require('../../modules/materials/location/location.model');
 const initMaterialModel = require('../../modules/materials/material.model');
 const initMaterialUnitModel = require('../../modules/materials/materialUnit.model');
+const initRankingModel = require('../../modules/materials/ranking.model');
+
 const initInventoryModel = require('../../modules/warehouse/inventory.model');
 const initInventoryMovementModel = require('../../modules/warehouse/inventoryMovement.model');
+const initLoteModel = require('../../modules/warehouse/lote.model');
+const initTipoBajaModel = require('../../modules/warehouse/tipoBaja.model');
 
 // WMS Master Data
 const initQrAreaAssignmentModel = require('../../modules/traceability/qrAreaAssignment.model');
@@ -45,11 +49,14 @@ db.MaterialCode = initMaterialCodeModel(sequelize, DataTypes);
 db.MaterialFamily = initMaterialFamilyModel(sequelize, DataTypes);
 db.MaterialBrand = initMaterialBrandModel(sequelize, DataTypes);
 db.MaterialType = initMaterialTypeModel(sequelize, DataTypes);
-db.OperationalArea = initOperationalAreaModel(sequelize, DataTypes);
+db.Location = initLocationModel(sequelize, DataTypes);
 db.Material = initMaterialModel(sequelize, DataTypes);
 db.MaterialUnit = initMaterialUnitModel(sequelize, DataTypes);
+db.Ranking = initRankingModel(sequelize, DataTypes);
 db.Inventory = initInventoryModel(sequelize, DataTypes);
 db.InventoryMovement = initInventoryMovementModel(sequelize, DataTypes);
+db.Lote = initLoteModel(sequelize, DataTypes);
+db.TipoBaja = initTipoBajaModel(sequelize, DataTypes);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
 db.TraceableItem = initTraceableItemModel(sequelize, DataTypes);
@@ -161,33 +168,67 @@ db.TraceabilityEvent.belongsTo(db.Area, {
   as: 'toArea',
 });
 
-['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'OperationalArea', 'Material', 'MaterialUnit'].forEach(modelName => {
+['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'Location', 'Material', 'MaterialUnit'].forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
   }
 });
 
 /* =========================
-   WAREHOUSE
+   RANKING & MATERIAL
 ========================= */
+
+db.Material.belongsTo(db.Ranking, {
+  foreignKey: 'ranking_id',
+  as: 'ranking',
+});
+
+db.Ranking.hasMany(db.Material, {
+  foreignKey: 'ranking_id',
+  as: 'materials',
+});
+
+/* =========================
+   WAREHOUSE & LOTES
+========================= */
+
+db.Lote.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+db.Material.hasMany(db.Lote, {
+  foreignKey: 'material_id',
+  as: 'lotes',
+});
+
+db.Lote.belongsTo(db.User, {
+  foreignKey: 'user_id',
+  as: 'user',
+});
+
+db.Lote.belongsTo(db.QrCode, {
+  foreignKey: 'qr_id',
+  as: 'qr_code',
+});
+
+db.Lote.belongsTo(db.Location, {
+  foreignKey: 'location_id',
+  as: 'location',
+});
+
+db.TraceabilityEvent.belongsTo(db.User, {
+  foreignKey: 'performed_by',
+  as: 'user'
+});
 
 db.Inventory.belongsTo(db.Material, {
   foreignKey: 'material_id',
   as: 'material',
 });
 
-db.Material.hasMany(db.Inventory, {
+db.Material.hasOne(db.Inventory, {
   foreignKey: 'material_id',
-  as: 'inventories',
-});
-
-db.Inventory.belongsTo(db.QrCode, {
-  foreignKey: 'qr_code_id',
-  as: 'qrCode',
-});
-
-db.QrCode.hasOne(db.Inventory, {
-  foreignKey: 'qr_code_id',
   as: 'inventory',
 });
 
@@ -199,12 +240,6 @@ db.InventoryMovement.belongsTo(db.Inventory, {
 db.Inventory.hasMany(db.InventoryMovement, {
   foreignKey: 'inventory_id',
   as: 'movements',
-});
-
-// Pendiente para Fase 1.5 (Units)
-db.Inventory.belongsTo(db.MaterialUnit, {
-  foreignKey: 'unit_id',
-  as: 'unit',
 });
 
 // db.Inventory.belongsTo(db.User, {

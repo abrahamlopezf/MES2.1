@@ -235,4 +235,119 @@ Error
     at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
     at async TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
     at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:581:32)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n
+    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-13T04:37:59.109Z\nMessage: MaterialUnit is not associated to Inventory!\nStack: SequelizeEagerLoadingError: MaterialUnit is not associated to Inventory!
+    at Inventory._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
+    at Inventory._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
+    at Array.map (<anonymous>)
+    at Inventory._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
+    at Inventory.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Inventory.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:804:19)
+    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:212:20)\n\n2026-08-13T05:17:19.632Z\nMessage: notNull Violation: TraceabilityEvent.qr_code_id cannot be null\nStack: SequelizeValidationError: notNull Violation: TraceabilityEvent.qr_code_id cannot be null
+    at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
+    at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
+    at async TraceabilityEvent.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:80:5
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async Object.disposeLotes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:72:10)
+    at async disposeLotes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:24:20)\n\n2026-08-13T06:16:21.836Z\nMessage: Include unexpected. Element has to be either a Model, an Association or an object.\nStack: Error: Include unexpected. Element has to be either a Model, an Association or an object.
+    at Material._conformInclude (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:323:11)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:61
+    at Array.map (<anonymous>)
+    at Material._conformIncludes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:39)
+    at Material._baseMerge (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:622:10)
+    at Material._defaultsOptions (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:656:17)
+    at Material._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
+    at Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
+    at Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
+    at MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:44)\n\n2026-08-13T06:16:22.879Z\nMessage: Include unexpected. Element has to be either a Model, an Association or an object.\nStack: Error: Include unexpected. Element has to be either a Model, an Association or an object.
+    at Material._conformInclude (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:323:11)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:61
+    at Array.map (<anonymous>)
+    at Material._conformIncludes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:39)
+    at Material._baseMerge (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:622:10)
+    at Material._defaultsOptions (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:656:17)
+    at Material._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
+    at Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
+    at Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
+    at MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:44)\n\n2026-08-13T06:16:24.901Z\nMessage: Include unexpected. Element has to be either a Model, an Association or an object.\nStack: Error: Include unexpected. Element has to be either a Model, an Association or an object.
+    at Material._conformInclude (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:323:11)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:61
+    at Array.map (<anonymous>)
+    at Material._conformIncludes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:39)
+    at Material._baseMerge (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:622:10)
+    at Material._defaultsOptions (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:656:17)
+    at Material._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
+    at Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
+    at Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
+    at MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:44)\n\n2026-08-13T18:12:51.078Z\nMessage: no existe la columna qr_code.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
+    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:12:53.155Z\nMessage: no existe la columna qr_code.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
+    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:12:58.112Z\nMessage: no existe la columna qr_code.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
+    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:12:59.282Z\nMessage: no existe la columna qr_code.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
+    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:13:01.317Z\nMessage: no existe la columna qr_code.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
+    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T21:30:50.484Z\nMessage: Cannot read properties of undefined (reading 'findAndCountAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAndCountAll')
+    at OperationalAreaService.list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:33:46)
+    at list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\operationalArea\operationalArea.controller.js:5:32)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\utils\asyncHandler.js:5:19
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-08-13T21:30:51.521Z\nMessage: Cannot read properties of undefined (reading 'findAndCountAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAndCountAll')
+    at OperationalAreaService.list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:33:46)
+    at list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\operationalArea\operationalArea.controller.js:5:32)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\utils\asyncHandler.js:5:19
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n

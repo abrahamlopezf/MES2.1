@@ -1,178 +1,150 @@
 const { Op } = require('sequelize');
-const { sequelize, Inventory, Material, MaterialUnit, QrCode, QrEvent, User, OperationalArea, TraceabilityEvent } = require('../../database/models');
+const { sequelize, Inventory, Material, Lote, User, Ranking } = require('../../database/models');
 const { throwHttpError } = require('../../shared/security/accessRules');
-const { QR_STATUS, QR_EVENT_TYPE } = require('../qrcodes/qr.constants');
+const inventoryDomainService = require('./inventoryDomain.service');
 
-const receiveMaterial = async (data, currentUser) => {
-  const { qr_code, material_id, quantity, location } = data;
+const getInventory = async (query = {}) => {
+  const { material_id } = query;
 
-  // 1. Verify QR exists and is UNASSIGNED
-  const qr = await QrCode.findOne({
-    where: { qr_code },
-  });
-
-  if (!qr) {
-    throwHttpError('Código QR no encontrado.', 404);
-  }
-
-  if (qr.status !== QR_STATUS.UNASSIGNED) {
-    throwHttpError(`El código QR no es válido para recepción. Estado actual: ${qr.status}`, 400);
-  }
-
-  // 2. Verify Material exists
-  const material = await Material.findByPk(material_id, {
-    include: [
-      { model: MaterialUnit, as: 'unit' },
-      { model: sequelize.models.MaterialFamily, as: 'family' }
-    ],
-  });
-
-  if (!material) {
-    throwHttpError('Material no encontrado.', 404);
-  }
-
-  if (!material.unit_id) {
-    throwHttpError('El material no tiene una unidad de medida configurada.', 400);
-  }
-
-  // Execute in transaction
-  const result = await sequelize.transaction(async (t) => {
-    // Build tracking_code (e.g. ALM-[FAMILIA-ARTICULO]-[Hex])
-    const qrPrefix = qr.qr_code.split('-')[0] || 'ALM';
-    const qrSuffix = qr.qr_code.split('-')[1] || qr.qr_code;
-    const materialCode = material.internal_code || 'UNKNOWN';
-    const trackingCode = `${qrPrefix}-${materialCode}-${qrSuffix}`;
-
-    // 3. Create Inventory
-    const stockUnit = await Inventory.create(
-      {
-        qr_code_uuid: qr.uuid,
-        qr_code_value: qr.qr_code,
-        tracking_code: trackingCode,
-        material_id: material.id,
-        available_quantity: quantity,
-        unit_id: material.unit_id,
-        location,
-        status: 'AVAILABLE',
-      },
-      { transaction: t }
-    );
-
-    // 4. Update QR Code Status
-    await qr.update(
-      {
-        status: QR_STATUS.ACTIVE,
-        used_by: currentUser.id,
-      },
-      { transaction: t }
-    );
-
-    // 5. Create QrEvent
-    await QrEvent.create(
-      {
-        qr_code_id: qr.id,
-        event_type: QR_EVENT_TYPE.MATERIAL_RECEIVED,
-        performed_by: currentUser.id,
-        notes: `Recepción de material. Cantidad: ${quantity} ${material.unit ? material.unit.code : ''}. Ubicación: ${location}`,
-        metadata: {
-          inventory_id: stockUnit.id,
-          material_id: material.id,
-          quantity,
-          location,
-          tracking_code: trackingCode,
-        },
-      },
-      { transaction: t }
-    );
-
-    return stockUnit;
-  });
-
-  return result;
-};
-
-const getInventory = async (query = {}, currentUser) => {
-  const { search, material_id, location, status } = query;
-
-  const where = {};
+  const where = {
+    amount: { [Op.gt]: 0 }
+  };
   if (material_id) where.material_id = material_id;
-  if (location) where.location = { [Op.iLike]: `%${location}%` };
-  if (status) where.status = status;
-
-  if (search) {
-    where.qr_code_value = { [Op.iLike]: `%${search}%` };
-  }
 
   const limit = Math.min(Number(query.limit) || 100, 300);
   const offset = Number(query.offset) || 0;
 
   const result = await Inventory.findAndCountAll({
     where,
+    attributes: [
+      'material_id',
+      [sequelize.fn('SUM', sequelize.col('amount')), 'amount'],
+      [sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'updated_at']
+    ],
     include: [
       {
         model: Material,
         as: 'material',
         attributes: ['id', 'internal_code', 'name'],
-      },
-      {
-        model: MaterialUnit,
-        as: 'unit',
-        attributes: ['id', 'code', 'name'],
-      },
+        include: [
+          { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] }
+        ]
+      }
     ],
-    order: [['received_at', 'DESC']],
+    group: ['material_id', 'material.id', 'material->ranking.id'],
+    order: [[sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'DESC']],
     limit,
     offset,
   });
 
-  const areas = await OperationalArea.findAll();
-  const areaMap = {};
-  areas.forEach(a => { areaMap[String(a.id)] = `${a.code} - ${a.name}`; });
-
-  // Obtener los usuarios que realizaron la recepción
-  const inventoryUuids = result.rows.map(r => r.uuid);
-  const events = await TraceabilityEvent.findAll({
-    where: {
-      entity_type: 'INVENTORY',
-      event_type: 'RECEPTION',
-      entity_id: inventoryUuids
-    },
-    include: [{ model: User, as: 'performedByUser', attributes: ['id', 'first_name', 'last_name', 'email'] }]
-  });
-
-  const eventMap = {};
-  events.forEach(e => {
-    if (!eventMap[e.entity_id]) {
-      eventMap[e.entity_id] = e.performedByUser;
-    }
-  });
-
-  const items = result.rows.map(row => {
-    const plain = row.get({ plain: true });
-    if (areaMap[plain.location]) {
-      plain.location = areaMap[plain.location];
-    }
-    
-    // Add received_by information
-    const user = eventMap[plain.uuid];
-    if (user) {
-      plain.received_by = `${user.first_name} ${user.last_name}`;
-    } else {
-      plain.received_by = 'Sistema / Desconocido';
-    }
-
-    return plain;
-  });
+  // Because of group by, count is an array of groups, so we need result.count.length
+  const totalCount = Array.isArray(result.count) ? result.count.length : result.count;
 
   return {
-    items,
-    total: result.count,
+    items: result.rows,
+    total: totalCount,
     limit,
     offset,
   };
 };
 
+const getMaterialLotes = async (material_id) => {
+  if (!material_id) {
+    throwHttpError('Falta el material_id', 400);
+  }
+
+  const { User, Location } = require('../../database/models');
+  const lotes = await Lote.findAll({
+    where: { material_id },
+    include: [
+      { model: User, as: 'user', attributes: ['id', 'first_name', 'last_name'] },
+      { model: Location, as: 'location', attributes: ['id', 'name', 'code'] }
+    ],
+    order: [['date_received', 'ASC']]
+  });
+
+  return lotes;
+};
+
+const disposeLotes = async (payload, currentUser) => {
+  if (!payload.material_id || !payload.lote_ids || !payload.tipo_baja_id) {
+    throwHttpError('Faltan datos obligatorios para la baja', 400);
+  }
+
+  return await sequelize.transaction(async (t) => {
+    const result = await inventoryDomainService.disposeLotes({
+      ...payload,
+      user_id: currentUser.id
+    }, t);
+
+    // Registrar Movimiento de Inventario de la baja
+    const { InventoryMovement, TraceabilityEvent } = require('../../database/models');
+    await InventoryMovement.create({
+      inventory_id: result.inventory.id,
+      type: 'DISPOSE',
+      quantity_change: -result.totalDisposed,
+      performed_by: currentUser.id,
+      notes: `Baja de ${result.totalDisposed}. Lotes afectados: ${payload.lote_ids.join(', ')}. Motivo ID: ${payload.tipo_baja_id}. Notas: ${payload.notes || ''}`
+    }, { transaction: t });
+
+    // Registrar Evento de Trazabilidad por cada Lote
+    if (result.lotes && result.lotes.length > 0) {
+      for (const lote of result.lotes) {
+        if (lote.qr_id) {
+          await TraceabilityEvent.create({
+            qr_code_id: lote.qr_id,
+            event_type: 'DISPOSE',
+            entity_type: 'LOTE',
+            entity_id: lote.id.toString(),
+            performed_by: currentUser.id,
+            notes: `Lote dado de baja. Motivo ID: ${payload.tipo_baja_id}. Notas: ${payload.notes || ''}`,
+            metadata: { tipo_baja_id: payload.tipo_baja_id }
+          }, { transaction: t });
+        }
+      }
+    }
+
+    return result;
+  });
+};
+
+const getLoteDetails = async (id) => {
+  const { Material, User, Location, QrCode, TraceabilityEvent } = require('../../database/models');
+  
+  const lote = await Lote.findByPk(id, {
+    include: [
+      { model: Material, as: 'material', attributes: ['id', 'internal_code', 'name'] },
+      { model: User, as: 'user', attributes: ['id', 'first_name', 'last_name'] },
+      { model: Location, as: 'location', attributes: ['id', 'name', 'code'] },
+      { model: QrCode, as: 'qr_code', attributes: ['id', 'qr_code'] }
+    ]
+  });
+
+  if (!lote) {
+    throwHttpError('Lote no encontrado', 404);
+  }
+
+  // Get traceability events associated with this lote's QR
+  let events = [];
+  if (lote.qr_id) {
+    events = await TraceabilityEvent.findAll({
+      where: { qr_code_id: lote.qr_id },
+      order: [['created_at', 'ASC']],
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'first_name', 'last_name'] }
+      ]
+    });
+  }
+
+  return {
+    lote,
+    events
+  };
+};
+
 module.exports = {
-  receiveMaterial,
   getInventory,
+  getMaterialLotes,
+  disposeLotes,
+  getLoteDetails
 };

@@ -1,4 +1,4 @@
-const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, OperationalArea } = require('../../../database/models');
+const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location } = require('../../../database/models');
 const { NotFoundError } = require('../../../services/BaseCatalogService');
 
 class MaterialCrudService {
@@ -28,7 +28,7 @@ class MaterialCrudService {
     
     let locationId = null;
     if (data.location_uuid) {
-      const location = await OperationalArea.findOne({ 
+      const location = await Location.findOne({ 
         where: { uuid: data.location_uuid }
       });
       if (location) {
@@ -64,6 +64,7 @@ class MaterialCrudService {
       material_code_id: code.id,
       brand_id: brandId,
       type_id: typeId,
+      ranking_id: data.ranking_id,
       internal_consecutive,
       internal_code,
       name: data.name,
@@ -87,7 +88,7 @@ class MaterialCrudService {
     // El esquema Zod de updateSchema ya filtra los UUIDs, así que es seguro aplicar
     
     if (data.location_uuid) {
-      const location = await OperationalArea.findOne({ 
+      const location = await Location.findOne({ 
         where: { uuid: data.location_uuid }
       });
       if (location) {
