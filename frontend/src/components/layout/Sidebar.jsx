@@ -35,23 +35,23 @@ const menuGroups = [
   {
     label: "Generación de QR",
     icon: QrCode,
-    permission: "dashboard.read",
+    permission: "qr.create",
     isGroup: true,
     children: [
-      { label: "Escanear QR", path: "#", icon: QrCode, permission: "dashboard.read", onClick: () => window.dispatchEvent(new Event('open-scanner')) },
-      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "dashboard.read" },
-      { label: "Historial QRs", path: "/qrcodes", icon: List, permission: "dashboard.read" }
+      { label: "Escanear QR", path: "#", icon: QrCode, permission: "inventory.view", onClick: () => window.dispatchEvent(new Event('open-scanner')) },
+      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "qr.create" },
+      { label: "Historial QRs", path: "/qrcodes", icon: List, permission: "qr.create" }
     ]
   },
   {
     label: "Almacén",
     icon: Boxes,
-    permission: "dashboard.read",
+    permission: "inventory.view",
     isGroup: true,
     children: [
-      { label: "Catálogo", path: "/materials", icon: Search, permission: "dashboard.read" },
-      { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "dashboard.read" },
-      { label: "Recepción (Terminal)", path: "/warehouse/receive", icon: Boxes, permission: "dashboard.read" }
+      { label: "Catálogo", path: "/materials", icon: Search, permission: "materials.create" },
+      { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
+      { label: "Recepción (Terminal)", path: "/warehouse/receive", icon: Boxes, permission: "materials.create" }
     ]
   }
 ];

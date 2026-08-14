@@ -50,7 +50,7 @@ export const BajaModal = ({ item, onClose, onSuccess }) => {
   const totalSelectedQuantity = useMemo(() => {
     return selectedLotes.reduce((acc, loteId) => {
       const lote = lotes.find(l => l.id === loteId);
-      return acc + (lote ? Number(lote.amount) : 0);
+      return acc + (lote ? Number((lote.available_amount ?? lote.amount) || 0) : 0);
     }, 0);
   }, [selectedLotes, lotes]);
 
@@ -163,7 +163,7 @@ export const BajaModal = ({ item, onClose, onSuccess }) => {
                           )}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="font-mono">{Number(lote.amount).toFixed(2)}</Badge>
+                      <Badge variant="secondary" className="font-mono">{Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)}</Badge>
                     </div>
                   </label>
                 ));

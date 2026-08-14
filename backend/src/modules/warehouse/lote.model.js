@@ -28,7 +28,11 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
-    amount: {
+    initial_amount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    available_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },

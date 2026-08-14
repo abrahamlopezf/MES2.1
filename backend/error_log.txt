@@ -350,4 +350,36 @@ Error
     at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
     at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
     at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
-    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-08-14T03:50:13.629Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
+    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n2026-08-14T03:50:14.658Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
+    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n2026-08-14T03:50:16.693Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
+    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n2026-08-14T03:58:06.726Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
+    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n

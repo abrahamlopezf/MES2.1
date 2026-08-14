@@ -70,7 +70,7 @@ const LoteDetailsPageContent = () => {
         <Card>
           <CardContent className="pt-6 flex flex-col gap-1">
             <span className="text-xs text-muted-foreground font-semibold uppercase">Cantidad Actual</span>
-            <span className="text-2xl font-bold text-primary">{Number(lote.amount).toFixed(2)} kg</span>
+            <span className="text-2xl font-bold text-primary">{Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)} kg</span>
           </CardContent>
         </Card>
 

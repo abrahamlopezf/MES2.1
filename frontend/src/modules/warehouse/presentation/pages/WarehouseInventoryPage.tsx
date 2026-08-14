@@ -6,13 +6,17 @@ import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Laye
 import { Badge, Input, Button, TopBar } from '../../../../design-system';
 import { BajaModal } from '../components/BajaModal';
 import { InfoModal } from '../components/InfoModal';
+import { ConsumoModal } from '../components/ConsumoModal';
+import { useAuthStore } from '../../../../store/authStore';
 
 export const WarehouseInventoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const { hasPermission } = useAuthStore();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedBajaItem, setSelectedBajaItem] = useState<any>(null);
   const [selectedInfoItem, setSelectedInfoItem] = useState<any>(null);
+  const [isConsumoModalOpen, setIsConsumoModalOpen] = useState(false);
   const pageSize = 50; // Internal pagination size
 
 
@@ -59,6 +63,15 @@ export const WarehouseInventoryPage: React.FC = () => {
           >
             <RefreshCw className={isRefetching ? "animate-spin" : ""} size={20} />
           </Button>
+          {hasPermission('warehouse.consume') && (
+            <Button 
+              variant="primary" 
+              onClick={() => setIsConsumoModalOpen(true)}
+              className="shrink-0 font-bold"
+            >
+              <QrCode className="mr-2" size={16} /> Consumo de Material
+            </Button>
+          )}
         </div>
       </div>
 
@@ -226,6 +239,12 @@ export const WarehouseInventoryPage: React.FC = () => {
         <InfoModal 
           item={selectedInfoItem}
           onClose={() => setSelectedInfoItem(null)}
+        />
+      )}
+      {isConsumoModalOpen && (
+        <ConsumoModal 
+          onClose={() => setIsConsumoModalOpen(false)}
+          onSuccess={() => refetch()}
         />
       )}
     </div>

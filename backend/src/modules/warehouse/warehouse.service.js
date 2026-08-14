@@ -141,10 +141,89 @@ const getLoteDetails = async (id) => {
     events
   };
 };
+const consumeMaterials = async (payload, currentUser) => {
+  if (!payload.items || !payload.items.length) {
+    throwHttpError('No hay materiales para consumir.', 400);
+  }
 
+  return await sequelize.transaction(async (t) => {
+    const result = await inventoryDomainService.consumeMaterials({
+      ...payload,
+      user_id: currentUser.id
+    }, t);
+
+    // Registrar Eventos de Trazabilidad y Movimientos
+    const { InventoryMovement, TraceabilityEvent } = require('../../database/models');
+    
+    // Un movimiento por cada item consumido
+    for (const item of result.items) {
+      // Find the inventory to get inventory_id
+      const inventory = await Inventory.findOne({ where: { material_id: item.material_id }, transaction: t });
+      
+      if (inventory) {
+        await InventoryMovement.create({
+          inventory_id: inventory.id,
+          type: 'CONSUMPTION',
+          quantity_change: -item.quantity,
+          performed_by: currentUser.id,
+          notes: `Consumo de ${item.quantity}. Lote afectado: ${item.lote_id}. Orden: ${payload.order_number || 'N/A'}`
+        }, { transaction: t });
+      }
+
+      if (item.qr_id) {
+        await TraceabilityEvent.create({
+          qr_code_id: item.qr_id,
+          event_type: 'CONSUMO',
+          entity_type: 'LOTE',
+          entity_id: item.lote_id.toString(),
+          performed_by: currentUser.id,
+          notes: `Consumo de ${item.quantity}. Orden: ${payload.order_number || 'N/A'}`,
+          metadata: { order_number: payload.order_number, quantity: item.quantity, consumption_id: result.consumption.id }
+        }, { transaction: t });
+      }
+    }
+
+    return result;
+  });
+};
+
+const changeLocation = async (payload, currentUser) => {
+  if (!payload.lote_id || !payload.new_location_id) {
+    throwHttpError('Faltan datos para el cambio de localidad.', 400);
+  }
+
+  return await sequelize.transaction(async (t) => {
+    const { Location, TraceabilityEvent } = require('../../database/models');
+    
+    // Obtener localidad anterior para el log (opcional pero útil)
+    const loteActual = await Lote.findByPk(payload.lote_id, { transaction: t });
+    const oldLocationId = loteActual ? loteActual.location_id : null;
+
+    const result = await inventoryDomainService.changeLocation(payload, t);
+
+    const newLocation = await Location.findByPk(payload.new_location_id, { transaction: t });
+    const locationStr = newLocation ? `${newLocation.name} (${newLocation.code})` : `ID ${payload.new_location_id}`;
+
+    if (result.lote.qr_id) {
+      await TraceabilityEvent.create({
+        qr_code_id: result.lote.qr_id,
+        event_type: 'CAMBIO_LOCALIDAD',
+        entity_type: 'LOTE',
+        entity_id: result.lote.id.toString(),
+        performed_by: currentUser.id,
+        notes: `Localidad actualizada a: ${locationStr}`,
+        metadata: { old_location_id: oldLocationId, new_location_id: payload.new_location_id }
+      }, { transaction: t });
+    }
+
+    return result;
+  });
+};
 module.exports = {
   getInventory,
   getMaterialLotes,
   disposeLotes,
+  consumeMaterials,
+  changeLocation,
   getLoteDetails
 };

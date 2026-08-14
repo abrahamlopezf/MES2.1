@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Boxes, AlertCircle } from 'lucide-react';
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { GlobalErrorBoundary } from '../../../../core/error/GlobalErrorBoundary';
+import { ChangeLocationModal } from '../components/ChangeLocationModal';
 
 const MaterialLotesPageContent = () => {
   const { materialId } = useParams();
   const navigate = useNavigate();
+  const [locationLote, setLocationLote] = useState<any>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['material-lotes', materialId],
@@ -92,10 +94,13 @@ const MaterialLotesPageContent = () => {
                       </td>
                       <td className="px-4 py-3">{new Date(lote.date_received).toLocaleDateString()}</td>
                       <td className="px-4 py-3">{lote.user?.first_name} {lote.user?.last_name}</td>
-                      <td className="px-4 py-3 text-right font-mono">{Number(lote.amount).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)}</td>
                       <td className="px-4 py-3 text-right">
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/warehouse/lotes/${lote.id}`)}>
                           Ver Detalle
+                        </Button>
+                        <Button variant="outline" size="sm" className="ml-2" onClick={() => setLocationLote(lote)} disabled={isInactive}>
+                          Cambiar Loc.
                         </Button>
                       </td>
                     </tr>
@@ -107,6 +112,14 @@ const MaterialLotesPageContent = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {locationLote && (
+        <ChangeLocationModal 
+          lote={locationLote}
+          onClose={() => setLocationLote(null)}
+          onSuccess={() => {}}
+        />
+      )}
     </div>
   );
 };

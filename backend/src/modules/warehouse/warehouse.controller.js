@@ -37,9 +37,29 @@ const getLoteDetails = async (req, res, next) => {
   }
 };
 
+const consumeMaterials = async (req, res, next) => {
+  try {
+    const result = await warehouseService.consumeMaterials(req.body, req.user);
+    return successResponse(res, 'Consumo registrado exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const changeLocation = async (req, res, next) => {
+  try {
+    const result = await warehouseService.changeLocation(req.body, req.user);
+    return successResponse(res, 'Localidad actualizada exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getInventory,
   getMaterialLotes,
   disposeLotes,
-  getLoteDetails
+  getLoteDetails,
+  consumeMaterials,
+  changeLocation
 };

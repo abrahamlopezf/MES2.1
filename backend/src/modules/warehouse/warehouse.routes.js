@@ -53,4 +53,16 @@ router.get(
   }
 );
 
+router.post(
+  '/inventory/consume',
+  authorizePermission('warehouse.consume'), // Assuming this new permission
+  warehouseController.consumeMaterials
+);
+
+router.post(
+  '/inventory/change-location',
+  authorizePermission('warehouse.read'), // Can be warehouse.dispose or warehouse.consume, for now read or custom
+  warehouseController.changeLocation
+);
+
 module.exports = router;

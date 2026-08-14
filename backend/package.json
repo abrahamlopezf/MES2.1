@@ -10,6 +10,7 @@
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "db:seed": "sequelize-cli db:seed:all",
+    "db:seed:one": "sequelize-cli db:seed",
     "db:seed:undo": "sequelize-cli db:seed:undo:all"
   },
   "keywords": [],

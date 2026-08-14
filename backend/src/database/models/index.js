@@ -23,6 +23,8 @@ const initInventoryModel = require('../../modules/warehouse/inventory.model');
 const initInventoryMovementModel = require('../../modules/warehouse/inventoryMovement.model');
 const initLoteModel = require('../../modules/warehouse/lote.model');
 const initTipoBajaModel = require('../../modules/warehouse/tipoBaja.model');
+const initMaterialConsumptionModel = require('../../modules/warehouse/materialConsumption.model');
+const initMaterialConsumptionItemModel = require('../../modules/warehouse/materialConsumptionItem.model');
 
 // WMS Master Data
 const initQrAreaAssignmentModel = require('../../modules/traceability/qrAreaAssignment.model');
@@ -57,6 +59,8 @@ db.Inventory = initInventoryModel(sequelize, DataTypes);
 db.InventoryMovement = initInventoryMovementModel(sequelize, DataTypes);
 db.Lote = initLoteModel(sequelize, DataTypes);
 db.TipoBaja = initTipoBajaModel(sequelize, DataTypes);
+db.MaterialConsumption = initMaterialConsumptionModel(sequelize, DataTypes);
+db.MaterialConsumptionItem = initMaterialConsumptionItemModel(sequelize, DataTypes);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
 db.TraceableItem = initTraceableItemModel(sequelize, DataTypes);
@@ -453,6 +457,12 @@ db.TraceabilityLink.belongsTo(db.User, {
   as: 'creator',
 });
 
+db.MaterialConsumption.belongsTo(db.User, { foreignKey: 'user_id', as: 'user' });
+db.MaterialConsumption.hasMany(db.MaterialConsumptionItem, { foreignKey: 'consumption_id', as: 'items' });
 
+db.MaterialConsumptionItem.belongsTo(db.MaterialConsumption, { foreignKey: 'consumption_id', as: 'consumption' });
+db.MaterialConsumptionItem.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+db.MaterialConsumptionItem.belongsTo(db.Lote, { foreignKey: 'lote_id', as: 'lote' });
+db.MaterialConsumptionItem.belongsTo(db.QrCode, { foreignKey: 'qr_id', as: 'qr' });
 
 module.exports = db;

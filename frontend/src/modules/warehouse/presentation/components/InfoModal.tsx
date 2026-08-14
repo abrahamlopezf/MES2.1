@@ -110,7 +110,7 @@ export const InfoModal = ({ item, onClose }) => {
                         )}
                       </div>
                       <Badge variant="outline" className={`shrink-0 ${isInactive ? 'bg-destructive/5 text-destructive border-destructive/20' : 'bg-primary/5 text-primary border-primary/20'}`}>
-                        {Number(lote.amount).toFixed(2)}
+                        {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)}
                       </Badge>
                     </div>
                   </div>
