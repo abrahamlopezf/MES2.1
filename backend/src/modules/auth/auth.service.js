@@ -15,6 +15,8 @@ const buildUserPayload = (user) => {
     email: plainUser.email,
     username: plainUser.username,
     numero_nomina: plainUser.numero_nomina,
+    telefono: plainUser.telefono,
+    avatar_url: plainUser.avatar_url || null,
     is_active: plainUser.is_active,
     must_change_password: plainUser.must_change_password,
     last_login_at: plainUser.last_login_at,
@@ -308,7 +310,7 @@ const getCurrentUser = async (userId) => {
   return buildUserPayload(user);
 };
 
-const updateProfile = async (userId, { email, telefono }) => {
+const updateProfile = async (userId, { email, telefono, first_name, last_name, avatar_url }) => {
   const user = await db.User.findByPk(userId);
   if (!user) {
     const error = new Error('Usuario no encontrado.');
@@ -326,8 +328,11 @@ const updateProfile = async (userId, { email, telefono }) => {
   }
 
   await user.update({
-    email: email ?? user.email,
-    telefono: telefono ?? user.telefono,
+    email:      email      ?? user.email,
+    telefono:   telefono   ?? user.telefono,
+    first_name: first_name ?? user.first_name,
+    last_name:  last_name  ?? user.last_name,
+    avatar_url: avatar_url !== undefined ? avatar_url : user.avatar_url,
   });
 
   return { message: 'Perfil actualizado exitosamente.' };

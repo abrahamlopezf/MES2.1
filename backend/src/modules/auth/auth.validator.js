@@ -53,8 +53,11 @@ const resetPasswordSchema = Joi.object({
 });
 
 const updateProfileSchema = Joi.object({
+  first_name: Joi.string().trim().min(2).max(100).optional(),
+  last_name: Joi.string().trim().min(2).max(100).optional(),
   email: Joi.string().trim().email({ tlds: { allow: false } }).max(150).optional(),
   telefono: Joi.string().trim().max(20).allow('', null).optional(),
+  avatar_url: Joi.string().uri().max(500).allow('', null).optional(),
 }).min(1).messages({
   'object.min': 'Debes enviar al menos un dato para actualizar.',
 });

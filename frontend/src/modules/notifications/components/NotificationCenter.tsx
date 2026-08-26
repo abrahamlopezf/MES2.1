@@ -3,10 +3,13 @@ import { createPortal } from 'react-dom';
 import { Bell, Check, ShieldAlert, Info, AlertTriangle, UserPlus, UserMinus, X, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
+import { useAuthStore } from '../../../store/authStore';
 
 export const NotificationCenter = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ALL');
+
+  const { user } = useAuthStore();
 
   const { data: notifications = [], isLoading } = useNotifications();
   const { data: unreadCount = 0 } = useUnreadCount();
@@ -71,20 +74,51 @@ export const NotificationCenter = () => {
 
   return (
     <>
-      {/* Botón Flotante Discreto (Top Right) */}
-      <div className="fixed top-4 right-4 z-[50]">
-        <button 
+      {/* Top-right pill: avatar (md+) + bell */}
+      <div className="fixed top-4 right-4 z-[50] flex items-center gap-0 bg-card border border-border rounded-full shadow-md overflow-hidden">
+
+        {/* Avatar — desktop only */}
+        <button
+          onClick={() => navigate('/profile')}
+          className="hidden md:flex items-center justify-center pl-2 pr-2 py-2 hover:bg-secondary/60 transition-colors h-full border-r border-border"
+          title="Mi Perfil"
+        >
+          {user?.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt="perfil"
+              className="w-7 h-7 rounded-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : (
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center font-black text-white text-[10px]"
+              style={{ background: (() => {
+                const name = `${user?.first_name ?? ''}${user?.last_name ?? ''}`;
+                const colors = ['#7c3aed','#2563eb','#059669','#e11d48','#d97706','#0891b2'];
+                let h = 0; for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+                return colors[Math.abs(h) % colors.length];
+              })() }}
+            >
+              {`${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase() || '?'}
+            </div>
+          )}
+        </button>
+
+        {/* Bell button */}
+        <button
           onClick={() => setIsOpen(true)}
-          className="relative p-3 rounded-full bg-card border border-border shadow-md hover:shadow-lg hover:bg-secondary/80 transition-all flex items-center justify-center group"
+          className="relative p-3 hover:bg-secondary/60 transition-colors flex items-center justify-center group"
           title="Abrir Centro de Notificaciones"
         >
           <Bell className="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-6 h-6 bg-destructive border-2 border-background text-destructive-foreground rounded-full text-[11px] font-black flex items-center justify-center shadow-sm">
+            <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive border-2 border-background text-destructive-foreground rounded-full text-[10px] font-black flex items-center justify-center shadow-sm">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </button>
+
       </div>
 
       {/* Workspace de Notificaciones (Pantalla Completa) */}
