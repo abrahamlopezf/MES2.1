@@ -40,8 +40,8 @@ export const ChangeLocationModal = ({ lotes, onClose, onSuccess }) => {
   const isSameLocationForAll = lotes.every((l: any) => l.location_id === Number(newLocationId));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card w-full max-w-sm rounded-2xl shadow-2xl border border-border flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+      <div className="bg-card w-full max-w-sm max-h-[85dvh] rounded-2xl shadow-2xl border border-border flex flex-col">
         <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-secondary/30 shrink-0">
           <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
             <MapPin size={20} className="text-primary" />

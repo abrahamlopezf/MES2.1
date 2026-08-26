@@ -19,8 +19,8 @@ export const InfoModal = ({ item, onClose }) => {
   const lastLotes = lotes ? [...lotes].reverse().slice(0, 3) : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card w-full max-w-lg rounded-xl shadow-xl border border-border flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-card w-full max-w-lg max-h-[85dvh] rounded-xl shadow-xl border border-border flex flex-col overflow-hidden">
         
         <div className="flex justify-between items-center p-4 sm:p-5 border-b border-border bg-secondary/30">
           <div className="flex items-center gap-2 text-foreground">

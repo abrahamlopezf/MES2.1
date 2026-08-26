@@ -11,7 +11,8 @@
     "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:one": "sequelize-cli db:seed",
-    "db:seed:undo": "sequelize-cli db:seed:undo:all"
+    "db:seed:undo": "sequelize-cli db:seed:undo:all",
+    "db:seed:catalog": "sequelize-cli db:seed --seed 20260826120000-production-catalog-data.js"
   },
   "keywords": [],
   "author": "",

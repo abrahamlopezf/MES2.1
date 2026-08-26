@@ -73,8 +73,8 @@ export const BajaModal = ({ item, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card w-full max-w-lg max-h-[90vh] rounded-2xl shadow-2xl border border-border flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
+      <div className="bg-card w-full sm:max-w-lg max-h-[82dvh] sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border flex flex-col">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-secondary/30 shrink-0">

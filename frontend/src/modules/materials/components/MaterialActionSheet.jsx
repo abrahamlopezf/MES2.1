@@ -22,7 +22,7 @@ const MaterialActionSheet = ({
     >
       <SheetContent
         side="right"
-        className="w-[min(94vw,620px)] p-5 sm:p-6 overflow-y-auto"
+        className="w-full sm:w-[min(94vw,620px)] p-4 sm:p-6 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:pb-6"
       >
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>

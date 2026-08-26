@@ -29,3 +29,7 @@ Thumbs.db
 
 # Sequelize
 *.sqlite
+
+# Generated catalog dump (local DB export - do NOT commit)
+backend/catalog_dump.json
+backend/seed_check.txt

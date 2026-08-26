@@ -101,8 +101,8 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl border border-border flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
+      <div className="bg-card w-full sm:max-w-2xl max-h-[82dvh] sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border flex flex-col">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-primary/10 shrink-0">
@@ -119,7 +119,7 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
+        <div className="px-4 py-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-4 sm:gap-6">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -140,8 +140,9 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div className="border-t border-border pt-6 flex flex-col gap-4">
-            <div className="flex justify-between items-center">
+          <div className="border-t border-border pt-4 sm:pt-6 flex flex-col gap-3">
+            {/* Título + controles de escaneo */}
+            <div className="flex flex-col gap-2">
               <h4 className="font-bold text-foreground">Materiales a Consumir</h4>
               <div className="flex gap-2">
                 <Input 
@@ -149,11 +150,13 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
                   value={scanInput}
                   onChange={e => setScanInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleScan(scanInput); }}
-                  className="w-48"
+                  className="flex-1 min-w-0"
                   prefix={<QrCode size={16} className="text-muted-foreground ml-2" />}
                 />
-                <Button variant="secondary" onClick={() => setIsScanning(true)}>
-                  <Plus size={16} className="mr-2" /> Agregar
+                <Button variant="secondary" onClick={() => setIsScanning(true)} className="shrink-0">
+                  <Plus size={16} className="mr-1.5" />
+                  <span className="hidden sm:inline">Agregar</span>
+                  <span className="sm:hidden">Add</span>
                 </Button>
               </div>
             </div>
@@ -212,7 +215,8 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-secondary/20 flex justify-between items-center shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-secondary/20 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 shrink-0">
+          {/* Stats */}
           <div className="flex gap-4">
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Items</span>
@@ -223,17 +227,20 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
               <span className="font-bold text-primary text-lg leading-none">{totalQuantity.toFixed(2)}</span>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+          {/* Acciones */}
+          <div className="flex gap-2 sm:gap-3">
+            <Button variant="secondary" onClick={onClose} disabled={isSubmitting} className="flex-1 sm:flex-none">
               Cancelar
             </Button>
             <Button 
               variant="primary" 
               onClick={() => handleConsume()} 
               disabled={isSubmitting || items.length === 0 || !orderNumber}
+              className="flex-1 sm:flex-none whitespace-nowrap"
             >
               {isSubmitting && <Plus className="animate-spin mr-2" size={16} />}
-              Confirmar Consumo
+              <span className="hidden sm:inline">Confirmar Consumo</span>
+              <span className="sm:hidden">Confirmar</span>
             </Button>
           </div>
         </div>

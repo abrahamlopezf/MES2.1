@@ -1,0 +1,60 @@
+name: Seed Catalog Data (Production)
+
+on:
+  # Se dispara manualmente desde GitHub → Actions → "Run workflow"
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribe "SEED" para confirmar la carga de catálogos en Neon'
+        required: true
+        default: ''
+
+jobs:
+  seed-catalogs:
+    name: Seed Catalogs → Neon
+    environment: production
+    runs-on: ubuntu-latest
+    # Solo corre si el usuario escribió "SEED" como confirmación
+    if: ${{ github.event.inputs.confirm == 'SEED' }}
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate DB connection (pre-check)
+        run: node src/scripts/validate-migration.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
+
+      - name: Run pending migrations first
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
+
+      - name: Seed catalog data into Neon
+        run: npm run db:seed:catalog
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
+
+      - name: Verify seeded rows (spot-check)
+        run: node src/scripts/verify-catalog-seed.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production

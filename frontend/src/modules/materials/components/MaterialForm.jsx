@@ -183,19 +183,19 @@ const MaterialForm = ({
           )}
 
           {/* TARJETA VISUAL DE CÓDIGO */}
-          <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-6 text-center shadow-inner">
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
-              <QrCode size={16} /> Código Interno del Material
+          <div className="bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-6 text-center shadow-inner overflow-hidden">
+            <p className="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+              <QrCode size={14} /> Código Interno del Material
             </p>
-            <div className="text-3xl font-black text-slate-800 font-mono tracking-widest">
+            <div className="text-xl sm:text-3xl font-black text-slate-800 dark:text-slate-100 font-mono tracking-wider sm:tracking-widest break-all">
               {previewCode}
             </div>
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-slate-400 mt-2 leading-snug">
               El consecutivo real se asignará al guardar. Este código será parte de la nomenclatura del QR en recepción.
             </p>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2">
             <TFSelect
               label="Ranking *"
               name="ranking_id"
@@ -272,7 +272,7 @@ const MaterialForm = ({
             />
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2">
             <TFInput
               label="Stock Mínimo"
               name="minimum_stock"
@@ -317,11 +317,11 @@ const MaterialForm = ({
             />
           )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <TFButton type="button" variant="secondary" icon={X} onClick={onCancel} disabled={isSubmitting}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <TFButton type="button" variant="secondary" icon={X} onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
               Cancelar
             </TFButton>
-            <TFButton type="submit" icon={Save} isLoading={isSubmitting}>
+            <TFButton type="submit" icon={Save} isLoading={isSubmitting} className="w-full sm:w-auto">
               {isEditing ? 'Guardar cambios' : 'Crear material'}
             </TFButton>
           </div>

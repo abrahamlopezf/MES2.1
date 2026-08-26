@@ -63,8 +63,8 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
+      <div className="bg-card w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border flex flex-col max-h-[80dvh] sm:max-h-[90dvh]">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-primary/10 shrink-0">
@@ -80,8 +80,8 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 flex flex-col gap-5">
+        {/* Content — scrollable en mobile con teclado virtual */}
+        <div className="p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto flex-1">
           <div className="flex flex-col gap-4">
             
             <div className="flex flex-col gap-1.5">

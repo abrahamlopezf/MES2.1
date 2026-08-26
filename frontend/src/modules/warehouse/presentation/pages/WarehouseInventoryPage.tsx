@@ -37,53 +37,67 @@ export const WarehouseInventoryPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="flex flex-col h-full bg-background relative pb-28 overflow-x-hidden">
+    <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
 
       <TopBar title="Inventario de Almacén" />
 
-      <div className="p-4 sm:p-6 bg-background/50 border-b border-border flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <Input 
-            placeholder="Buscar por QR o Material..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            className="w-full"
-          />
-        </div>
+      {/* Toolbar — buscador + acciones */}
+      <div className="p-3 sm:p-4 bg-background/50 border-b border-border flex flex-col gap-2">
+        {/* Fila 1: Buscador full-width */}
         <div className="flex gap-2 items-center">
+          <div className="flex-1 relative">
+            <Input
+              placeholder="Buscar por QR o Material..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              className="w-full"
+            />
+          </div>
           {search && (
-            <Button variant="secondary" onClick={() => { setSearch(''); setPage(1); }}>
-              <FilterX className="mr-2" size={16} /> Limpiar
+            <Button variant="secondary" size="icon" onClick={() => { setSearch(''); setPage(1); }} title="Limpiar búsqueda" className="shrink-0">
+              <FilterX size={16} />
             </Button>
           )}
-          <Button 
-            variant="secondary" 
-            size="icon" 
-            onClick={() => refetch()} 
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => refetch()}
             title="Refrescar"
-            className="shrink-0 aspect-square"
+            className="shrink-0"
           >
-            <RefreshCw className={isRefetching ? "animate-spin" : ""} size={20} />
+            <RefreshCw className={isRefetching ? "animate-spin" : ""} size={18} />
           </Button>
-          {hasPermission('warehouse.consume') && (
-            <Button 
-              variant="primary" 
-              onClick={() => setIsConsumoModalOpen(true)}
-              className="shrink-0 font-bold"
-            >
-              <QrCode className="mr-2" size={16} /> Consumo de Material
-            </Button>
-          )}
-          {hasPermission('warehouse.manual_entry') && (
-            <Button 
-              variant="secondary" 
-              onClick={() => setIsManualEntryModalOpen(true)}
-              className="shrink-0 font-bold"
-            >
-              <Layers className="mr-2" size={16} /> Ingreso Manual
-            </Button>
-          )}
         </div>
+
+        {/* Fila 2: Botones de acción — scroll horizontal en mobile */}
+        {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry')) && (
+          <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+            {hasPermission('warehouse.consume') && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsConsumoModalOpen(true)}
+                className="shrink-0 font-bold whitespace-nowrap"
+              >
+                <QrCode className="mr-1.5" size={15} />
+                <span className="hidden sm:inline">Consumo de Material</span>
+                <span className="sm:hidden">Consumo</span>
+              </Button>
+            )}
+            {hasPermission('warehouse.manual_entry') && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsManualEntryModalOpen(true)}
+                className="shrink-0 font-bold whitespace-nowrap"
+              >
+                <Layers className="mr-1.5" size={15} />
+                <span className="hidden sm:inline">Ingreso Manual</span>
+                <span className="sm:hidden">Ing. Manual</span>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 p-4 sm:p-6 overflow-auto">
