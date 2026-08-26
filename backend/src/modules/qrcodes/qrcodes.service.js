@@ -69,7 +69,7 @@ const getQrVisibilityWhere = (currentUser) => {
   return {
     [Op.or]: [
       { assigned_area_id: userAreaId },
-      { assigned_area_id: userAreaId },
+      { assigned_area_id: null }, // Usually batches/QRs could be generated without area initially, but the user requested strict scoping.
     ],
   };
 };
@@ -422,7 +422,9 @@ const getQrCodes = async (query, currentUser) => {
 };
 
 const getQrBatches = async (query, currentUser) => {
-  const where = {};
+  const where = {
+    ...getQrVisibilityWhere(currentUser),
+  };
   if (query.status) where.status = query.status;
   
   const limit = Math.min(Number(query.limit) || 100, 500);
@@ -810,9 +812,10 @@ const lookup = async (qr_code) => {
   let inventory = null;
   if (lote) {
     inventory = {
+      lote_id: lote.id,
       qr_code_value: qr.qr_code,
       material: lote.material ? lote.material.get({ plain: true }) : null,
-      quantity: lote.amount,
+      quantity: lote.available_amount,
       location_detail: lote.location ? lote.location.get({ plain: true }) : null,
       is_active: lote.is_active
     };

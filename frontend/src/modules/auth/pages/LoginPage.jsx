@@ -128,6 +128,12 @@ const LoginPage = () => {
               </Button>
             </form>
           </Form>
+
+          <div className="mt-4 text-center">
+            <Button variant="link" onClick={() => navigate('/forgot-password')} className="text-sm text-muted-foreground hover:text-primary">
+              ¿Olvidaste tu contraseña?
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </main>

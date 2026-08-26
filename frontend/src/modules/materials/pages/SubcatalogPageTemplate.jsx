@@ -19,7 +19,7 @@ const SubcatalogPageTemplate = ({
 }) => {
   const { hasPermission } = useAuthStore();
   const { user } = useAuthStore();
-  const canManageCatalogs = user?.role?.name === 'SUPERADMIN' || user?.role?.name === 'ADMIN' || hasPermission('masterdata.manage');
+  const canManageCatalogs = user?.role?.name === 'SUPERADMIN' || user?.role?.name === 'ADMIN' || hasPermission('masterdata.manage') || hasPermission('materials.create');
 
   const [operationMessage, setOperationMessage] = useState(null);
   const [operationError, setOperationError] = useState(null);

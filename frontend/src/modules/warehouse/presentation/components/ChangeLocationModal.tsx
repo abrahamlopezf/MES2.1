@@ -5,14 +5,14 @@ import { Button } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
 
-export const ChangeLocationModal = ({ lote, onClose, onSuccess }) => {
+export const ChangeLocationModal = ({ lotes, onClose, onSuccess }) => {
   const queryClient = useQueryClient();
   const [newLocationId, setNewLocationId] = useState<string>('');
 
   const { data: locations = [], isLoading: loadingLocations } = useQuery({
     queryKey: ['materials', 'locations'],
     queryFn: async () => {
-      const response = await axiosClient.get('/locations');
+      const response = await axiosClient.get('/locations?pageSize=all');
       return response.data.data;
     }
   });
@@ -20,7 +20,7 @@ export const ChangeLocationModal = ({ lote, onClose, onSuccess }) => {
   const { mutate: handleChangeLocation, isLoading: isSubmitting } = useMutation({
     mutationFn: async () => {
       await axiosClient.post('/warehouse/inventory/change-location', {
-        lote_id: lote.id,
+        lote_ids: lotes.map((l: any) => l.id),
         new_location_id: Number(newLocationId)
       });
     },
@@ -35,6 +35,9 @@ export const ChangeLocationModal = ({ lote, onClose, onSuccess }) => {
       toast.error(error.response?.data?.message || 'Error al cambiar localidad');
     }
   });
+
+  // Calculate if the selected new location is the same for all lotes (disable save if so)
+  const isSameLocationForAll = lotes.every((l: any) => l.location_id === Number(newLocationId));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -54,13 +57,16 @@ export const ChangeLocationModal = ({ lote, onClose, onSuccess }) => {
         
         <div className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-muted-foreground">Lote Actual</span>
-            <span className="font-bold">LOTE-{lote.id}</span>
+            <span className="text-sm font-medium text-muted-foreground">Lotes Seleccionados</span>
+            <span className="font-bold">{lotes.length} lote(s)</span>
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-muted-foreground">Localidad Actual</span>
-            <span className="font-bold">{lote.location ? lote.location.code : 'Sin asignar'}</span>
-          </div>
+          
+          {lotes.length === 1 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">Localidad Actual</span>
+              <span className="font-bold">{lotes[0].location ? lotes[0].location.code : 'Sin asignar'}</span>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1 mt-2">
             <label className="text-sm font-bold text-foreground">Nueva Localidad</label>
@@ -85,7 +91,7 @@ export const ChangeLocationModal = ({ lote, onClose, onSuccess }) => {
           <Button 
             variant="primary" 
             onClick={() => handleChangeLocation()} 
-            disabled={isSubmitting || !newLocationId || Number(newLocationId) === lote.location_id}
+            disabled={isSubmitting || !newLocationId || (lotes.length === 1 && isSameLocationForAll)}
           >
             {isSubmitting ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
             Guardar Cambio

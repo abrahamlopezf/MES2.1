@@ -2,28 +2,28 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import catalogsApi from '../services/catalogsApi';
 import { toast } from 'sonner';
 
-export const useWarehousesQuery = (params = { pageSize: 100 }) => {
+export const useWarehousesQuery = (params = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: ['warehouses', params],
     queryFn: () => catalogsApi.getWarehouses(params),
   });
 };
 
-export const useStorageLocationTypesQuery = (params = { pageSize: 100 }) => {
+export const useStorageLocationTypesQuery = (params = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: ['storage-location-types', params],
     queryFn: () => catalogsApi.getStorageLocationTypes(params),
   });
 };
 
-export const useStorageLocationStatusesQuery = (params = { pageSize: 100 }) => {
+export const useStorageLocationStatusesQuery = (params = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: ['storage-location-statuses', params],
     queryFn: () => catalogsApi.getStorageLocationStatuses(params),
   });
 };
 
-export const useStorageLocationsQuery = (params = { pageSize: 100 }) => {
+export const useStorageLocationsQuery = (params = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: ['storage-locations', params],
     queryFn: () => catalogsApi.getStorageLocations(params),

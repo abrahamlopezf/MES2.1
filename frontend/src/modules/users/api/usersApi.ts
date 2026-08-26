@@ -22,3 +22,8 @@ export const deleteUserRequest = async (userId: string): Promise<{ data: UserDTO
   const response = await axiosClient.delete(`${API_ENDPOINTS.users}/${userId}`);
   return response.data;
 };
+
+export const requestDeactivation = async (userId: string): Promise<{ data: null }> => {
+  const response = await axiosClient.post(`${API_ENDPOINTS.users}/${userId}/request-deactivation`);
+  return response.data;
+};

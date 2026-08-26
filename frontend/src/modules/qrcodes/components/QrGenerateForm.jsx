@@ -13,11 +13,12 @@ const QrGenerateForm = ({
   onSubmit,
   onCancel,
 }) => {
-  const isSupervisor = currentUser?.role?.code === 'SUPERVISOR';
+  const isGeneralAdmin = currentUser?.role?.code === 'ADMIN' || currentUser?.role?.code === 'SUPERADMIN';
+  const shouldLockArea = !isGeneralAdmin;
 
   const [formData, setFormData] = useState({
     quantity: 10,
-    assigned_area_id: isSupervisor && currentUser?.area?.id
+    assigned_area_id: shouldLockArea && currentUser?.area?.id
       ? String(currentUser.area.id)
       : '',
     notes: '',
@@ -78,11 +79,11 @@ const QrGenerateForm = ({
             options={areaOptions}
             placeholder="Sin área asignada"
             helperText={
-              isSupervisor
-                ? 'Como supervisor, el sistema usará tu propia área.'
+              shouldLockArea
+                ? 'Como administrador de área, solo puedes generar QR para tu propia área.'
                 : 'Puedes generar QR sin área y asignarlos después.'
             }
-            disabled={isSupervisor}
+            disabled={shouldLockArea}
           />
 
           <label className="ui-field form-grid-full">

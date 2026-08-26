@@ -8,11 +8,12 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  Factory,
-  Combine,
   Search,
   List,
-  Printer
+  Printer,
+  ShieldCheck,
+  MapPin,
+  User as UserIcon
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useUsersQuery } from "../../modules/users/hooks/useUsers";
@@ -22,15 +23,19 @@ const menuGroups = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
-    permission: "dashboard.read",
+    permission: ["dashboard.read", "warehouse.dashboard.view"],
     isGroup: false
   },
   {
-    label: "Usuarios",
-    path: "/users",
+    label: "Gestión de Usuarios",
     icon: Users,
-    permission: "users.read",
-    isGroup: false
+    permission: ["users.read", "roles.read", "areas.read"],
+    isGroup: true,
+    children: [
+      { label: "Usuarios", path: "/users", icon: UserIcon, permission: "users.read" },
+      { label: "Roles", path: "/roles", icon: ShieldCheck, permission: "roles.read" },
+      { label: "Áreas", path: "/areas", icon: MapPin, permission: "areas.read" }
+    ]
   },
   {
     label: "Generación de QR",
@@ -51,19 +56,23 @@ const menuGroups = [
     children: [
       { label: "Catálogo", path: "/materials", icon: Search, permission: "materials.create" },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
-      { label: "Recepción (Terminal)", path: "/warehouse/receive", icon: Boxes, permission: "materials.create" }
+      { label: "Recepción de materia", path: "/warehouse/receive", icon: Boxes, permission: "inventory.view" }
     ]
   }
 ];
 
 const SidebarItem = ({ item, pendingUsersCount }) => {
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, hasAnyPermission, user } = useAuthStore();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(
     item.children?.some(child => location.pathname.includes(child.path)) || false
   );
 
-  if (!hasPermission(item.permission)) return null;
+  let hasAccess = Array.isArray(item.permission)
+    ? hasAnyPermission(item.permission)
+    : hasPermission(item.permission);
+
+  if (!hasAccess) return null;
 
   if (!item.isGroup) {
     return (

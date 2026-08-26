@@ -14,16 +14,17 @@ export const userAdapter = {
       numeroNomina: dto.numero_nomina || '', 
       correo: dto.email || '',
       telefono: dto.telefono || '',
-      areaId: dto.area ? String(dto.area.id) : '',
-      areaNombre: dto.area?.name || 'Sin área',
+      areaNombre: dto.role?.area?.name || 'Global',
+      subareaNombre: dto.role?.subarea?.name || 'N/A',
       rolId: dto.role ? String(dto.role.id) : '',
       rolNombre: dto.role?.name || 'Sin rol',
       status: mappedStatus,
+      mustChangePassword: dto.must_change_password ?? true,
     };
   },
 
   toDTO: (domain: UserFormValues): Partial<UserDTO> => {
-    return {
+    const dto: Partial<UserDTO> = {
       first_name: domain.nombres,
       last_name: domain.apellidos,
       username: domain.username,
@@ -33,7 +34,16 @@ export const userAdapter = {
       is_active: domain.status === 'ACTIVE',
       telefono: domain.telefono,
       role_id: Number(domain.rolId),
-      area_id: domain.areaId ? Number(domain.areaId) : null,
     };
+
+    if (domain.password) {
+      dto.password = domain.password;
+    }
+    
+    if (domain.mustChangePassword !== undefined) {
+      dto.must_change_password = domain.mustChangePassword;
+    }
+
+    return dto;
   },
 };

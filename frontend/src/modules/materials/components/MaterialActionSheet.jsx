@@ -1,10 +1,10 @@
 import {
-  TFSheet,
-  TFSheetContent,
-  TFSheetDescription,
-  TFSheetHeader,
-  TFSheetTitle,
-} from '../../../components/tf-ui';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '../../../components/ui/sheet';
 
 const MaterialActionSheet = ({
   open,
@@ -14,31 +14,31 @@ const MaterialActionSheet = ({
   children,
 }) => {
   return (
-    <TFSheet
+    <Sheet
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose?.();
       }}
     >
-      <TFSheetContent
+      <SheetContent
         side="right"
-        className="w-[min(94vw,620px)] p-5 sm:p-6"
+        className="w-[min(94vw,620px)] p-5 sm:p-6 overflow-y-auto"
       >
-        <TFSheetHeader>
-          <TFSheetTitle>{title}</TFSheetTitle>
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
 
           {description && (
-            <TFSheetDescription>
+            <SheetDescription>
               {description}
-            </TFSheetDescription>
+            </SheetDescription>
           )}
-        </TFSheetHeader>
+        </SheetHeader>
 
         <div className="mt-6">
           {children}
         </div>
-      </TFSheetContent>
-    </TFSheet>
+      </SheetContent>
+    </Sheet>
   );
 };
 

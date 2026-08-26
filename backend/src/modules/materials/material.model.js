@@ -1,7 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
   const Material = sequelize.define('Material', {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    uuid: { type: DataTypes.UUID, unique: true },
+    uuid: { type: DataTypes.UUID, unique: true, defaultValue: DataTypes.UUIDV4 },
     
     family_id: { type: DataTypes.INTEGER, allowNull: false },
     material_code_id: { type: DataTypes.INTEGER, allowNull: false },
@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(50), 
       allowNull: false,
       validate: {
-        is: /^[A-Z0-9]+-[A-Z0-9]+-\d{3}$/
+        is: /^[A-Z0-9\-]+-\d{3}$/
       }
     },
     

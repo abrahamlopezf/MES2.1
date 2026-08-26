@@ -1,385 +1,91 @@
-Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.bulkInsert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:346:21)
-    at async recursiveBulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1697:25)
-    at async TraceabilityEvent.bulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1786:12)
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:349:7
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)2026-08-06T03:09:06.581Z\nMessage: el valor nulo en la columna «uuid» de la relación «traceability_events» viola la restricción “not-null”\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.bulkInsert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:346:21)
-    at async recursiveBulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1697:25)
-    at async TraceabilityEvent.bulkCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1786:12)
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:349:7
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async generateQrBatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:9:20)\n\n2026-08-06T06:56:27.430Z\nMessage: Area is not associated to TraceabilityEvent!\nStack: SequelizeEagerLoadingError: Area is not associated to TraceabilityEvent!
-    at TraceabilityEvent._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
-    at TraceabilityEvent._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at TraceabilityEvent._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n2026-08-06T06:56:27.468Z\nMessage: Area is not associated to TraceabilityEvent!\nStack: SequelizeEagerLoadingError: Area is not associated to TraceabilityEvent!
-    at TraceabilityEvent._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
-    at TraceabilityEvent._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at TraceabilityEvent._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n2026-08-06T15:54:50.723Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «211»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async MaterialCode.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async MaterialCode.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialCodeService.findByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:51:20)
-    at async MaterialCodeService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:65:20)
-    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\materialCode\materialCode.controller.js:20:18)\n\n2026-08-06T16:14:25.460Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «711»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:68:22)
-    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-06T16:15:23.910Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «711»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:68:22)
-    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-06T18:28:26.721Z\nMessage: no existe la relación «public.material_locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:57:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:28:27.769Z\nMessage: no existe la relación «public.material_locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:57:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:28:29.801Z\nMessage: no existe la relación «public.material_locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:57:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:41:14.631Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:41:15.673Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:41:17.706Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:41:22.287Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:41:23.318Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:41:59.482Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Promise.all (index 1)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:42:00.517Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Promise.all (index 1)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T18:42:02.552Z\nMessage: no existe la columna Material.default_location_id\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
-    at async Material.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
-    at async Material.count (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1306:20)
-    at async Promise.all (index 0)
-    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
-    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-08-06T20:34:44.507Z\nMessage: Area is not associated to TraceabilityEvent!\nStack: SequelizeEagerLoadingError: Area is not associated to TraceabilityEvent!
-    at TraceabilityEvent._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
-    at TraceabilityEvent._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at TraceabilityEvent._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:793:18)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:210:20)\n\n2026-08-07T14:00:08.040Z\nMessage: Código QR no encontrado.\nStack: Error: Código QR no encontrado.
-    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:16:17)
-    at Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:790:5)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:211:20)\n\n2026-08-07T14:10:28.982Z\nMessage: Código QR no encontrado.\nStack: Error: Código QR no encontrado.
-    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:16:17)
-    at Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:790:5)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:212:20)\n\n2026-08-07T14:10:38.995Z\nMessage: Código QR no encontrado.\nStack: Error: Código QR no encontrado.
-    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:16:17)
-    at Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:790:5)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:212:20)\n\n2026-08-07T14:24:47.891Z\nMessage: no existe la columna material.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:24:56.462Z\nMessage: no existe la columna material.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:25:47.099Z\nMessage: no existe la columna material.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:35:15.956Z\nMessage: no existe la columna material.material_type\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:35:41.258Z\nMessage: no existe la columna material.material_type\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async TraceableItem.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async TraceableItem.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:500:27)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-07T14:45:41.016Z\nMessage: no existe la columna performedByUser.name\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async TraceabilityEvent.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Object.scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.service.js:581:32)
-    at async scanQrCode (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\traceability\traceability.controller.js:5:20)\n\n2026-08-13T04:37:59.109Z\nMessage: MaterialUnit is not associated to Inventory!\nStack: SequelizeEagerLoadingError: MaterialUnit is not associated to Inventory!
-    at Inventory._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
-    at Inventory._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
-    at Array.map (<anonymous>)
-    at Inventory._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
-    at Inventory.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async Inventory.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Object.lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.service.js:804:19)
-    at async lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:212:20)\n\n2026-08-13T05:17:19.632Z\nMessage: notNull Violation: TraceabilityEvent.qr_code_id cannot be null\nStack: SequelizeValidationError: notNull Violation: TraceabilityEvent.qr_code_id cannot be null
+no existe la columna «type» en la relación «material_locations»2026-08-24T23:38:17.745Z\nMessage: Validation error: Validation is on internal_code failed\nStack: SequelizeValidationError: Validation error: Validation is on internal_code failed
     at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
     at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
     at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
     at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
-    at async TraceabilityEvent.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
-    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:80:5
+    at async Material.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async MaterialCrudService.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:79:12)
+    at async create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:16:18)\n\n2026-08-24T23:38:19.629Z\nMessage: Validation error: Validation is on internal_code failed\nStack: SequelizeValidationError: Validation error: Validation is on internal_code failed
+    at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
+    at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
+    at async Material.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async MaterialCrudService.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:79:12)
+    at async create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:16:18)\n\n2026-08-25T01:21:24.878Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «1187»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:83:22)
+    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-25T01:21:27.123Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «1187»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:83:22)
+    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-25T01:21:27.458Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «1187»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:83:22)
+    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-25T01:21:28.085Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «1187»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:83:22)
+    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-25T01:21:34.425Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «1187»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialCrudService.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:83:22)
+    at async update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:21:18)\n\n2026-08-25T04:32:00.322Z\nMessage: Invalid time value\nStack: RangeError: Invalid time value
+    at Date.toISOString (<anonymous>)
+    at Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:295:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-08-25T04:32:01.385Z\nMessage: Invalid time value\nStack: RangeError: Invalid time value
+    at Date.toISOString (<anonymous>)
+    at Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:295:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-08-25T04:32:03.436Z\nMessage: Invalid time value\nStack: RangeError: Invalid time value
+    at Date.toISOString (<anonymous>)
+    at Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:295:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-08-25T04:32:13.156Z\nMessage: Invalid time value\nStack: RangeError: Invalid time value
+    at Date.toISOString (<anonymous>)
+    at Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:295:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-08-25T04:32:14.477Z\nMessage: Invalid time value\nStack: RangeError: Invalid time value
+    at Date.toISOString (<anonymous>)
+    at Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:295:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-08-25T04:32:16.630Z\nMessage: Invalid time value\nStack: RangeError: Invalid time value
+    at Date.toISOString (<anonymous>)
+    at Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:295:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-08-25T15:54:29.056Z\nMessage: Material is associated to Lote using an alias. You must use the 'as' keyword to specify the alias within your include statement.\nStack: SequelizeEagerLoadingError: Material is associated to Lote using an alias. You must use the 'as' keyword to specify the alias within your include statement.
+    at Lote._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:576:13)
+    at Lote._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
+    at Array.map (<anonymous>)
+    at Lote._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
+    at Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:200:27
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async Object.disposeLotes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:72:10)
-    at async disposeLotes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:24:20)\n\n2026-08-13T06:16:21.836Z\nMessage: Include unexpected. Element has to be either a Model, an Association or an object.\nStack: Error: Include unexpected. Element has to be either a Model, an Association or an object.
-    at Material._conformInclude (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:323:11)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:61
-    at Array.map (<anonymous>)
-    at Material._conformIncludes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:39)
-    at Material._baseMerge (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:622:10)
-    at Material._defaultsOptions (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:656:17)
-    at Material._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
-    at Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
-    at Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
-    at MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:44)\n\n2026-08-13T06:16:22.879Z\nMessage: Include unexpected. Element has to be either a Model, an Association or an object.\nStack: Error: Include unexpected. Element has to be either a Model, an Association or an object.
-    at Material._conformInclude (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:323:11)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:61
-    at Array.map (<anonymous>)
-    at Material._conformIncludes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:39)
-    at Material._baseMerge (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:622:10)
-    at Material._defaultsOptions (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:656:17)
-    at Material._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
-    at Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
-    at Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
-    at MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:44)\n\n2026-08-13T06:16:24.901Z\nMessage: Include unexpected. Element has to be either a Model, an Association or an object.\nStack: Error: Include unexpected. Element has to be either a Model, an Association or an object.
-    at Material._conformInclude (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:323:11)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:61
-    at Array.map (<anonymous>)
-    at Material._conformIncludes (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:270:39)
-    at Material._baseMerge (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:622:10)
-    at Material._defaultsOptions (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:656:17)
-    at Material._injectScope (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2053:10)
-    at Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1111:10)
-    at Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1324:12)
-    at MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:56:44)\n\n2026-08-13T18:12:51.078Z\nMessage: no existe la columna qr_code.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
-    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
-    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:12:53.155Z\nMessage: no existe la columna qr_code.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
-    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
-    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:12:58.112Z\nMessage: no existe la columna qr_code.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
-    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
-    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:12:59.282Z\nMessage: no existe la columna qr_code.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
-    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
-    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T18:13:01.317Z\nMessage: no existe la columna qr_code.code\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Lote.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Lote.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async Lote.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
-    at async Object.getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:97:16)
-    at async getLoteDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:33:20)\n\n2026-08-13T21:30:50.484Z\nMessage: Cannot read properties of undefined (reading 'findAndCountAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAndCountAll')
-    at OperationalAreaService.list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:33:46)
-    at list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\operationalArea\operationalArea.controller.js:5:32)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\utils\asyncHandler.js:5:19
-    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
-    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
-    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
-    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
-    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
-    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-08-13T21:30:51.521Z\nMessage: Cannot read properties of undefined (reading 'findAndCountAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAndCountAll')
-    at OperationalAreaService.list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:33:46)
-    at list (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\operationalArea\operationalArea.controller.js:5:32)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\utils\asyncHandler.js:5:19
-    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
-    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
-    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
-    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
-    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
-    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-08-14T03:50:13.629Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
-    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n2026-08-14T03:50:14.658Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
-    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n2026-08-14T03:50:16.693Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
-    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n2026-08-14T03:58:06.726Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «locations»\nStack: Error
-    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
-    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
-    at async Material.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
-    at async MaterialSearchService.getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:80:22)
-    at async getByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:11:18)\n\n
+    at async Object.changeLocation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:196:10)\n\n

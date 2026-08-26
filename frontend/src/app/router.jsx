@@ -4,8 +4,10 @@ import AppLayout from "../components/layout/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
 
 import LoginPage from "../modules/auth/pages/LoginPage";
+import ForgotPasswordPage from "../modules/auth/pages/ForgotPasswordPage";
 import HealthPage from "../modules/health/pages/HealthPage";
 import UsersPage from "../modules/users/pages/UsersPage";
+import RolesPage from "../modules/roles/pages/RolesPage";
 import DashboardPage from "../modules/dashboard/pages/DashboardPage";
 import MaterialsPage from "../modules/materials/pages/MaterialsPage";
 import CategoriesPage from "../modules/materials/pages/CategoriesPage";
@@ -53,6 +55,10 @@ export const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
+    path: "/forgot-password",
+    element: <ForgotPasswordPage />,
+  },
+  {
     path: "/health",
     element: <HealthPage />,
   },
@@ -69,6 +75,10 @@ export const router = createBrowserRouter([
           {
             path: '/users',
             element: <UsersPage />,
+          },
+          {
+            path: '/roles',
+            element: <RolesPage />,
           },
           {
             path: '/areas',

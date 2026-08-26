@@ -55,11 +55,31 @@ const changeLocation = async (req, res, next) => {
   }
 };
 
+const getDashboardMetrics = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getDashboardMetrics(req.user);
+    return successResponse(res, 'Métricas del dashboard de almacén obtenidas', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const manualEntry = async (req, res, next) => {
+  try {
+    const result = await warehouseService.manualEntry(req.body, req.user);
+    return successResponse(res, 'Ingreso manual registrado exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getInventory,
   getMaterialLotes,
   disposeLotes,
   getLoteDetails,
   consumeMaterials,
-  changeLocation
+  changeLocation,
+  getDashboardMetrics,
+  manualEntry
 };

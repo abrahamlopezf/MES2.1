@@ -50,8 +50,48 @@ const logout = (req, res) => {
   );
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const result = await authService.changePassword(req.user.id, req.body);
+    return successResponse(res, result.message, {}, 200);
+  } catch (error) {
+    return errorResponse(res, error.message, [], error.statusCode || 500);
+  }
+};
+
+const requestPasswordReset = async (req, res) => {
+  try {
+    const result = await authService.requestPasswordReset(req.body);
+    return successResponse(res, result.message, {}, 200);
+  } catch (error) {
+    return errorResponse(res, error.message, [], error.statusCode || 500);
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const result = await authService.resetPassword(req.body);
+    return successResponse(res, result.message, {}, 200);
+  } catch (error) {
+    return errorResponse(res, error.message, [], error.statusCode || 500);
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const result = await authService.updateProfile(req.user.id, req.body);
+    return successResponse(res, result.message, {}, 200);
+  } catch (error) {
+    return errorResponse(res, error.message, [], error.statusCode || 500);
+  }
+};
+
 module.exports = {
   login,
   me,
   logout,
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+  updateProfile,
 };

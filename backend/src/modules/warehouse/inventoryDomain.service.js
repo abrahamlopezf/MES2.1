@@ -86,6 +86,8 @@ class InventoryDomainService {
     inventory.amount = Math.max(0, Number(inventory.amount) - totalDisposed);
     await inventory.save({ transaction });
 
+    await this.checkStockThresholds(material_id, inventory.amount, transaction);
+
     return { lotes, totalDisposed, inventory };
   }
 
@@ -140,6 +142,8 @@ class InventoryDomainService {
 
       inventory.amount = Number(inventory.amount) - qty;
       await inventory.save({ transaction });
+
+      await this.checkStockThresholds(materialId, inventory.amount, transaction);
     }
 
     // Crear el registro de consumo
@@ -164,23 +168,95 @@ class InventoryDomainService {
   }
 
   /**
-   * Cambiar localidad de un Lote
+   * Cambiar localidad de uno o más Lotes
    */
   async changeLocation(payload, transaction = null) {
-    const { lote_id, new_location_id } = payload;
-    const lote = await Lote.findOne({
-      where: { id: lote_id, is_active: true },
+    const { lote_id, lote_ids, new_location_id } = payload;
+    
+    // Normalizar a un arreglo de IDs
+    const idsToProcess = lote_ids ? lote_ids : (lote_id ? [lote_id] : []);
+    
+    if (idsToProcess.length === 0) {
+      throw new Error(`Se requiere al menos un lote para cambiar de localidad.`);
+    }
+
+    const lotes = await Lote.findAll({
+      where: { id: idsToProcess, is_active: true },
       transaction
     });
 
-    if (!lote) {
-      throw new Error(`Lote ${lote_id} no encontrado o inactivo.`);
+    if (lotes.length !== idsToProcess.length) {
+      const foundIds = lotes.map(l => l.id);
+      const missing = idsToProcess.filter(id => !foundIds.includes(id));
+      throw new Error(`Lotes no encontrados o inactivos: ${missing.join(', ')}.`);
     }
 
-    lote.location_id = new_location_id;
-    await lote.save({ transaction });
+    for (const lote of lotes) {
+      lote.location_id = new_location_id;
+      await lote.save({ transaction });
+    }
 
-    return { lote };
+    return { lotes };
+  }
+
+  /**
+   * Verifica los umbrales de stock de un material (stock mínimo y alerta de stock/reorder point)
+   * y genera notificaciones si es necesario.
+   */
+  async checkStockThresholds(materialId, currentAmount, transaction = null) {
+    const { Material, User, Notification, Role } = require('../../database/models');
+    
+    const material = await Material.findByPk(materialId, { transaction });
+    if (!material) return;
+    
+    const { minimum_stock, reorder_point, name, internal_code } = material;
+    
+    // Check if thresholds are defined
+    const hasMinStock = minimum_stock !== null && minimum_stock !== undefined && Number(minimum_stock) > 0;
+    const hasReorder = reorder_point !== null && reorder_point !== undefined && Number(reorder_point) > 0;
+    
+    if (!hasMinStock && !hasReorder) return;
+    
+    // Find admin_alm users
+    const adminAlms = await User.findAll({
+      include: [{
+        model: Role,
+        as: 'role',
+        where: { code: 'ADMIN_ALM' }
+      }],
+      transaction
+    });
+    
+    if (adminAlms.length === 0) return;
+    
+    const amount = Number(currentAmount);
+    
+    const formatLimit = (val) => Number(parseFloat(val).toFixed(3));
+    const minStockFormatted = formatLimit(minimum_stock);
+    const reorderFormatted = formatLimit(reorder_point);
+    const amountFormatted = formatLimit(amount);
+    
+    let type = null;
+    let message = '';
+    
+    if (hasMinStock && amount <= Number(minimum_stock)) {
+      type = 'CRITICAL';
+      message = `Urgente realizar compra. El material ${internal_code} (${name}) ha alcanzado su stock mínimo (${minStockFormatted}). Stock actual: ${amountFormatted}`;
+    } else if (hasReorder && amount <= Number(reorder_point)) {
+      type = 'WARNING';
+      message = `Recomendación realizar pedido de material. El material ${internal_code} (${name}) está por debajo de su alerta de stock (${reorderFormatted}). Stock actual: ${amountFormatted}`;
+    }
+    
+    if (type) {
+      const notifications = adminAlms.map(admin => ({
+        recipient_id: admin.id,
+        type: 'SYSTEM_ALERT',
+        title: type === 'CRITICAL' ? 'Stock Mínimo Alcanzado' : 'Alerta de Stock',
+        message: message,
+      }));
+      
+      await Notification.bulkCreate(notifications, { transaction });
+    }
   }
 }
 

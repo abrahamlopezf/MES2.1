@@ -7,6 +7,7 @@ import { Badge, Input, Button, TopBar } from '../../../../design-system';
 import { BajaModal } from '../components/BajaModal';
 import { InfoModal } from '../components/InfoModal';
 import { ConsumoModal } from '../components/ConsumoModal';
+import { ManualEntryModal } from '../components/ManualEntryModal';
 import { useAuthStore } from '../../../../store/authStore';
 
 export const WarehouseInventoryPage: React.FC = () => {
@@ -16,6 +17,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [selectedBajaItem, setSelectedBajaItem] = useState<any>(null);
   const [selectedInfoItem, setSelectedInfoItem] = useState<any>(null);
+  const [isManualEntryModalOpen, setIsManualEntryModalOpen] = useState(false);
   const [isConsumoModalOpen, setIsConsumoModalOpen] = useState(false);
   const pageSize = 50; // Internal pagination size
 
@@ -72,6 +74,15 @@ export const WarehouseInventoryPage: React.FC = () => {
               <QrCode className="mr-2" size={16} /> Consumo de Material
             </Button>
           )}
+          {hasPermission('warehouse.manual_entry') && (
+            <Button 
+              variant="secondary" 
+              onClick={() => setIsManualEntryModalOpen(true)}
+              className="shrink-0 font-bold"
+            >
+              <Layers className="mr-2" size={16} /> Ingreso Manual
+            </Button>
+          )}
         </div>
       </div>
 
@@ -124,9 +135,8 @@ export const WarehouseInventoryPage: React.FC = () => {
                         <div className="flex justify-end gap-2">
                           <Button 
                             variant="secondary" 
-                            size="sm"
+                            size="icon" 
                             onClick={() => setSelectedInfoItem(item)}
-                            className="whitespace-nowrap px-2"
                             title="Ver detalles"
                           >
                             <Info size={16} />
@@ -244,6 +254,12 @@ export const WarehouseInventoryPage: React.FC = () => {
       {isConsumoModalOpen && (
         <ConsumoModal 
           onClose={() => setIsConsumoModalOpen(false)}
+          onSuccess={() => refetch()}
+        />
+      )}
+      {isManualEntryModalOpen && (
+        <ManualEntryModal 
+          onClose={() => setIsManualEntryModalOpen(false)}
           onSuccess={() => refetch()}
         />
       )}

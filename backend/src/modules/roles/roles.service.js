@@ -45,11 +45,25 @@ const buildRoleResponse = (role) => {
 const getRoleWhereForActor = (currentUser) => {
   if (isSuperadmin(currentUser)) return {};
 
-  return {
+  const role = currentUser.role;
+  const where = {
     code: {
       [Op.ne]: SUPERADMIN_ROLE_CODE,
     },
+    level: {
+      [Op.lt]: role.level,
+    },
   };
+
+  const isGlobal = role.area_id === null && role.subarea_id === null;
+  if (!isGlobal) {
+    where.area_id = role.area_id;
+    if (role.subarea_id !== null) {
+      where.subarea_id = role.subarea_id;
+    }
+  }
+
+  return where;
 };
 
 const findVisibleRoleById = async (roleId, currentUser, transaction = null) => {

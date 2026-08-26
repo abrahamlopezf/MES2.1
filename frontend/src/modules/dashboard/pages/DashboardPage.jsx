@@ -39,10 +39,16 @@ const StatCard = ({ title, value, unit = '', icon: Icon, colorClass, delay, stat
   );
 };
 
+import { WarehouseDashboard } from '../../warehouse/presentation/pages/WarehouseDashboard';
+
 const DashboardPage = () => {
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   const { theme } = useThemeStore();
   const userName = user?.first_name || user?.username || 'Usuario';
+
+  if (!hasPermission('dashboard.read') && hasPermission('warehouse.dashboard.view')) {
+    return <WarehouseDashboard />;
+  }
 
   // Configuración de colores estrictos para Recharts
   const isDark = theme === 'dark';

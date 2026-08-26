@@ -56,7 +56,7 @@ class MaterialCrudService {
     const internal_consecutive = nextConsecutive.toString().padStart(3, '0');
 
     // 3. Generar internal_code
-    const internal_code = `${family.code}-${code.code}-${internal_consecutive}`;
+    const internal_code = `${family.code}-${code.code}-${internal_consecutive}`.replace(/--+/g, '-');
 
     // 4. Crear registro
     const materialData = {

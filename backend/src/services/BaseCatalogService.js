@@ -17,8 +17,9 @@ class BaseCatalogService {
 
   async list(options = {}) {
     const { page = 1, pageSize = 20, search, status, include_inactive } = options;
-    const offset = (page - 1) * pageSize;
-    const limit = parseInt(pageSize, 10);
+    const parsedPageSize = pageSize === 'all' ? 10000 : parseInt(pageSize, 10);
+    const limit = parsedPageSize;
+    const offset = (page - 1) * parsedPageSize;
 
     const where = {};
     
@@ -30,11 +31,14 @@ class BaseCatalogService {
       where.is_active = true;
     }
 
+    const modelAttributes = this.model.getAttributes ? Object.keys(this.model.getAttributes()) : [];
+    const defaultOrder = modelAttributes.includes('name') ? [['name', 'ASC']] : [['created_at', 'DESC']];
+
     const { count, rows } = await this.model.findAndCountAll({
       where,
       limit,
       offset,
-      order: [['created_at', 'DESC']]
+      order: defaultOrder
     });
 
     return {

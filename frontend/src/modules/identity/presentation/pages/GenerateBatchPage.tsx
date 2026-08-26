@@ -9,7 +9,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from 'lucide-react';
 import nomenclature from '@shared/config/nomenclature.json';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../../../../store/authStore';
 
 const getAreaIcon = (mainAreaId: string) => {
   if (mainAreaId === 'ALM') return <Truck size={24} className="text-white" />;
@@ -27,19 +27,18 @@ type GenerateBatchFormValues = z.infer<typeof generateBatchSchema>;
 
 export function GenerateBatchPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+  const { user } = useAuthStore();
+  const isAdmin = user?.role?.code === 'ADMIN' || user?.role?.code === 'SUPERADMIN';
   
   const mutation = useGenerateBatchMutation();
   const { data: allBatches, isLoading: loadingBatches } = useIdentityBatchesQuery();
   
-  // Si no es admin, filtramos los lotes para simular que solo ve los de su área (Ej: EXT, MIX)
+  // Si no es admin, filtramos los lotes para que solo vea los de su área
   const batches = useMemo(() => {
     if (!allBatches) return [];
     if (isAdmin) return allBatches;
-    // Mock: Supervisor de Extrusión ve EXT y MIX
-    return allBatches.filter(b => b.areaId === 'EXT' || b.areaId === 'MIX');
-  }, [allBatches, isAdmin]);
+    return allBatches.filter(b => b.areaId === user?.area?.code);
+  }, [allBatches, isAdmin, user]);
 
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
   const expandedBatch = useMemo(() => {
@@ -51,11 +50,24 @@ export function GenerateBatchPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const mapBackendAreaToNomenclature = (backendCode: string | undefined) => {
+    if (!backendCode) return 'ALM';
+    const mapping: Record<string, string> = {
+      'ALMACEN': 'ALM',
+      'EXTRUSION': 'EXT',
+      'TELARES': 'CON',
+    };
+    return mapping[backendCode] || 'ALM';
+  };
+
+  const defaultArea = isAdmin ? nomenclature.areas[0].id : mapBackendAreaToNomenclature(user?.area?.code);
+  const defaultSubArea = isAdmin ? (nomenclature.areas[0].subcategories[0]?.id || '') : (user?.subarea?.code || '');
+
   const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<GenerateBatchFormValues>({
     resolver: zodResolver(generateBatchSchema),
     defaultValues: {
-      mainAreaId: isAdmin ? nomenclature.areas[0].id : 'EXT',
-      subAreaId: isAdmin ? (nomenclature.areas[0].subcategories[0]?.id || '') : 'EXT',
+      mainAreaId: defaultArea,
+      subAreaId: defaultSubArea,
       amount: 1,
     }
   });
@@ -90,14 +102,6 @@ export function GenerateBatchPage() {
   };
 
   const onSubmit = (data: GenerateBatchFormValues) => {
-    if (!isAdmin) {
-      // Simular petición
-      toast.success('Solicitud enviada a los Administradores');
-      setIsModalOpen(false);
-      reset();
-      return;
-    }
-
     mutation.mutate({
       mainAreaId: data.mainAreaId,
       areaId: data.subAreaId || data.mainAreaId,
@@ -105,7 +109,7 @@ export function GenerateBatchPage() {
       amount: data.amount,
       plantId: 'MTY',
       tokenType: 'QR' as any,
-      requestedBy: user?.name || 'admin'
+      requestedBy: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'admin'
     }, {
       onSuccess: () => {
         setIsModalOpen(false);
@@ -171,8 +175,8 @@ export function GenerateBatchPage() {
           onClick={() => setIsModalOpen(true)}
           className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 sm:py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-sm w-full sm:w-auto"
         >
-          {isAdmin ? <Plus size={18} /> : <Send size={18} />}
-          {isAdmin ? 'Generar Nuevo Lote' : 'Solicitar QRs'}
+          <Plus size={18} />
+          Generar Nuevo Lote
         </button>
       </div>
 
@@ -393,7 +397,7 @@ export function GenerateBatchPage() {
             
             <div className="flex justify-between items-center p-5 border-b border-border bg-muted/30">
               <h3 className="font-semibold text-lg text-foreground">
-                {isAdmin ? 'Generar Nuevo Lote' : 'Solicitar QRs a Sistemas'}
+                Generar Nuevo Lote
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -443,7 +447,7 @@ export function GenerateBatchPage() {
                   )}
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Cantidad a {isAdmin ? 'generar' : 'solicitar'}</label>
+                    <label className="text-sm font-medium text-foreground">Cantidad a generar</label>
                     <input 
                       type="number" 
                       {...register('amount', { valueAsNumber: true })} 
@@ -490,7 +494,7 @@ export function GenerateBatchPage() {
                   disabled={mutation.isPending}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 px-4 rounded-md transition-colors disabled:opacity-70 flex justify-center items-center gap-2"
                 >
-                  {mutation.isPending ? 'Procesando...' : (isAdmin ? 'Generar Lote' : 'Enviar Solicitud')}
+                  {mutation.isPending ? 'Procesando...' : 'Generar Lote'}
                 </button>
               </div>
 

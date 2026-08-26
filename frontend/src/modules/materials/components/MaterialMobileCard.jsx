@@ -1,6 +1,6 @@
 import { Boxes, Edit3, Layers3, Ruler, ShieldAlert } from 'lucide-react';
 
-import { TFButton, TFCard, TFCardContent, TFBadge } from '../../../components/tf-ui';
+import { Button, Badge, Card, CardContent } from '../../../design-system';
 import { getMaterialUnitLabel } from '../constants/materialsUi';
 import MaterialTypeBadge from './MaterialTypeBadge';
 
@@ -12,8 +12,8 @@ const MaterialMobileCard = ({
   onDeactivate,
 }) => {
   return (
-    <TFCard className="md:hidden">
-      <TFCardContent className="grid gap-5">
+    <Card className="md:hidden">
+      <CardContent className="grid gap-5 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col min-w-0 gap-2">
             <div className="flex items-center gap-2 text-primary">
@@ -26,9 +26,9 @@ const MaterialMobileCard = ({
             <div className="flex flex-wrap gap-2">
               <MaterialTypeBadge type={material.material_type} />
 
-              <TFBadge variant={material.is_active ? 'success' : 'danger'}>
+              <Badge variant={material.is_active ? 'success' : 'destructive'} className="font-bold">
                 {material.is_active ? 'Activo' : 'Inactivo'}
-              </TFBadge>
+              </Badge>
             </div>
           </div>
 
@@ -68,30 +68,30 @@ const MaterialMobileCard = ({
         {(canUpdate || canDelete) && (
           <div className="grid gap-3 sm:grid-cols-2">
             {canUpdate && (
-              <TFButton
-                variant="secondary"
-                fullWidth
-                icon={Edit3}
+              <Button
+                variant="outline"
+                className="w-full font-bold shadow-sm"
                 onClick={() => onEdit?.(material)}
               >
+                <Edit3 className="w-4 h-4 mr-2" />
                 Editar
-              </TFButton>
+              </Button>
             )}
 
             {canDelete && material.is_active && (
-              <TFButton
-                variant="danger"
-                fullWidth
-                icon={ShieldAlert}
+              <Button
+                variant="destructive"
+                className="w-full font-bold shadow-sm"
                 onClick={() => onDeactivate?.(material)}
               >
+                <ShieldAlert className="w-4 h-4 mr-2" />
                 Desactivar
-              </TFButton>
+              </Button>
             )}
           </div>
         )}
-      </TFCardContent>
-    </TFCard>
+      </CardContent>
+    </Card>
   );
 };
 

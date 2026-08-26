@@ -216,23 +216,16 @@ const getMaterials = async ({ query = {}, currentUser }) => {
 
   if (query.search) {
     where[Op.or] = [
-      { code: { [Op.iLike]: `%${query.search}%` } },
+      { internal_code: { [Op.iLike]: `%${query.search}%` } },
       { name: { [Op.iLike]: `%${query.search}%` } },
-      { description: { [Op.iLike]: `%${query.search}%` } },
-      { technical_notes: { [Op.iLike]: `%${query.search}%` } },
+      { description: { [Op.iLike]: `%${query.search}%` } }
     ];
   }
 
-  if (query.material_category_id) {
-    where.material_category_id = query.material_category_id;
-  }
-
-  if (query.material_type) {
-    where.material_type = query.material_type;
-  }
-
-  if (query.default_unit) {
-    where.default_unit = query.default_unit;
+  if (query.family_uuid) {
+    const family = await db.MaterialFamily.findOne({ where: { uuid: query.family_uuid } });
+    if (family) where.family_id = family.id;
+    else where.family_id = -1; // Force empty result if family UUID not found
   }
 
   const limit = query.limit === 'all' ? 10000 : Math.min(Number(query.limit) || 100, 5000);
@@ -242,19 +235,29 @@ const getMaterials = async ({ query = {}, currentUser }) => {
     where,
     include: [
       {
-        model: MaterialCategory,
-        as: 'category',
-        attributes: ['id', 'code', 'name', 'is_active'],
+        model: db.MaterialFamily,
+        as: 'family',
+        attributes: ['id', 'uuid', 'code', 'name', 'is_active'],
       },
       {
-        model: MaterialSubcategory,
-        as: 'subcategory',
-        attributes: ['id', 'name'],
+        model: db.MaterialCode,
+        as: 'material_code',
+        attributes: ['id', 'uuid', 'code', 'name'],
       },
       {
-        model: MaterialUnit,
-        as: 'unit',
-        attributes: ['id', 'name', 'code'],
+        model: db.MaterialType,
+        as: 'type',
+        attributes: ['id', 'uuid', 'name'],
+      },
+      {
+        model: db.MaterialBrand,
+        as: 'brand',
+        attributes: ['id', 'uuid', 'name'],
+      },
+      {
+        model: db.Location,
+        as: 'default_location',
+        attributes: ['id', 'uuid', 'code', 'name'],
       }
     ],
     order: [
@@ -283,19 +286,29 @@ const getMaterialById = async ({ id, currentUser }) => {
     where,
     include: [
       {
-        model: MaterialCategory,
-        as: 'category',
-        attributes: ['id', 'code', 'name', 'is_active'],
+        model: db.MaterialFamily,
+        as: 'family',
+        attributes: ['id', 'uuid', 'code', 'name', 'is_active'],
       },
       {
-        model: MaterialSubcategory,
-        as: 'subcategory',
-        attributes: ['id', 'name'],
+        model: db.MaterialCode,
+        as: 'material_code',
+        attributes: ['id', 'uuid', 'code', 'name'],
       },
       {
-        model: MaterialUnit,
-        as: 'unit',
-        attributes: ['id', 'name', 'code'],
+        model: db.MaterialType,
+        as: 'type',
+        attributes: ['id', 'uuid', 'name'],
+      },
+      {
+        model: db.MaterialBrand,
+        as: 'brand',
+        attributes: ['id', 'uuid', 'name'],
+      },
+      {
+        model: db.Location,
+        as: 'default_location',
+        attributes: ['id', 'uuid', 'code', 'name'],
       }
     ],
   });

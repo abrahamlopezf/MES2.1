@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { FilterX, Plus, RefreshCw, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 
 import { Alert } from '@/components/ui/alert.tsx';
 import { Card, Button, Input, TopBar } from '../../../design-system';
@@ -13,7 +14,6 @@ import LoadingState from '@/components/feedback/LoadingState';
 
 import { useUsersQuery } from '../hooks/useUsers';
 import { getRolesRequest } from '../../roles/services/rolesApi';
-import { getAreasRequest } from '../../areas/services/areasApi';
 import { includesNormalized } from '@/utils/filters';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { useAuthStore } from '@/store/authStore';
@@ -28,7 +28,6 @@ const UsersPage: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [areaFilter, setAreaFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
   // Queries
@@ -39,22 +38,31 @@ const UsersPage: React.FC = () => {
     queryKey: ['roles'],
     queryFn: getRolesRequest,
   });
-  const { data: areasResponse } = useQuery({
-    queryKey: ['areas'],
-    queryFn: getAreasRequest,
-  });
 
   const { user: currentUser } = useAuthStore();
   const isSuperAdmin = currentUser?.role?.code === 'SUPERADMIN';
   const isSupervisor = currentUser?.role?.code === 'SUPERVISOR';
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  React.useEffect(() => {
+    const openUserId = searchParams.get('openUser');
+    if (openUserId && users.length > 0 && !isFormOpen) {
+      const targetUser = users.find((u) => String(u.id) === openUserId);
+      if (targetUser) {
+        setSelectedUser(targetUser);
+        setIsFormOpen(true);
+        searchParams.delete('openUser');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, users, isFormOpen, setSearchParams]);
 
   // Ocultamos el rol SUPERADMIN para todos los que no son SuperAdmin
   let roles = (rolesResponse?.data || []).filter((r: any) => isSuperAdmin || r.code !== 'SUPERADMIN');
-  let areas = areasResponse?.data || [];
 
   if (isSupervisor) {
     roles = roles.filter((r: any) => r.code === 'EMPLEADO' || r.code?.includes('EMPLEADO'));
-    areas = areas.filter((a: any) => String(a.id) === String(currentUser?.area?.id || currentUser?.areaId));
   }
 
   const filteredUsers = useMemo(() => {
@@ -63,11 +71,6 @@ const UsersPage: React.FC = () => {
         // Ocultar usuarios que sean SuperAdmin si el usuario actual no lo es
         const userIsSuperAdmin = user.rolNombre.toUpperCase().includes('SUPERADMIN');
         if (!isSuperAdmin && userIsSuperAdmin) return false;
-
-        // Supervisor solo ve su área
-        if (isSupervisor && String(user.areaId) !== String(currentUser?.area?.id || currentUser?.areaId)) {
-          return false;
-        }
 
         const searchableText = [
           user.nombres,
@@ -84,7 +87,6 @@ const UsersPage: React.FC = () => {
 
         const matchesSearch = includesNormalized(searchableText, searchTerm);
         const matchesRole = roleFilter ? String(user.rolId) === String(roleFilter) : true;
-        const matchesArea = areaFilter ? String(user.areaId) === String(areaFilter) : true;
         const matchesStatus =
           statusFilter === 'active'
             ? user.activo
@@ -92,17 +94,16 @@ const UsersPage: React.FC = () => {
             ? !user.activo
             : true;
 
-        return matchesSearch && matchesRole && matchesArea && matchesStatus;
+        return matchesSearch && matchesRole && matchesStatus;
       })
       .sort((a, b) => Number(a.id) - Number(b.id));
-  }, [users, searchTerm, roleFilter, areaFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter]);
 
-  const hasActiveFilters = Boolean(searchTerm || roleFilter || areaFilter || statusFilter);
+  const hasActiveFilters = Boolean(searchTerm || roleFilter || statusFilter);
 
   const clearFilters = () => {
     setSearchTerm('');
     setRoleFilter('');
-    setAreaFilter('');
     setStatusFilter('');
   };
 
@@ -173,7 +174,7 @@ const UsersPage: React.FC = () => {
                   placeholder="Nómina, Nombre, Correo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 font-medium"
+                  className="pl-10 font-medium"
                 />
               </div>
               
@@ -185,17 +186,6 @@ const UsersPage: React.FC = () => {
                 <option value="">Todos los roles</option>
                 {roles.map((r: any) => (
                   <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
-                value={areaFilter}
-                onChange={(e) => setAreaFilter(e.target.value)}
-              >
-                <option value="">Todas las áreas</option>
-                {areas.map((a: any) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
 
@@ -216,7 +206,7 @@ const UsersPage: React.FC = () => {
           </section>
 
           {isFormOpen && (
-            <UserForm user={selectedUser} roles={roles} areas={areas} onClose={closeForm} />
+            <UserForm user={selectedUser} roles={roles} onClose={closeForm} />
           )}
 
           {!filteredUsers.length ? (

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
+import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
+import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
 import { Home, Grid, QrCode, User } from 'lucide-react';
 import { PageContainer, BottomNavigation, FAB } from '../../design-system';
 import Sidebar from './Sidebar';
@@ -52,10 +54,10 @@ const AppLayout = () => {
       </div>
 
       {/* Mobile-First Layout for ALL screens */}
-      <div className="flex-1 h-full overflow-y-auto relative custom-scrollbar">
+      <div className="flex-1 h-full overflow-y-auto relative custom-scrollbar flex flex-col">
         
         {/* Main Content Area */}
-        <PageContainer withBottomNav={true} maxWidth="full" className="px-2 py-4 md:px-6 md:py-6 lg:max-w-7xl w-full">
+        <PageContainer withBottomNav={true} maxWidth="full" className="px-2 py-4 md:px-6 md:py-6 lg:max-w-7xl w-full flex-1">
           <Outlet />
         </PageContainer>
         
@@ -71,6 +73,12 @@ const AppLayout = () => {
 
       {/* Global Scanner Modal manages its own state and renders the FAB centrally */}
       <GlobalScannerModal />
+
+      {/* Modal for forcing password change */}
+      <ForceChangePasswordModal />
+
+      {/* Notification Center Trigger and Workspace */}
+      <NotificationCenter />
     </div>
   );
 };

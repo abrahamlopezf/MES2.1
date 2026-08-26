@@ -16,20 +16,26 @@ const validateRequest = validationMiddleware.validateRequest || validationMiddle
 router.use(authenticate);
 
 router.get(
+  '/dashboard-metrics',
+  authorizePermission('warehouse.dashboard.view', 'inventory.view'),
+  warehouseController.getDashboardMetrics
+);
+
+router.get(
   '/inventory',
-  authorizePermission('warehouse.read'),
+  authorizePermission('warehouse.read', 'inventory.view'),
   warehouseController.getInventory
 );
 
 router.get(
   '/inventory/:material_id/lotes',
-  authorizePermission('warehouse.read'),
+  authorizePermission('warehouse.read', 'inventory.view', 'lotes.view'),
   warehouseController.getMaterialLotes
 );
 
 router.get(
   '/lotes/:id',
-  authorizePermission('warehouse.read'),
+  authorizePermission('warehouse.read', 'inventory.view', 'lotes.view', 'lotes.detail'),
   warehouseController.getLoteDetails
 );
 
@@ -41,7 +47,7 @@ router.post(
 
 router.get(
   '/tipo-baja',
-  authorizePermission('warehouse.read'),
+  authorizePermission('warehouse.read', 'inventory.view'),
   async (req, res, next) => {
     try {
       const { TipoBaja } = require('../../database/models');
@@ -61,8 +67,14 @@ router.post(
 
 router.post(
   '/inventory/change-location',
-  authorizePermission('warehouse.read'), // Can be warehouse.dispose or warehouse.consume, for now read or custom
+  authorizePermission('warehouse.read', 'inventory.view', 'warehouse.consume'), 
   warehouseController.changeLocation
+);
+
+router.post(
+  '/inventory/manual-entry',
+  authorizePermission('warehouse.manual_entry'),
+  warehouseController.manualEntry
 );
 
 module.exports = router;

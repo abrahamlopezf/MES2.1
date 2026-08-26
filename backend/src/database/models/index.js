@@ -4,7 +4,10 @@ const { sequelize } = require('../../config/database');
 const initRoleModel = require('../../modules/roles/role.model');
 const initPermissionModel = require('../../modules/permissions/permission.model');
 const initAreaModel = require('../../modules/areas/area.model');
+const { initSubareaModel } = require('../../modules/areas/subarea.model');
 const initUserModel = require('../../modules/users/user.model');
+const initNotificationModel = require('../../modules/notifications/notification.model');
+const initPasswordResetModel = require('../../modules/auth/passwordReset.model');
 
 const initQrBatchModel = require('../../modules/qrcodes/qrBatch.model');
 const initQrCodeModel = require('../../modules/qrcodes/qrCode.model');
@@ -41,7 +44,10 @@ db.sequelize = sequelize;
 db.Role = initRoleModel(sequelize);
 db.Permission = initPermissionModel(sequelize);
 db.Area = initAreaModel(sequelize);
+db.Subarea = initSubareaModel(sequelize);
 db.User = initUserModel(sequelize);
+db.Notification = initNotificationModel(sequelize);
+db.PasswordReset = initPasswordResetModel(sequelize);
 
 db.QrBatch = initQrBatchModel(sequelize, DataTypes);
 db.QrCode = initQrCodeModel(sequelize, DataTypes);
@@ -93,14 +99,34 @@ db.Role.hasMany(db.User, {
   as: 'users',
 });
 
-db.User.belongsTo(db.Area, {
+// Role -> Area
+db.Role.belongsTo(db.Area, {
   foreignKey: 'area_id',
   as: 'area',
 });
-
-db.Area.hasMany(db.User, {
+db.Area.hasMany(db.Role, {
   foreignKey: 'area_id',
-  as: 'users',
+  as: 'roles',
+});
+
+// Role -> Subarea
+db.Role.belongsTo(db.Subarea, {
+  foreignKey: 'subarea_id',
+  as: 'subarea',
+});
+db.Subarea.hasMany(db.Role, {
+  foreignKey: 'subarea_id',
+  as: 'roles',
+});
+
+// Area -> Subarea
+db.Subarea.belongsTo(db.Area, {
+  foreignKey: 'area_id',
+  as: 'area',
+});
+db.Area.hasMany(db.Subarea, {
+  foreignKey: 'area_id',
+  as: 'subareas',
 });
 
 /**
@@ -460,9 +486,32 @@ db.TraceabilityLink.belongsTo(db.User, {
 db.MaterialConsumption.belongsTo(db.User, { foreignKey: 'user_id', as: 'user' });
 db.MaterialConsumption.hasMany(db.MaterialConsumptionItem, { foreignKey: 'consumption_id', as: 'items' });
 
-db.MaterialConsumptionItem.belongsTo(db.MaterialConsumption, { foreignKey: 'consumption_id', as: 'consumption' });
-db.MaterialConsumptionItem.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
-db.MaterialConsumptionItem.belongsTo(db.Lote, { foreignKey: 'lote_id', as: 'lote' });
-db.MaterialConsumptionItem.belongsTo(db.QrCode, { foreignKey: 'qr_id', as: 'qr' });
+/* =========================
+   NOTIFICATIONS & USERS
+========================= */
+
+db.Notification.belongsTo(db.User, {
+  foreignKey: 'recipient_id',
+  as: 'recipient',
+});
+
+db.Notification.belongsTo(db.User, {
+  foreignKey: 'sender_id',
+  as: 'sender',
+});
+
+db.User.hasMany(db.Notification, {
+  foreignKey: 'recipient_id',
+  as: 'notifications',
+});
+
+/* =========================
+   PASSWORD RESETS
+========================= */
+
+db.PasswordReset.belongsTo(db.User, {
+  foreignKey: 'user_id',
+  as: 'user',
+});
 
 module.exports = db;

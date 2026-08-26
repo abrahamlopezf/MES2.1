@@ -30,20 +30,20 @@ router.use(authMiddleware);
 
 router.get(
   '/codes',
-  permissionMiddleware('dashboard.read'),
+  permissionMiddleware('dashboard.read', 'qr.read'),
   qrcodesController.getQrCodes
 );
 
 router.post(
   '/batches',
-  permissionMiddleware('qr.generate'),
+  permissionMiddleware('qr.generate', 'qr.create'),
   validate(generateQrBatchSchema),
   qrcodesController.generateQrBatch
 );
 
 router.get(
   '/batches',
-  permissionMiddleware('dashboard.read'),
+  permissionMiddleware('dashboard.read', 'qr.read'),
   qrcodesController.getQrBatches
 );
 
@@ -65,13 +65,13 @@ router.post(
 
 router.get(
   '/batches/:id',
-  permissionMiddleware('dashboard.read'),
+  permissionMiddleware('dashboard.read', 'qr.read'),
   qrcodesController.getQrBatchById
 );
 
 router.post(
   '/batches/:id/print',
-  permissionMiddleware('dashboard.read'),
+  permissionMiddleware('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
   qrcodesController.printQrBatch
 );
 

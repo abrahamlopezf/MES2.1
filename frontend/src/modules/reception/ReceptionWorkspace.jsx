@@ -36,8 +36,13 @@ export const ReceptionWorkspace = ({
   const { data: materials = [], isLoading: isLoadingMaterials } = useMaterialListQuery();
 
   // Fetch operational areas
-  const { data: operationalAreasData = { items: [] }, isLoading: isLoadingAreas } = useOperationalAreasQuery();
-  const operationalAreas = operationalAreasData.items || [];
+  const { data: operationalAreasData = { items: [] }, isLoading: isLoadingAreas } = useOperationalAreasQuery({ pageSize: 10000 });
+  const operationalAreas = useMemo(() => {
+    const items = operationalAreasData.items || [];
+    return [...items].sort((a, b) => 
+      (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }, [operationalAreasData]);
 
   // Selected material logic
   const selectedMaterial = useMemo(() => {
@@ -135,7 +140,7 @@ export const ReceptionWorkspace = ({
       <main className="flex-1 p-4 md:p-6 lg:max-w-4xl lg:mx-auto lg:w-full">
         
         {/* Selección de Material */}
-        <div className="mb-6">
+        <div className="mb-6 z-[40] relative">
           <label className="block text-sm font-medium text-foreground mb-2">
             Material a Recepcionar
           </label>
@@ -220,7 +225,7 @@ export const ReceptionWorkspace = ({
                 </div>
               </div>
 
-              <div className="z-10 relative">
+              <div className="z-[30] relative">
                 <label className="block text-sm font-medium text-foreground mb-1.5">Rack / Localidad</label>
                 <SearchSelect
                   options={operationalAreas}

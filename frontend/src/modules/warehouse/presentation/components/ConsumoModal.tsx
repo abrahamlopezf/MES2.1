@@ -4,6 +4,7 @@ import { X, Plus, QrCode, Trash2, Package } from 'lucide-react';
 import { Button, Input, Badge } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
+import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
 
 export const ConsumoModal = ({ onClose, onSuccess }) => {
   const queryClient = useQueryClient();
@@ -41,33 +42,31 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
   const handleScan = async (code: string) => {
     if (!code) return;
     try {
-      // Endpoint to resolve QR to Lote details (we might need a specific one, or just use /traceability/qr/:code)
-      const response = await axiosClient.get(`/qrcodes/${encodeURIComponent(code)}`);
-      const qrData = response.data.data;
+      // Endpoint to resolve QR to Inventory details
+      const response = await axiosClient.get(`/qr/lookup/${encodeURIComponent(code)}`);
+      const data = response.data.data || response.data;
+      const inventory = data.inventory;
+      const qr = data.qr;
       
-      // Assuming QR has metadata pointing to lote or it's a Lote QR
-      // For now, let's assume we fetch lote details if it's assigned to a Lote
-      if (qrData.metadata?.lote_id) {
-         const loteRes = await axiosClient.get(`/warehouse/lotes/${qrData.metadata.lote_id}`);
-         const loteData = loteRes.data.data.lote;
-         
-         if (items.some(i => i.lote_id === loteData.id)) {
+      if (inventory && inventory.lote_id) {
+         if (items.some(i => i.lote_id === inventory.lote_id)) {
            toast.error('Este lote ya está en la lista.');
            return;
          }
 
+         const parsedQty = Number(inventory.quantity) || 0;
          setItems(prev => [...prev, {
-           id: qrData.id,
+           id: qr.id,
            qrCode: code,
-           lote_id: loteData.id,
-           material_id: loteData.material_id,
-           materialName: loteData.material?.name || 'Material',
-           maxQuantity: Number(loteData.available_amount),
-           quantity: Number(loteData.available_amount) // Default to max
+           lote_id: inventory.lote_id,
+           material_id: inventory.material?.id,
+           materialName: inventory.material?.name || 'Material',
+           maxQuantity: parsedQty,
+           quantity: parsedQty // Default to max
          }]);
          setScanInput('');
       } else {
-         toast.error('El QR escaneado no está asociado a un lote válido.');
+         toast.error('El QR escaneado no está asociado a un lote en inventario válido.');
       }
     } catch (e) {
       toast.error('Error al resolver QR. Verifique que exista y esté activo.');
@@ -87,6 +86,19 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
   };
 
   const totalQuantity = useMemo(() => items.reduce((acc, i) => acc + i.quantity, 0), [items]);
+
+  if (isScanning) {
+    return (
+      <CameraScanner 
+        title="Escanear Material a Consumir"
+        onScan={(code) => {
+          setIsScanning(false);
+          handleScan(code);
+        }}
+        onClose={() => setIsScanning(false)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -140,7 +152,7 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
                   className="w-48"
                   prefix={<QrCode size={16} className="text-muted-foreground ml-2" />}
                 />
-                <Button variant="secondary" onClick={() => handleScan(scanInput)}>
+                <Button variant="secondary" onClick={() => setIsScanning(true)}>
                   <Plus size={16} className="mr-2" /> Agregar
                 </Button>
               </div>

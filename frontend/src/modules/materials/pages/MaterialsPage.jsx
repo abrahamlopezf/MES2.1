@@ -115,12 +115,16 @@ const MaterialsPage = () => {
   );
 
   const activeCount = useMemo(() => {
+    if (filters.status === 'active') return total;
+    if (filters.status === 'inactive') return 0;
     return materials.filter((material) => material.is_active).length;
-  }, [materials]);
+  }, [materials, filters.status, total]);
 
   const inactiveCount = useMemo(() => {
+    if (filters.status === 'inactive') return total;
+    if (filters.status === 'active') return 0;
     return materials.filter((material) => !material.is_active).length;
-  }, [materials]);
+  }, [materials, filters.status, total]);
 
   const categoryCount = families.length;
 

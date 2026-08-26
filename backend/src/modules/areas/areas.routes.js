@@ -11,13 +11,13 @@ router.use(authMiddleware);
 
 router.get(
   '/',
-  permissionMiddleware('areas.read'),
+  permissionMiddleware('areas.read', 'dashboard.read', 'warehouse.read', 'inventory.view', 'qr.read'),
   areasController.getAreas
 );
 
 router.get(
   '/:id',
-  permissionMiddleware('areas.read'),
+  permissionMiddleware('areas.read', 'dashboard.read', 'warehouse.read', 'inventory.view', 'qr.read'),
   areasController.getAreaById
 );
 

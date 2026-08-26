@@ -1,31 +1,23 @@
 const bcrypt = require('bcrypt');
 const { Op } = require('sequelize');
 
-const { User, Role, Area, Permission, sequelize } = require('../../database/models');
+const { User, Role, Area, Subarea, Permission, Notification, sequelize } = require('../../database/models');
 const {
   SUPERADMIN_ROLE_CODE,
   isSuperadmin,
+  isAdmin,
   throwHttpError,
 } = require('../../shared/security/accessRules');
+const AuthorizationService = require('../../shared/security/authorization.service');
 
-const AREA_REQUIRED_ROLES = ['SUPERVISOR', 'EMPLOYEE'];
 const PASSWORD_SALT_ROUNDS = 12;
 
-const userInclude = (currentUser, options = {}) => {
-  const includeSuperadmin = isSuperadmin(currentUser) || options.includeSuperadmin === true;
-
+const userInclude = (options = {}) => {
   return [
     {
       model: Role,
       as: 'role',
       required: true,
-      where: includeSuperadmin
-        ? {}
-        : {
-            code: {
-              [Op.ne]: SUPERADMIN_ROLE_CODE,
-            },
-          },
       include: [
         {
           model: Permission,
@@ -34,12 +26,17 @@ const userInclude = (currentUser, options = {}) => {
             attributes: [],
           },
         },
+        {
+          model: Area,
+          as: 'area',
+          required: false,
+        },
+        {
+          model: Subarea,
+          as: 'subarea',
+          required: false,
+        },
       ],
-    },
-    {
-      model: Area,
-      as: 'area',
-      required: false,
     },
   ];
 };
@@ -48,6 +45,7 @@ const buildUserResponse = (user) => {
   if (!user) return null;
 
   const plainUser = user.get ? user.get({ plain: true }) : user;
+  const role = plainUser.role || {};
 
   return {
     id: plainUser.id,
@@ -64,84 +62,63 @@ const buildUserResponse = (user) => {
     updated_at: plainUser.updated_at,
     role: plainUser.role
       ? {
-          id: plainUser.role.id,
-          name: plainUser.role.name,
-          code: plainUser.role.code,
-          description: plainUser.role.description,
-          is_system: plainUser.role.is_system,
-          is_active: plainUser.role.is_active,
+          id: role.id,
+          name: role.name,
+          code: role.code,
+          description: role.description,
+          level: role.level,
+          is_system: role.is_system,
+          is_active: role.is_active,
           permissions:
-            plainUser.role.permissions?.map((permission) => ({
+            role.permissions?.map((permission) => ({
               id: permission.id,
               name: permission.name,
               code: permission.code,
               module: permission.module,
               description: permission.description,
             })) || [],
-        }
-      : null,
-    area: plainUser.area
-      ? {
-          id: plainUser.area.id,
-          name: plainUser.area.name,
-          code: plainUser.area.code,
-          description: plainUser.area.description,
-          is_active: plainUser.area.is_active,
+          area: role.area
+            ? {
+                id: role.area.id,
+                name: role.area.name,
+                code: role.area.code,
+                is_active: role.area.is_active,
+              }
+            : null,
+          subarea: role.subarea
+            ? {
+                id: role.subarea.id,
+                name: role.subarea.name,
+                nomenclature: role.subarea.nomenclature,
+                is_active: role.subarea.is_active,
+              }
+            : null,
         }
       : null,
   };
 };
 
-const findVisibleUserById = async (userId, currentUser, transaction = null) => {
+const findVisibleUserById = async (userId, transaction = null) => {
   return User.findByPk(userId, {
-    include: userInclude(currentUser),
+    include: userInclude(),
     transaction,
   });
-};
-
-const findRoleForAssignment = async (roleId, currentUser, transaction = null) => {
-  const role = await Role.findByPk(roleId, {
-    transaction,
-  });
-
-  if (!role || !role.is_active) {
-    throwHttpError('El rol seleccionado no existe o está inactivo.', 400);
-  }
-
-  if (role.code === SUPERADMIN_ROLE_CODE && !isSuperadmin(currentUser)) {
-    throwHttpError('El rol seleccionado no está disponible.', 400);
-  }
-
-  return role;
-};
-
-const validateAreaRequirement = async (role, areaId, transaction = null) => {
-  if (AREA_REQUIRED_ROLES.includes(role.code) && !areaId) {
-    throwHttpError('Este rol requiere un área asignada.', 400);
-  }
-
-  if (!areaId) return null;
-
-  const area = await Area.findByPk(areaId, {
-    transaction,
-  });
-
-  if (!area || !area.is_active) {
-    throwHttpError('El área seleccionada no existe o está inactiva.', 400);
-  }
-
-  return area;
 };
 
 const validateUniqueUserFields = async ({
   email,
   username,
-  currentUser,
+  numero_nomina = null,
   excludeUserId = null,
   transaction = null,
 }) => {
+  const orConditions = [{ email }, { username }];
+  if (numero_nomina) {
+    orConditions.push({ numero_nomina });
+  }
+
   const where = {
-    [Op.or]: [{ email }, { username }],
+    [Op.or]: orConditions,
   };
 
   if (excludeUserId) {
@@ -152,23 +129,10 @@ const validateUniqueUserFields = async ({
 
   const existingUser = await User.findOne({
     where,
-    include: [
-      {
-        model: Role,
-        as: 'role',
-        required: false,
-      },
-    ],
     transaction,
   });
 
   if (!existingUser) return;
-
-  const existingRoleCode = existingUser.role?.code;
-
-  if (existingRoleCode === SUPERADMIN_ROLE_CODE && !isSuperadmin(currentUser)) {
-    throwHttpError('No se pudo procesar el usuario con los datos proporcionados.', 400);
-  }
 
   if (existingUser.email === email) {
     throwHttpError('El correo ya está registrado.', 400);
@@ -177,11 +141,36 @@ const validateUniqueUserFields = async ({
   if (existingUser.username === username) {
     throwHttpError('El nombre de usuario ya está registrado.', 400);
   }
+
+  if (numero_nomina && existingUser.numero_nomina === numero_nomina) {
+    throwHttpError('El número de nómina ya está registrado.', 400);
+  }
+};
+
+const buildScopeWhereClause = (actorRole) => {
+  const isGlobal = actorRole.area_id === null && actorRole.subarea_id === null;
+  if (isGlobal) {
+    return {}; // No filter, can see everyone
+  }
+
+  const isAreaAdmin = actorRole.area_id !== null && actorRole.subarea_id === null;
+  if (isAreaAdmin) {
+    return { '$role.area_id$': actorRole.area_id };
+  }
+
+  // Subarea admin
+  return { 
+    '$role.area_id$': actorRole.area_id,
+    '$role.subarea_id$': actorRole.subarea_id 
+  };
 };
 
 const getUsers = async (currentUser) => {
+  const scopeWhere = buildScopeWhereClause(currentUser.role);
+  
   const users = await User.findAll({
-    include: userInclude(currentUser),
+    where: scopeWhere,
+    include: userInclude(),
     order: [['id', 'ASC']],
   });
 
@@ -189,10 +178,14 @@ const getUsers = async (currentUser) => {
 };
 
 const getUserById = async (userId, currentUser) => {
-  const user = await findVisibleUserById(userId, currentUser);
+  const user = await findVisibleUserById(userId);
 
   if (!user) {
     throwHttpError('Usuario no encontrado.', 404);
+  }
+
+  if (!AuthorizationService.canViewUser(currentUser.role, user.role)) {
+    throwHttpError('No tienes permisos para ver este usuario.', 403);
   }
 
   return buildUserResponse(user);
@@ -200,18 +193,28 @@ const getUserById = async (userId, currentUser) => {
 
 const createUser = async (payload, currentUser) => {
   return sequelize.transaction(async (transaction) => {
-    const role = await findRoleForAssignment(payload.role_id, currentUser, transaction);
+    const roleToAssign = await Role.findByPk(payload.role_id, { transaction });
+    
+    if (!roleToAssign || !roleToAssign.is_active) {
+      throwHttpError('El rol seleccionado no existe o está inactivo.', 400);
+    }
 
-    await validateAreaRequirement(role, payload.area_id, transaction);
+    if (!AuthorizationService.canAssignRole(currentUser.role, roleToAssign)) {
+      throwHttpError('No tienes permisos para asignar este rol.', 403);
+    }
 
     await validateUniqueUserFields({
       email: payload.email,
       username: payload.username,
-      currentUser,
+      numero_nomina: payload.numero_nomina,
       transaction,
     });
 
-    const passwordHash = await bcrypt.hash(payload.password, PASSWORD_SALT_ROUNDS);
+    const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
+    const isActive = isGlobalAdmin ? (payload.is_active ?? true) : false;
+    
+    const tempPassword = payload.password || Math.random().toString(36).slice(-8) + '1Aa@';
+    const passwordHash = await bcrypt.hash(tempPassword, PASSWORD_SALT_ROUNDS);
 
     const createdUser = await User.create(
       {
@@ -222,51 +225,77 @@ const createUser = async (payload, currentUser) => {
         numero_nomina: payload.numero_nomina || null,
         telefono: payload.telefono || null,
         password_hash: passwordHash,
-        role_id: role.id,
-        area_id: payload.area_id || null,
-        is_active: payload.is_active ?? true,
+        role_id: roleToAssign.id,
+        is_active: isActive,
         must_change_password: payload.must_change_password ?? true,
       },
-      {
-        transaction,
-      }
+      { transaction }
     );
 
-    const user = await findVisibleUserById(createdUser.id, currentUser, transaction);
+    if (!isGlobalAdmin) {
+      const globalAdmins = await User.findAll({
+        include: [{
+          model: Role,
+          as: 'role',
+          where: { area_id: null, subarea_id: null }
+        }],
+        where: { is_active: true },
+        transaction
+      });
+      
+      const notifications = globalAdmins.map(admin => ({
+        recipient_id: admin.id,
+        sender_id: currentUser.id,
+        type: 'USER_ACTIVATION_REQUEST',
+        title: 'Nueva solicitud de activación',
+        message: `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} y está pendiente de activación.`,
+      }));
 
+      if (notifications.length > 0) {
+        await Notification.bulkCreate(notifications, { transaction });
+      }
+    }
+
+    const user = await findVisibleUserById(createdUser.id, transaction);
     return buildUserResponse(user);
   });
 };
 
 const updateUser = async (userId, payload, currentUser) => {
   return sequelize.transaction(async (transaction) => {
-    const user = await findVisibleUserById(userId, currentUser, transaction);
+    const user = await findVisibleUserById(userId, transaction);
 
     if (!user) {
       throwHttpError('Usuario no encontrado.', 404);
     }
 
-    let role = user.role;
-
-    if (payload.role_id) {
-      role = await findRoleForAssignment(payload.role_id, currentUser, transaction);
+    if (!AuthorizationService.canManageUser(currentUser.role, user.role)) {
+      throwHttpError('No tienes permisos para editar este usuario.', 403);
     }
 
-    await validateAreaRequirement(
-      role,
-      Object.prototype.hasOwnProperty.call(payload, 'area_id') ? payload.area_id : user.area_id,
-      transaction
-    );
+    let targetRole = user.role;
+    if (payload.role_id && payload.role_id !== user.role_id) {
+      targetRole = await Role.findByPk(payload.role_id, { transaction });
+      if (!targetRole || !targetRole.is_active) {
+        throwHttpError('El nuevo rol seleccionado no existe o está inactivo.', 400);
+      }
+      
+      if (!AuthorizationService.canChangeRole(currentUser.role, user.role, targetRole)) {
+        throwHttpError('No tienes permisos para cambiar a este rol.', 403);
+      }
+    }
 
-    if (payload.email || payload.username) {
+    if (payload.email || payload.username || payload.numero_nomina) {
       await validateUniqueUserFields({
         email: payload.email || user.email,
         username: payload.username || user.username,
-        currentUser,
+        numero_nomina: Object.prototype.hasOwnProperty.call(payload, 'numero_nomina') ? (payload.numero_nomina || null) : user.numero_nomina,
         excludeUserId: user.id,
         transaction,
       });
     }
+
+    const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
 
     const updateData = {
       first_name: payload.first_name ?? user.first_name,
@@ -275,11 +304,8 @@ const updateUser = async (userId, payload, currentUser) => {
       username: payload.username ?? user.username,
       numero_nomina: Object.prototype.hasOwnProperty.call(payload, 'numero_nomina') ? (payload.numero_nomina || null) : user.numero_nomina,
       telefono: Object.prototype.hasOwnProperty.call(payload, 'telefono') ? (payload.telefono || null) : user.telefono,
-      role_id: payload.role_id ?? user.role_id,
-      area_id: AREA_REQUIRED_ROLES.includes(role.code)
-        ? payload.area_id ?? user.area_id
-        : null,
-      is_active: payload.is_active ?? user.is_active,
+      role_id: targetRole.id,
+      is_active: isGlobalAdmin ? (payload.is_active ?? user.is_active) : user.is_active,
       must_change_password: payload.must_change_password ?? user.must_change_password,
     };
 
@@ -287,19 +313,16 @@ const updateUser = async (userId, payload, currentUser) => {
       updateData.password_hash = await bcrypt.hash(payload.password, PASSWORD_SALT_ROUNDS);
     }
 
-    await user.update(updateData, {
-      transaction,
-    });
+    await user.update(updateData, { transaction });
 
-    const updatedUser = await findVisibleUserById(user.id, currentUser, transaction);
-
+    const updatedUser = await findVisibleUserById(user.id, transaction);
     return buildUserResponse(updatedUser);
   });
 };
 
 const deleteUser = async (userId, currentUser) => {
   return sequelize.transaction(async (transaction) => {
-    const user = await findVisibleUserById(userId, currentUser, transaction);
+    const user = await findVisibleUserById(userId, transaction);
 
     if (!user) {
       throwHttpError('Usuario no encontrado.', 404);
@@ -309,21 +332,19 @@ const deleteUser = async (userId, currentUser) => {
       throwHttpError('No puedes desactivar tu propio usuario.', 400);
     }
 
+    if (!AuthorizationService.canDisableUser(currentUser.role, user.role)) {
+      throwHttpError('No tienes permisos para desactivar este usuario.', 403);
+    }
+
     if (user.role?.code === SUPERADMIN_ROLE_CODE) {
       const activeSuperadmins = await User.count({
-        include: [
-          {
-            model: Role,
-            as: 'role',
-            required: true,
-            where: {
-              code: SUPERADMIN_ROLE_CODE,
-            },
-          },
-        ],
-        where: {
-          is_active: true,
-        },
+        include: [{
+          model: Role,
+          as: 'role',
+          required: true,
+          where: { code: SUPERADMIN_ROLE_CODE },
+        }],
+        where: { is_active: true },
         transaction,
       });
 
@@ -332,18 +353,53 @@ const deleteUser = async (userId, currentUser) => {
       }
     }
 
-    await user.update(
-      {
-        is_active: false,
-      },
-      {
-        transaction,
-      }
-    );
+    await user.update({ is_active: false }, { transaction });
 
-    const updatedUser = await findVisibleUserById(user.id, currentUser, transaction);
-
+    const updatedUser = await findVisibleUserById(user.id, transaction);
     return buildUserResponse(updatedUser);
+  });
+};
+
+const requestDeactivation = async (userId, currentUser) => {
+  return sequelize.transaction(async (transaction) => {
+    const user = await findVisibleUserById(userId, transaction);
+
+    if (!user) {
+      throwHttpError('Usuario no encontrado.', 404);
+    }
+
+    if (Number(user.id) === Number(currentUser.id)) {
+      throwHttpError('No puedes solicitar la desactivación de tu propio usuario.', 400);
+    }
+
+    if (!user.is_active) {
+      throwHttpError('El usuario ya está inactivo.', 400);
+    }
+
+    // Find global admins
+    const globalAdmins = await User.findAll({
+      include: [{
+        model: Role,
+        as: 'role',
+        where: { area_id: null, subarea_id: null }
+      }],
+      where: { is_active: true },
+      transaction
+    });
+
+    const notifications = globalAdmins.map(admin => ({
+      recipient_id: admin.id,
+      sender_id: currentUser.id,
+      type: `USER_DEACTIVATION_REQUEST|userId=${user.id}`,
+      title: 'Solicitud de Desactivación de Usuario',
+      message: `El usuario ${currentUser.first_name} ${currentUser.last_name} ha solicitado desactivar al usuario ${user.first_name} ${user.last_name}.`,
+    }));
+
+    if (notifications.length > 0) {
+      await Notification.bulkCreate(notifications, { transaction });
+    }
+
+    return true;
   });
 };
 
@@ -353,4 +409,5 @@ module.exports = {
   createUser,
   updateUser,
   deleteUser,
+  requestDeactivation,
 };

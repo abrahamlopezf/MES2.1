@@ -188,42 +188,239 @@ const consumeMaterials = async (payload, currentUser) => {
 };
 
 const changeLocation = async (payload, currentUser) => {
-  if (!payload.lote_id || !payload.new_location_id) {
+  const idsToProcess = payload.lote_ids ? payload.lote_ids : (payload.lote_id ? [payload.lote_id] : []);
+  if (idsToProcess.length === 0 || !payload.new_location_id) {
     throwHttpError('Faltan datos para el cambio de localidad.', 400);
   }
 
   return await sequelize.transaction(async (t) => {
-    const { Location, TraceabilityEvent } = require('../../database/models');
+    const { Location, TraceabilityEvent, User, Role, Notification, Material } = require('../../database/models');
     
-    // Obtener localidad anterior para el log (opcional pero útil)
-    const loteActual = await Lote.findByPk(payload.lote_id, { transaction: t });
-    const oldLocationId = loteActual ? loteActual.location_id : null;
+    // Obtener localidades anteriores para el log
+    const lotesActuales = await Lote.findAll({ where: { id: idsToProcess }, include: [{ model: Material, as: 'material' }], transaction: t });
+    const oldLocationsMap = {};
+    let materialName = 'Desconocido';
+    lotesActuales.forEach(l => {
+      oldLocationsMap[l.id] = l.location_id;
+      if (l.material && l.material.name) materialName = l.material.name;
+    });
 
     const result = await inventoryDomainService.changeLocation(payload, t);
 
     const newLocation = await Location.findByPk(payload.new_location_id, { transaction: t });
     const locationStr = newLocation ? `${newLocation.name} (${newLocation.code})` : `ID ${payload.new_location_id}`;
 
-    if (result.lote.qr_id) {
-      await TraceabilityEvent.create({
-        qr_code_id: result.lote.qr_id,
-        event_type: 'CAMBIO_LOCALIDAD',
-        entity_type: 'LOTE',
-        entity_id: result.lote.id.toString(),
-        performed_by: currentUser.id,
-        notes: `Localidad actualizada a: ${locationStr}`,
-        metadata: { old_location_id: oldLocationId, new_location_id: payload.new_location_id }
-      }, { transaction: t });
+    // Crear eventos de trazabilidad
+    for (const lote of result.lotes) {
+      if (lote.qr_id) {
+        await TraceabilityEvent.create({
+          qr_code_id: lote.qr_id,
+          event_type: 'CAMBIO_LOCALIDAD',
+          entity_type: 'LOTE',
+          entity_id: lote.id.toString(),
+          performed_by: currentUser.id,
+          notes: `Localidad actualizada a: ${locationStr}`,
+          metadata: { old_location_id: oldLocationsMap[lote.id], new_location_id: payload.new_location_id }
+        }, { transaction: t });
+      }
+    }
+
+    // Crear notificación para admin_alm
+    const adminAlms = await User.findAll({
+      include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' } }],
+      transaction: t
+    });
+
+    if (adminAlms.length > 0) {
+      const message = `${result.lotes.length} lote(s) del material "${materialName}" fueron movidos a la localidad ${locationStr}.`;
+      const notifications = adminAlms.map(admin => ({
+        recipient_id: admin.id,
+        type: 'SYSTEM_INFO',
+        title: 'Cambio de Localidad',
+        message: message,
+      }));
+      await Notification.bulkCreate(notifications, { transaction: t });
     }
 
     return result;
   });
 };
+
+const getDashboardMetrics = async (user) => {
+  const { sequelize, Inventory, Material, InventoryMovement, Lote } = require('../../database/models');
+
+  // 1. Total Entradas (Número de lotes recibidos reales)
+  const entradasCount = await Lote.count();
+
+  // 2. Bajas y Consumos (Número de transacciones)
+  const bajasCount = await InventoryMovement.count({
+    where: {
+      type: {
+        [Op.in]: ['BAJA', 'DISPOSE', 'CONSUMPTION']
+      }
+    }
+  });
+
+  // 3. Merma / Scrap (Kilos totales)
+  const mermaResult = await InventoryMovement.sum('quantity_change', {
+    where: {
+      type: {
+        [Op.in]: ['MERMA', 'SCRAP']
+      }
+    }
+  });
+
+  // 4. Materiales con Stock Bajo
+  const inventoryItems = await Inventory.findAll({
+    attributes: [
+      'material_id',
+      [sequelize.fn('SUM', sequelize.col('amount')), 'total_amount']
+    ],
+    include: [
+      {
+        model: Material,
+        as: 'material',
+        attributes: ['minimum_stock'],
+      }
+    ],
+    group: ['material_id', 'material.id']
+  });
+
+  let stockBajoCount = 0;
+  for (const item of inventoryItems) {
+    const total = parseFloat(item.getDataValue('total_amount') || 0);
+    const minStock = parseFloat(item.material?.minimum_stock || 0);
+    if (minStock > 0 && total <= minStock) {
+      stockBajoCount++;
+    }
+  }
+
+  // Gráficas adaptativas: Combinando fechas de Lotes (Entradas) y Movimientos (Salidas)
+  const recentLotes = await Lote.findAll({
+    attributes: ['date_received'],
+    order: [['date_received', 'DESC']],
+    limit: 2000,
+    raw: true
+  });
+
+  const recentSalidas = await InventoryMovement.findAll({
+    attributes: ['type', 'quantity_change', 'created_at'],
+    where: {
+      type: {
+        [Op.in]: ['BAJA', 'DISPOSE', 'CONSUMPTION', 'MERMA', 'SCRAP']
+      }
+    },
+    order: [['created_at', 'DESC']],
+    limit: 2000,
+    raw: true
+  });
+
+  const activeDaysMap = new Map();
+
+  // Procesar Entradas (Lotes ingresados)
+  for (const lote of recentLotes) {
+    if (!lote.date_received) continue;
+    const mDate = new Date(lote.date_received);
+    if (isNaN(mDate.getTime())) continue;
+
+    const dateStr = mDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+    const sortKey = mDate.toISOString().split('T')[0]; 
+
+    if (!activeDaysMap.has(dateStr)) {
+      activeDaysMap.set(dateStr, { sortKey, date: dateStr, entradas: 0, bajas: 0, merma: 0 });
+    }
+    activeDaysMap.get(dateStr).entradas += 1;
+  }
+
+  // Procesar Salidas y Mermas (Movimientos)
+  for (const movement of recentSalidas) {
+    if (!movement.created_at) continue;
+    const mDate = new Date(movement.created_at);
+    if (isNaN(mDate.getTime())) continue;
+
+    const dateStr = mDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+    const sortKey = mDate.toISOString().split('T')[0]; 
+
+    if (!activeDaysMap.has(dateStr)) {
+      activeDaysMap.set(dateStr, { sortKey, date: dateStr, entradas: 0, bajas: 0, merma: 0 });
+    }
+
+    const entry = activeDaysMap.get(dateStr);
+    const type = movement.type;
+    
+    if (['BAJA', 'DISPOSE', 'CONSUMPTION'].includes(type)) {
+      entry.bajas += 1;
+    } else if (['MERMA', 'SCRAP'].includes(type)) {
+      entry.merma += Math.abs(parseFloat(movement.quantity_change) || 0);
+    }
+  }
+
+  // Seleccionar los últimos 7 días de actividad, y ordenarlos de izquierda a derecha
+  let chartDataArray = Array.from(activeDaysMap.values())
+    .sort((a, b) => b.sortKey.localeCompare(a.sortKey)) // Descendente para tomar los mas recientes
+    .slice(0, 7)
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey)); // Ascendente para la grafica
+
+  if (chartDataArray.length === 0) {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+    chartDataArray = [{ date: dateStr, entradas: 0, bajas: 0, merma: 0 }];
+  }
+
+  const chartData = chartDataArray.map(e => ({ date: e.date, entradas: e.entradas, bajas: e.bajas }));
+  const mermaData = chartDataArray.map(e => ({ date: e.date, merma: parseFloat(e.merma.toFixed(2)) }));
+
+  return {
+    totalEntradas: entradasCount || 0,
+    bajasRegistradas: bajasCount || 0, // Number of transactions for bajas/consumptions
+    materialesStockBajo: stockBajoCount,
+    mermaRegistrada: Math.abs(mermaResult || 0),
+    chartData,
+    mermaData
+  };
+};
+
+const manualEntry = async (payload, currentUser) => {
+  if (!payload.material_id || !payload.quantity || !payload.location_id) {
+    throwHttpError('Faltan datos obligatorios para el ingreso manual (material, cantidad, localidad).', 400);
+  }
+  if (Number(payload.quantity) <= 0) {
+    throwHttpError('La cantidad debe ser mayor a 0.', 400);
+  }
+
+  return await sequelize.transaction(async (t) => {
+    const { InventoryMovement } = require('../../database/models');
+    
+    // 1. Crear el lote (virtual) e incrementar inventario
+    const result = await inventoryDomainService.receiveLote({
+      material_id: payload.material_id,
+      user_id: currentUser.id,
+      qr_id: null,
+      location_id: payload.location_id,
+      quantity: payload.quantity,
+      notes: payload.notes || 'Ingreso manual'
+    }, t);
+
+    // 2. Registrar Movimiento de Inventario
+    await InventoryMovement.create({
+      inventory_id: result.inventory.id,
+      type: 'MANUAL_ENTRY',
+      quantity_change: payload.quantity,
+      performed_by: currentUser.id,
+      notes: payload.notes || 'Ingreso manual al sistema (Lote virtual)'
+    }, { transaction: t });
+
+    return result;
+  });
+};
+
 module.exports = {
   getInventory,
   getMaterialLotes,
   disposeLotes,
   consumeMaterials,
   changeLocation,
-  getLoteDetails
+  getLoteDetails,
+  getDashboardMetrics,
+  manualEntry
 };

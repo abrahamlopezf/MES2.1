@@ -37,10 +37,7 @@ const createUserSchema = Joi.object({
   
   telefono: Joi.string().trim().max(20).allow('', null).optional(),
 
-  password: passwordSchema.required().messages({
-    'string.empty': 'La contraseña es obligatoria.',
-    'any.required': 'La contraseña es obligatoria.',
-  }),
+  password: passwordSchema.optional(),
 
   role_id: Joi.number().integer().positive().required().messages({
     'number.base': 'El rol es obligatorio.',

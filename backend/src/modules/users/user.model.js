@@ -48,10 +48,7 @@ const initUserModel = (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      area_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
+
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -63,6 +60,15 @@ const initUserModel = (sequelize) => {
         defaultValue: true,
       },
       last_login_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      password_change_count: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      last_password_change_at: {
         type: DataTypes.DATE,
         allowNull: true,
       },

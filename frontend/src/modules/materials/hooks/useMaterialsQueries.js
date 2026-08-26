@@ -42,7 +42,7 @@ export const materialQueryKeys = {
 
 const buildMaterialParams = (filters = {}) => {
   const params = {
-    pageSize: 20,
+    pageSize: filters.pageSize || 20,
     page: filters.page || 1,
   };
 
@@ -50,6 +50,7 @@ const buildMaterialParams = (filters = {}) => {
   if (filters.material_category_id) {
     params.material_category_id = filters.material_category_id;
   }
+  if (filters.family_uuid) params.family_uuid = filters.family_uuid;
   if (filters.material_type) params.material_type = filters.material_type;
   if (filters.default_unit) params.default_unit = filters.default_unit;
 
@@ -216,7 +217,7 @@ export const useDeactivateMaterialCategoryMutation = () => {
 };
 
 // --- FAMILIES ---
-export const useMaterialFamiliesQuery = (filters = {}) => {
+export const useMaterialFamiliesQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.families(filters),
     queryFn: async () => {
@@ -244,7 +245,7 @@ export const useUpdateMaterialFamilyMutation = () => {
 };
 
 // --- CODES (ARTICULOS) ---
-export const useMaterialCodesQuery = (filters = {}) => {
+export const useMaterialCodesQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.codes(filters),
     queryFn: async () => {
@@ -272,7 +273,7 @@ export const useUpdateMaterialCodeMutation = () => {
 };
 
 // --- TYPES ---
-export const useMaterialTypesQuery = (filters = {}) => {
+export const useMaterialTypesQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.types(filters),
     queryFn: async () => {
@@ -300,7 +301,7 @@ export const useUpdateMaterialTypeMutation = () => {
 };
 
 // --- BRANDS ---
-export const useMaterialBrandsQuery = (filters = {}) => {
+export const useMaterialBrandsQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.brands(filters),
     queryFn: async () => {
@@ -327,7 +328,7 @@ export const useUpdateMaterialBrandMutation = () => {
   });
 };
 
-export const useOperationalAreasQuery = (filters = { pageSize: 100 }) => {
+export const useOperationalAreasQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.locations(filters),
     queryFn: () => getOperationalAreasRequest(filters),

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsersRequest, createUserRequest, updateUserRequest, deleteUserRequest } from '../api/usersApi';
+import { getUsersRequest, createUserRequest, updateUserRequest, deleteUserRequest, requestDeactivation } from '../api/usersApi';
 import { userAdapter } from '../adapters/user.adapter';
 import { User } from '../types/user';
 import { UserFormValues } from '../schemas/userSchema';
@@ -46,6 +46,15 @@ export const useUpdateUserMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+};
+
+export const useRequestDeactivationMutation = () => {
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await requestDeactivation(userId);
+      return response.data;
     },
   });
 };

@@ -1,4 +1,4 @@
-const { sequelize, QrCode, Material, OperationalArea, MaterialUnit } = require('../../../database/models');
+const { sequelize, QrCode, Material, Location, MaterialUnit } = require('../../../database/models');
 const qrDomainService = require('../../qrcodes/qrDomain.service');
 const inventoryDomainService = require('../../warehouse/inventoryDomain.service');
 const traceabilityDomainService = require('../../traceability/traceabilityDomain.service');
@@ -40,8 +40,6 @@ class ReceiveMaterialUseCase {
       await qrDomainService.validateQrStatus(qr_code_value, ['GENERATED', 'UNASSIGNED', 'ASSIGNED'], t);
 
       // Validar catálogos
-      const { Material, Location, MaterialUnit } = require('../../database/models');
-      
       const material = await Material.findByPk(material_id, { transaction: t });
       if (!material) throw new Error(`El material con ID ${material_id} no existe.`);
 

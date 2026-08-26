@@ -16,6 +16,7 @@ import { MixingTerminalPage } from '../modules/production/presentation/pages/Mix
 import { AndonBoardPage } from '../modules/production/presentation/pages/AndonBoardPage';
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
 import { AdminDashboard } from './AdminDashboard';
+import UsersPage from '../modules/users/pages/UsersPage';
 
 // Router Config Definitivo
 export const AppRouter = () => {
@@ -30,6 +31,7 @@ export const AppRouter = () => {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/portal" element={<AdminDashboard />} />
+          <Route path="/usuarios" element={<UsersPage />} />
           
           {/* Identity Center */}
           <Route path="/identity">

@@ -1,14 +1,6 @@
-import { Filter, RotateCcw, Search } from 'lucide-react';
-
-import {
-    TFButton,
-    TFCard,
-    TFCardContent,
-    TFCardHeader,
-    TFCardTitleGroup,
-    TFInput,
-    TFSelect,
-} from '../../../components/tf-ui';
+import { FilterX, Search, Filter } from 'lucide-react';
+import { Button } from '../../../design-system';
+import { Input } from '../../../design-system/components/Input/Input';
 
 import {
     MATERIAL_STATUS_OPTIONS,
@@ -30,93 +22,95 @@ const MaterialFiltersPanel = ({
         label: family.name,
     }));
 
+    const hasActiveFilters = Boolean(
+        filters.search ||
+        filters.family_uuid ||
+        filters.material_type ||
+        filters.default_unit ||
+        (filters.status && filters.status !== 'active')
+    );
+
     return (
-        <TFCard>
-            <TFCardHeader>
-                <TFCardTitleGroup
-                    eyebrow="Filtros"
-                    title="Buscar materiales"
-                    description="Filtra por nombre, código, familia, tipo o unidad predeterminada."
-                />
+        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-4">
+            <div className="flex justify-between items-center border-b border-border pb-3">
+                <div>
+                    <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
+                    <p className="text-sm text-muted-foreground font-semibold">Encuentra materiales por código, familia o tipo.</p>
+                </div>
+                {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold">
+                        <FilterX className="w-4 h-4 mr-2" />
+                        Limpiar Filtros
+                    </Button>
+                )}
+            </div>
 
-                <TFButton
-                    variant="secondary"
-                    icon={RotateCcw}
-                    onClick={onClearFilters}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="relative md:col-span-2 lg:col-span-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por código o nombre..."
+                        value={filters.search}
+                        onChange={(e) => onFilterChange('search', e.target.value)}
+                        className="pl-10 font-medium w-full"
+                    />
+                </div>
+
+                <select
+                    className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    value={filters.family_uuid}
+                    onChange={(e) => onFilterChange('family_uuid', e.target.value)}
                 >
-                    Limpiar
-                </TFButton>
-            </TFCardHeader>
+                    <option value="">Todas las familias</option>
+                    {familyOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
 
-            <TFCardContent>
-                <div className="p-5 rounded-2xl bg-secondary/30 border border-border/50 shadow-inner flex flex-col gap-5">
-                    <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr]">
-                        <TFInput
-                            label="Búsqueda principal"
-                            name="search"
-                            icon={Search}
-                            placeholder="Buscar por código, nombre o descripción..."
-                            value={filters.search}
-                            onChange={(event) => onFilterChange('search', event.target.value)}
-                        />
+                <select
+                    className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    value={filters.material_type}
+                    onChange={(e) => onFilterChange('material_type', e.target.value)}
+                >
+                    <option value="">Todos los tipos</option>
+                    {MATERIAL_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
 
-                        <TFSelect
-                            label="Familia"
-                            name="family_uuid"
-                            placeholder="Todas las familias"
-                            value={filters.family_uuid}
-                            onChange={(event) =>
-                                onFilterChange('family_uuid', event.target.value)
-                            }
-                            options={familyOptions}
-                        />
+                <select
+                    className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    value={filters.default_unit}
+                    onChange={(e) => onFilterChange('default_unit', e.target.value)}
+                >
+                    <option value="">Todas las unidades</option>
+                    {MATERIAL_UNIT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
 
-                        <TFSelect
-                            label="Tipo de material"
-                            name="material_type"
-                            placeholder="Todos los tipos"
-                            value={filters.material_type}
-                            onChange={(event) => onFilterChange('material_type', event.target.value)}
-                            options={MATERIAL_TYPE_OPTIONS}
-                        />
-                    </div>
+                {canViewInactive && (
+                    <select
+                        className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2 lg:col-span-1"
+                        value={filters.status}
+                        onChange={(e) => onFilterChange('status', e.target.value)}
+                    >
+                        {MATERIAL_STATUS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                )}
+            </div>
 
-                    <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.5fr]">
-                        <TFSelect
-                            label="Unidad de medida"
-                            name="default_unit"
-                            placeholder="Todas las unidades"
-                            value={filters.default_unit}
-                            onChange={(event) => onFilterChange('default_unit', event.target.value)}
-                            options={MATERIAL_UNIT_OPTIONS}
-                        />
-
-                        {canViewInactive ? (
-                            <TFSelect
-                                label="Estado del registro"
-                                name="status"
-                                placeholder="Solo activos"
-                                value={filters.status}
-                                onChange={(event) => onFilterChange('status', event.target.value)}
-                                options={MATERIAL_STATUS_OPTIONS}
-                            />
-                        ) : (
-                            <div className="hidden lg:block" />
-                        )}
-                        <div className="hidden lg:block" />
-                    </div>
+            <div className="mt-2 flex items-start sm:items-center gap-3 rounded-xl bg-primary/10 px-4 py-3 text-sm font-bold text-primary border border-primary/20 shadow-sm">
+                <div className="p-1.5 bg-primary/20 rounded-lg shrink-0">
+                    <Filter className="w-4 h-4" />
                 </div>
-
-                <div className="mt-6 flex items-start sm:items-center gap-3 rounded-xl bg-primary/10 px-5 py-4 text-sm font-bold text-primary border border-primary/20 shadow-sm">
-                    <div className="p-2 bg-primary/20 rounded-lg shrink-0">
-                        <Filter className="size-5" />
-                    </div>
-                    <span className="leading-relaxed">
-                        El catálogo maestro previene capturas libres y estandariza el flujo para la recepción en almacén.
-                    </span>
-                </div>
-            </TFCardContent>
-        </TFCard>
+                <span className="leading-tight">
+                    El catálogo maestro previene capturas libres y estandariza el flujo para la recepción en almacén.
+                </span>
+            </div>
+        </section>
     );
 };
 

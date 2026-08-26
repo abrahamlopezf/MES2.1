@@ -1,15 +1,17 @@
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
-export interface UserRoleDTO {
+export interface UserAreaDTO {
   id: string | number;
   name: string;
   code: string;
 }
 
-export interface UserAreaDTO {
+export interface UserRoleDTO {
   id: string | number;
   name: string;
   code: string;
+  area?: UserAreaDTO | null;
+  subarea?: any | null;
 }
 
 export interface UserDTO {
@@ -21,8 +23,8 @@ export interface UserDTO {
   numero_nomina: string;
   telefono?: string;
   is_active: boolean;
+  must_change_password?: boolean;
   role?: UserRoleDTO;
-  area?: UserAreaDTO;
 }
 
 export interface User {
@@ -33,9 +35,10 @@ export interface User {
   numeroNomina: string;
   correo: string;
   telefono: string;
-  areaId: string;
   areaNombre: string;
+  subareaNombre?: string;
   rolId: string;
   rolNombre: string;
   status: UserStatus;
+  mustChangePassword?: boolean;
 }

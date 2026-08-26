@@ -10,9 +10,7 @@ const startServer = async () => {
     await testDatabaseConnection();
     // Sync for new Phase 3 models
     const db = require('./database/models');
-    // Nullify default_location_id to avoid foreign key violations since we changed it to point to material_locations
-    await db.sequelize.query('UPDATE materials SET default_location_id = NULL;');
-
+    await db.User.sync({ alter: true });
     await db.Ranking.sync({ alter: true });
     await db.Location.sync({ alter: true });
     await db.Material.sync({ alter: true });

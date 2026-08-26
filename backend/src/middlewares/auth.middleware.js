@@ -51,12 +51,17 @@ const authMiddleware = async (req, res, next) => {
                 attributes: [],
               },
             },
+            {
+              model: db.Area,
+              as: 'area',
+              required: false,
+            },
+            {
+              model: db.Subarea,
+              as: 'subarea',
+              required: false,
+            },
           ],
-        },
-        {
-          model: db.Area,
-          as: 'area',
-          required: false,
         },
       ],
     });
@@ -74,10 +79,13 @@ const authMiddleware = async (req, res, next) => {
 
     req.user = {
       id: plainUser.id,
+      first_name: plainUser.first_name,
+      last_name: plainUser.last_name,
       username: plainUser.username,
       email: plainUser.email,
       role: plainUser.role,
-      area: plainUser.area,
+      area: plainUser.role?.area || null,
+      subarea: plainUser.role?.subarea || null,
       permissions: plainUser.role?.permissions?.map((permission) => permission.code) || [],
     };
 

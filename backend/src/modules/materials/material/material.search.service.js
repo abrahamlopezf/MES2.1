@@ -15,8 +15,9 @@ class MaterialSearchService {
       type 
     } = query;
 
-    const offset = (page - 1) * pageSize;
-    const limit = pageSize;
+    const parsedPageSize = pageSize === 'all' ? 10000 : parseInt(pageSize, 10);
+    const offset = (page - 1) * parsedPageSize;
+    const limit = parsedPageSize;
 
     const where = {
       is_active: true
@@ -50,7 +51,7 @@ class MaterialSearchService {
         model: Location, 
         as: 'default_location', 
         required: false,
-        attributes: ['id', 'code', 'name']
+        attributes: ['id', 'uuid', 'code', 'name']
       });
     } else {
       console.error('Location model is undefined in material.search.service.js');
@@ -63,7 +64,7 @@ class MaterialSearchService {
       include,
       limit,
       offset,
-      order: [['created_at', 'DESC']]
+      order: [['name', 'ASC']]
     });
 
     return {

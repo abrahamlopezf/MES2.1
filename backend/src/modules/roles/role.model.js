@@ -33,6 +33,19 @@ const initRoleModel = (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      area_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      subarea_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      level: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 10,
+      },
     },
     {
       sequelize,
@@ -40,6 +53,8 @@ const initRoleModel = (sequelize) => {
       tableName: 'roles',
       underscored: true,
       timestamps: true,
+      paranoid: true,
+      deletedAt: 'deleted_at',
     }
   );
 

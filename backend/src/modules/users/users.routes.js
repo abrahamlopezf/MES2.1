@@ -43,4 +43,10 @@ router.delete(
   usersController.deleteUser
 );
 
+router.post(
+  '/:id/request-deactivation',
+  permissionMiddleware('users.update'),
+  usersController.requestDeactivation
+);
+
 module.exports = router;

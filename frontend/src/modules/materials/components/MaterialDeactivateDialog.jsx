@@ -1,14 +1,13 @@
 import { AlertTriangle } from 'lucide-react';
-
+import { Button } from '../../../design-system';
 import {
-  TFButton,
-  TFDialog,
-  TFDialogContent,
-  TFDialogDescription,
-  TFDialogFooter,
-  TFDialogHeader,
-  TFDialogTitle,
-} from '../../../components/tf-ui';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/dialog';
 
 const MaterialDeactivateDialog = ({
   open,
@@ -18,24 +17,24 @@ const MaterialDeactivateDialog = ({
   onClose,
 }) => {
   return (
-    <TFDialog
+    <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose?.();
       }}
     >
-      <TFDialogContent>
-        <TFDialogHeader>
-          <TFDialogTitle>Desactivar material</TFDialogTitle>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Desactivar material</DialogTitle>
 
-          <TFDialogDescription>
+          <DialogDescription>
             Esta acción ocultará el material para futuras operaciones, pero conservará
             su historial y trazabilidad.
-          </TFDialogDescription>
-        </TFDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="rounded-3xl border border-[rgba(197,48,48,0.18)] bg-[rgba(197,48,48,0.08)] p-5">
-          <div className="flex items-start gap-3 text-[var(--color-danger)]">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-5 my-4">
+          <div className="flex items-start gap-3 text-destructive">
             <AlertTriangle className="mt-0.5 size-7 shrink-0" />
 
             <div className="grid gap-1">
@@ -45,12 +44,12 @@ const MaterialDeactivateDialog = ({
 
               <p className="m-0 text-sm font-bold leading-relaxed">
                 Material seleccionado:{' '}
-                <span className="font-black">
+                <span className="font-black text-foreground">
                   {material?.code} — {material?.name}
                 </span>
               </p>
 
-              <p className="m-0 text-sm font-semibold leading-relaxed text-[var(--color-muted)]">
+              <p className="m-0 text-sm font-semibold leading-relaxed text-destructive/80 mt-1">
                 Si el material ya fue usado en movimientos, registros o trazabilidad,
                 no se eliminará físicamente. Solo pasará a estado inactivo.
               </p>
@@ -58,29 +57,30 @@ const MaterialDeactivateDialog = ({
           </div>
         </div>
 
-        <TFDialogFooter>
-          <TFButton
+        <DialogFooter className="gap-2">
+          <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             onClick={onClose}
             disabled={isLoading}
+            className="font-bold shadow-sm"
           >
             Regresar
-          </TFButton>
+          </Button>
 
-          <TFButton
+          <Button
             type="button"
-            variant="danger"
-            icon={AlertTriangle}
+            variant="destructive"
             onClick={onConfirm}
-            isLoading={isLoading}
             disabled={isLoading}
+            className="font-bold shadow-sm"
           >
+            <AlertTriangle className="w-4 h-4 mr-2" />
             Desactivar
-          </TFButton>
-        </TFDialogFooter>
-      </TFDialogContent>
-    </TFDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

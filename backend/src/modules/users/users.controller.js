@@ -51,10 +51,21 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+const requestDeactivation = async (req, res, next) => {
+  try {
+    await usersService.requestDeactivation(req.params.id, req.user);
+
+    return successResponse(res, 'Solicitud de desactivación enviada a los administradores.', null, 200);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getUsers,
   getUserById,
   createUser,
   updateUser,
   deleteUser,
+  requestDeactivation,
 };

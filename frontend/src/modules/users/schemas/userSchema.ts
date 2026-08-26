@@ -8,9 +8,10 @@ export const userSchema = z.object({
   numeroNomina: z.string().optional().or(z.literal('')),
   correo: z.string().email('Debe ser un correo electrónico válido'),
   telefono: z.string().optional().or(z.literal('')),
-  areaId: z.string().optional().or(z.literal('')),
   rolId: z.string().min(1, 'El rol es requerido'),
   status: z.enum(['PENDING', 'ACTIVE', 'INACTIVE', 'SUSPENDED']).default('ACTIVE'),
+  password: z.string().optional(),
+  mustChangePassword: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   // If we wanted strict backend validation we could check role codes here.
   // We'll enforce the UI logic for areaId.

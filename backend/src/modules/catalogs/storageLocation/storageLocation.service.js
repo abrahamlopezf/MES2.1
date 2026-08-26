@@ -53,8 +53,9 @@ class StorageLocationService extends BaseCatalogService {
 
   async list(options = {}) {
     const { page = 1, pageSize = 20, search, status, warehouse_uuid, location_type_uuid, include_inactive } = options;
-    const offset = (page - 1) * pageSize;
-    const limit = parseInt(pageSize, 10);
+    const parsedPageSize = pageSize === 'all' ? 10000 : parseInt(pageSize, 10);
+    const limit = parsedPageSize;
+    const offset = (page - 1) * parsedPageSize;
 
     const where = {};
     
@@ -92,7 +93,7 @@ class StorageLocationService extends BaseCatalogService {
       include,
       limit,
       offset,
-      order: [['created_at', 'DESC']]
+      order: [['name', 'ASC']]
     });
 
     return {

@@ -8,7 +8,8 @@ import {
   useMaterialTypesQuery,
   useMaterialBrandsQuery,
   useOperationalAreasQuery,
-  useRankingsQuery
+  useRankingsQuery,
+  useMaterialsQuery
 } from '../hooks/useMaterialsQueries';
 
 const MaterialForm = ({
@@ -19,11 +20,11 @@ const MaterialForm = ({
 }) => {
   const isEditing = Boolean(initialData?.id);
 
-  const { data: familiesData } = useMaterialFamiliesQuery();
-  const { data: codesData } = useMaterialCodesQuery();
-  const { data: typesData } = useMaterialTypesQuery();
-  const { data: brandsData } = useMaterialBrandsQuery();
-  const { data: locationsData } = useOperationalAreasQuery();
+  const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });
+  const { data: codesData } = useMaterialCodesQuery({ pageSize: 10000 });
+  const { data: typesData } = useMaterialTypesQuery({ pageSize: 10000 });
+  const { data: brandsData } = useMaterialBrandsQuery({ pageSize: 10000 });
+  const { data: locationsData } = useOperationalAreasQuery({ pageSize: 10000 });
   const { data: rankingsData } = useRankingsQuery();
 
   const families = familiesData?.items || [];
@@ -39,29 +40,67 @@ const MaterialForm = ({
     material_code_uuid: initialData?.material_code?.uuid || '',
     type_uuid: initialData?.type?.uuid || '',
     brand_uuid: initialData?.brand?.uuid || '',
-    location_uuid: initialData?.location?.uuid || '',
+    location_uuid: initialData?.default_location?.uuid || '',
     name: initialData?.name || '',
     description: initialData?.description || '',
+    minimum_stock: initialData?.minimum_stock ?? '',
+    reorder_point: initialData?.reorder_point ?? '',
     is_active: initialData?.is_active ?? true,
   });
+
+  // Fetch materials for the selected family to dynamically filter/recommend Types and Brands
+  const { data: familyMaterialsData } = useMaterialsQuery({
+    family_uuid: formData.family_uuid || 'none',
+    limit: 'all',
+  });
+  const familyMaterials = familyMaterialsData?.items || [];
+  
+  const validTypeUuids = new Set(familyMaterials.map(m => m.type?.uuid).filter(Boolean));
+  const validBrandUuids = new Set(familyMaterials.map(m => m.brand?.uuid).filter(Boolean));
   
   const [formError, setFormError] = useState(null);
 
   useEffect(() => {
     if (initialData) {
-      setFormData({
-        ranking_id: initialData?.ranking_id || '',
-        family_uuid: initialData?.family?.uuid || '',
-        material_code_uuid: initialData?.material_code?.uuid || '',
-        type_uuid: initialData?.type?.uuid || '',
-        brand_uuid: initialData?.brand?.uuid || '',
-        location_uuid: initialData?.location?.uuid || '',
-        name: initialData.name || '',
-        description: initialData.description || '',
-        is_active: initialData.is_active ?? true,
-      });
+      setFormData((current) => ({
+        ...current,
+        ranking_id: initialData?.ranking_id || current.ranking_id,
+        family_uuid: initialData?.family?.uuid || current.family_uuid,
+        material_code_uuid: initialData?.material_code?.uuid || current.material_code_uuid,
+        type_uuid: initialData?.type?.uuid || current.type_uuid,
+        brand_uuid: initialData?.brand?.uuid || current.brand_uuid,
+        location_uuid: initialData?.default_location?.uuid || current.location_uuid,
+        name: initialData.name || current.name,
+        description: initialData.description || current.description,
+        minimum_stock: initialData.minimum_stock ?? current.minimum_stock,
+        reorder_point: initialData.reorder_point ?? current.reorder_point,
+        is_active: initialData.is_active ?? current.is_active,
+      }));
     }
   }, [initialData]);
+
+  // Robust fallback: if initialData only provided an ID for location, find its UUID once locations load
+  useEffect(() => {
+    if (initialData && !formData.location_uuid && initialData.default_location?.id && locations.length > 0) {
+      const loc = locations.find(l => l.id === initialData.default_location.id);
+      if (loc && loc.uuid) updateField('location_uuid', loc.uuid);
+    }
+  }, [initialData, locations, formData.location_uuid]);
+
+  // Same for material code and type just in case they were missing UUIDs in the API response
+  useEffect(() => {
+    if (initialData && !formData.material_code_uuid && initialData.material_code?.id && codes.length > 0) {
+      const code = codes.find(c => c.id === initialData.material_code.id);
+      if (code && code.uuid) updateField('material_code_uuid', code.uuid);
+    }
+  }, [initialData, codes, formData.material_code_uuid]);
+
+  useEffect(() => {
+    if (initialData && !formData.type_uuid && initialData.type?.id && types.length > 0) {
+      const type = types.find(t => t.id === initialData.type.id);
+      if (type && type.uuid) updateField('type_uuid', type.uuid);
+    }
+  }, [initialData, types, formData.type_uuid]);
 
   const updateField = (field, value) => {
     setFormData((current) => ({ ...current, [field]: value }));
@@ -69,8 +108,25 @@ const MaterialForm = ({
 
   const familyOptions = families.map(f => ({ value: f.uuid, label: `${f.code} - ${f.name}` }));
   const codeOptions = codes.map(c => ({ value: c.uuid, label: `${c.code} - ${c.name}` }));
-  const typeOptions = types.map(t => ({ value: t.uuid, label: `${t.code} - ${t.name}` }));
-  const brandOptions = brands.map(b => ({ value: b.uuid, label: `${b.code} - ${b.name}` }));
+  
+  // Group Types by Recommended (used by family) and Others
+  const recommendedTypes = types.filter(t => validTypeUuids.has(t.uuid));
+  const otherTypes = types.filter(t => !validTypeUuids.has(t.uuid));
+  const typeOptions = formData.family_uuid ? [
+    ...recommendedTypes.map(t => ({ value: t.uuid, label: `⭐ ${t.name}` })),
+    ...(otherTypes.length > 0 ? [{ value: 'SEP_1', label: '--- Otros Tipos ---', disabled: true }] : []),
+    ...otherTypes.map(t => ({ value: t.uuid, label: t.name }))
+  ] : types.map(t => ({ value: t.uuid, label: t.name }));
+
+  // Group Brands by Recommended (used by family) and Others
+  const recommendedBrands = brands.filter(b => validBrandUuids.has(b.uuid));
+  const otherBrands = brands.filter(b => !validBrandUuids.has(b.uuid));
+  const brandOptions = formData.family_uuid ? [
+    ...recommendedBrands.map(b => ({ value: b.uuid, label: `⭐ ${b.name}` })),
+    ...(otherBrands.length > 0 ? [{ value: 'SEP_2', label: '--- Otras Marcas ---', disabled: true }] : []),
+    ...otherBrands.map(b => ({ value: b.uuid, label: b.name }))
+  ] : brands.map(b => ({ value: b.uuid, label: b.name }));
+
   const locationOptions = locations.map(l => ({ 
     value: l.uuid, 
     label: `${l.code} - ${l.name}` 
@@ -107,6 +163,8 @@ const MaterialForm = ({
       location_uuid: formData.location_uuid || null,
       name: formData.name.trim(),
       description: formData.description.trim() || null,
+      minimum_stock: formData.minimum_stock !== '' ? Number(formData.minimum_stock) : undefined,
+      reorder_point: formData.reorder_point !== '' ? Number(formData.reorder_point) : undefined,
     };
 
     if (isEditing) {
@@ -190,7 +248,7 @@ const MaterialForm = ({
               value={formData.type_uuid}
               onChange={(e) => updateField('type_uuid', e.target.value)}
               options={typeOptions}
-              disabled={isSubmitting}
+              disabled={isEditing || isSubmitting}
             />
 
             <TFSelect
@@ -200,7 +258,7 @@ const MaterialForm = ({
               value={formData.location_uuid}
               onChange={(e) => updateField('location_uuid', e.target.value)}
               options={locationOptions}
-              disabled={isSubmitting}
+              disabled={isEditing || isSubmitting}
             />
 
             <TFSelect
@@ -210,6 +268,28 @@ const MaterialForm = ({
               value={formData.brand_uuid}
               onChange={(e) => updateField('brand_uuid', e.target.value)}
               options={brandOptions}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <TFInput
+              label="Stock Mínimo"
+              name="minimum_stock"
+              type="number"
+              placeholder="0.00"
+              value={formData.minimum_stock}
+              onChange={(e) => updateField('minimum_stock', e.target.value)}
+              disabled={isSubmitting}
+            />
+
+            <TFInput
+              label="Alerta de Stock (Reorden)"
+              name="reorder_point"
+              type="number"
+              placeholder="0.00"
+              value={formData.reorder_point}
+              onChange={(e) => updateField('reorder_point', e.target.value)}
               disabled={isSubmitting}
             />
           </div>

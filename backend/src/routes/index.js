@@ -25,6 +25,7 @@ const traceabilityRoutes = require('../modules/traceability/traceability.routes'
 const reportsRoutes = require('../modules/reports/reports.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const receptionRoutes = require('../modules/reception/reception.routes');
+const notificationRoutes = require('../modules/notifications/notification.routes');
 
 const router = express.Router();
 
@@ -50,5 +51,6 @@ router.use('/traceability', traceabilityRoutes);
 router.use('/reports', reportsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reception', receptionRoutes);
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;
