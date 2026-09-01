@@ -203,6 +203,25 @@ const createUser = async (payload, currentUser) => {
       throwHttpError('No tienes permisos para asignar este rol.', 403);
     }
 
+    // Auto-generar username basado en las 3 primeras letras del nombre y apellido
+    const cleanFirstName = (payload.first_name || '').trim().replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ]/g, '').toUpperCase();
+    const cleanLastName = (payload.last_name || '').trim().replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ]/g, '').toUpperCase();
+    const baseUsername = `${cleanFirstName.substring(0, 3)}${cleanLastName.substring(0, 3)}`;
+
+    let generatedUsername = baseUsername;
+    let seq = 1;
+    let exists = true;
+    while(exists) {
+      const user = await User.findOne({ where: { username: generatedUsername }, transaction });
+      if (user) {
+        generatedUsername = `${baseUsername}${String(seq).padStart(3, '0')}`;
+        seq++;
+      } else {
+        exists = false;
+      }
+    }
+    payload.username = generatedUsername;
+
     await validateUniqueUserFields({
       email: payload.email,
       username: payload.username,

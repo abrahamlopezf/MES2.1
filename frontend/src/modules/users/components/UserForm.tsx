@@ -204,7 +204,11 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 <FormItem>
                   <FormLabel>Usuario (Username)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej. jperez" {...field} />
+                    <Input 
+                      placeholder={isEdit ? '' : "Autogenerado por el sistema"} 
+                      disabled={true}
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -17,6 +17,7 @@ import TypesPage from "../modules/materials/pages/TypesPage";
 import BrandsPage from "../modules/materials/pages/BrandsPage";
 import UnitsPage from "../modules/materials/pages/UnitsPage";
 import LocationsPage from "../modules/materials/pages/LocationsPage";
+import SuppliersPage from "../modules/materials/pages/SuppliersPage";
 import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
 import QrCodesPage from "../modules/qrcodes/pages/QrCodesPage";
 import { AreasPage } from "../modules/dashboard/pages/AreasPage";
@@ -125,6 +126,10 @@ export const router = createBrowserRouter([
               {
                 path: 'locations',
                 element: <LocationsPage />
+              },
+              {
+                path: 'suppliers',
+                element: <SuppliersPage />
               }
             ]
           },

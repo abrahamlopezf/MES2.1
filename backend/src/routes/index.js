@@ -27,6 +27,7 @@ const reportsRoutes = require('../modules/reports/reports.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const receptionRoutes = require('../modules/reception/reception.routes');
 const notificationRoutes = require('../modules/notifications/notification.routes');
+const supplierRoutes = require('../modules/catalogs/supplier/supplier.routes');
 
 const router = express.Router();
 
@@ -49,6 +50,7 @@ router.use('/material-units', materialUnitRoutes);
 router.use('/operational-areas', operationalAreaRoutes);
 router.use('/locations', locationRoutes);
 router.use('/traceability', traceabilityRoutes);
+router.use('/suppliers', supplierRoutes);
 
 router.use('/reports', reportsRoutes);
 router.use('/dashboard', dashboardRoutes);

@@ -21,6 +21,7 @@ const initLocationModel = require('../../modules/materials/location/location.mod
 const initMaterialModel = require('../../modules/materials/material.model');
 const initMaterialUnitModel = require('../../modules/materials/materialUnit.model');
 const initRankingModel = require('../../modules/materials/ranking.model');
+const initSupplierModel = require('../../modules/catalogs/supplier/supplier.model');
 
 const initInventoryModel = require('../../modules/warehouse/inventory.model');
 const initInventoryMovementModel = require('../../modules/warehouse/inventoryMovement.model');
@@ -61,6 +62,7 @@ db.Location = initLocationModel(sequelize, DataTypes);
 db.Material = initMaterialModel(sequelize, DataTypes);
 db.MaterialUnit = initMaterialUnitModel(sequelize, DataTypes);
 db.Ranking = initRankingModel(sequelize, DataTypes);
+db.Supplier = initSupplierModel(sequelize);
 db.Inventory = initInventoryModel(sequelize, DataTypes);
 db.InventoryMovement = initInventoryMovementModel(sequelize, DataTypes);
 db.Lote = initLoteModel(sequelize, DataTypes);
@@ -533,6 +535,15 @@ db.User.hasMany(db.Notification, {
 db.PasswordReset.belongsTo(db.User, {
   foreignKey: 'user_id',
   as: 'user',
+});
+
+db.Supplier.hasMany(db.Lote, {
+  foreignKey: 'supplier_id',
+  as: 'lotes',
+});
+db.Lote.belongsTo(db.Supplier, {
+  foreignKey: 'supplier_id',
+  as: 'supplier',
 });
 
 module.exports = db;

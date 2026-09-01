@@ -21,6 +21,7 @@ const SubcatalogPageTemplate = ({
   onFilterChange,
   onClearFilters,
   entityName = "registros",
+  CustomForm,
   ...props
 }) => {
   const { hasPermission } = useAuthStore();
@@ -218,13 +219,22 @@ const SubcatalogPageTemplate = ({
         title={selectedItem ? `Editar ${title}` : `Nuevo Registro de ${title}`}
         description="Administra los valores del subcatálogo."
       >
-        <GenericCatalogForm
-          initialData={selectedItem}
-          isSubmitting={createMutation.isPending || updateMutation.isPending}
-          onSubmit={handleSubmit}
-          onCancel={handleCloseSheet}
-          labels={labels}
-        />
+        {CustomForm ? (
+          <CustomForm
+            initialData={selectedItem}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            onSubmit={handleSubmit}
+            onCancel={handleCloseSheet}
+          />
+        ) : (
+          <GenericCatalogForm
+            initialData={selectedItem}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            onSubmit={handleSubmit}
+            onCancel={handleCloseSheet}
+            labels={labels}
+          />
+        )}
       </MaterialActionSheet>
     </div>
   );

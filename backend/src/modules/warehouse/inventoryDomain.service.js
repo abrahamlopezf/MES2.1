@@ -10,6 +10,7 @@ class InventoryDomainService {
       user_id,
       qr_id,
       location_id,
+      supplier_id,
       quantity,
       folio,
       notes = null
@@ -23,6 +24,7 @@ class InventoryDomainService {
       user_id,
       qr_id,
       location_id,
+      supplier_id,
       folio,
       initial_amount: quantity,
       available_amount: quantity,

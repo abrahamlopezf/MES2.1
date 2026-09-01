@@ -87,7 +87,7 @@ const TFTextarea = React.forwardRef(
     return (
       <label className={cn('grid gap-2', containerClassName)}>
         {label && (
-          <span className="text-base font-black text-[var(--color-text)]">
+          <span className="text-base font-black text-foreground">
             {label}
           </span>
         )}
@@ -113,13 +113,13 @@ const TFTextarea = React.forwardRef(
         />
 
         {error && (
-          <span id={`${name}-error`} className="text-sm font-black text-[var(--color-danger)]">
+          <span id={`${name}-error`} className="text-sm font-black text-danger">
             {error}
           </span>
         )}
 
         {!error && helperText && (
-          <span className="text-sm font-bold text-[var(--color-muted)]">
+          <span className="text-sm font-bold text-muted-foreground">
             {helperText}
           </span>
         )}

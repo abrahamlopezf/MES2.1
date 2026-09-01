@@ -4,10 +4,10 @@ async function run() {
   try {
     const { sequelize } = require('./src/database/models');
     await sequelize.authenticate();
-    const [results] = await sequelize.query(`
-      SELECT amount FROM inventories WHERE material_id = 1187;
+    const [cols] = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'material_families';
     `);
-    console.log(results);
+    console.log("Cols:", cols);
   } catch (error) {
     console.error('Unable to connect to the database:', error);
   } finally {

@@ -10,7 +10,7 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
   const queryClient = useQueryClient();
   const [materialId, setMaterialId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
-  const [entries, setEntries] = useState([{ folio: '', quantity: '' }]);
+  const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '' }]);
   const [notes, setNotes] = useState('');
 
   // Fetch materials
@@ -44,12 +44,31 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
     return textA.localeCompare(textB);
   });
 
+  // Fetch suppliers
+  const { data: rawSuppliers = [], isLoading: loadingSuppliers } = useQuery({
+    queryKey: ['materials', 'suppliers'],
+    queryFn: async () => {
+      const response = await axiosClient.get(`/suppliers?pageSize=10000`);
+      return response.data.data;
+    }
+  });
+
+  const suppliers = [...rawSuppliers].sort((a: any, b: any) => {
+    const textA = `${a.code} - ${a.name}`.toLowerCase();
+    const textB = `${b.code} - ${b.name}`.toLowerCase();
+    return textA.localeCompare(textB);
+  });
+
   const { mutate: handleManualEntry, isLoading: isSubmitting } = useMutation({
     mutationFn: async () => {
       await axiosClient.post('/warehouse/inventory/manual-entry', {
         material_id: Number(materialId),
         location_id: Number(locationId),
-        entries: entries.map(e => ({ folio: e.folio, quantity: Number(e.quantity) })),
+        entries: entries.map(e => ({ 
+          folio: e.folio, 
+          quantity: Number(e.quantity),
+          supplier_id: e.supplier_id ? Number(e.supplier_id) : null
+        })),
         notes
       });
     },
@@ -121,6 +140,7 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
               />
             </div>
 
+
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-foreground">Entradas (Folio [Opcional] y Cantidad) *</label>
@@ -128,7 +148,7 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setEntries([...entries, { folio: '', quantity: '' }])}
+                  onClick={() => setEntries([...entries, { folio: '', quantity: '', supplier_id: '' }])}
                 >
                   <Plus className="w-4 h-4 mr-1.5" /> Agregar
                 </Button>
@@ -136,48 +156,70 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
 
               <div className="flex flex-col gap-2">
                 {entries.map((entry, index) => (
-                  <div key={index} className="flex gap-2 items-start bg-secondary/10 p-3 rounded-lg border border-border">
+                  <div key={index} className="flex flex-col gap-3 bg-secondary/10 p-3 rounded-lg border border-border">
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Folio</label>
+                        <input 
+                          type="text"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          placeholder="Ej. FAC-001 (Opcional)"
+                          value={entry.folio}
+                          onChange={e => {
+                            const newEntries = [...entries];
+                            newEntries[index].folio = e.target.value;
+                            setEntries(newEntries);
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Cantidad *</label>
+                        <input 
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          placeholder="Ej. 10.00"
+                          value={entry.quantity}
+                          onChange={e => {
+                            const newEntries = [...entries];
+                            newEntries[index].quantity = e.target.value;
+                            setEntries(newEntries);
+                          }}
+                        />
+                      </div>
+                      {entries.length > 1 && (
+                        <button 
+                          type="button"
+                          className="mt-6 p-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors shrink-0"
+                          onClick={() => {
+                            const newEntries = entries.filter((_, i) => i !== index);
+                            setEntries(newEntries);
+                          }}
+                          title="Eliminar entrada"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                    
                     <div className="flex-1 flex flex-col gap-1.5">
-                      <input 
-                        type="text"
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        placeholder="Folio ej. FAC-001"
-                        value={entry.folio}
-                        onChange={e => {
+                      <label className="text-xs font-bold text-muted-foreground uppercase">Proveedor (Opcional)</label>
+                      <SearchSelect
+                        options={suppliers}
+                        value={entry.supplier_id}
+                        onChange={(val) => {
                           const newEntries = [...entries];
-                          newEntries[index].folio = e.target.value;
+                          newEntries[index].supplier_id = val;
                           setEntries(newEntries);
                         }}
+                        getLabel={(sup: any) => `${sup.code} - ${sup.name}`}
+                        getValue={(sup: any) => sup.id.toString()}
+                        placeholder="Buscar proveedor por código o nombre..."
+                        loading={loadingSuppliers}
+                        searchable={true}
                       />
                     </div>
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <input 
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        placeholder="Cant. ej. 10.00"
-                        value={entry.quantity}
-                        onChange={e => {
-                          const newEntries = [...entries];
-                          newEntries[index].quantity = e.target.value;
-                          setEntries(newEntries);
-                        }}
-                      />
-                    </div>
-                    {entries.length > 1 && (
-                      <button 
-                        type="button"
-                        className="mt-1 p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors shrink-0"
-                        onClick={() => {
-                          const newEntries = entries.filter((_, i) => i !== index);
-                          setEntries(newEntries);
-                        }}
-                        title="Eliminar entrada"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>

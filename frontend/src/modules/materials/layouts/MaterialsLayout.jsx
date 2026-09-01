@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Boxes, Layers3, Hash, Tag, Award, Factory, MapPin, Scale } from "lucide-react";
+import { Boxes, Layers3, Hash, Tag, Award, Factory, MapPin, Scale, Truck } from "lucide-react";
 import { TFCard } from "../../../components/tf-ui";
 
 const MaterialsLayout = () => {
@@ -11,6 +11,7 @@ const MaterialsLayout = () => {
     { name: "Marcas", path: "/materials/brands", icon: Award },
     { name: "Unidades", path: "/materials/units", icon: Scale },
     { name: "Localidades", path: "/materials/locations", icon: MapPin },
+    { name: "Proveedores", path: "/materials/suppliers", icon: Truck },
   ];
 
   return (

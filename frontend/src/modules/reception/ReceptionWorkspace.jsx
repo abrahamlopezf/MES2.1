@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
 import { SubmitReceptionCommand } from './commands';
 import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
-import { useOperationalAreasQuery } from '../materials/hooks/useMaterialsQueries';
+import { useOperationalAreasQuery, useSuppliersQuery } from '../materials/hooks/useMaterialsQueries';
 import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
 import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode } from 'lucide-react';
 import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
@@ -21,6 +21,7 @@ export const ReceptionWorkspace = ({
   const [quantity, setQuantity] = useState('');
   const [folio, setFolio] = useState('');
   const [rack, setRack] = useState('');
+  const [supplierId, setSupplierId] = useState('');
   const [notes, setNotes] = useState('');
   const navigate = useNavigate();
 
@@ -44,6 +45,15 @@ export const ReceptionWorkspace = ({
       (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' })
     );
   }, [operationalAreasData]);
+
+  // Fetch suppliers
+  const { data: suppliersData = { items: [] }, isLoading: isLoadingSuppliers } = useSuppliersQuery({ pageSize: 10000 });
+  const suppliers = useMemo(() => {
+    const items = suppliersData.items || [];
+    return [...items].sort((a, b) => 
+      (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }, [suppliersData]);
 
   // Selected material logic
   const selectedMaterial = useMemo(() => {
@@ -109,6 +119,7 @@ export const ReceptionWorkspace = ({
       quantity: Number(quantity),
       folio,
       rack,
+      supplierId: supplierId ? Number(supplierId) : undefined,
       observations: notes
     }));
   };
@@ -210,25 +221,6 @@ export const ReceptionWorkspace = ({
               
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  Cantidad Recibida <span className="text-danger">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <TFInput 
-                    type="number"
-                    value={quantity}
-                    onChange={e => setQuantity(e.target.value)}
-                    disabled={workflowState === 'SUBMITTING'}
-                    placeholder="Ej. 1000"
-                    className="flex-1"
-                  />
-                  <div className="bg-muted border border-border rounded-lg px-4 flex items-center justify-center font-medium text-muted-foreground shrink-0 min-w-[80px]">
-                    {selectedMaterial.default_unit?.code || selectedMaterial.base_unit_id ? 'KG' : '—'}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Folio de Factura (Lote) <span className="text-danger">*</span>
                 </label>
                 <TFInput 
@@ -237,6 +229,22 @@ export const ReceptionWorkspace = ({
                   onChange={e => setFolio(e.target.value)}
                   disabled={workflowState === 'SUBMITTING'}
                   placeholder="Ej. FAC-2023-001"
+                />
+              </div>
+
+              <div className="z-[35] relative">
+                <label className="block text-sm font-medium text-foreground mb-1.5">Proveedor (Opcional)</label>
+                <SearchSelect
+                  options={suppliers}
+                  value={supplierId}
+                  onChange={setSupplierId}
+                  getLabel={(a) => `${a.code} - ${a.name}`}
+                  getValue={(a) => a.id}
+                  searchable={true}
+                  placeholder="Seleccionar proveedor..."
+                  loading={isLoadingSuppliers}
+                  emptyMessage="Sin proveedores disponibles"
+                  disabled={workflowState === 'SUBMITTING'}
                 />
               </div>
 
@@ -254,6 +262,25 @@ export const ReceptionWorkspace = ({
                   emptyMessage="Sin localidades disponibles"
                   disabled={workflowState === 'SUBMITTING'}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Cantidad Recibida <span className="text-danger">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <TFInput 
+                    type="number"
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)}
+                    disabled={workflowState === 'SUBMITTING'}
+                    placeholder="Ej. 1000"
+                    className="flex-1"
+                  />
+                  <div className="bg-muted border border-border rounded-lg px-4 flex items-center justify-center font-medium text-muted-foreground shrink-0 min-w-[80px]">
+                    {selectedMaterial.default_unit?.code || selectedMaterial.base_unit_id ? 'KG' : '—'}
+                  </div>
+                </div>
               </div>
 
               <div>

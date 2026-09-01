@@ -41,6 +41,12 @@ export const createMaterialUnitRequest = (payload) => axiosClient.post('/materia
 export const updateMaterialUnitRequest = ({ id, payload }) => axiosClient.patch(`/material-units/${id}`, payload);
 export const deactivateMaterialUnitRequest = (id) => axiosClient.delete(`/material-units/${id}`);
 
+// === SUPPLIERS ===
+export const getSuppliersRequest = (params = {}) => axiosClient.get('/suppliers', { params });
+export const createSupplierRequest = (payload) => axiosClient.post('/suppliers', payload);
+export const updateSupplierRequest = ({ id, payload }) => axiosClient.patch(`/suppliers/${id}`, payload);
+export const deactivateSupplierRequest = (id) => axiosClient.delete(`/suppliers/${id}`);
+
 // === MATERIALS ===
 export const getMaterialsRequest = (params = {}) => axiosClient.get('/materials', { params });
 export const getMaterialByIdRequest = (id) => axiosClient.get(`/materials/${id}`);

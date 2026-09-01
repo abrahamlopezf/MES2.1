@@ -40,12 +40,12 @@ const MaterialForm = ({
 
   const [formData, setFormData] = useState({
     ranking_id: initialData?.ranking_id || '',
-    family_uuid: initialData?.family?.uuid || (initialData?.family?.id ? String(initialData.family.id) : ''),
-    material_code_uuid: initialData?.material_code?.uuid || (initialData?.material_code?.id ? String(initialData.material_code.id) : ''),
-    type_uuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : ''),
-    brand_uuid: initialData?.brand?.uuid || (initialData?.brand?.id ? String(initialData.brand.id) : ''),
-    base_unit_uuid: initialData?.base_unit?.uuid || (initialData?.base_unit?.id ? String(initialData.base_unit.id) : ''),
-    location_uuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : ''),
+    family_uuid: initialData?.family?.uuid || (initialData?.family?.id ? String(initialData.family.id) : (initialData?.family_id ? String(initialData.family_id) : '')),
+    material_code_uuid: initialData?.material_code?.uuid || (initialData?.material_code?.id ? String(initialData.material_code.id) : (initialData?.material_code_id ? String(initialData.material_code_id) : '')),
+    type_uuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : (initialData?.type_id ? String(initialData.type_id) : '')),
+    brand_uuid: initialData?.brand?.uuid || (initialData?.brand?.id ? String(initialData.brand.id) : (initialData?.brand_id ? String(initialData.brand_id) : '')),
+    base_unit_uuid: initialData?.base_unit?.uuid || (initialData?.base_unit?.id ? String(initialData.base_unit.id) : (initialData?.base_unit_id ? String(initialData.base_unit_id) : '')),
+    location_uuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : (initialData?.default_location_id ? String(initialData.default_location_id) : '')),
     name: initialData?.name || '',
     description: initialData?.description || '',
     minimum_stock: initialData?.minimum_stock ?? '',
@@ -69,21 +69,19 @@ const MaterialForm = ({
     if (initialData) {
       console.log("MaterialForm initialization debug:", JSON.stringify({
         initialType: initialData.type,
+        initialTypeId: initialData.type_id,
         initialLocation: initialData.default_location,
-        typeOptionsCount: types.length,
-        locationOptionsCount: locations.length,
-        extractedTypeUuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : formData.type_uuid),
-        extractedLocationUuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : formData.location_uuid),
+        initialLocationId: initialData.default_location_id,
       }, null, 2));
       setFormData((current) => ({
         ...current,
         ranking_id: initialData?.ranking_id || current.ranking_id,
-        family_uuid: initialData?.family?.uuid || (initialData?.family?.id ? String(initialData.family.id) : current.family_uuid),
-        material_code_uuid: initialData?.material_code?.uuid || (initialData?.material_code?.id ? String(initialData.material_code.id) : current.material_code_uuid),
-        type_uuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : current.type_uuid),
-        brand_uuid: initialData?.brand?.uuid || (initialData?.brand?.id ? String(initialData.brand.id) : current.brand_uuid),
-        location_uuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : current.location_uuid),
-        base_unit_uuid: initialData?.base_unit?.uuid || (initialData?.base_unit?.id ? String(initialData.base_unit.id) : current.base_unit_uuid),
+        family_uuid: initialData?.family?.uuid || (initialData?.family?.id ? String(initialData.family.id) : (initialData?.family_id ? String(initialData.family_id) : current.family_uuid)),
+        material_code_uuid: initialData?.material_code?.uuid || (initialData?.material_code?.id ? String(initialData.material_code.id) : (initialData?.material_code_id ? String(initialData.material_code_id) : current.material_code_uuid)),
+        type_uuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : (initialData?.type_id ? String(initialData.type_id) : current.type_uuid)),
+        brand_uuid: initialData?.brand?.uuid || (initialData?.brand?.id ? String(initialData.brand.id) : (initialData?.brand_id ? String(initialData.brand_id) : current.brand_uuid)),
+        location_uuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : (initialData?.default_location_id ? String(initialData.default_location_id) : current.location_uuid)),
+        base_unit_uuid: initialData?.base_unit?.uuid || (initialData?.base_unit?.id ? String(initialData.base_unit.id) : (initialData?.base_unit_id ? String(initialData.base_unit_id) : current.base_unit_uuid)),
         name: initialData.name || current.name,
         description: initialData.description || current.description,
         minimum_stock: initialData.minimum_stock ?? current.minimum_stock,
@@ -95,27 +93,30 @@ const MaterialForm = ({
 
   // Robust fallback: if initialData only provided an ID, find its UUID once the catalogues load
   useEffect(() => {
-    if (initialData && locations.length > 0 && initialData.default_location?.id) {
-      if (formData.location_uuid === String(initialData.default_location.id)) {
-        const item = locations.find(x => String(x.id) === String(initialData.default_location.id));
+    const locId = initialData?.default_location?.id || initialData?.default_location_id;
+    if (locId && locations.length > 0) {
+      if (formData.location_uuid === String(locId)) {
+        const item = locations.find(x => String(x.id) === String(locId));
         if (item && item.uuid) updateField('location_uuid', item.uuid);
       }
     }
   }, [initialData, locations, formData.location_uuid]);
 
   useEffect(() => {
-    if (initialData && codes.length > 0 && initialData.material_code?.id) {
-      if (formData.material_code_uuid === String(initialData.material_code.id)) {
-        const item = codes.find(x => String(x.id) === String(initialData.material_code.id));
+    const codeId = initialData?.material_code?.id || initialData?.material_code_id;
+    if (codeId && codes.length > 0) {
+      if (formData.material_code_uuid === String(codeId)) {
+        const item = codes.find(x => String(x.id) === String(codeId));
         if (item && item.uuid) updateField('material_code_uuid', item.uuid);
       }
     }
   }, [initialData, codes, formData.material_code_uuid]);
 
   useEffect(() => {
-    if (initialData && types.length > 0 && initialData.type?.id) {
-      if (formData.type_uuid === String(initialData.type.id)) {
-        const item = types.find(x => String(x.id) === String(initialData.type.id));
+    const typeId = initialData?.type?.id || initialData?.type_id;
+    if (typeId && types.length > 0) {
+      if (formData.type_uuid === String(typeId)) {
+        const item = types.find(x => String(x.id) === String(typeId));
         if (item && item.uuid) updateField('type_uuid', item.uuid);
       }
     }

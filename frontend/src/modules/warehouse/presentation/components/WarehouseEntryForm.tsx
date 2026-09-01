@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useWarehouseEntry } from '../hooks/useWarehouseEntry';
-import { useMaterialsQuery } from '../../../materials/hooks/useMaterialsQueries';
+import { useMaterialsQuery, useSuppliersQuery } from '../../../materials/hooks/useMaterialsQueries';
 import { PackagePlus, QrCode, MapPin, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -11,6 +11,7 @@ export const WarehouseEntryForm: React.FC = () => {
 
   const [qrCode, setQrCode] = useState('');
   const [materialId, setMaterialId] = useState('');
+  const [supplierId, setSupplierId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [locationId, setLocationId] = useState('ALMACEN-PRINCIPAL');
@@ -23,6 +24,14 @@ export const WarehouseEntryForm: React.FC = () => {
   useEffect(() => {
     qrInputRef.current?.focus();
   }, []);
+
+  const { data: rawSuppliers = [], isLoading: loadingSuppliers } = useSuppliersQuery({ pageSize: 10000 });
+  
+  const suppliers = (Array.isArray(rawSuppliers.data) ? rawSuppliers.data : rawSuppliers).sort((a: any, b: any) => {
+    const textA = `${a.code} - ${a.name}`.toLowerCase();
+    const textB = `${b.code} - ${b.name}`.toLowerCase();
+    return textA.localeCompare(textB);
+  });
 
   const filteredMaterials = materials.filter((m: any) => {
     if (!searchTerm) return true;
@@ -62,6 +71,7 @@ export const WarehouseEntryForm: React.FC = () => {
         material_id: Number(materialId),
         quantity: Number(amount),
         location: locationId,
+        supplier_id: supplierId ? Number(supplierId) : null,
         folio: folio
       },
       {
@@ -70,6 +80,7 @@ export const WarehouseEntryForm: React.FC = () => {
           setQrCode('');
           setAmount('');
           setFolio('');
+          setSupplierId('');
           setSearchTerm('');
           qrInputRef.current?.focus();
         },
@@ -182,6 +193,30 @@ export const WarehouseEntryForm: React.FC = () => {
               className="w-full border-2 border-slate-300 rounded-xl px-6 py-6 text-4xl font-black text-slate-900 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-mono bg-white shadow-inner"
               placeholder="0.000"
             />
+          </div>
+
+          <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
+            <label className="block text-xl font-bold text-slate-700 mb-3 uppercase tracking-wide">
+              4. Proveedor (Opcional)
+            </label>
+            {loadingSuppliers ? (
+              <div className="h-20 flex items-center justify-center gap-3 text-slate-500 font-bold text-lg">
+                <Loader2 className="animate-spin" size={24} /> Cargando catálogo...
+              </div>
+            ) : (
+              <select
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="w-full border-2 border-slate-300 rounded-xl px-4 py-4 text-xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+              >
+                <option value="">-- SELECCIONE PROVEEDOR --</option>
+                {suppliers?.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.code} - {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       </div>

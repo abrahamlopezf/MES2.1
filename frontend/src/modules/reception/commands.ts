@@ -23,6 +23,7 @@ export interface SubmitReceptionRequest {
   quantity: number;
   folio: string;
   rack?: string;
+  supplierId?: number;
   observations?: string;
 }
 

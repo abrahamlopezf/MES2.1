@@ -28,6 +28,9 @@ import {
   getOperationalAreasRequest,
   createOperationalAreaRequest,
   updateOperationalAreaRequest,
+  getSuppliersRequest,
+  createSupplierRequest,
+  updateSupplierRequest,
 } from '../services/materialsApi';
 
 export const materialQueryKeys = {
@@ -42,6 +45,7 @@ export const materialQueryKeys = {
   brands: (filters) => [...materialQueryKeys.all, 'brands', filters],
   locations: (filters) => [...materialQueryKeys.all, 'locations', filters],
   units: (filters) => [...materialQueryKeys.all, 'units', filters],
+  suppliers: (filters) => [...materialQueryKeys.all, 'suppliers', filters],
 };
 
 const buildMaterialParams = (filters = {}) => {
@@ -67,7 +71,7 @@ const buildMaterialParams = (filters = {}) => {
 
 const buildSubcatalogParams = (filters = {}) => {
   const params = {
-    limit: filters.limit || 20,
+    pageSize: filters.pageSize || filters.limit || 20,
     page: filters.page || 1,
   };
 
@@ -363,6 +367,37 @@ export const useMaterialUnitsQuery = (filters = { pageSize: 'all' }) => {
       return normalizeCategoriesResponse(response);
     },
     staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useSuppliersQuery = (filters = { pageSize: 'all' }) => {
+  return useQuery({
+    queryKey: materialQueryKeys.suppliers(filters),
+    queryFn: async () => {
+      const response = await getSuppliersRequest(buildSubcatalogParams(filters));
+      return normalizeCategoriesResponse(response);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useCreateSupplierMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createSupplierRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries(materialQueryKeys.suppliers());
+    },
+  });
+};
+
+export const useUpdateSupplierMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateSupplierRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries(materialQueryKeys.suppliers());
+    },
   });
 };
 

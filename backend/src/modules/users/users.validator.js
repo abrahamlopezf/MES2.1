@@ -27,10 +27,8 @@ const createUserSchema = Joi.object({
     'any.required': 'El correo es obligatorio.',
   }),
 
-  username: Joi.string().trim().min(3).max(80).required().messages({
-    'string.empty': 'El usuario es obligatorio.',
-    'string.min': 'El usuario debe tener al menos 3 caracteres.',
-    'any.required': 'El usuario es obligatorio.',
+  username: Joi.string().trim().min(3).max(80).allow('', null).optional().messages({
+    'string.min': 'El usuario debe tener al menos 3 caracteres.'
   }),
 
   numero_nomina: Joi.string().trim().max(30).allow('', null).optional(),

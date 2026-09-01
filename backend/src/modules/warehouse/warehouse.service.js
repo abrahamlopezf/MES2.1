@@ -471,7 +471,8 @@ const manualEntry = async (payload, currentUser) => {
         initial_amount: q,
         available_amount: q,
         notes: payload.notes || 'Ingreso manual',
-        is_active: true
+        is_active: true,
+        supplier_id: entry.supplier_id || null
       });
     }
 
