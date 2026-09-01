@@ -15,38 +15,38 @@ const startServer = async () => {
     // await db.Location.sync({ alter: true });
     // await db.Material.sync({ alter: true });
     // await db.TipoBaja.sync({ alter: true });
-    await db.Lote.sync({ alter: true });
+    // await db.Lote.sync({ alter: true });
     // await db.Inventory.sync({ alter: true });
-    await db.WasteRequest.sync({ alter: true });
+    // await db.WasteRequest.sync({ alter: true });
 
     // Seed Ranking
-    const rankingsCount = await db.Ranking.count();
-    if (rankingsCount === 0) {
-      await db.Ranking.bulkCreate([
-        { id: 1, name: 'Materia Prima', nomenclature: 'MP', description: 'Materiales base' },
-        { id: 2, name: 'Materia Secundaria', nomenclature: 'MS', description: 'Materiales auxiliares en proceso' },
-        { id: 3, name: 'Material de Apoyo', nomenclature: 'MA', description: 'Materiales no relacionados a producción' },
-      ]);
-    }
+    // const rankingsCount = await db.Ranking.count();
+    // if (rankingsCount === 0) {
+    //   await db.Ranking.bulkCreate([
+    //     { id: 1, name: 'Materia Prima', nomenclature: 'MP', description: 'Materiales base' },
+    //     { id: 2, name: 'Materia Secundaria', nomenclature: 'MS', description: 'Materiales auxiliares en proceso' },
+    //     { id: 3, name: 'Material de Apoyo', nomenclature: 'MA', description: 'Materiales no relacionados a producción' },
+    //   ]);
+    // }
 
     // Seed TipoBaja
-    const tipoBajaCount = await db.TipoBaja.count();
-    if (tipoBajaCount === 0) {
-      await db.TipoBaja.bulkCreate([
-        { id: 1, name: 'Material dañado', description: 'Daño físico al material' },
-        { id: 2, name: 'Merma', description: 'Pérdida en proceso' },
-        { id: 3, name: 'Caducidad', description: 'Material expirado' },
-        { id: 4, name: 'Contaminación', description: 'Material contaminado' },
-        { id: 5, name: 'Error de recepción', description: 'Ajuste por error al recibir' },
-        { id: 6, name: 'Otro', description: 'Motivo no clasificado' },
-      ]);
-    }
+    // const tipoBajaCount = await db.TipoBaja.count();
+    // if (tipoBajaCount === 0) {
+    //   await db.TipoBaja.bulkCreate([
+    //     { id: 1, name: 'Material dañado', description: 'Daño físico al material' },
+    //     { id: 2, name: 'Merma', description: 'Pérdida en proceso' },
+    //     { id: 3, name: 'Caducidad', description: 'Material expirado' },
+    //     { id: 4, name: 'Contaminación', description: 'Material contaminado' },
+    //     { id: 5, name: 'Error de recepción', description: 'Ajuste por error al recibir' },
+    //     { id: 6, name: 'Otro', description: 'Motivo no clasificado' },
+    //   ]);
+    // }
 
     // Assign default ranking to existing materials if they have none
-    await db.Material.update(
-      { ranking_id: 1 }, // Default to MP
-      { where: { ranking_id: null } }
-    );
+    // await db.Material.update(
+    //   { ranking_id: 1 }, // Default to MP
+    //   { where: { ranking_id: null } }
+    // );
 
     app.listen(PORT, () => {
       console.log(`🚀 Backend ejecutándose en puerto ${PORT}`);
