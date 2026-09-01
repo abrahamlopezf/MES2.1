@@ -99,6 +99,33 @@ const UsersPage: React.FC = () => {
       .sort((a, b) => Number(a.id) - Number(b.id));
   }, [users, searchTerm, roleFilter, statusFilter]);
 
+  const groupedUsers = useMemo(() => {
+    const groups: Record<string, User[]> = {};
+    
+    filteredUsers.forEach(user => {
+      // Si no tiene areaNombre, asumimos 'Global'
+      const area = user.areaNombre || 'Global';
+      if (!groups[area]) {
+        groups[area] = [];
+      }
+      groups[area].push(user);
+    });
+
+    // Ordenar dentro de cada grupo por nombre de rol
+    Object.values(groups).forEach(group => {
+      group.sort((a, b) => a.rolNombre.localeCompare(b.rolNombre));
+    });
+
+    // Ordenar las llaves (Global primero, luego alfabéticamente)
+    return Object.fromEntries(
+      Object.entries(groups).sort(([areaA], [areaB]) => {
+        if (areaA === 'Global') return -1;
+        if (areaB === 'Global') return 1;
+        return areaA.localeCompare(areaB);
+      })
+    );
+  }, [filteredUsers]);
+
   const hasActiveFilters = Boolean(searchTerm || roleFilter || statusFilter);
 
   const clearFilters = () => {
@@ -219,7 +246,19 @@ const UsersPage: React.FC = () => {
               }
             />
           ) : (
-            <UsersGrid users={filteredUsers} onEdit={openEditForm} />
+            <div className="space-y-8">
+              {Object.entries(groupedUsers).map(([area, groupUsers]) => (
+                <div key={area} className="space-y-4">
+                  <div className="flex items-center gap-3 border-b border-border pb-2">
+                    <h2 className="text-xl font-bold text-foreground m-0">{area}</h2>
+                    <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+                      {groupUsers.length}
+                    </span>
+                  </div>
+                  <UsersGrid users={groupUsers} onEdit={openEditForm} />
+                </div>
+              ))}
+            </div>
           )}
         </div>
     </div>

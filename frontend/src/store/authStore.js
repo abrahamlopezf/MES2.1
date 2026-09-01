@@ -8,7 +8,7 @@ export const useAuthStore = create((set, get) => ({
   token: storedToken || null,
   user: storedUser ? JSON.parse(storedUser) : null,
   isAuthenticated: Boolean(storedToken),
-  isInitializing: false,
+  isInitializing: Boolean(storedToken),
   isLoading: false,
   error: null,
 

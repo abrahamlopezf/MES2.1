@@ -9,17 +9,9 @@ import { User, UserStatus } from '../types/user';
 import { useCreateUserMutation, useUpdateUserMutation, useRequestDeactivationMutation } from '../hooks/useUsers';
 import { useAuthStore } from '@/store/authStore';
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
+import { TFInput, TFSelect, TFButton } from '../../../components/tf-ui';
 import { 
   Dialog, 
   DialogContent, 
@@ -158,251 +150,169 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[90vh]">
-        <DialogHeader className="mb-2">
-          <DialogTitle className="text-2xl font-black">{isEdit ? 'Editar usuario' : 'Nuevo usuario'}</DialogTitle>
-          <DialogDescription className="italic text-muted-foreground mt-1">
-            {isEdit ? 'Modifica los datos del usuario en el sistema.' : 'Registra un nuevo usuario para darle acceso al ERP.'}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[90vh] bg-card border-border shadow-2xl p-0">
+        <div className="p-6">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-black">{isEdit ? 'Editar usuario' : 'Nuevo usuario'}</DialogTitle>
+            <DialogDescription className="italic text-muted-foreground mt-1">
+              {isEdit ? 'Modifica los datos del usuario en el sistema.' : 'Registra un nuevo usuario para darle acceso al ERP.'}
+            </DialogDescription>
+          </DialogHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="nombres"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombres</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej. Juan Carlos" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="apellidos"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apellidos</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej. Pérez" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Usuario (Username)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder={isEdit ? '' : "Autogenerado por el sistema"} 
-                      disabled={true}
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contraseña {isEdit && '(Opcional, dejar en blanco para no cambiar)'}</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Ej. Password123!" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="mustChangePassword"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-3 space-y-0 mt-8 mb-4 col-span-1 md:col-span-1">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none flex items-center gap-1.5">
-                    <FormLabel className="text-sm font-medium">
-                      Forzar cambio de contraseña
-                    </FormLabel>
-                    <div 
-                      className="text-muted-foreground hover:text-foreground cursor-help transition-colors flex items-center"
-                      title="Si se marca, el usuario deberá cambiar su contraseña la próxima vez que inicie sesión."
-                    >
-                      <Info className="w-4 h-4" />
-                    </div>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TFInput
+                label="Nombres"
+                placeholder="Ej. Juan Carlos"
+                error={form.formState.errors.nombres?.message}
+                {...form.register('nombres')}
+              />
+              <TFInput
+                label="Apellidos"
+                placeholder="Ej. Pérez"
+                error={form.formState.errors.apellidos?.message}
+                {...form.register('apellidos')}
+              />
+              <TFInput
+                label="Usuario (Username)"
+                placeholder={isEdit ? '' : "Autogenerado por el sistema"}
+                disabled={true}
+                error={form.formState.errors.username?.message}
+                {...form.register('username')}
+              />
+              <TFInput
+                label={`Contraseña ${isEdit ? '(Opcional)' : ''}`}
+                type="password"
+                placeholder="Ej. Password123!"
+                error={form.formState.errors.password?.message}
+                {...form.register('password')}
+              />
+              
+              <div className="col-span-1 md:col-span-1 flex items-center space-x-3 mt-4">
+                <Checkbox
+                  id="mustChangePassword"
+                  checked={form.watch('mustChangePassword')}
+                  onCheckedChange={(val: boolean) => form.setValue('mustChangePassword', val)}
+                />
+                <div className="space-y-1 leading-none flex items-center gap-1.5">
+                  <label htmlFor="mustChangePassword" className="text-base font-black text-foreground cursor-pointer">
+                    Forzar cambio de contraseña
+                  </label>
+                  <div 
+                    className="text-muted-foreground hover:text-foreground cursor-help transition-colors flex items-center"
+                    title="Si se marca, el usuario deberá cambiar su contraseña la próxima vez que inicie sesión."
+                  >
+                    <Info className="w-4 h-4" />
                   </div>
-                </FormItem>
+                </div>
+              </div>
+
+              <TFInput
+                label="Número de Nómina"
+                placeholder="Ej. EMP-001"
+                disabled={isSupervisor}
+                error={form.formState.errors.numeroNomina?.message}
+                {...form.register('numeroNomina')}
+              />
+              
+              <TFInput
+                label="Correo Electrónico"
+                type="email"
+                placeholder="correo@empresa.com"
+                error={form.formState.errors.correo?.message}
+                {...form.register('correo')}
+              />
+              
+              <TFInput
+                label="Teléfono"
+                placeholder="Ej. 5551234567"
+                error={form.formState.errors.telefono?.message}
+                {...form.register('telefono')}
+              />
+
+              <TFSelect
+                label="Puesto"
+                options={roles.map(r => ({ label: r.name, value: String(r.id) }))}
+                error={form.formState.errors.rolId?.message}
+                disabled={roles.length === 0}
+                {...form.register('rolId')}
+              />
+            </div>
+
+            <DialogFooter className="flex flex-wrap items-center justify-end gap-2 pt-6 border-t border-border mt-6">
+              <TFButton 
+                type="button" 
+                variant="secondary" 
+                onClick={onClose} 
+                disabled={isPending}
+              >
+                Cancelar
+              </TFButton>
+
+              {isEdit && user.status === 'PENDING' && isGeneralAdmin && (
+                <PermissionGate permission="users.approve">
+                  <TFButton
+                    type="button"
+                    variant="primary"
+                    onClick={() => handleUpdateStatus('ACTIVE')}
+                    disabled={isPending}
+                  >
+                    <Power className="w-4 h-4 mr-2" />
+                    Aprobar usuario
+                  </TFButton>
+                </PermissionGate>
               )}
-            />
 
-            <FormField
-              control={form.control}
-              name="numeroNomina"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número de Nómina</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej. EMP-001" disabled={isSupervisor} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {isEdit && user.status === 'ACTIVE' && isGeneralAdmin && (
+                <PermissionGate permission="users.update">
+                  <TFButton
+                    type="button"
+                    variant="danger"
+                    onClick={() => handleUpdateStatus('INACTIVE')}
+                    disabled={isPending}
+                  >
+                    <Power className="w-4 h-4 mr-2" />
+                    Desactivar
+                  </TFButton>
+                </PermissionGate>
               )}
-            />
 
-            <FormField
-              control={form.control}
-              name="correo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Correo Electrónico</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="correo@empresa.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {isEdit && user.status === 'ACTIVE' && !isGeneralAdmin && (
+                <PermissionGate permission="users.update">
+                  <TFButton
+                    type="button"
+                    variant="danger"
+                    onClick={handleRequestDeactivation}
+                    disabled={isPending}
+                  >
+                    <Power className="w-4 h-4 mr-2" />
+                    Solicitar Desactivación
+                  </TFButton>
+                </PermissionGate>
               )}
-            />
 
-            <FormField
-              control={form.control}
-              name="telefono"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Teléfono</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej. 5551234567" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {isEdit && (user.status === 'INACTIVE' || user.status === 'SUSPENDED') && isGeneralAdmin && (
+                <PermissionGate permission="users.update">
+                  <TFButton
+                    type="button"
+                    variant="primary"
+                    onClick={() => handleUpdateStatus('ACTIVE')}
+                    disabled={isPending}
+                  >
+                    <Power className="w-4 h-4 mr-2" />
+                    Activar
+                  </TFButton>
+                </PermissionGate>
               )}
-            />
 
-
-
-            <FormField
-              control={form.control}
-              name="rolId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Puesto</FormLabel>
-                  <FormControl>
-                    <select
-                      {...field}
-                      disabled={roles.length === 0}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="" className="bg-background text-foreground">Selecciona un puesto</option>
-                      {roles.map((role: any) => (
-                        <option key={role.id} value={role.id} className="bg-background text-foreground">
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <DialogFooter className="flex items-center justify-end gap-2 pt-4 border-t mt-4 sm:justify-end">
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="border-red-300 dark:border-red-900 text-red-600 dark:text-red-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/50 dark:hover:text-red-400 font-medium shadow-sm"
-              onClick={onClose} 
-              disabled={isPending}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancelar
-            </Button>
-
-            {isEdit && user.status === 'PENDING' && isGeneralAdmin && (
-              <PermissionGate permission="users.approve">
-                <Button
-                  type="button"
-                  variant="default"
-                  onClick={() => handleUpdateStatus('ACTIVE')}
-                  disabled={isPending}
-                >
-                  <Power className="w-4 h-4 mr-2" />
-                  Aprobar usuario
-                </Button>
-              </PermissionGate>
-            )}
-
-            {isEdit && user.status === 'ACTIVE' && isGeneralAdmin && (
-              <PermissionGate permission="users.update">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => handleUpdateStatus('INACTIVE')}
-                  disabled={isPending}
-                >
-                  <Power className="w-4 h-4 mr-2" />
-                  Desactivar
-                </Button>
-              </PermissionGate>
-            )}
-
-            {isEdit && user.status === 'ACTIVE' && !isGeneralAdmin && (
-              <PermissionGate permission="users.update">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-red-300 dark:border-red-900 text-red-600 dark:text-red-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/50 dark:hover:text-red-400 font-medium shadow-sm"
-                  onClick={handleRequestDeactivation}
-                  disabled={isPending}
-                >
-                  <Power className="w-4 h-4 mr-2" />
-                  Solicitar Desactivación
-                </Button>
-              </PermissionGate>
-            )}
-
-            {isEdit && (user.status === 'INACTIVE' || user.status === 'SUSPENDED') && isGeneralAdmin && (
-              <PermissionGate permission="users.update">
-                <Button
-                  type="button"
-                  variant="default"
-                  className="bg-success hover:bg-success/90 text-success-foreground font-semibold"
-                  onClick={() => handleUpdateStatus('ACTIVE')}
-                  disabled={isPending}
-                >
-                  <Power className="w-4 h-4 mr-2" />
-                  Activar
-                </Button>
-              </PermissionGate>
-            )}
-
-            <Button type="submit" disabled={isPending}>
-              <Save className="w-4 h-4 mr-2" />
-              {isEdit ? 'Guardar cambios' : 'Registrar'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+              <TFButton type="submit" disabled={isPending} variant="primary">
+                <Save className="w-4 h-4 mr-2" />
+                {isEdit ? 'Guardar cambios' : 'Registrar'}
+              </TFButton>
+            </DialogFooter>
+          </form>
+        </div>
+      </DialogContent>
     </Dialog>
   );
 };
