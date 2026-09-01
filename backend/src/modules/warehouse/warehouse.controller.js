@@ -96,6 +96,35 @@ const getMermaScrapDetails = async (req, res, next) => {
     return next(error);
   }
 };
+const requestDisposeLotes = async (req, res, next) => {
+  try {
+    const result = await warehouseService.requestDisposeLotes(req.body, req.user);
+    return successResponse(res, 'Solicitud de baja registrada exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getWasteRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const request = await warehouseService.getWasteRequest(id, req.user);
+    return successResponse(res, 'Solicitud de baja obtenida.', request);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const resolveWasteRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const result = await warehouseService.resolveWasteRequest(id, status, req.user);
+    return successResponse(res, `Solicitud de baja ${status === 'APPROVED' ? 'aprobada' : 'rechazada'} exitosamente.`, result);
+  } catch (error) {
+    return next(error);
+  }
+};
 
 module.exports = {
   getInventory,
@@ -107,5 +136,8 @@ module.exports = {
   getDashboardMetrics,
   manualEntry,
   getMermaScrapReport,
-  getMermaScrapDetails
+  getMermaScrapDetails,
+  requestDisposeLotes,
+  getWasteRequest,
+  resolveWasteRequest
 };

@@ -69,6 +69,12 @@ export const NotificationCenter = () => {
         setIsOpen(false);
         navigate(`/usuarios?openUser=${parts[1]}`);
       }
+    } else if (notif.type === 'WASTE_REQUEST') {
+      const urlMatch = notif.message.match(/\?waste_request_id=(\d+)/);
+      if (urlMatch) {
+        setIsOpen(false);
+        navigate(`/warehouse/inventory?waste_request_id=${urlMatch[1]}`);
+      }
     }
   };
 
@@ -193,7 +199,10 @@ export const NotificationCenter = () => {
                   <p className="text-lg">No hay alertas ni notificaciones pendientes en esta categoría.</p>
                 </div>
               ) : (
-                filteredNotifications.map((notif: any) => (
+                filteredNotifications.map((notif: any) => {
+                  // Clean message string (remove query params)
+                  const displayMessage = notif.message ? notif.message.split('?waste_request_id=')[0] : '';
+                  return (
                   <div 
                     key={notif.id} 
                     className={`relative p-6 md:p-8 rounded-2xl border transition-all ${
@@ -217,7 +226,7 @@ export const NotificationCenter = () => {
                           </h4>
                         </div>
                         <p className="text-base md:text-lg text-muted-foreground max-w-3xl leading-relaxed">
-                          {notif.message}
+                          {displayMessage}
                         </p>
                         <p className="text-sm font-semibold text-muted-foreground/60 flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40"></span>
@@ -232,14 +241,14 @@ export const NotificationCenter = () => {
                             onClick={() => handleActionClick(notif)}
                             className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-4 md:px-10 rounded-xl text-sm md:text-lg font-black tracking-widest uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
                           >
-                            {notif.type.startsWith('USER_DEACTIVATION') ? 'Revisar Solicitud' : 'Enterado'}
+                            {notif.type.startsWith('USER_DEACTIVATION') || notif.type === 'WASTE_REQUEST' ? 'Revisar Solicitud' : 'Enterado'}
                             <Check className="w-5 h-5" />
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
-                ))
+                )})
               )}
             </div>
           </main>

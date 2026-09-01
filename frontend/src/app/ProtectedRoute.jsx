@@ -13,10 +13,10 @@ const ProtectedRoute = () => {
   } = useAuthStore();
 
   useEffect(() => {
-    if (token && !user) {
+    if (token) {
       initializeAuth();
     }
-  }, [token, user, initializeAuth]);
+  }, [token, initializeAuth]);
 
   if (isInitializing) {
     return (

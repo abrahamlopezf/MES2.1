@@ -92,16 +92,18 @@ export const MermaScrapDetallesModal: React.FC<Props> = ({ materialId, onClose }
                                   <span className="text-muted-foreground italic">{userNotes}</span>
                                 </div>
                               )}
-                              <div className="flex flex-col gap-1.5 mt-1">
-                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Facturas afectadas</span>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {facturas.map((fac: string, idx: number) => (
-                                    <Badge key={idx} variant="outline" className="font-mono text-xs bg-background/50 border-border/80">
-                                      {fac}
-                                    </Badge>
-                                  ))}
+                                <div className="flex flex-col gap-2 mt-2">
+                                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Facturas afectadas</span>
+                                  <ul className="flex flex-col gap-2 pl-5 list-disc marker:text-muted-foreground/40">
+                                    {facturas.map((fac: string, idx: number) => (
+                                      <li key={idx}>
+                                        <Badge variant="outline" className="font-mono text-xs bg-background/50 border-border/80 px-2 py-0.5">
+                                          {fac}
+                                        </Badge>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
-                              </div>
                             </div>
                           );
                         }

@@ -67,6 +67,7 @@ db.Lote = initLoteModel(sequelize, DataTypes);
 db.TipoBaja = initTipoBajaModel(sequelize, DataTypes);
 db.MaterialConsumption = initMaterialConsumptionModel(sequelize, DataTypes);
 db.MaterialConsumptionItem = initMaterialConsumptionItemModel(sequelize, DataTypes);
+db.WasteRequest = require('../../modules/warehouse/wasteRequest.model')(sequelize);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
 db.TraceableItem = initTraceableItemModel(sequelize, DataTypes);
@@ -245,6 +246,26 @@ db.Lote.belongsTo(db.QrCode, {
 db.Lote.belongsTo(db.Location, {
   foreignKey: 'location_id',
   as: 'location',
+});
+
+db.WasteRequest.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+db.WasteRequest.belongsTo(db.TipoBaja, {
+  foreignKey: 'tipo_baja_id',
+  as: 'tipoBaja',
+});
+
+db.WasteRequest.belongsTo(db.User, {
+  foreignKey: 'requested_by',
+  as: 'requester',
+});
+
+db.WasteRequest.belongsTo(db.User, {
+  foreignKey: 'resolved_by',
+  as: 'resolver',
 });
 
 db.TraceabilityEvent.belongsTo(db.User, {

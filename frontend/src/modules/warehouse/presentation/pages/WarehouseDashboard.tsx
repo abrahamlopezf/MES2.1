@@ -55,11 +55,20 @@ export const WarehouseDashboard = () => {
     }
   });
 
+  const userName = user?.first_name || user?.username || 'Usuario';
+
   return (
     <div className="flex flex-col h-full bg-background relative pb-28 overflow-x-hidden">
       <TopBar title="Dashboard de Almacén" />
 
       <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 mt-4">
+        {/* Header Section */}
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            ¡Hola, <span className="text-primary">{userName}</span>! 👋
+          </h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Aquí está el resumen del almacén hoy.</p>
+        </div>
         
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

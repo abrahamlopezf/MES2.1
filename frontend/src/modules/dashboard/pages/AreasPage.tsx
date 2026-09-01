@@ -2,22 +2,24 @@ import React, { useState } from 'react';
 import { Card, CardContent, TopBar } from '../../../design-system';
 import { Package, Layers, QrCode, Factory, Settings, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../../store/authStore';
 
 export const AreasPage: React.FC = () => {
   const navigate = useNavigate();
+  const { hasPermission } = useAuthStore();
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
 
-  const areas = [
+  const allAreas = [
     { 
       id: 'almacen', 
       title: 'Almacén', 
       description: 'Recepción e Inventario', 
       icon: Package,
       children: [
-        { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y Fórmulas', icon: Package, path: '/materials' },
-        { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, path: '/warehouse/receive' },
-        { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory' },
-        { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap' },
+        { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y Fórmulas', icon: Package, path: '/materials', permission: 'materials.read' },
+        { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, path: '/warehouse/receive', permission: 'inventory.receive' },
+        { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
+        { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
       ]
     },
     { 
@@ -26,8 +28,8 @@ export const AreasPage: React.FC = () => {
       description: 'Gestión de QRs', 
       icon: QrCode,
       children: [
-        { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión de QRs', icon: QrCode, path: '/identity/generate' },
-        { id: 'identity_hist', title: 'Historial QRs', description: 'Trazabilidad', icon: QrCode, path: '/qrcodes' },
+        { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión de QRs', icon: QrCode, path: '/identity/generate', permission: 'qr.create' },
+        { id: 'identity_hist', title: 'Historial QRs', description: 'Trazabilidad', icon: QrCode, path: '/qrcodes', permission: 'qr.events.read' },
       ]
     },
     { 
@@ -35,12 +37,25 @@ export const AreasPage: React.FC = () => {
       title: 'Configuración', 
       description: 'Usuarios y Sistema', 
       icon: Settings, 
-      path: '/users' 
+      path: '/users',
+      permission: 'users.read'
     },
   ];
 
+  // Filtrar áreas y sus hijos por permisos
+  const areas = allAreas.map(area => {
+    if (area.children) {
+      const filteredChildren = area.children.filter(child => hasPermission(child.permission));
+      return { ...area, children: filteredChildren };
+    }
+    return area;
+  }).filter(area => {
+    if (area.children) return area.children.length > 0;
+    return area.permission ? hasPermission(area.permission) : true;
+  });
+
   const handleCardClick = (item: any) => {
-    if (item.children) {
+    if (item.children && item.children.length > 0) {
       setSelectedGroup(item);
     } else if (item.path) {
       navigate(item.path);

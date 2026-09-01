@@ -50,6 +50,11 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: true,
     },
+    is_frozen: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
   }, {
     tableName: 'lotes',
     timestamps: true,

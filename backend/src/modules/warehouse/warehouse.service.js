@@ -128,6 +128,30 @@ const disposeLotes = async (payload, currentUser) => {
   });
 };
 
+const requestDisposeLotes = async (payload, currentUser) => {
+  if (!payload.material_id || !payload.lote_ids || !payload.tipo_baja_id) {
+    throwHttpError('Faltan datos obligatorios para solicitar la baja', 400);
+  }
+
+  return await sequelize.transaction(async (t) => {
+    return await inventoryDomainService.requestDisposeLotes(payload, currentUser, t);
+  });
+};
+
+const getWasteRequest = async (requestId, currentUser) => {
+  return await inventoryDomainService.getWasteRequest(requestId, currentUser);
+};
+
+const resolveWasteRequest = async (requestId, status, currentUser) => {
+  if (!['APPROVED', 'REJECTED'].includes(status)) {
+    throwHttpError('Estado inválido para resolución', 400);
+  }
+
+  return await sequelize.transaction(async (t) => {
+    return await inventoryDomainService.resolveWasteRequest(requestId, status, currentUser, t);
+  });
+};
+
 const getLoteDetails = async (id) => {
   const { Material, User, Location, QrCode, TraceabilityEvent } = require('../../database/models');
   
@@ -604,5 +628,8 @@ module.exports = {
   getDashboardMetrics,
   manualEntry,
   getMermaScrapReport,
-  getMermaScrapDetails
+  getMermaScrapDetails,
+  requestDisposeLotes,
+  getWasteRequest,
+  resolveWasteRequest
 };

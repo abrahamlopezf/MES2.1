@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
 import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers } from 'lucide-react';
 import { Badge, Input, Button, TopBar } from '../../../../design-system';
@@ -13,14 +13,23 @@ import { useDebouncedValue } from '../../../../hooks/useDebouncedValue';
 
 export const WarehouseInventoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = useAuthStore();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedBajaItem, setSelectedBajaItem] = useState<any>(null);
+  const [resolutionRequestId, setResolutionRequestId] = useState<string | null>(searchParams.get('waste_request_id'));
   const [selectedInfoItem, setSelectedInfoItem] = useState<any>(null);
   const [isManualEntryModalOpen, setIsManualEntryModalOpen] = useState(false);
   const [isConsumoModalOpen, setIsConsumoModalOpen] = useState(false);
   const pageSize = 50; // Internal pagination size
+
+  useEffect(() => {
+    if (searchParams.has('waste_request_id')) {
+      searchParams.delete('waste_request_id');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const debouncedSearch = useDebouncedValue(search, 300);
 
@@ -187,7 +196,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                             onClick={() => setSelectedBajaItem(item)}
                             className="whitespace-nowrap"
                           >
-                            <ShieldAlert size={16} className="mr-1" /> Dar de baja
+                            <ShieldAlert size={16} className="mr-1" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
                           </Button>
                         </div>
                       </td>
@@ -241,7 +250,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                       <Info size={14} className="mr-1" /> Detalles
                     </Button>
                     <Button variant="destructive" size="sm" className="h-8 px-3" onClick={() => setSelectedBajaItem(item)}>
-                      <ShieldAlert size={14} className="mr-1" /> Dar de baja
+                      <ShieldAlert size={14} className="mr-1" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
                     </Button>
                   </div>
                 </div>
@@ -278,10 +287,14 @@ export const WarehouseInventoryPage: React.FC = () => {
           )}
         </div>
       </div>
-      {selectedBajaItem && (
+      {(selectedBajaItem || resolutionRequestId) && (
         <BajaModal 
           item={selectedBajaItem}
-          onClose={() => setSelectedBajaItem(null)}
+          resolutionRequestId={resolutionRequestId}
+          onClose={() => {
+            setSelectedBajaItem(null);
+            setResolutionRequestId(null);
+          }}
           onSuccess={() => refetch()}
         />
       )}

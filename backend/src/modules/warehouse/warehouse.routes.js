@@ -53,8 +53,26 @@ router.get(
 
 router.post(
   '/inventory/dispose',
-  authorizePermission('warehouse.dispose'),
+  authorizePermission('warehouse.dispose', 'warehouse.waste', 'inventory.dispose'),
   warehouseController.disposeLotes
+);
+
+router.post(
+  '/inventory/dispose-request',
+  authorizePermission('warehouse.read', 'warehouse.waste.request', 'inventory.view'),
+  warehouseController.requestDisposeLotes
+);
+
+router.get(
+  '/inventory/dispose-request/:id',
+  authorizePermission('warehouse.read', 'warehouse.waste', 'inventory.view'),
+  warehouseController.getWasteRequest
+);
+
+router.post(
+  '/inventory/dispose-resolve/:id',
+  authorizePermission('warehouse.dispose', 'warehouse.waste', 'inventory.dispose'),
+  warehouseController.resolveWasteRequest
 );
 
 router.get(

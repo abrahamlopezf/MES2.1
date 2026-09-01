@@ -50,9 +50,8 @@ const UserAvatar: React.FC<{
   );
 };
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 const ProfilePage: React.FC = () => {
-  const { user, logout, setToken } = useAuthStore();
+  const { user, logout, initializeAuth } = useAuthStore() as any;
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
 
@@ -93,14 +92,21 @@ const ProfilePage: React.FC = () => {
     }
     setIsSaving(true);
     try {
-      await api.put('/auth/profile', {
+      const payload: any = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        email,
-        telefono,
-      });
-      const res = await api.get('/auth/me');
-      setToken(localStorage.getItem('token') || '', res.data.data);
+        telefono: telefono.trim(),
+      };
+      if (email.trim()) {
+        payload.email = email.trim();
+      }
+
+      await api.put('/auth/profile', payload);
+      
+      if (initializeAuth) {
+        await initializeAuth();
+      }
+      
       toast.success('Perfil actualizado correctamente');
       setIsEditing(false);
     } catch (error: any) {
@@ -114,10 +120,10 @@ const ProfilePage: React.FC = () => {
     setIsSaving(true);
     try {
       await api.put('/auth/profile', { avatar_url: avatarInput || null });
-      setAvatarUrl(avatarInput);
-      const res = await api.get('/auth/me');
-      setToken(localStorage.getItem('token') || '', res.data.data);
-      toast.success('Foto de perfil actualizada');
+      if (initializeAuth) {
+        await initializeAuth();
+      }
+      toast.success('Avatar actualizado correctamente');
       setIsEditingAvatar(false);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error al actualizar foto');

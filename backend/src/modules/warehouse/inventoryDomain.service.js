@@ -118,12 +118,12 @@ class InventoryDomainService {
       // Si tenemos lote explícito, consumimos solo de ese
       if (item.lote_id) {
         const lote = await Lote.findOne({
-          where: { id: item.lote_id, material_id: item.material_id, is_active: true },
+          where: { id: item.lote_id, material_id: item.material_id, is_active: true, is_frozen: false },
           transaction
         });
 
         if (!lote) {
-          throw new Error(`Lote ${item.lote_id} no encontrado o inactivo.`);
+          throw new Error(`Lote ${item.lote_id} no encontrado, inactivo o congelado.`);
         }
 
         if (Number(lote.available_amount) < remainingToConsume) {
@@ -151,7 +151,7 @@ class InventoryDomainService {
       // Consumo FIFO por material
       else {
         const lotes = await Lote.findAll({
-          where: { material_id: item.material_id, is_active: true },
+          where: { material_id: item.material_id, is_active: true, is_frozen: false },
           order: [['created_at', 'ASC']], // FIFO: Lotes más antiguos primero
           transaction
         });
@@ -315,6 +315,112 @@ class InventoryDomainService {
       
       await Notification.bulkCreate(notifications, { transaction });
     }
+  }
+
+  async requestDisposeLotes(payload, user, transaction = null) {
+    const { material_id, lote_ids, tipo_baja_id, notes } = payload;
+    const { Lote, WasteRequest, Notification, User, Role } = require('../../database/models');
+
+    const lotes = await Lote.findAll({
+      where: { id: lote_ids, material_id, is_active: true, is_frozen: false },
+      transaction
+    });
+
+    if (lotes.length !== lote_ids.length) {
+      throw new Error('Algunos lotes seleccionados no existen, están inactivos o ya están congelados.');
+    }
+
+    for (const lote of lotes) {
+      lote.is_frozen = true;
+      await lote.save({ transaction });
+    }
+
+    const wasteReq = await WasteRequest.create({
+      material_id,
+      lote_ids,
+      tipo_baja_id,
+      notes,
+      status: 'PENDING',
+      requested_by: user.id
+    }, { transaction });
+
+    const adminRole = await Role.findOne({ where: { code: 'ADMIN_ALM' }, transaction });
+    if (adminRole) {
+      const admins = await User.findAll({ where: { role_id: adminRole.id, is_active: true }, transaction });
+      const notifications = admins.map(admin => ({
+        recipient_id: admin.id,
+        sender_id: user.id,
+        type: 'WASTE_REQUEST',
+        title: 'Solicitud de Baja de Material',
+        message: `El usuario ${user.first_name || 'Sistema'} ha solicitado dar de baja ${lote_ids.length} lote(s).?waste_request_id=${wasteReq.id}`
+      }));
+      await Notification.bulkCreate(notifications, { transaction });
+    }
+
+    return wasteReq;
+  }
+
+  async getWasteRequest(requestId, user) {
+    const { WasteRequest, User, Material, TipoBaja } = require('../../database/models');
+    
+    const request = await WasteRequest.findByPk(requestId, {
+      include: [
+        { model: User, as: 'requester', attributes: ['id', 'first_name', 'last_name'] },
+        { model: Material, as: 'material', attributes: ['id', 'internal_code', 'name'] },
+        { model: TipoBaja, as: 'tipoBaja', attributes: ['id', 'name'] }
+      ]
+    });
+
+    if (!request) throw new Error('Solicitud no encontrada');
+    return request;
+  }
+
+  async resolveWasteRequest(requestId, status, user, transaction = null) {
+    const { Lote, WasteRequest, Notification } = require('../../database/models');
+
+    const request = await WasteRequest.findByPk(requestId, { transaction });
+    if (!request || request.status !== 'PENDING') {
+      throw new Error('Solicitud no encontrada o ya resuelta.');
+    }
+
+    request.status = status;
+    request.resolved_by = user.id;
+    request.resolved_at = new Date();
+    await request.save({ transaction });
+
+    const lotes = await Lote.findAll({
+      where: { id: request.lote_ids },
+      transaction
+    });
+
+    if (status === 'APPROVED') {
+      for (const lote of lotes) {
+        lote.is_frozen = false;
+        await lote.save({ transaction });
+      }
+      const payload = {
+        material_id: request.material_id,
+        lote_ids: request.lote_ids,
+        tipo_baja_id: request.tipo_baja_id,
+        notes: request.notes
+      };
+      await this.disposeLotes(payload, transaction);
+    } else {
+      for (const lote of lotes) {
+        lote.is_frozen = false;
+        await lote.save({ transaction });
+      }
+    }
+
+    await Notification.create({
+      recipient_id: request.requested_by,
+      sender_id: user.id,
+      type: 'WASTE_RESOLUTION',
+      title: 'Resolución de Solicitud de Baja',
+      message: `Tu solicitud de baja ha sido ${status === 'APPROVED' ? 'aprobada' : 'rechazada'}.`
+    }, { transaction });
+
+    return request;
   }
 }
 

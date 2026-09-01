@@ -46,10 +46,6 @@ const DashboardPage = () => {
   const { theme } = useThemeStore();
   const userName = user?.first_name || user?.username || 'Usuario';
 
-  if (!hasPermission('dashboard.read') && hasPermission('warehouse.dashboard.view')) {
-    return <WarehouseDashboard />;
-  }
-
   // Configuración de colores estrictos para Recharts
   const isDark = theme === 'dark';
   const axisColor = isDark ? '#e4e4e7' : '#18181b'; // zinc-200 : zinc-900
@@ -65,7 +61,12 @@ const DashboardPage = () => {
       return responseData.data || responseData;
     },
     refetchInterval: 10000, // Recarga cada 10 segundos
+    enabled: hasPermission('dashboard.read'), // Solo hacer fetch si tiene permiso
   });
+
+  if (!hasPermission('dashboard.read') && hasPermission('warehouse.dashboard.view')) {
+    return <WarehouseDashboard />;
+  }
 
   // Extraemos KPIs del payload
   const kpis = dashboardData?.kpis || {};

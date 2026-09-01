@@ -15,8 +15,9 @@ const startServer = async () => {
     // await db.Location.sync({ alter: true });
     // await db.Material.sync({ alter: true });
     // await db.TipoBaja.sync({ alter: true });
-    // await db.Lote.sync({ alter: true });
+    await db.Lote.sync({ alter: true });
     // await db.Inventory.sync({ alter: true });
+    await db.WasteRequest.sync({ alter: true });
 
     // Seed Ranking
     const rankingsCount = await db.Ranking.count();
