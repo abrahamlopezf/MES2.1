@@ -89,11 +89,10 @@ module.exports = (sequelize, DataTypes) => {
     Material.belongsTo(models.MaterialType, { foreignKey: 'type_id', as: 'type' });
     Material.belongsTo(models.Location, { foreignKey: 'default_location_id', as: 'default_location' });
     
-    // Unlink these until Phase 1.5 units are created
-    // if (models.MaterialUnit) {
-    //   Material.belongsTo(models.MaterialUnit, { foreignKey: 'base_unit_id', as: 'base_unit' });
-    //   Material.belongsTo(models.MaterialUnit, { foreignKey: 'stock_unit_id', as: 'stock_unit' });
-    // }
+    if (models.MaterialUnit) {
+      Material.belongsTo(models.MaterialUnit, { foreignKey: 'base_unit_id', as: 'base_unit' });
+      Material.belongsTo(models.MaterialUnit, { foreignKey: 'stock_unit_id', as: 'stock_unit' });
+    }
   };
 
   return Material;

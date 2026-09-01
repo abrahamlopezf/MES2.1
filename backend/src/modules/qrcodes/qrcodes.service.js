@@ -813,6 +813,7 @@ const lookup = async (qr_code) => {
   if (lote) {
     inventory = {
       lote_id: lote.id,
+      folio: lote.folio,
       qr_code_value: qr.qr_code,
       material: lote.material ? lote.material.get({ plain: true }) : null,
       quantity: lote.available_amount,

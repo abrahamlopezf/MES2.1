@@ -17,7 +17,7 @@ const TFInput = React.forwardRef(
     ref
   ) => {
     return (
-      <label className={cn('grid gap-2', containerClassName)}>
+      <label className={cn('grid gap-2 overflow-hidden w-full', containerClassName)}>
         {label && (
           <span className="text-base font-black text-foreground">
             {label}
@@ -27,7 +27,7 @@ const TFInput = React.forwardRef(
         <div
           className={cn(
             [
-              'flex min-h-15 items-center gap-3 rounded-2xl border bg-card px-4',
+              'flex min-h-15 items-center gap-3 rounded-2xl border bg-card px-4 min-w-0',
               'transition-all duration-300 ease-out',
               'focus-within:-translate-y-0.5 focus-within:border-primary',
               'focus-within:shadow-[0_0_0_4px] focus-within:shadow-ring/20',

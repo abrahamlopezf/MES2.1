@@ -15,6 +15,7 @@ import FamiliesPage from "../modules/materials/pages/FamiliesPage";
 import CodesPage from "../modules/materials/pages/CodesPage";
 import TypesPage from "../modules/materials/pages/TypesPage";
 import BrandsPage from "../modules/materials/pages/BrandsPage";
+import UnitsPage from "../modules/materials/pages/UnitsPage";
 import LocationsPage from "../modules/materials/pages/LocationsPage";
 import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
 import QrCodesPage from "../modules/qrcodes/pages/QrCodesPage";
@@ -44,6 +45,7 @@ import { WarehouseProvider } from '../modules/warehouse/WarehouseProvider';
 import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
 import { MaterialLotesPage } from '../modules/warehouse/presentation/pages/MaterialLotesPage';
 import { LoteDetailsPage } from '../modules/warehouse/presentation/pages/LoteDetailsPage';
+import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
 
 export const router = createBrowserRouter([
   {
@@ -115,6 +117,10 @@ export const router = createBrowserRouter([
               {
                 path: 'brands',
                 element: <BrandsPage />
+              },
+              {
+                path: 'units',
+                element: <UnitsPage />
               },
               {
                 path: 'locations',
@@ -193,6 +199,10 @@ export const router = createBrowserRouter([
               {
                 path: 'lotes/:id',
                 element: <LoteDetailsPage />
+              },
+              {
+                path: 'merma-scrap',
+                element: <MermaScrapPage />
               },
               {
                 path: 'traceability',

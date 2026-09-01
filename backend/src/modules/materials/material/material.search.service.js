@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location } = require('../../../database/models');
+const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location, MaterialUnit } = require('../../../database/models');
 const { NotFoundError } = require('../../../services/BaseCatalogService'); // Importar el error custom
 
 class MaterialSearchService {
@@ -14,6 +14,8 @@ class MaterialSearchService {
       brand, 
       type 
     } = query;
+
+    const { MaterialType, Location } = require('../../../database/models');
 
     const parsedPageSize = pageSize === 'all' ? 10000 : parseInt(pageSize, 10);
     const offset = (page - 1) * parsedPageSize;
@@ -30,7 +32,8 @@ class MaterialSearchService {
     if (search) {
       where[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
-        { internal_code: { [Op.iLike]: `%${search}%` } }
+        { '$material_code.code$': { [Op.iLike]: `%${search}%` } },
+        { '$family.code$': { [Op.iLike]: `%${search}%` } }
       ];
     }
 
@@ -58,6 +61,7 @@ class MaterialSearchService {
     }
     
     include.push({ model: MaterialCode, as: 'material_code', required: false });
+    include.push({ model: MaterialUnit, as: 'base_unit', required: false });
 
     const { count, rows } = await Material.findAndCountAll({
       where,
@@ -78,13 +82,16 @@ class MaterialSearchService {
   }
 
   async getByUuid(uuid) {
+    const { Location } = require('../../../database/models');
     const material = await Material.findOne({
       where: { uuid },
       include: [
         { model: MaterialFamily, as: 'family' },
         { model: MaterialCode, as: 'material_code' },
         { model: MaterialBrand, as: 'brand' },
-        { model: MaterialType, as: 'type' }
+        { model: MaterialType, as: 'type' },
+        { model: Location, as: 'default_location', attributes: ['id', 'uuid', 'code', 'name'] },
+        { model: MaterialUnit, as: 'base_unit', required: false }
       ]
     });
 

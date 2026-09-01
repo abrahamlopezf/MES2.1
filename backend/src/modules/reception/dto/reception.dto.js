@@ -6,6 +6,7 @@ const ReceiveMaterialSchema = z.object({
   location_id: z.coerce.number().int().positive("El ID de la ubicación debe ser positivo"),
   unit_id: z.coerce.number().int().positive("El ID de la unidad debe ser positivo"),
   quantity: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
+  folio: z.string().min(1, "El folio es obligatorio"),
   notes: z.string().optional().nullable(),
 });
 

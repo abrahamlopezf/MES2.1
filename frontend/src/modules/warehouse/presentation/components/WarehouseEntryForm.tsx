@@ -14,6 +14,7 @@ export const WarehouseEntryForm: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [locationId, setLocationId] = useState('ALMACEN-PRINCIPAL');
+  const [folio, setFolio] = useState('');
   
   const qrInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +51,8 @@ export const WarehouseEntryForm: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!qrCode || !materialId || !amount || Number(amount) <= 0) {
-      toast.error('Complete todos los campos correctamente.');
+    if (!qrCode || !materialId || !amount || Number(amount) <= 0 || !folio) {
+      toast.error('Complete todos los campos correctamente (incluyendo folio).');
       return;
     }
 
@@ -61,12 +62,15 @@ export const WarehouseEntryForm: React.FC = () => {
         material_id: Number(materialId),
         quantity: Number(amount),
         location: locationId,
+        folio: folio
       },
       {
         onSuccess: () => {
           toast.success('Entrada registrada exitosamente.');
           setQrCode('');
           setAmount('');
+          setFolio('');
+          setSearchTerm('');
           qrInputRef.current?.focus();
         },
         onError: (err: any) => {

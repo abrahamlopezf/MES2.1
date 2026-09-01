@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Save, X, QrCode } from 'lucide-react';
+import { Save, X, QrCode, ShieldAlert } from 'lucide-react';
 import { TFAlert, TFButton, TFCard, TFCardContent, TFInput, TFSelect, TFTextarea } from '../../../components/tf-ui';
 
 import {
@@ -9,7 +9,8 @@ import {
   useMaterialBrandsQuery,
   useOperationalAreasQuery,
   useRankingsQuery,
-  useMaterialsQuery
+  useMaterialsQuery,
+  useMaterialUnitsQuery
 } from '../hooks/useMaterialsQueries';
 
 const MaterialForm = ({
@@ -17,6 +18,7 @@ const MaterialForm = ({
   isSubmitting = false,
   onSubmit,
   onCancel,
+  onDeactivate,
 }) => {
   const isEditing = Boolean(initialData?.id);
 
@@ -25,6 +27,7 @@ const MaterialForm = ({
   const { data: typesData } = useMaterialTypesQuery({ pageSize: 10000 });
   const { data: brandsData } = useMaterialBrandsQuery({ pageSize: 10000 });
   const { data: locationsData } = useOperationalAreasQuery({ pageSize: 10000 });
+  const { data: unitsData } = useMaterialUnitsQuery({ pageSize: 10000 });
   const { data: rankingsData } = useRankingsQuery();
 
   const families = familiesData?.items || [];
@@ -32,15 +35,17 @@ const MaterialForm = ({
   const types = typesData?.items || [];
   const brands = brandsData?.items || [];
   const locations = locationsData?.items || [];
+  const units = unitsData?.items || [];
   const rankings = rankingsData?.items || [];
 
   const [formData, setFormData] = useState({
     ranking_id: initialData?.ranking_id || '',
-    family_uuid: initialData?.family?.uuid || '',
-    material_code_uuid: initialData?.material_code?.uuid || '',
-    type_uuid: initialData?.type?.uuid || '',
-    brand_uuid: initialData?.brand?.uuid || '',
-    location_uuid: initialData?.default_location?.uuid || '',
+    family_uuid: initialData?.family?.uuid || (initialData?.family?.id ? String(initialData.family.id) : ''),
+    material_code_uuid: initialData?.material_code?.uuid || (initialData?.material_code?.id ? String(initialData.material_code.id) : ''),
+    type_uuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : ''),
+    brand_uuid: initialData?.brand?.uuid || (initialData?.brand?.id ? String(initialData.brand.id) : ''),
+    base_unit_uuid: initialData?.base_unit?.uuid || (initialData?.base_unit?.id ? String(initialData.base_unit.id) : ''),
+    location_uuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : ''),
     name: initialData?.name || '',
     description: initialData?.description || '',
     minimum_stock: initialData?.minimum_stock ?? '',
@@ -62,14 +67,23 @@ const MaterialForm = ({
 
   useEffect(() => {
     if (initialData) {
+      console.log("MaterialForm initialization debug:", JSON.stringify({
+        initialType: initialData.type,
+        initialLocation: initialData.default_location,
+        typeOptionsCount: types.length,
+        locationOptionsCount: locations.length,
+        extractedTypeUuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : formData.type_uuid),
+        extractedLocationUuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : formData.location_uuid),
+      }, null, 2));
       setFormData((current) => ({
         ...current,
         ranking_id: initialData?.ranking_id || current.ranking_id,
-        family_uuid: initialData?.family?.uuid || current.family_uuid,
-        material_code_uuid: initialData?.material_code?.uuid || current.material_code_uuid,
-        type_uuid: initialData?.type?.uuid || current.type_uuid,
-        brand_uuid: initialData?.brand?.uuid || current.brand_uuid,
-        location_uuid: initialData?.default_location?.uuid || current.location_uuid,
+        family_uuid: initialData?.family?.uuid || (initialData?.family?.id ? String(initialData.family.id) : current.family_uuid),
+        material_code_uuid: initialData?.material_code?.uuid || (initialData?.material_code?.id ? String(initialData.material_code.id) : current.material_code_uuid),
+        type_uuid: initialData?.type?.uuid || (initialData?.type?.id ? String(initialData.type.id) : current.type_uuid),
+        brand_uuid: initialData?.brand?.uuid || (initialData?.brand?.id ? String(initialData.brand.id) : current.brand_uuid),
+        location_uuid: initialData?.default_location?.uuid || (initialData?.default_location?.id ? String(initialData.default_location.id) : current.location_uuid),
+        base_unit_uuid: initialData?.base_unit?.uuid || (initialData?.base_unit?.id ? String(initialData.base_unit.id) : current.base_unit_uuid),
         name: initialData.name || current.name,
         description: initialData.description || current.description,
         minimum_stock: initialData.minimum_stock ?? current.minimum_stock,
@@ -79,26 +93,31 @@ const MaterialForm = ({
     }
   }, [initialData]);
 
-  // Robust fallback: if initialData only provided an ID for location, find its UUID once locations load
+  // Robust fallback: if initialData only provided an ID, find its UUID once the catalogues load
   useEffect(() => {
-    if (initialData && !formData.location_uuid && initialData.default_location?.id && locations.length > 0) {
-      const loc = locations.find(l => l.id === initialData.default_location.id);
-      if (loc && loc.uuid) updateField('location_uuid', loc.uuid);
+    if (initialData && locations.length > 0 && initialData.default_location?.id) {
+      if (formData.location_uuid === String(initialData.default_location.id)) {
+        const item = locations.find(x => String(x.id) === String(initialData.default_location.id));
+        if (item && item.uuid) updateField('location_uuid', item.uuid);
+      }
     }
   }, [initialData, locations, formData.location_uuid]);
 
-  // Same for material code and type just in case they were missing UUIDs in the API response
   useEffect(() => {
-    if (initialData && !formData.material_code_uuid && initialData.material_code?.id && codes.length > 0) {
-      const code = codes.find(c => c.id === initialData.material_code.id);
-      if (code && code.uuid) updateField('material_code_uuid', code.uuid);
+    if (initialData && codes.length > 0 && initialData.material_code?.id) {
+      if (formData.material_code_uuid === String(initialData.material_code.id)) {
+        const item = codes.find(x => String(x.id) === String(initialData.material_code.id));
+        if (item && item.uuid) updateField('material_code_uuid', item.uuid);
+      }
     }
   }, [initialData, codes, formData.material_code_uuid]);
 
   useEffect(() => {
-    if (initialData && !formData.type_uuid && initialData.type?.id && types.length > 0) {
-      const type = types.find(t => t.id === initialData.type.id);
-      if (type && type.uuid) updateField('type_uuid', type.uuid);
+    if (initialData && types.length > 0 && initialData.type?.id) {
+      if (formData.type_uuid === String(initialData.type.id)) {
+        const item = types.find(x => String(x.id) === String(initialData.type.id));
+        if (item && item.uuid) updateField('type_uuid', item.uuid);
+      }
     }
   }, [initialData, types, formData.type_uuid]);
 
@@ -106,31 +125,41 @@ const MaterialForm = ({
     setFormData((current) => ({ ...current, [field]: value }));
   };
 
-  const familyOptions = families.map(f => ({ value: f.uuid, label: `${f.code} - ${f.name}` }));
-  const codeOptions = codes.map(c => ({ value: c.uuid, label: `${c.code} - ${c.name}` }));
+  const familyOptions = families.map(f => ({ value: f.uuid || String(f.id), label: `${f.code} - ${f.name}` }));
+  const codeOptions = codes.map(c => ({ value: c.uuid || String(c.id), label: `${c.code} - ${c.name}` }));
   
   // Group Types by Recommended (used by family) and Others
-  const recommendedTypes = types.filter(t => validTypeUuids.has(t.uuid));
-  const otherTypes = types.filter(t => !validTypeUuids.has(t.uuid));
+  const recommendedTypes = types.filter(t => validTypeUuids.has(t.uuid || String(t.id)));
+  const otherTypes = types.filter(t => !validTypeUuids.has(t.uuid || String(t.id)));
   const typeOptions = formData.family_uuid ? [
-    ...recommendedTypes.map(t => ({ value: t.uuid, label: `⭐ ${t.name}` })),
+    ...recommendedTypes.map(t => ({ value: t.uuid || String(t.id), label: `⭐ ${t.name}` })),
     ...(otherTypes.length > 0 ? [{ value: 'SEP_1', label: '--- Otros Tipos ---', disabled: true }] : []),
-    ...otherTypes.map(t => ({ value: t.uuid, label: t.name }))
-  ] : types.map(t => ({ value: t.uuid, label: t.name }));
+    ...otherTypes.map(t => ({ value: t.uuid || String(t.id), label: t.name }))
+  ] : types.map(t => ({ value: t.uuid || String(t.id), label: t.name }));
 
   // Group Brands by Recommended (used by family) and Others
-  const recommendedBrands = brands.filter(b => validBrandUuids.has(b.uuid));
-  const otherBrands = brands.filter(b => !validBrandUuids.has(b.uuid));
+  const recommendedBrands = brands.filter(b => validBrandUuids.has(b.uuid || String(b.id)));
+  const otherBrands = brands.filter(b => !validBrandUuids.has(b.uuid || String(b.id)));
   const brandOptions = formData.family_uuid ? [
-    ...recommendedBrands.map(b => ({ value: b.uuid, label: `⭐ ${b.name}` })),
+    ...recommendedBrands.map(b => ({ value: b.uuid || String(b.id), label: `⭐ ${b.name}` })),
     ...(otherBrands.length > 0 ? [{ value: 'SEP_2', label: '--- Otras Marcas ---', disabled: true }] : []),
-    ...otherBrands.map(b => ({ value: b.uuid, label: b.name }))
-  ] : brands.map(b => ({ value: b.uuid, label: b.name }));
+    ...otherBrands.map(b => ({ value: b.uuid || String(b.id), label: b.name }))
+  ] : brands.map(b => ({ value: b.uuid || String(b.id), label: b.name }));
 
   const locationOptions = locations.map(l => ({ 
-    value: l.uuid, 
+    value: l.uuid || String(l.id), 
     label: `${l.code} - ${l.name}` 
   }));
+
+  console.log("MaterialForm render debug:", {
+    typesLoaded: types.length > 0,
+    locationsLoaded: locations.length > 0,
+    currentTypeUuid: formData.type_uuid,
+    currentLocationUuid: formData.location_uuid,
+    typeOptions: typeOptions,
+    locationOptions: locationOptions,
+  });
+  const unitOptions = units.map(u => ({ value: u.uuid || String(u.id), label: `${u.code} - ${u.name}` }));
   const rankingOptions = rankings.map(r => ({ value: String(r.id), label: `${r.nomenclature} - ${r.name}` }));
 
   const selectedFamily = families.find(f => f.uuid === formData.family_uuid);
@@ -161,6 +190,7 @@ const MaterialForm = ({
       type_uuid: formData.type_uuid || null,
       brand_uuid: formData.brand_uuid || null,
       location_uuid: formData.location_uuid || null,
+      base_unit_uuid: formData.base_unit_uuid || null,
       name: formData.name.trim(),
       description: formData.description.trim() || null,
       minimum_stock: formData.minimum_stock !== '' ? Number(formData.minimum_stock) : undefined,
@@ -175,7 +205,7 @@ const MaterialForm = ({
   };
 
   return (
-    <TFCard>
+    <TFCard className="w-full overflow-hidden">
       <TFCardContent>
         <form className="grid gap-6" onSubmit={handleSubmit}>
           {formError && (
@@ -195,7 +225,7 @@ const MaterialForm = ({
             </p>
           </div>
 
-          <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 [&>*]:min-w-0">
             <TFSelect
               label="Ranking *"
               name="ranking_id"
@@ -258,7 +288,17 @@ const MaterialForm = ({
               value={formData.location_uuid}
               onChange={(e) => updateField('location_uuid', e.target.value)}
               options={locationOptions}
-              disabled={isEditing || isSubmitting}
+              disabled={isSubmitting}
+            />
+
+            <TFSelect
+              label="Unidad de Medida (Base)"
+              name="base_unit_uuid"
+              placeholder="Selecciona Unidad (Opcional)"
+              value={formData.base_unit_uuid}
+              onChange={(e) => updateField('base_unit_uuid', e.target.value)}
+              options={unitOptions}
+              disabled={isSubmitting}
             />
 
             <TFSelect
@@ -303,27 +343,31 @@ const MaterialForm = ({
             disabled={isSubmitting}
           />
 
-          {isEditing && (
-            <TFSelect
-              label="Estado"
-              name="is_active"
-              value={formData.is_active ? 'true' : 'false'}
-              onChange={(e) => updateField('is_active', e.target.value === 'true')}
-              options={[
-                { value: 'true', label: 'Activo' },
-                { value: 'false', label: 'Inactivo' },
-              ]}
-              disabled={isSubmitting}
-            />
-          )}
+          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800 mt-2 w-full">
+            <div className="flex flex-col gap-3 w-full sm:w-auto">
+              <TFButton type="button" variant="secondary" icon={X} onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
+                Cancelar
+              </TFButton>
+              
+              {isEditing && onDeactivate && initialData?.is_active && (
+                <TFButton
+                  variant="danger"
+                  icon={ShieldAlert}
+                  type="button"
+                  onClick={() => onDeactivate(initialData)}
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto"
+                >
+                  Desactivar material
+                </TFButton>
+              )}
+            </div>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <TFButton type="button" variant="secondary" icon={X} onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
-              Cancelar
-            </TFButton>
-            <TFButton type="submit" icon={Save} isLoading={isSubmitting} className="w-full sm:w-auto">
-              {isEditing ? 'Guardar cambios' : 'Crear material'}
-            </TFButton>
+            <div className="w-full sm:w-auto">
+              <TFButton type="submit" icon={Save} isLoading={isSubmitting} className="w-full sm:w-auto h-full sm:h-12">
+                {isEditing ? 'Guardar cambios' : 'Crear material'}
+              </TFButton>
+            </div>
           </div>
         </form>
       </TFCardContent>

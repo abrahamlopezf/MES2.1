@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Edit3, Archive, Layers } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { TFAlert, TFButton, TFCard, TFBadge } from '../../../components/tf-ui';
@@ -6,6 +6,8 @@ import LoadingState from '../../../components/feedback/LoadingState';
 import ErrorState from '../../../components/feedback/ErrorState';
 import MaterialActionSheet from '../components/MaterialActionSheet';
 import GenericCatalogForm from '../components/GenericCatalogForm';
+import MaterialModuleHeader from '../components/MaterialModuleHeader';
+import SubcatalogFiltersPanel from '../components/SubcatalogFiltersPanel';
 
 const SubcatalogPageTemplate = ({
   title,
@@ -15,6 +17,10 @@ const SubcatalogPageTemplate = ({
   createMutation,
   updateMutation,
   labels,
+  filters,
+  onFilterChange,
+  onClearFilters,
+  entityName = "registros",
   ...props
 }) => {
   const { hasPermission } = useAuthStore();
@@ -27,12 +33,39 @@ const SubcatalogPageTemplate = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const items = Array.isArray(dataQuery.data?.items) ? dataQuery.data.items : (Array.isArray(dataQuery.data) ? dataQuery.data : []);
+  const rawItems = Array.isArray(dataQuery.data?.items) ? dataQuery.data.items : (Array.isArray(dataQuery.data) ? dataQuery.data : []);
+  
+  // Filtrado robusto en el frontend por si el backend no soporta search/status nativamente en los subcatálogos
+  const items = rawItems.filter(item => {
+    if (filters?.status === 'inactive' && item.is_active !== false) return false;
+    if (filters?.status === 'active' && item.is_active === false) return false;
+    if (filters?.search) {
+      const s = filters.search.toLowerCase();
+      const matchName = item.name?.toLowerCase()?.includes(s);
+      const matchCode = item.code?.toLowerCase()?.includes(s);
+      if (!matchName && !matchCode) return false;
+    }
+    return true;
+  });
+
   const meta = dataQuery.data?.meta;
 
   const page = props.page || 1;
   const setPage = props.setPage || (() => {});
+  const total = Number(meta?.total) || items.length;
   const totalPages = meta ? Math.ceil(meta.total / (meta.pageSize || 20)) : 1;
+
+  const activeCount = useMemo(() => {
+    if (filters?.status === 'active') return total;
+    if (filters?.status === 'inactive') return 0;
+    return items.filter((item) => item.is_active !== false).length;
+  }, [items, filters?.status, total]);
+
+  const inactiveCount = useMemo(() => {
+    if (filters?.status === 'inactive') return total;
+    if (filters?.status === 'active') return 0;
+    return items.filter((item) => item.is_active === false).length;
+  }, [items, filters?.status, total]);
 
   const handleOpenCreate = () => {
     setSelectedItem(null);
@@ -93,23 +126,28 @@ const SubcatalogPageTemplate = ({
         <TFAlert variant="danger" title="Error" message={operationError} />
       )}
 
-      {/* Header and Add Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-5 rounded-xl border border-border shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
-            {Icon ? <Icon className="size-6" /> : <Layers className="size-6" />}
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground m-0">{title}</h2>
-            <p className="text-sm text-muted-foreground m-0">{description}</p>
-          </div>
-        </div>
-        {canManageCatalogs && (
-          <TFButton variant="primary" icon={Plus} onClick={handleOpenCreate}>
-            Nuevo registro
-          </TFButton>
-        )}
-      </div>
+      {/* Header */}
+      <MaterialModuleHeader
+        title={title}
+        description={description}
+        total={total}
+        activeCount={activeCount}
+        inactiveCount={inactiveCount}
+        canCreate={canManageCatalogs}
+        onCreateMaterial={handleOpenCreate}
+        onRefresh={() => dataQuery.refetch()}
+        isRefreshing={dataQuery.isFetching && !dataQuery.isLoading}
+      />
+
+      {/* Filters Panel */}
+      {filters && onFilterChange && (
+        <SubcatalogFiltersPanel
+          filters={filters}
+          onFilterChange={onFilterChange}
+          onClearFilters={onClearFilters}
+          entityName={entityName}
+        />
+      )}
 
       {/* Data Grid / Table */}
       {items.length === 0 ? (

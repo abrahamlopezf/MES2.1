@@ -11,6 +11,11 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    folio: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'LEGACY-LOT', // For existing database rows
+    },
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,

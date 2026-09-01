@@ -14,6 +14,14 @@ const getInventory = async (query = {}) => {
   const limit = Math.min(Number(query.limit) || 100, 300);
   const offset = Number(query.offset) || 0;
 
+  if (query.search) {
+    const s = `%${query.search}%`;
+    where[Op.or] = [
+      { '$material.name$': { [Op.iLike]: s } },
+      { '$material.internal_code$': { [Op.iLike]: s } }
+    ];
+  }
+
   const result = await Inventory.findAndCountAll({
     where,
     attributes: [
@@ -77,14 +85,26 @@ const disposeLotes = async (payload, currentUser) => {
       user_id: currentUser.id
     }, t);
 
+    let movementType = 'DISPOSE';
+    const tipoBajaId = Number(payload.tipo_baja_id);
+    if (tipoBajaId === 2) movementType = 'MERMA';
+    else if ([1, 3, 4].includes(tipoBajaId)) movementType = 'SCRAP';
+
     // Registrar Movimiento de Inventario de la baja
-    const { InventoryMovement, TraceabilityEvent } = require('../../database/models');
+    const { InventoryMovement, TraceabilityEvent, TipoBaja } = require('../../database/models');
+    
+    let motivoName = 'Desconocido';
+    const tipoBaja = await TipoBaja.findByPk(payload.tipo_baja_id);
+    if (tipoBaja) motivoName = tipoBaja.name;
+    
+    const foliosAfectados = result.lotes ? result.lotes.map(l => l.folio).filter(Boolean).join(', ') : '';
+
     await InventoryMovement.create({
       inventory_id: result.inventory.id,
-      type: 'DISPOSE',
+      type: movementType,
       quantity_change: -result.totalDisposed,
       performed_by: currentUser.id,
-      notes: `Baja de ${result.totalDisposed}. Lotes afectados: ${payload.lote_ids.join(', ')}. Motivo ID: ${payload.tipo_baja_id}. Notas: ${payload.notes || ''}`
+      notes: `Facturas afectadas: ${foliosAfectados}. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`
     }, { transaction: t });
 
     // Registrar Evento de Trazabilidad por cada Lote
@@ -97,7 +117,7 @@ const disposeLotes = async (payload, currentUser) => {
             entity_type: 'LOTE',
             entity_id: lote.id.toString(),
             performed_by: currentUser.id,
-            notes: `Lote dado de baja. Motivo ID: ${payload.tipo_baja_id}. Notas: ${payload.notes || ''}`,
+            notes: `Factura ${lote.folio} dada de baja. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`,
             metadata: { tipo_baja_id: payload.tipo_baja_id }
           }, { transaction: t });
         }
@@ -136,9 +156,25 @@ const getLoteDetails = async (id) => {
     });
   }
 
+  // Get consumption events associated with this lote
+  const { MaterialConsumptionItem, MaterialConsumption } = require('../../database/models');
+  const consumptions = await MaterialConsumption.findAll({
+    include: [
+      { 
+        model: MaterialConsumptionItem, 
+        as: 'items', 
+        where: { lote_id: id },
+        required: true
+      },
+      { model: User, as: 'user', attributes: ['id', 'first_name', 'last_name'] }
+    ],
+    order: [['created_at', 'ASC']]
+  });
+
   return {
     lote,
-    events
+    events,
+    consumptions
   };
 };
 const consumeMaterials = async (payload, currentUser) => {
@@ -381,37 +417,181 @@ const getDashboardMetrics = async (user) => {
 };
 
 const manualEntry = async (payload, currentUser) => {
-  if (!payload.material_id || !payload.quantity || !payload.location_id) {
-    throwHttpError('Faltan datos obligatorios para el ingreso manual (material, cantidad, localidad).', 400);
-  }
-  if (Number(payload.quantity) <= 0) {
-    throwHttpError('La cantidad debe ser mayor a 0.', 400);
+  if (!payload.material_id || !payload.location_id || !payload.entries || !Array.isArray(payload.entries) || payload.entries.length === 0) {
+    throwHttpError('Faltan datos obligatorios para el ingreso manual (material, localidad, y al menos una entrada).', 400);
   }
 
   return await sequelize.transaction(async (t) => {
-    const { InventoryMovement } = require('../../database/models');
+    const { InventoryMovement, Lote, Inventory } = require('../../database/models');
     
-    // 1. Crear el lote (virtual) e incrementar inventario
-    const result = await inventoryDomainService.receiveLote({
-      material_id: payload.material_id,
-      user_id: currentUser.id,
-      qr_id: null,
-      location_id: payload.location_id,
-      quantity: payload.quantity,
-      notes: payload.notes || 'Ingreso manual'
-    }, t);
+    let totalQuantity = 0;
+    const loteData = [];
+    
+    for (let i = 0; i < payload.entries.length; i++) {
+      const entry = payload.entries[i];
+      const generatedFolio = entry.folio ? entry.folio : `S/N-${Date.now()}-${i}`;
+      
+      if (!entry.quantity || Number(entry.quantity) <= 0) {
+        throwHttpError(`La entrada con folio "${generatedFolio}" tiene cantidad menor o igual a 0.`, 400);
+      }
+      
+      const q = Number(entry.quantity);
+      totalQuantity += q;
 
-    // 2. Registrar Movimiento de Inventario
-    await InventoryMovement.create({
-      inventory_id: result.inventory.id,
+      loteData.push({
+        material_id: payload.material_id,
+        user_id: currentUser.id,
+        qr_id: null,
+        location_id: payload.location_id,
+        folio: generatedFolio,
+        initial_amount: q,
+        available_amount: q,
+        notes: payload.notes || 'Ingreso manual',
+        is_active: true
+      });
+    }
+
+    // 1. Bulk create lotes
+    console.time('Lote.bulkCreate');
+    const createdLotes = await Lote.bulkCreate(loteData, { transaction: t, returning: true });
+    console.timeEnd('Lote.bulkCreate');
+
+    // 2. Upsert Inventory (only one DB call for finding, one for saving)
+    console.time('Inventory.findOne');
+    let inventory = await Inventory.findOne({
+      where: { material_id: payload.material_id },
+      transaction: t
+    });
+    console.timeEnd('Inventory.findOne');
+
+    console.time('Inventory.save');
+    if (inventory) {
+      inventory.amount = Number(inventory.amount) + totalQuantity;
+      await inventory.save({ transaction: t });
+    } else {
+      inventory = await Inventory.create({
+        material_id: payload.material_id,
+        amount: totalQuantity
+      }, { transaction: t });
+    }
+    console.timeEnd('Inventory.save');
+
+    // 3. Bulk create movements
+    console.time('Movement.bulkCreate');
+    const movementData = payload.entries.map((entry, idx) => ({
+      inventory_id: inventory.id,
       type: 'MANUAL_ENTRY',
-      quantity_change: payload.quantity,
+      quantity_change: Number(entry.quantity),
       performed_by: currentUser.id,
       notes: payload.notes || 'Ingreso manual al sistema (Lote virtual)'
-    }, { transaction: t });
+    }));
+    
+    const createdMovements = await InventoryMovement.bulkCreate(movementData, { transaction: t, returning: true });
+    console.timeEnd('Movement.bulkCreate');
 
-    return result;
+    // 4. Build results
+    const results = [];
+    for (let i = 0; i < createdLotes.length; i++) {
+      results.push({
+        lote: createdLotes[i].toJSON(),
+        inventory: inventory.toJSON(),
+        movement: createdMovements[i].toJSON()
+      });
+    }
+
+    return results;
   });
+};
+
+const getMermaScrapReport = async () => {
+  const { sequelize, InventoryMovement, Inventory, Material } = require('../../database/models');
+  const { Op } = require('sequelize');
+
+  // Obtener sumatorias por material y tipo (MERMA / SCRAP)
+  const movements = await InventoryMovement.findAll({
+    attributes: [
+      'type',
+      [sequelize.col('inventory.material_id'), 'material_id'],
+      [sequelize.col('inventory.material.internal_code'), 'internal_code'],
+      [sequelize.col('inventory.material.name'), 'material_name'],
+      [sequelize.fn('SUM', sequelize.col('quantity_change')), 'total_quantity']
+    ],
+    where: {
+      type: { [Op.in]: ['MERMA', 'SCRAP'] }
+    },
+    include: [{
+      model: Inventory,
+      as: 'inventory',
+      attributes: [],
+      include: [{
+        model: Material,
+        as: 'material',
+        attributes: []
+      }]
+    }],
+    group: ['type', 'inventory.material_id', 'inventory.material.internal_code', 'inventory.material.name'],
+    raw: true
+  });
+
+  const materialsMap = {};
+  
+  movements.forEach(row => {
+    const matId = row.material_id;
+    if (!materialsMap[matId]) {
+      materialsMap[matId] = {
+        material_id: matId,
+        internal_code: row.internal_code,
+        name: row.material_name,
+        merma: 0,
+        scrap: 0,
+      };
+    }
+    // quantity_change es negativo, tomamos Math.abs
+    if (row.type === 'MERMA') materialsMap[matId].merma += Math.abs(Number(row.total_quantity));
+    if (row.type === 'SCRAP') materialsMap[matId].scrap += Math.abs(Number(row.total_quantity));
+  });
+
+  const materialsList = Object.values(materialsMap);
+
+  return materialsList;
+};
+
+const getMermaScrapDetails = async (material_id) => {
+  const { InventoryMovement, Inventory, User } = require('../../database/models');
+  const { Op } = require('sequelize');
+
+  const inventory = await Inventory.findOne({
+    where: { material_id },
+    attributes: ['id']
+  });
+
+  if (!inventory) return [];
+
+  const movements = await InventoryMovement.findAll({
+    where: {
+      inventory_id: inventory.id,
+      type: { [Op.in]: ['MERMA', 'SCRAP'] }
+    },
+    order: [['created_at', 'DESC']],
+    raw: true
+  });
+
+  const userIds = [...new Set(movements.map(m => m.performed_by).filter(Boolean))];
+  const users = await User.findAll({
+    where: { id: { [Op.in]: userIds } },
+    attributes: ['id', 'first_name', 'last_name'],
+    raw: true
+  });
+  
+  const userMap = {};
+  users.forEach(u => userMap[u.id] = u);
+
+  const result = movements.map(m => ({
+    ...m,
+    user: userMap[m.performed_by] || null
+  }));
+
+  return result;
 };
 
 module.exports = {
@@ -422,5 +602,7 @@ module.exports = {
   changeLocation,
   getLoteDetails,
   getDashboardMetrics,
-  manualEntry
+  manualEntry,
+  getMermaScrapReport,
+  getMermaScrapDetails
 };

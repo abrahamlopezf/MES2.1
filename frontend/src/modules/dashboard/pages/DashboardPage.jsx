@@ -64,7 +64,7 @@ const DashboardPage = () => {
       const responseData = response.data || response;
       return responseData.data || responseData;
     },
-    refetchInterval: 60000, // Recarga cada 60 segundos
+    refetchInterval: 10000, // Recarga cada 10 segundos
   });
 
   // Extraemos KPIs del payload
@@ -79,7 +79,7 @@ const DashboardPage = () => {
     yieldRateUnit: kpis.yield?.unit || '%',
     activeRolls: activeRollsCount,
     monthlyScrap: kpis.scrap?.value || 0,
-    monthlyScrapUnit: kpis.scrap?.unit || 'kg',
+    monthlyScrapUnit: kpis.scrap?.unit || 'uds',
   };
 
   const yieldData = dashboardData?.charts?.yieldData || [];
@@ -94,7 +94,7 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="h-full flex flex-col gap-8 px-4 sm:px-6 md:px-8 pb-32 sm:pb-12 overflow-x-hidden">
+    <div className="h-full flex flex-col gap-8 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 overflow-x-hidden">
       
       {/* Header Section */}
       <motion.div 
@@ -120,7 +120,7 @@ const DashboardPage = () => {
         <StatCard delay={0.1} title="Materia Prima" value={stats.rawMaterial} unit={stats.rawMaterialUnit} status={kpis.production?.status} icon={Package} colorClass="bg-primary text-primary-foreground" />
         <StatCard delay={0.2} title="Rendimiento Global" value={stats.yieldRate} unit={stats.yieldRateUnit} status={kpis.yield?.status} icon={Activity} colorClass="bg-success text-success-foreground" />
         <StatCard delay={0.3} title="Rollos Activos" value={stats.activeRolls} unit="" status="GOOD" icon={Layers} colorClass="bg-secondary text-secondary-foreground" />
-        <StatCard delay={0.4} title="Merma Acumulada" value={stats.monthlyScrap} unit={stats.monthlyScrapUnit} status={kpis.scrap?.status} icon={AlertTriangle} colorClass="bg-danger text-danger-foreground" />
+        <StatCard delay={0.4} title="Merma y Scrap" value={stats.monthlyScrap} unit={stats.monthlyScrapUnit} status={kpis.scrap?.status} icon={AlertTriangle} colorClass="bg-danger text-danger-foreground" />
       </div>
 
       {/* Charts Grid */}

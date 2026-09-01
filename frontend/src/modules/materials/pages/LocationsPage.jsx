@@ -7,14 +7,32 @@ import {
 } from '../hooks/useMaterialsQueries';
 
 const LocationsPage = () => {
-  const [page, setPage] = useState(1);
-  const query = useOperationalAreasQuery({ page, limit: 20 });
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 20,
+    search: '',
+    status: 'all'
+  });
+
+  const query = useOperationalAreasQuery(filters);
   const mutation = useOperationalAreaMutation();
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ page: 1, limit: 20, search: '', status: 'all' });
+  };
 
   return (
     <SubcatalogPageTemplate
-      page={page}
-      setPage={setPage}
+      page={filters.page}
+      setPage={(page) => handleFilterChange('page', page)}
+      filters={filters}
+      onFilterChange={handleFilterChange}
+      onClearFilters={handleClearFilters}
+      entityName="localidades"
       title="Localidades de Almacén"
       description="Define las localidades físicas del almacén (Rack, Nivel, Posición)."
       icon={MapPin}

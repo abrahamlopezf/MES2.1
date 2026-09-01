@@ -346,6 +346,10 @@ const MaterialsPage = () => {
           }
           onSubmit={handleSubmitMaterial}
           onCancel={closeMaterialSheet}
+          onDeactivate={(material) => {
+            setMaterialToDeactivate(material);
+            closeMaterialSheet();
+          }}
         />
       </MaterialActionSheet>
 

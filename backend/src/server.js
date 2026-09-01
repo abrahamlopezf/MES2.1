@@ -8,15 +8,15 @@ const PORT = process.env.PORT || 4000;
 const startServer = async () => {
   try {
     await testDatabaseConnection();
-    // Sync for new Phase 3 models
+    // Sync for new Phase 3 models (Comentado para acelerar el tiempo de inicio)
     const db = require('./database/models');
-    await db.User.sync({ alter: true });
-    await db.Ranking.sync({ alter: true });
-    await db.Location.sync({ alter: true });
-    await db.Material.sync({ alter: true });
-    await db.TipoBaja.sync({ alter: true });
-    await db.Lote.sync({ alter: true });
-    await db.Inventory.sync({ alter: true });
+    // await db.User.sync({ alter: true });
+    // await db.Ranking.sync({ alter: true });
+    // await db.Location.sync({ alter: true });
+    // await db.Material.sync({ alter: true });
+    // await db.TipoBaja.sync({ alter: true });
+    // await db.Lote.sync({ alter: true });
+    // await db.Inventory.sync({ alter: true });
 
     // Seed Ranking
     const rankingsCount = await db.Ranking.count();

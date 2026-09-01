@@ -10,10 +10,17 @@ class DashboardService {
    */
   static async getOperationsDashboard() {
     try {
+      // Obtener datos reales de Merma/Scrap desde la base de datos
+      const { InventoryMovement } = require('../../database/models');
+      const scrapSum = await InventoryMovement.sum('quantity_change', {
+        where: { type: { [Op.in]: ['MERMA', 'SCRAP'] } }
+      });
+      const realScrapTotal = scrapSum ? Math.abs(scrapSum) : 0;
+
       // Mock data para KPIs
       const productionTotal = 4250;
       const totalInput = 4600;
-      const scrapTotal = 142;
+      const scrapTotal = realScrapTotal;
       const activeRuns = [
         { id: 1, code: 'RUN-EXT-001', total_output: 1200 },
         { id: 2, code: 'RUN-EXT-002', total_output: 800 },

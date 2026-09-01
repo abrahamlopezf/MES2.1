@@ -26,6 +26,13 @@ class MaterialCrudService {
       if (type) typeId = type.id;
     }
     
+    let baseUnitId = null;
+    if (data.base_unit_uuid) {
+      const { MaterialUnit } = require('../../../database/models');
+      const unit = await MaterialUnit.findByPk(data.base_unit_uuid);
+      if (unit) baseUnitId = unit.id;
+    }
+    
     let locationId = null;
     if (data.location_uuid) {
       const location = await Location.findOne({ 
@@ -73,7 +80,8 @@ class MaterialCrudService {
       maximum_stock: data.maximum_stock,
       reorder_point: data.reorder_point || 0,
       status: data.status || 'ACTIVE',
-      default_location_id: locationId
+      default_location_id: locationId,
+      base_unit_id: baseUnitId
     };
 
     return await Material.create(materialData);
@@ -101,6 +109,36 @@ class MaterialCrudService {
     } else if (data.location_uuid === null) {
       data.default_location_id = null;
       delete data.location_uuid;
+    }
+
+    if (data.type_uuid) {
+      const { MaterialType } = require('../../../database/models');
+      const type = await MaterialType.findOne({ where: { uuid: data.type_uuid } });
+      if (type) data.type_id = type.id;
+      delete data.type_uuid;
+    } else if (data.type_uuid === null) {
+      data.type_id = null;
+      delete data.type_uuid;
+    }
+
+    if (data.brand_uuid) {
+      const { MaterialBrand } = require('../../../database/models');
+      const brand = await MaterialBrand.findOne({ where: { uuid: data.brand_uuid } });
+      if (brand) data.brand_id = brand.id;
+      delete data.brand_uuid;
+    } else if (data.brand_uuid === null) {
+      data.brand_id = null;
+      delete data.brand_uuid;
+    }
+
+    if (data.base_unit_uuid) {
+      const { MaterialUnit } = require('../../../database/models');
+      const unit = await MaterialUnit.findByPk(data.base_unit_uuid);
+      if (unit) data.base_unit_id = unit.id;
+      delete data.base_unit_uuid;
+    } else if (data.base_unit_uuid === null) {
+      data.base_unit_id = null;
+      delete data.base_unit_uuid;
     }
     
     return await material.update(data);

@@ -89,7 +89,7 @@ export const ReceptionProvider = () => {
     }
 
     if (command.type === 'SUBMIT_RECEPTION_COMMAND') {
-      const { qrCode, materialId, quantity, rack, observations } = command.payload;
+      const { qrCode, materialId, quantity, rack, observations, folio } = command.payload;
       const start = performance.now();
       try {
         await apiClient.post('/reception', {
@@ -98,7 +98,8 @@ export const ReceptionProvider = () => {
           location_id: rack,
           unit_id: 1, // TODO: Debería venir del unit_id base del material, pero por ahora se asume 1 (Ej. KG)
           quantity: Number(quantity),
-          notes: observations
+          notes: observations,
+          folio: folio
         });
 
         const duration = performance.now() - start;

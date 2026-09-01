@@ -91,7 +91,7 @@ export const InfoModal = ({ item, onClose }) => {
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm text-foreground truncate">
-                          Lote #{lote.id}
+                          Folio: {lote.folio || 'LEGACY-LOT'}
                         </span>
                         {isInactive && (
                           <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-destructive/10 text-destructive border-destructive/20">Dado de Baja</Badge>

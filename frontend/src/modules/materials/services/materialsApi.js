@@ -35,6 +35,12 @@ export const getOperationalAreasRequest = (params = {}) => axiosClient.get('/loc
 export const createOperationalAreaRequest = (payload) => axiosClient.post('/locations', payload);
 export const updateOperationalAreaRequest = ({ id, payload }) => axiosClient.patch(`/locations/${id}`, payload);
 
+// === UNITS ===
+export const getMaterialUnitsRequest = (params = {}) => axiosClient.get('/material-units', { params });
+export const createMaterialUnitRequest = (payload) => axiosClient.post('/material-units', payload);
+export const updateMaterialUnitRequest = ({ id, payload }) => axiosClient.patch(`/material-units/${id}`, payload);
+export const deactivateMaterialUnitRequest = (id) => axiosClient.delete(`/material-units/${id}`);
+
 // === MATERIALS ===
 export const getMaterialsRequest = (params = {}) => axiosClient.get('/materials', { params });
 export const getMaterialByIdRequest = (id) => axiosClient.get(`/materials/${id}`);

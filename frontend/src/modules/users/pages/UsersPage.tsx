@@ -141,7 +141,7 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4 px-4 sm:px-6 md:px-8 py-4 md:py-6 pb-32 sm:pb-12 overflow-x-hidden">
+    <div className="space-y-4 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 pb-32 sm:pb-12 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
         <div>
           <h1 className="text-3xl font-black text-foreground tracking-tight">Gestión de Usuarios</h1>
@@ -174,7 +174,7 @@ const UsersPage: React.FC = () => {
                   placeholder="Nómina, Nombre, Correo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 font-medium"
+                  className="!pl-10 font-medium"
                 />
               </div>
               

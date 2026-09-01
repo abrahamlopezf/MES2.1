@@ -17,6 +17,7 @@ import { AndonBoardPage } from '../modules/production/presentation/pages/AndonBo
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
 import { AdminDashboard } from './AdminDashboard';
 import UsersPage from '../modules/users/pages/UsersPage';
+import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
 
 // Router Config Definitivo
 export const AppRouter = () => {
@@ -65,6 +66,7 @@ export const AppRouter = () => {
             <Route path="receive" element={<ReceptionProvider />} />
             <Route path="inventory" element={<WarehouseInventoryPage />} />
             <Route path="traceability" element={<WarehouseProvider />} />
+            <Route path="merma-scrap" element={<MermaScrapPage />} />
           </Route>
         </Route>
     </Routes>

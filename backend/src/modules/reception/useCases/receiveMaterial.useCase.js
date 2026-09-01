@@ -16,8 +16,13 @@ class ReceiveMaterialUseCase {
       location_id,
       unit_id,
       quantity,
+      folio,
       notes = null
     } = payload;
+
+    if (!folio) {
+      throw new Error("El folio de la factura es obligatorio para la recepción.");
+    }
 
     return await sequelize.transaction(async (t) => {
       // 1. Bloqueo pesimista del QR para evitar concurrencia (SELECT ... FOR UPDATE)
@@ -60,15 +65,15 @@ class ReceiveMaterialUseCase {
         defaults: { name: 'Pieza', is_active: true },
         transaction: t
       });
-      const finalUnitId = unitRecord.id;
 
-      // 2. Crear Lote e Inventario Consolidado (InventoryDomainService)
+      // Registrar Lote (Domain Service)
       const { lote, inventory } = await inventoryDomainService.receiveLote({
         material_id,
         user_id: userId,
         qr_id: qrCode.id,
         location_id: finalLocationId,
         quantity,
+        folio,
         notes
       }, t);
 

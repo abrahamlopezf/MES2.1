@@ -22,6 +22,9 @@ import {
   getMaterialBrandsRequest,
   createMaterialBrandRequest,
   updateMaterialBrandRequest,
+  getMaterialUnitsRequest,
+  createMaterialUnitRequest,
+  updateMaterialUnitRequest,
   getOperationalAreasRequest,
   createOperationalAreaRequest,
   updateOperationalAreaRequest,
@@ -38,6 +41,7 @@ export const materialQueryKeys = {
   types: (filters) => [...materialQueryKeys.all, 'types', filters],
   brands: (filters) => [...materialQueryKeys.all, 'brands', filters],
   locations: (filters) => [...materialQueryKeys.all, 'locations', filters],
+  units: (filters) => [...materialQueryKeys.all, 'units', filters],
 };
 
 const buildMaterialParams = (filters = {}) => {
@@ -55,6 +59,28 @@ const buildMaterialParams = (filters = {}) => {
   if (filters.default_unit) params.default_unit = filters.default_unit;
 
   if (filters.status === 'all') {
+    params.include_inactive = 'true';
+  }
+
+  return params;
+};
+
+const buildSubcatalogParams = (filters = {}) => {
+  const params = {
+    limit: filters.limit || 20,
+    page: filters.page || 1,
+  };
+
+  if (filters.search) params.search = filters.search;
+  
+  // El backend BaseCatalogService.js hace:
+  // if (status !== undefined) { where.is_active = status === 'ACTIVE'; }
+  // Por lo tanto, si status es 'all' o 'inactive', mapearlo para evitar que mandemos 'status=all' (que filtraría todo a inactivo)
+  if (filters.status === 'active') {
+    params.status = 'ACTIVE';
+  } else if (filters.status === 'inactive') {
+    params.status = 'INACTIVE';
+  } else if (filters.status === 'all') {
     params.include_inactive = 'true';
   }
 
@@ -221,7 +247,7 @@ export const useMaterialFamiliesQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.families(filters),
     queryFn: async () => {
-      const response = await getMaterialFamiliesRequest(filters);
+      const response = await getMaterialFamiliesRequest(buildSubcatalogParams(filters));
       return normalizeCategoriesResponse(response);
     },
     staleTime: 1000 * 60 * 5,
@@ -249,7 +275,7 @@ export const useMaterialCodesQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.codes(filters),
     queryFn: async () => {
-      const response = await getMaterialCodesRequest(filters);
+      const response = await getMaterialCodesRequest(buildSubcatalogParams(filters));
       return normalizeCategoriesResponse(response);
     },
     staleTime: 1000 * 60 * 5,
@@ -277,7 +303,7 @@ export const useMaterialTypesQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.types(filters),
     queryFn: async () => {
-      const response = await getMaterialTypesRequest(filters);
+      const response = await getMaterialTypesRequest(buildSubcatalogParams(filters));
       return normalizeCategoriesResponse(response);
     },
     staleTime: 1000 * 60 * 5,
@@ -305,7 +331,7 @@ export const useMaterialBrandsQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.brands(filters),
     queryFn: async () => {
-      const response = await getMaterialBrandsRequest(filters);
+      const response = await getMaterialBrandsRequest(buildSubcatalogParams(filters));
       return normalizeCategoriesResponse(response);
     },
     staleTime: 1000 * 60 * 5,
@@ -328,11 +354,41 @@ export const useUpdateMaterialBrandMutation = () => {
   });
 };
 
+// --- UNITS ---
+export const useMaterialUnitsQuery = (filters = { pageSize: 'all' }) => {
+  return useQuery({
+    queryKey: materialQueryKeys.units(filters),
+    queryFn: async () => {
+      const response = await getMaterialUnitsRequest(buildSubcatalogParams(filters));
+      return normalizeCategoriesResponse(response);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useCreateMaterialUnitMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMaterialUnitRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useUpdateMaterialUnitMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMaterialUnitRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
 export const useOperationalAreasQuery = (filters = { pageSize: 'all' }) => {
   return useQuery({
     queryKey: materialQueryKeys.locations(filters),
-    queryFn: () => getOperationalAreasRequest(filters),
-    select: normalizeCategoriesResponse,
+    queryFn: async () => {
+      const response = await getOperationalAreasRequest(buildSubcatalogParams(filters));
+      return normalizeCategoriesResponse(response);
+    },
   });
 };
 

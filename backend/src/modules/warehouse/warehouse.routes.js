@@ -22,6 +22,18 @@ router.get(
 );
 
 router.get(
+  '/reports/merma-scrap',
+  authorizePermission('warehouse.read', 'inventory.view'),
+  warehouseController.getMermaScrapReport
+);
+
+router.get(
+  '/reports/merma-scrap/:material_id',
+  authorizePermission('warehouse.read', 'inventory.view'),
+  warehouseController.getMermaScrapDetails
+);
+
+router.get(
   '/inventory',
   authorizePermission('warehouse.read', 'inventory.view'),
   warehouseController.getInventory

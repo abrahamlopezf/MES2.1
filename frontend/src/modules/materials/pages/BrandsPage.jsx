@@ -8,15 +8,33 @@ import {
 } from '../hooks/useMaterialsQueries';
 
 const BrandsPage = () => {
-  const [page, setPage] = useState(1);
-  const query = useMaterialBrandsQuery({ page, limit: 20 });
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 20,
+    search: '',
+    status: 'all'
+  });
+
+  const query = useMaterialBrandsQuery(filters);
   const createMut = useCreateMaterialBrandMutation();
   const updateMut = useUpdateMaterialBrandMutation();
 
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ page: 1, limit: 20, search: '', status: 'all' });
+  };
+
   return (
     <SubcatalogPageTemplate
-      page={page}
-      setPage={setPage}
+      page={filters.page}
+      setPage={(page) => handleFilterChange('page', page)}
+      filters={filters}
+      onFilterChange={handleFilterChange}
+      onClearFilters={handleClearFilters}
+      entityName="marcas"
       title="Marcas de Material"
       description="Define las marcas comerciales aprobadas."
       icon={Award}

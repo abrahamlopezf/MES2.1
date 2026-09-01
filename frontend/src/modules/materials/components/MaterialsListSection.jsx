@@ -32,9 +32,9 @@ const MaterialsListSection = ({
         </div>
       </div>
 
-      <div className="p-0">
+      <div className="px-5 pb-5 pt-2">
         {materials.length === 0 ? (
-          <div className="flex flex-col min-h-64 items-center justify-center bg-secondary/10 p-8 text-center m-5 rounded-2xl border border-dashed border-border">
+          <div className="flex flex-col min-h-64 items-center justify-center bg-secondary/10 p-8 text-center rounded-2xl border border-dashed border-border">
             <div className="flex flex-col max-w-md items-center gap-5">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Boxes className="size-10" />
@@ -97,7 +97,7 @@ const MaterialsListSection = ({
             </div>
 
             {total > pageSize && (
-              <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border px-5 py-4 gap-4 bg-secondary/20">
+              <div className="flex flex-col sm:flex-row items-center justify-between border border-border px-5 py-4 gap-4 bg-secondary/20 rounded-xl mt-4">
                 <div className="hidden sm:block">
                   <p className="text-sm font-semibold text-muted-foreground">
                     Mostrando del <span className="font-bold text-foreground">{((page - 1) * pageSize) + 1}</span> al{' '}

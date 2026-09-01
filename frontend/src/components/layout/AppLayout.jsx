@@ -96,7 +96,7 @@ const AppLayout = () => {
       <div className="flex-1 h-full overflow-y-auto relative custom-scrollbar flex flex-col">
         
       {/* Main Content Area */}
-        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 flex-1">
+        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-16 lg:pt-16 flex-1">
           <Outlet />
         </PageContainer>
         

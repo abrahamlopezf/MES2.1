@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
 import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers } from 'lucide-react';
@@ -9,6 +9,7 @@ import { InfoModal } from '../components/InfoModal';
 import { ConsumoModal } from '../components/ConsumoModal';
 import { ManualEntryModal } from '../components/ManualEntryModal';
 import { useAuthStore } from '../../../../store/authStore';
+import { useDebouncedValue } from '../../../../hooks/useDebouncedValue';
 
 export const WarehouseInventoryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,16 +22,17 @@ export const WarehouseInventoryPage: React.FC = () => {
   const [isConsumoModalOpen, setIsConsumoModalOpen] = useState(false);
   const pageSize = 50; // Internal pagination size
 
+  const debouncedSearch = useDebouncedValue(search, 300);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['warehouse', 'inventory', search, page],
+    queryKey: ['warehouse', 'inventory', debouncedSearch, page],
     queryFn: async () => {
       const response = await axiosClient.get('/warehouse/inventory', {
-        params: { search, limit: pageSize, offset: (page - 1) * pageSize }
+        params: { search: debouncedSearch, limit: pageSize, offset: (page - 1) * pageSize }
       });
       return response.data.data;
     },
-    keepPreviousData: true
+    placeholderData: keepPreviousData
   });
 
   const total = data?.total || 0;
@@ -39,65 +41,89 @@ export const WarehouseInventoryPage: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
 
-      <TopBar title="Inventario de Almacén" />
-
-      {/* Toolbar — buscador + acciones */}
-      <div className="p-3 sm:p-4 bg-background/50 border-b border-border flex flex-col gap-2">
-        {/* Fila 1: Buscador full-width */}
-        <div className="flex gap-2 items-center">
-          <div className="flex-1 relative">
-            <Input
-              placeholder="Buscar por QR o Material..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="w-full"
-            />
-          </div>
-          {search && (
-            <Button variant="secondary" size="icon" onClick={() => { setSearch(''); setPage(1); }} title="Limpiar búsqueda" className="shrink-0">
-              <FilterX size={16} />
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => refetch()}
-            title="Refrescar"
-            className="shrink-0"
-          >
-            <RefreshCw className={isRefetching ? "animate-spin" : ""} size={18} />
-          </Button>
-        </div>
-
-        {/* Fila 2: Botones de acción — scroll horizontal en mobile */}
-        {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry')) && (
-          <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-            {hasPermission('warehouse.consume') && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setIsConsumoModalOpen(true)}
-                className="shrink-0 font-bold whitespace-nowrap"
-              >
-                <QrCode className="mr-1.5" size={15} />
-                <span className="hidden sm:inline">Consumo de Material</span>
-                <span className="sm:hidden">Consumo</span>
-              </Button>
-            )}
-            {hasPermission('warehouse.manual_entry') && (
-              <Button
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4">
+        {/* Header (Mismo diseño que MaterialModuleHeader) */}
+        <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-0">
+            <div>
+              <h1 className="text-3xl font-black text-foreground tracking-tight">Inventario de Almacén</h1>
+              <p className="text-muted-foreground font-semibold mt-1">Gestión y consulta de existencias físicas en tiempo real.</p>
+              
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground bg-secondary/50 px-2.5 py-1 rounded-md border border-border">
+                  <span>{total} Total en Stock</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
+              <Button 
                 variant="secondary"
-                size="sm"
-                onClick={() => setIsManualEntryModalOpen(true)}
-                className="shrink-0 font-bold whitespace-nowrap"
+                size="lg" 
+                onClick={() => refetch()} 
+                disabled={isRefetching}
+                className="font-bold shadow-sm w-full sm:w-auto justify-center"
               >
-                <Layers className="mr-1.5" size={15} />
-                <span className="hidden sm:inline">Ingreso Manual</span>
-                <span className="sm:hidden">Ing. Manual</span>
+                <RefreshCw className={`w-5 h-5 mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
+                <span>Actualizar</span>
+              </Button>
+              {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry')) && (
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                  {hasPermission('warehouse.consume') && (
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={() => setIsConsumoModalOpen(true)}
+                      className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                    >
+                      <QrCode className="w-5 h-5 mr-2 shrink-0" />
+                      <span>Consumo de Material</span>
+                    </Button>
+                  )}
+                  {hasPermission('warehouse.manual_entry') && (
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      onClick={() => setIsManualEntryModalOpen(true)}
+                      className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                    >
+                      <Layers className="w-5 h-5 mr-2 shrink-0" />
+                      <span>Ingreso Manual</span>
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Filters Panel (Mismo diseño que SubcatalogFiltersPanel) */}
+        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
+            <div>
+              <h3 className="font-bold text-foreground text-lg">Búsqueda</h3>
+              <p className="text-sm text-muted-foreground font-semibold">Encuentra existencias por QR o código de material.</p>
+            </div>
+            {search && (
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setPage(1); }} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
+                <FilterX className="w-4 h-4 mr-2 shrink-0" />
+                <span>Limpiar Búsqueda</span>
               </Button>
             )}
           </div>
-        )}
+
+          <div className="grid grid-cols-1 gap-4">
+            <div className="relative w-full">
+              <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por código QR, lote o material..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                className="!pl-10 font-medium w-full"
+              />
+            </div>
+          </div>
+        </section>
       </div>
 
       <div className="flex-1 p-4 sm:p-6 overflow-auto">

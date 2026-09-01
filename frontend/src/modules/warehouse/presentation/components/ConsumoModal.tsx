@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { X, Plus, QrCode, Trash2, Package } from 'lucide-react';
 import { Button, Input, Badge } from '../../../../design-system';
+import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
 import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
@@ -10,9 +11,26 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
   const queryClient = useQueryClient();
   const [orderNumber, setOrderNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<{ id: string; qrCode: string; lote_id: number; material_id: number; maxQuantity: number; quantity: number; materialName: string }[]>([]);
+  const [items, setItems] = useState<{ id?: string; qrCode?: string; lote_id?: number; material_id: number; maxQuantity: number; quantity: number; materialName: string }[]>([]);
   const [scanInput, setScanInput] = useState('');
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
+
+  // Fetch materials
+  const { data: materialsData } = useQuery({
+    queryKey: ['materials', 'all'],
+    queryFn: async () => {
+      const response = await axiosClient.get(`/materials?pageSize=10000`);
+      return response.data;
+    }
+  });
+
+  const materialsList = materialsData?.data?.items || (Array.isArray(materialsData?.data) ? materialsData.data : []);
+  const materials = [...materialsList].sort((a: any, b: any) => {
+    const textA = `${a.internal_code} - ${a.name}`.toLowerCase();
+    const textB = `${b.internal_code} - ${b.name}`.toLowerCase();
+    return textA.localeCompare(textB);
+  });
 
   const { mutate: handleConsume, isLoading: isSubmitting } = useMutation({
     mutationFn: async () => {
@@ -59,6 +77,7 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
            id: qr.id,
            qrCode: code,
            lote_id: inventory.lote_id,
+           folio: inventory.folio || 'N/A',
            material_id: inventory.material?.id,
            materialName: inventory.material?.name || 'Material',
            maxQuantity: parsedQty,
@@ -70,6 +89,40 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
       }
     } catch (e) {
       toast.error('Error al resolver QR. Verifique que exista y esté activo.');
+    }
+  };
+
+  const handleAddMaterial = async () => {
+    if (!selectedMaterialId) return;
+    const material = materials.find((m: any) => m.id === Number(selectedMaterialId));
+    if (!material) return;
+
+    if (items.some(i => i.material_id === material.id && !i.lote_id)) {
+      toast.error('Este material ya está en la lista de consumo.');
+      return;
+    }
+
+    try {
+      const response = await axiosClient.get(`/warehouse/inventory?material_id=${material.id}`);
+      const inventoryItems = response.data?.data?.items || response.data?.items || [];
+      const inventory = inventoryItems.find((i: any) => Number(i.material_id) === material.id);
+      
+      const maxQuantity = inventory ? Number(inventory.amount) : 0;
+
+      if (maxQuantity <= 0) {
+        toast.error('No hay inventario disponible para este material.');
+        return;
+      }
+
+      setItems(prev => [...prev, {
+        material_id: material.id,
+        materialName: material.name,
+        maxQuantity,
+        quantity: 1
+      }]);
+      setSelectedMaterialId('');
+    } catch (e) {
+      toast.error('Error al obtener inventario del material.');
     }
   };
 
@@ -145,15 +198,21 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
             <div className="flex flex-col gap-2">
               <h4 className="font-bold text-foreground">Materiales a Consumir</h4>
               <div className="flex gap-2">
-                <Input 
-                  placeholder="Escanear QR..." 
-                  value={scanInput}
-                  onChange={e => setScanInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleScan(scanInput); }}
-                  className="flex-1 min-w-0"
-                  prefix={<QrCode size={16} className="text-muted-foreground ml-2" />}
-                />
-                <Button variant="secondary" onClick={() => setIsScanning(true)} className="shrink-0">
+                <div className="flex-1 min-w-0">
+                  <SearchSelect 
+                    options={materials}
+                    value={selectedMaterialId}
+                    onChange={setSelectedMaterialId}
+                    getLabel={(m: any) => `${m.internal_code} - ${m.name}`}
+                    getValue={(m: any) => m.id.toString()}
+                    placeholder="Buscar material..."
+                    emptyMessage="No se encontraron materiales"
+                  />
+                </div>
+                <Button variant="secondary" onClick={() => setIsScanning(true)} className="shrink-0 group" title="Escanear QR">
+                  <QrCode size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                </Button>
+                <Button variant="primary" onClick={handleAddMaterial} className="shrink-0" disabled={!selectedMaterialId}>
                   <Plus size={16} className="mr-1.5" />
                   <span className="hidden sm:inline">Agregar</span>
                   <span className="sm:hidden">Add</span>
@@ -173,7 +232,7 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
                   <thead>
                     <tr className="bg-secondary/50">
                       <th className="px-4 py-3 text-left font-black uppercase text-muted-foreground">Material / QR</th>
-                      <th className="px-4 py-3 text-left font-black uppercase text-muted-foreground">Lote ID</th>
+                      <th className="px-4 py-3 text-left font-black uppercase text-muted-foreground">Folio / Factura</th>
                       <th className="px-4 py-3 text-left font-black uppercase text-muted-foreground">Disponible</th>
                       <th className="px-4 py-3 text-left font-black uppercase text-muted-foreground w-32">A Consumir</th>
                       <th className="px-4 py-3 text-right font-black uppercase text-muted-foreground"></th>
@@ -184,9 +243,9 @@ export const ConsumoModal = ({ onClose, onSuccess }) => {
                       <tr key={idx} className="border-t border-border/50">
                         <td className="px-4 py-3">
                           <p className="font-bold">{item.materialName}</p>
-                          <p className="text-xs text-muted-foreground">{item.qrCode}</p>
+                          <p className="text-xs text-muted-foreground">{item.qrCode || 'Asignación FIFO'}</p>
                         </td>
-                        <td className="px-4 py-3">LOTE-{item.lote_id}</td>
+                        <td className="px-4 py-3 font-semibold text-slate-700">{item.folio || 'N/A'}</td>
                         <td className="px-4 py-3 text-muted-foreground">{item.maxQuantity}</td>
                         <td className="px-4 py-3">
                           <Input 

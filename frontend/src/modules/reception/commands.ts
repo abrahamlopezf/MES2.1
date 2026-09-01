@@ -21,6 +21,7 @@ export interface SubmitReceptionRequest {
   qrCode: string;
   materialId: number;
   quantity: number;
+  folio: string;
   rack?: string;
   observations?: string;
 }

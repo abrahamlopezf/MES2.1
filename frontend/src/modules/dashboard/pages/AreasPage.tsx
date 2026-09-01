@@ -17,6 +17,7 @@ export const AreasPage: React.FC = () => {
         { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y Fórmulas', icon: Package, path: '/materials' },
         { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, path: '/warehouse/receive' },
         { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory' },
+        { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap' },
       ]
     },
     { 
@@ -49,7 +50,7 @@ export const AreasPage: React.FC = () => {
   const currentList = selectedGroup ? selectedGroup.children : areas;
 
   return (
-    <div className="space-y-6 px-4 sm:px-6 md:px-8 py-4 md:py-6 overflow-x-hidden">
+    <div className="space-y-6 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 overflow-x-hidden">
       <div className="flex items-center gap-4">
         {selectedGroup && (
           <button 

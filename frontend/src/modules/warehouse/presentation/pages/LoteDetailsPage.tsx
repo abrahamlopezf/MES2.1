@@ -86,7 +86,7 @@ const LoteDetailsPageContent = () => {
     <div className="flex flex-col h-full bg-background">
 
       <TopBar
-        title={`Lote #${lote.id}`}
+        title={`Folio: ${lote.folio || 'LEGACY-LOT'}`}
         leftAction={backButton}
         rightAction={
           (!lote.is_active || lote.is_active === 0) ? (

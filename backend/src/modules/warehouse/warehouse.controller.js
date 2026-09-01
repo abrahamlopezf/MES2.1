@@ -67,7 +67,31 @@ const getDashboardMetrics = async (req, res, next) => {
 const manualEntry = async (req, res, next) => {
   try {
     const result = await warehouseService.manualEntry(req.body, req.user);
-    return successResponse(res, 'Ingreso manual registrado exitosamente.', result);
+    return successResponse(res, 'Ingreso manual registrado correctamente', result, 201);
+  } catch (error) {
+    console.error("DEBUG MANUAL ENTRY ERROR:", error);
+    const errorMessage = error.original?.message || error.parent?.message || error.message || 'Error desconocido';
+    return res.status(400).json({
+      success: false,
+      message: errorMessage,
+      error_name: error.name
+    });
+  }
+};
+
+const getMermaScrapReport = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getMermaScrapReport();
+    return successResponse(res, 'Reporte de Merma y Scrap obtenido', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getMermaScrapDetails = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getMermaScrapDetails(req.params.material_id);
+    return successResponse(res, 'Detalles de Merma y Scrap obtenidos', result);
   } catch (error) {
     return next(error);
   }
@@ -81,5 +105,7 @@ module.exports = {
   consumeMaterials,
   changeLocation,
   getDashboardMetrics,
-  manualEntry
+  manualEntry,
+  getMermaScrapReport,
+  getMermaScrapDetails
 };

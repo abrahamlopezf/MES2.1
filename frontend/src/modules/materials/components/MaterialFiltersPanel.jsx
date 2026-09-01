@@ -32,27 +32,27 @@ const MaterialFiltersPanel = ({
 
     return (
         <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-4">
-            <div className="flex justify-between items-center border-b border-border pb-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
                 <div>
                     <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
                     <p className="text-sm text-muted-foreground font-semibold">Encuentra materiales por código, familia o tipo.</p>
                 </div>
                 {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold">
-                        <FilterX className="w-4 h-4 mr-2" />
-                        Limpiar Filtros
+                    <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
+                        <FilterX className="w-4 h-4 mr-2 shrink-0" />
+                        <span>Limpiar Filtros</span>
                     </Button>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="relative md:col-span-2 lg:col-span-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                <div className="relative sm:col-span-2 md:col-span-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Buscar por código o nombre..."
                         value={filters.search}
                         onChange={(e) => onFilterChange('search', e.target.value)}
-                        className="pl-10 font-medium w-full"
+                        className="!pl-10 font-medium w-full"
                     />
                 </div>
 
@@ -91,7 +91,7 @@ const MaterialFiltersPanel = ({
 
                 {canViewInactive && (
                     <select
-                        className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2 lg:col-span-1"
+                        className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                         value={filters.status}
                         onChange={(e) => onFilterChange('status', e.target.value)}
                     >

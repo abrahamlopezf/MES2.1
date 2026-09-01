@@ -6,6 +6,7 @@ interface ReceiveMaterialRequest {
   material_id: number;
   quantity: number;
   location: string;
+  folio: string;
 }
 
 export function useWarehouseEntry() {

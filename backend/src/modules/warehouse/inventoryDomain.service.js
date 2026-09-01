@@ -11,8 +11,11 @@ class InventoryDomainService {
       qr_id,
       location_id,
       quantity,
+      folio,
       notes = null
     } = payload;
+
+    if (!folio) throw new Error("Folio de lote es obligatorio");
 
     // 1. Crear el Lote
     const lote = await Lote.create({
@@ -20,6 +23,7 @@ class InventoryDomainService {
       user_id,
       qr_id,
       location_id,
+      folio,
       initial_amount: quantity,
       available_amount: quantity,
       notes,
@@ -101,32 +105,89 @@ class InventoryDomainService {
     // Validar y agrupar por material para descontar del inventario
     const materialDiscounts = {};
     const processedLotes = [];
+    const finalConsumptionItems = [];
 
-    // Validar todos los lotes
+    // Validar y consumir lotes (soporte para lote_id explícito o FIFO)
     for (const item of items) {
-      const lote = await Lote.findOne({
-        where: { id: item.lote_id, material_id: item.material_id, is_active: true },
-        transaction
-      });
+      let remainingToConsume = Number(item.quantity);
 
-      if (!lote) {
-        throw new Error(`Lote ${item.lote_id} no encontrado o inactivo.`);
+      if (remainingToConsume <= 0) {
+        throw new Error(`Cantidad a consumir inválida para el material ${item.material_id}.`);
       }
 
-      if (Number(lote.available_amount) < Number(item.quantity)) {
-        throw new Error(`Cantidad insuficiente en lote ${item.lote_id}. Disponible: ${lote.available_amount}, Solicitado: ${item.quantity}`);
+      // Si tenemos lote explícito, consumimos solo de ese
+      if (item.lote_id) {
+        const lote = await Lote.findOne({
+          where: { id: item.lote_id, material_id: item.material_id, is_active: true },
+          transaction
+        });
+
+        if (!lote) {
+          throw new Error(`Lote ${item.lote_id} no encontrado o inactivo.`);
+        }
+
+        if (Number(lote.available_amount) < remainingToConsume) {
+          throw new Error(`Cantidad insuficiente en lote ${item.lote_id}. Disponible: ${lote.available_amount}, Solicitado: ${remainingToConsume}`);
+        }
+
+        lote.available_amount = Number(lote.available_amount) - remainingToConsume;
+        if (lote.available_amount <= 0) {
+          lote.available_amount = 0;
+          lote.is_active = false;
+        }
+
+        await lote.save({ transaction });
+        processedLotes.push(lote);
+        
+        finalConsumptionItems.push({
+          material_id: item.material_id,
+          lote_id: lote.id,
+          qr_id: item.qr_id || lote.qr_id,
+          quantity: remainingToConsume
+        });
+
+        materialDiscounts[item.material_id] = (materialDiscounts[item.material_id] || 0) + remainingToConsume;
+      } 
+      // Consumo FIFO por material
+      else {
+        const lotes = await Lote.findAll({
+          where: { material_id: item.material_id, is_active: true },
+          order: [['created_at', 'ASC']], // FIFO: Lotes más antiguos primero
+          transaction
+        });
+
+        for (const lote of lotes) {
+          if (remainingToConsume <= 0) break;
+
+          const available = Number(lote.available_amount);
+          if (available <= 0) continue;
+
+          const qtyToConsume = Math.min(available, remainingToConsume);
+          
+          lote.available_amount = available - qtyToConsume;
+          if (lote.available_amount <= 0) {
+            lote.available_amount = 0;
+            lote.is_active = false;
+          }
+
+          await lote.save({ transaction });
+          processedLotes.push(lote);
+          
+          finalConsumptionItems.push({
+            material_id: item.material_id,
+            lote_id: lote.id,
+            qr_id: lote.qr_id,
+            quantity: qtyToConsume
+          });
+
+          materialDiscounts[item.material_id] = (materialDiscounts[item.material_id] || 0) + qtyToConsume;
+          remainingToConsume -= qtyToConsume;
+        }
+
+        if (remainingToConsume > 0) {
+          throw new Error(`Cantidad insuficiente en inventario para el material ${item.material_id}. Faltan ${remainingToConsume} piezas.`);
+        }
       }
-
-      lote.available_amount = Number(lote.available_amount) - Number(item.quantity);
-      if (lote.available_amount <= 0) {
-        lote.available_amount = 0;
-        lote.is_active = false;
-      }
-
-      await lote.save({ transaction });
-      processedLotes.push(lote);
-
-      materialDiscounts[item.material_id] = (materialDiscounts[item.material_id] || 0) + Number(item.quantity);
     }
 
     // Descontar inventarios
@@ -153,18 +214,15 @@ class InventoryDomainService {
       notes
     }, { transaction });
 
-    // Crear los items de consumo
-    const consumptionItems = items.map(item => ({
-      consumption_id: consumption.id,
-      material_id: item.material_id,
-      lote_id: item.lote_id,
-      qr_id: item.qr_id,
-      quantity: item.quantity
+    // Asignar el consumption_id a los items y crearlos
+    const consumptionItemsToCreate = finalConsumptionItems.map(item => ({
+      ...item,
+      consumption_id: consumption.id
     }));
 
-    await MaterialConsumptionItem.bulkCreate(consumptionItems, { transaction });
+    await MaterialConsumptionItem.bulkCreate(consumptionItemsToCreate, { transaction });
 
-    return { consumption, items: consumptionItems, processedLotes };
+    return { consumption, items: consumptionItemsToCreate, processedLotes };
   }
 
   /**

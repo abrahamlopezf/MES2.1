@@ -61,7 +61,11 @@ export const BajaModal = ({ item, onClose, onSuccess }) => {
   };
 
   const activeLotes = useMemo(() => {
-    return lotes.filter((lote: any) => lote.is_active === true || lote.is_active === 1 || String(lote.is_active) === '1');
+    return lotes.filter((lote: any) => {
+      const isActive = lote.is_active === true || lote.is_active === 1 || String(lote.is_active) === '1';
+      const available = Number((lote.available_amount ?? lote.amount) || 0);
+      return isActive && available > 0;
+    });
   }, [lotes]);
 
   const toggleAll = () => {
@@ -150,7 +154,7 @@ export const BajaModal = ({ item, onClose, onSuccess }) => {
                     />
                     <div className="flex-1 flex justify-between items-center">
                       <div>
-                        <p className="text-sm font-bold text-foreground">Lote #{lote.id}</p>
+                        <p className="text-sm font-bold text-foreground">Folio: {lote.folio || 'LEGACY-LOT'}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <span>{new Date(lote.date_received).toLocaleDateString()}</span>
                           <span>•</span>

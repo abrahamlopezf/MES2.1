@@ -19,6 +19,7 @@ export const ReceptionWorkspace = ({
 
   const [selectedMaterialId, setSelectedMaterialId] = useState(data?.materialId || null);
   const [quantity, setQuantity] = useState('');
+  const [folio, setFolio] = useState('');
   const [rack, setRack] = useState('');
   const [notes, setNotes] = useState('');
   const navigate = useNavigate();
@@ -106,12 +107,13 @@ export const ReceptionWorkspace = ({
       qrCode: data?.qrCode,
       materialId: selectedMaterialId,
       quantity: Number(quantity),
+      folio,
       rack,
       observations: notes
     }));
   };
 
-  const isFormValid = selectedMaterialId && quantity !== '' && rack !== '';
+  const isFormValid = selectedMaterialId && quantity !== '' && folio.trim() !== '' && rack !== '';
 
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (
@@ -223,6 +225,19 @@ export const ReceptionWorkspace = ({
                     {selectedMaterial.default_unit?.code || selectedMaterial.base_unit_id ? 'KG' : '—'}
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Folio de Factura (Lote) <span className="text-danger">*</span>
+                </label>
+                <TFInput 
+                  type="text"
+                  value={folio}
+                  onChange={e => setFolio(e.target.value)}
+                  disabled={workflowState === 'SUBMITTING'}
+                  placeholder="Ej. FAC-2023-001"
+                />
               </div>
 
               <div className="z-[30] relative">
