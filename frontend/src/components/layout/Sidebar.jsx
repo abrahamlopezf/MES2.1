@@ -40,7 +40,7 @@ const menuGroups = [
     children: [
       { label: "Usuarios", path: "/users", icon: UserIcon, permission: "users.read" },
       { label: "Roles", path: "/roles", icon: ShieldCheck, permission: "roles.read" },
-      { label: "Áreas", path: "/areas", icon: MapPin, permission: "areas.read" }
+      //{ label: "Áreas", path: "/areas", icon: MapPin, permission: "areas.read" }
     ]
   },
   {

@@ -13,15 +13,50 @@ const getInitialFormData = (role) => ({
   permission_ids: role?.permissions?.map((permission) => Number(permission.id)) || [],
 });
 
+const MODULE_CATEGORY_MAP = {
+  warehouse: 'Almacén e Inventario',
+  Warehouse: 'Almacén e Inventario',
+  materials: 'Almacén e Inventario',
+  qr: 'Códigos QR y Trazabilidad',
+  QRCodes: 'Códigos QR y Trazabilidad',
+  users: 'Sistema y Usuarios',
+  roles: 'Sistema y Usuarios',
+  System: 'Sistema y Usuarios',
+  areas: 'Sistema y Usuarios',
+  operations: 'Operaciones y Producción',
+  Formulas: 'Operaciones y Producción',
+  Scrap: 'Mermas y Scrap',
+  reports: 'Reportes y Auditoría',
+  dashboard: 'Reportes y Auditoría',
+  charts: 'Reportes y Auditoría',
+  Audit: 'Reportes y Auditoría',
+};
+
+const getCategoryIcon = (category) => {
+  switch (category) {
+    case 'Almacén e Inventario': return '📦';
+    case 'Códigos QR y Trazabilidad': return '🔲';
+    case 'Sistema y Usuarios': return '⚙️';
+    case 'Operaciones y Producción': return '🏭';
+    case 'Mermas y Scrap': return '♻️';
+    case 'Reportes y Auditoría': return '📊';
+    default: return '🧩';
+  }
+};
+
 const groupPermissionsByModule = (permissions = []) => {
   return permissions.reduce((groups, permission) => {
-    const moduleName = permission.module || 'general';
+    const rawModule = permission.module || 'general';
+    const category = MODULE_CATEGORY_MAP[rawModule] || 'Otros Permisos';
 
-    if (!groups[moduleName]) {
-      groups[moduleName] = [];
+    if (!groups[category]) {
+      groups[category] = [];
     }
 
-    groups[moduleName].push(permission);
+    // Evitar duplicados por id
+    if (!groups[category].some(p => p.id === permission.id)) {
+      groups[category].push(permission);
+    }
 
     return groups;
   }, {});
@@ -178,7 +213,8 @@ const RoleForm = ({
             <div className="space-y-4">
               {Object.entries(permissionGroups).map(([moduleName, modulePermissions]) => (
                 <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm" key={moduleName}>
-                  <div className="bg-secondary/50 px-4 py-3 border-b border-border">
+                  <div className="bg-secondary/50 px-4 py-3 border-b border-border flex items-center gap-2">
+                    <span className="text-xl" aria-hidden="true">{getCategoryIcon(moduleName)}</span>
                     <h4 className="font-black text-foreground capitalize tracking-wide">{moduleName}</h4>
                   </div>
 
