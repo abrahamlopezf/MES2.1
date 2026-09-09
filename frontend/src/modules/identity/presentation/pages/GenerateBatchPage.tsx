@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -112,7 +112,7 @@ export function GenerateBatchPage() {
       requestedBy: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'admin'
     }, {
       onSuccess: () => {
-        setIsModalOpen(false);
+        handleCloseModal();
         reset();
         toast.success('✨ Lote generado exitosamente');
       },
@@ -160,6 +160,45 @@ export function GenerateBatchPage() {
 
   const toggleExpand = (batchId: string) => {
     setExpandedBatchId(prev => prev === batchId ? null : batchId);
+  };
+
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [startY, setStartY] = useState<number | null>(null);
+  const [currentY, setCurrentY] = useState<number>(0);
+  const [isRendered, setIsRendered] = useState(false);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      setIsRendered(true);
+    } else {
+      const timer = setTimeout(() => setIsRendered(false), 400); 
+      return () => clearTimeout(timer);
+    }
+  }, [isModalOpen]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY === null) return;
+    const y = e.touches[0].clientY;
+    const deltaY = y - startY;
+    if (deltaY > 0) {
+      setCurrentY(deltaY);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (currentY > 100) {
+      handleCloseModal();
+    }
+    setStartY(null);
+    setCurrentY(0);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
   return (
@@ -390,115 +429,139 @@ export function GenerateBatchPage() {
         </div>
       </div>
 
-      {/* GENERATE / REQUEST BATCH MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card w-full max-w-md rounded-xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
-            <div className="flex justify-between items-center p-5 border-b border-border bg-muted/30">
-              <h3 className="font-semibold text-lg text-foreground">
+      {/* GENERATE / REQUEST BATCH BOTTOM SHEET */}
+      {isRendered && (
+        <div className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${isModalOpen ? 'opacity-100' : 'opacity-0'}`}>
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={handleCloseModal}
+            aria-hidden="true"
+          />
+          <div 
+            ref={sheetRef}
+            className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${isModalOpen && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+            style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
+          >
+            {/* Drag Handle */}
+            <div 
+              className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="w-12 h-1.5 bg-muted rounded-full" />
+            </div>
+
+            <div className="flex justify-between items-center px-5 pb-4 border-b border-border bg-card">
+              <h3 className="font-bold text-lg text-primary flex items-center gap-2">
+                <Plus size={20} className="text-primary" />
                 Generar Nuevo Lote
               </h3>
               <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+                onClick={handleCloseModal}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit, onErrorForm)} className="p-6 space-y-5">
-              
-              <div className="flex gap-6">
-                {/* Campos del Formulario */}
-                <div className="flex-1 space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Área Asignada</label>
-                    <select 
-                      {...register('mainAreaId')} 
-                      disabled={!isAdmin}
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
-                    >
-                      {availableAreas.map(area => (
-                        <option key={area.id} value={area.id}>
-                          {area.name} ({area.id})
-                        </option>
-                      ))}
-                    </select>
-                    {errors.mainAreaId && <span className="text-xs text-destructive">{errors.mainAreaId.message}</span>}
-                  </div>
-
-                  {availableSubcategories.length > 0 && (
+            <div className="p-5 overflow-y-auto flex-1 flex flex-col bg-background">
+              <form id="generateBatchForm" onSubmit={handleSubmit(onSubmit, onErrorForm)} className="flex flex-col gap-6">
+                
+                <div className="flex gap-6">
+                  {/* Campos del Formulario */}
+                  <div className="flex-1 space-y-4">
                     <div className="space-y-1">
-                      <label className="text-sm font-medium text-foreground">Subárea (Opcional)</label>
+                      <label className="text-sm font-bold text-foreground ml-1">Área Asignada</label>
                       <select 
-                        {...register('subAreaId')} 
-                        className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
+                        {...register('mainAreaId')} 
+                        disabled={!isAdmin}
+                        className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none disabled:opacity-50 shadow-sm"
                       >
-                        <option value="">-- Sin subárea --</option>
-                        {availableSubcategories.map(sub => (
-                          <option key={sub.id} value={sub.id}>
-                            {sub.name} ({sub.id})
+                        {availableAreas.map(area => (
+                          <option key={area.id} value={area.id}>
+                            {area.name} ({area.id})
                           </option>
                         ))}
                       </select>
-                      {errors.subAreaId && <span className="text-xs text-destructive">{errors.subAreaId.message}</span>}
+                      {errors.mainAreaId && <span className="text-xs text-destructive ml-1">{errors.mainAreaId.message}</span>}
                     </div>
-                  )}
 
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">Cantidad a generar</label>
-                    <input 
-                      type="number" 
-                      {...register('amount', { valueAsNumber: true })} 
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none font-mono" 
-                      placeholder="Ej. 100"
-                    />
-                    {errors.amount && <span className="text-xs text-destructive">{errors.amount.message}</span>}
+                    {availableSubcategories.length > 0 && (
+                      <div className="space-y-1">
+                        <label className="text-sm font-bold text-foreground ml-1">Subárea (Opcional)</label>
+                        <select 
+                          {...register('subAreaId')} 
+                          className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none shadow-sm"
+                        >
+                          <option value="">-- Sin subárea --</option>
+                          {availableSubcategories.map(sub => (
+                            <option key={sub.id} value={sub.id}>
+                              {sub.name} ({sub.id})
+                            </option>
+                          ))}
+                        </select>
+                        {errors.subAreaId && <span className="text-xs text-destructive ml-1">{errors.subAreaId.message}</span>}
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="text-sm font-bold text-foreground ml-1">Cantidad a generar</label>
+                      <input 
+                        type="number" 
+                        {...register('amount', { valueAsNumber: true })} 
+                        className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-primary font-bold focus:ring-2 focus:ring-primary outline-none shadow-inner" 
+                        placeholder="Ej. 100"
+                      />
+                      {errors.amount && <span className="text-xs text-destructive ml-1">{errors.amount.message}</span>}
+                    </div>
                   </div>
-                </div>
 
-                {/* Previsualizador */}
-                <div className="w-32 flex flex-col items-center justify-center shrink-0">
-                  <span className="text-xs font-semibold text-muted-foreground mb-3 text-center">Previsualizador<br/>QR Virgen</span>
-                  <div className="bg-white p-2 rounded-lg border border-slate-200 relative overflow-hidden flex flex-col items-center shadow-sm">
-                    <div className="relative">
-                      <QRCodeCanvas value={`SAMPLE-${selectedMainAreaId}-${selectedSubAreaId || 'XX'}`} size={80} />
+                  {/* Previsualizador */}
+                  <div className="w-32 flex flex-col items-center justify-start pt-6 shrink-0">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">Preview<br/>QR Virgen</span>
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 relative overflow-hidden flex flex-col items-center shadow-md">
+                      <div className="relative">
+                        <QRCodeCanvas value={`SAMPLE-${selectedMainAreaId}-${selectedSubAreaId || 'XX'}`} size={80} />
+                        <div 
+                          className="absolute inset-0 m-auto flex items-center justify-center rounded-sm w-8 h-8 shadow-sm"
+                          style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
+                        >
+                          {getAreaIcon(selectedMainAreaId)}
+                        </div>
+                      </div>
                       <div 
-                        className="absolute inset-0 m-auto flex items-center justify-center rounded-sm w-8 h-8 shadow-sm"
+                        className="w-full text-center text-[10px] font-black mt-1 text-white uppercase tracking-wider rounded-b-sm"
                         style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
                       >
-                        {getAreaIcon(selectedMainAreaId)}
+                        {selectedSubAreaId || selectedMainAreaId}
                       </div>
-                    </div>
-                    <div 
-                      className="w-full text-center text-[10px] font-black mt-1 text-white uppercase tracking-wider"
-                      style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
-                    >
-                      {selectedSubAreaId || selectedMainAreaId}
                     </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="pt-4 flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2.5 px-4 rounded-md transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={mutation.isPending}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 px-4 rounded-md transition-colors disabled:opacity-70 flex justify-center items-center gap-2"
-                >
-                  {mutation.isPending ? 'Procesando...' : 'Generar Lote'}
-                </button>
-              </div>
+                
+              </form>
+            </div>
 
-            </form>
+            {/* Footer actions fixed at bottom */}
+            <div className="sticky bottom-0 p-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex gap-3 pb-8">
+              <button 
+                type="button"
+                onClick={handleCloseModal}
+                className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-4 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit" 
+                form="generateBatchForm"
+                disabled={mutation.isPending}
+                className="flex-[1.5] bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-xl transition-colors disabled:opacity-70 flex justify-center items-center gap-2 shadow-md"
+              >
+                {mutation.isPending ? 'Procesando...' : 'Generar Lote'}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

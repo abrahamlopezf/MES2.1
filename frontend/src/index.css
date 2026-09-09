@@ -44,6 +44,31 @@
 
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+
+  --animate-page-enter: pageEnter 0.4s cubic-bezier(0.32,0.72,0,1) forwards;
+  --animate-page-exit: pageExit 0.3s cubic-bezier(0.32,0.72,0,1) forwards;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
 }
 
 @layer base {
@@ -89,6 +114,8 @@
 }
 
 @layer utilities {
-  /* Eliminados glass-panel y glass-card permanentemente.
-     Se usa solid-card para las superficies de tarjeta. */
+  .animate-page-enter {
+    animation: var(--animate-page-enter);
+  }
 }
+

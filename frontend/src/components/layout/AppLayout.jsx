@@ -97,7 +97,10 @@ const AppLayout = () => {
         
       {/* Main Content Area */}
         <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-16 lg:pt-16 flex-1">
-          <Outlet />
+          {/* Transition Wrapper */}
+          <div key={location.pathname} className="animate-page-enter w-full h-full">
+            <Outlet />
+          </div>
         </PageContainer>
         
       </div>

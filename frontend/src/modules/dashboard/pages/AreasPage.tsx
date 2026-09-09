@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardContent, TopBar } from '../../../design-system';
-import { Package, Layers, QrCode, Factory, Settings, ChevronLeft } from 'lucide-react';
+import { Package, Layers, QrCode, Factory, Settings, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 
@@ -15,6 +14,7 @@ export const AreasPage: React.FC = () => {
       title: 'Almacén', 
       description: 'Recepción e Inventario', 
       icon: Package,
+      gradient: 'from-blue-500/20 to-indigo-500/20 text-blue-500',
       children: [
         { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y Fórmulas', icon: Package, path: '/materials', permission: 'materials.read' },
         { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, path: '/warehouse/receive', permission: 'inventory.receive' },
@@ -27,6 +27,7 @@ export const AreasPage: React.FC = () => {
       title: 'Centro de Identidad', 
       description: 'Gestión de QRs', 
       icon: QrCode,
+      gradient: 'from-purple-500/20 to-fuchsia-500/20 text-purple-500',
       children: [
         { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión de QRs', icon: QrCode, path: '/identity/generate', permission: 'qr.create' },
         { id: 'identity_hist', title: 'Historial QRs', description: 'Trazabilidad', icon: QrCode, path: '/qrcodes', permission: 'qr.events.read' },
@@ -38,7 +39,8 @@ export const AreasPage: React.FC = () => {
       description: 'Usuarios y Sistema', 
       icon: Settings, 
       path: '/users',
-      permission: 'users.read'
+      permission: 'users.read',
+      gradient: 'from-slate-500/20 to-zinc-500/20 text-slate-400',
     },
   ];
 
@@ -65,38 +67,66 @@ export const AreasPage: React.FC = () => {
   const currentList = selectedGroup ? selectedGroup.children : areas;
 
   return (
-    <div className="space-y-6 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 overflow-x-hidden">
-      <div className="flex items-center gap-4">
-        {selectedGroup && (
-          <button 
-            onClick={() => setSelectedGroup(null)}
-            className="p-2 hover:bg-secondary rounded-full transition-colors"
-          >
-            <ChevronLeft size={24} />
-          </button>
-        )}
-        <TopBar title={selectedGroup ? selectedGroup.title : "Áreas Operativas"} />
+    <div className="space-y-6 px-4 sm:px-6 md:px-8 pt-6 pb-32 sm:pb-12 overflow-x-hidden min-h-screen bg-background">
+      
+      {/* Header Premium */}
+      <div className="relative mb-8">
+        <div className="flex items-center gap-4 relative z-10">
+          {selectedGroup && (
+            <button 
+              onClick={() => setSelectedGroup(null)}
+              className="p-3 bg-secondary/80 hover:bg-secondary backdrop-blur-md rounded-2xl shadow-sm border border-border/50 transition-all active:scale-95"
+            >
+              <ChevronLeft size={24} className="text-foreground" />
+            </button>
+          )}
+          <div>
+            <h1 className="text-3xl font-black text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              {selectedGroup ? selectedGroup.title : "Áreas Operativas"}
+            </h1>
+            <p className="text-sm font-medium text-muted-foreground mt-1">
+              {selectedGroup ? "Selecciona un módulo para continuar" : "Acceso rápido a los módulos del sistema"}
+            </p>
+          </div>
+        </div>
+        {/* Subtle background glow */}
+        <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 pb-32 sm:pb-12">
-        {currentList.map((area: any) => (
-          <Card 
-            key={area.id} 
-            className="cursor-pointer hover:border-primary transition-all active:scale-95 group"
-            onClick={() => handleCardClick(area)}
-          >
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                <area.icon size={28} />
+      {/* Grid de Cards Premium */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 relative z-10">
+        {currentList.map((area: any, idx: number) => {
+          const itemGradient = area.gradient || 'from-primary/20 to-primary/10 text-primary';
+          
+          return (
+            <div 
+              key={area.id} 
+              className="group cursor-pointer rounded-[2rem] bg-card/60 backdrop-blur-xl border border-border/50 shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 overflow-hidden relative"
+              onClick={() => handleCardClick(area)}
+              style={{ animationDelay: `${idx * 100}ms` }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400" />
+              
+              <div className="p-6 relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-5">
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${itemGradient} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-400 ease-out`}>
+                    <area.icon size={30} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex flex-col">
+                    <h3 className="font-bold text-xl text-foreground tracking-tight">{area.title}</h3>
+                    <p className="text-sm font-medium text-muted-foreground/80 mt-0.5">{area.description}</p>
+                  </div>
+                </div>
+                
+                <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-400 ease-out">
+                  <ArrowRight size={20} />
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-lg text-foreground">{area.title}</h3>
-                <p className="text-sm text-muted-foreground">{area.description}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
+

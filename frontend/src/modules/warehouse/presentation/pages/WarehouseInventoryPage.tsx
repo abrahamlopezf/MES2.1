@@ -4,10 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
 import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers } from 'lucide-react';
 import { Badge, Input, Button, TopBar } from '../../../../design-system';
-import { BajaModal } from '../components/BajaModal';
-import { InfoModal } from '../components/InfoModal';
-import { ConsumoModal } from '../components/ConsumoModal';
-import { ManualEntryModal } from '../components/ManualEntryModal';
+import { BajaBottomSheet } from '../components/BajaBottomSheet.container';
+import { InfoBottomSheet } from '../components/InfoBottomSheet.container';
+import { ConsumoBottomSheet } from '../components/ConsumoBottomSheet.container';
+import { ManualEntryBottomSheet } from '../components/ManualEntryBottomSheet.container';
 import { useAuthStore } from '../../../../store/authStore';
 import { useDebouncedValue } from '../../../../hooks/useDebouncedValue';
 
@@ -298,9 +298,10 @@ export const WarehouseInventoryPage: React.FC = () => {
         </div>
       </div>
       {(selectedBajaItem || resolutionRequestId) && (
-        <BajaModal 
-          item={selectedBajaItem}
+        <BajaBottomSheet 
+          item={selectedBajaItem} 
           resolutionRequestId={resolutionRequestId}
+          isOpen={!!(selectedBajaItem || resolutionRequestId)}
           onClose={() => {
             setSelectedBajaItem(null);
             setResolutionRequestId(null);
@@ -309,19 +310,22 @@ export const WarehouseInventoryPage: React.FC = () => {
         />
       )}
       {selectedInfoItem && (
-        <InfoModal 
-          item={selectedInfoItem}
-          onClose={() => setSelectedInfoItem(null)}
+        <InfoBottomSheet 
+          item={selectedInfoItem} 
+          isOpen={!!selectedInfoItem}
+          onClose={() => setSelectedInfoItem(null)} 
         />
       )}
       {isConsumoModalOpen && (
-        <ConsumoModal 
+        <ConsumoBottomSheet 
+          isOpen={isConsumoModalOpen}
           onClose={() => setIsConsumoModalOpen(false)}
           onSuccess={() => refetch()}
         />
       )}
       {isManualEntryModalOpen && (
-        <ManualEntryModal 
+        <ManualEntryBottomSheet 
+          isOpen={isManualEntryModalOpen}
           onClose={() => setIsManualEntryModalOpen(false)}
           onSuccess={() => refetch()}
         />

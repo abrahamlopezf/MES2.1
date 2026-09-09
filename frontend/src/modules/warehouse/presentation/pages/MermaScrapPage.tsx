@@ -5,7 +5,7 @@ import axiosClient from '../../../../api/axiosClient';
 import { ArrowLeft, Package, Trash2, TrendingDown, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
-import { MermaScrapDetallesModal } from '../components/MermaScrapDetallesModal';
+import { MermaScrapDetallesBottomSheet } from '../components/MermaScrapDetallesBottomSheet.container';
 
 export const MermaScrapPage: React.FC = () => {
   const navigate = useNavigate();
@@ -149,7 +149,8 @@ export const MermaScrapPage: React.FC = () => {
       </div>
 
       {selectedMaterialId && (
-        <MermaScrapDetallesModal
+        <MermaScrapDetallesBottomSheet
+          isOpen={!!selectedMaterialId}
           materialId={selectedMaterialId}
           onClose={() => setSelectedMaterialId(null)}
         />

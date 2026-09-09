@@ -5,8 +5,8 @@ import { ArrowLeft, Boxes, AlertCircle, CheckSquare, X, MousePointerSquareDashed
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent, TopBar } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { GlobalErrorBoundary } from '../../../../core/error/GlobalErrorBoundary';
-import { ChangeLocationModal } from '../components/ChangeLocationModal';
-import { LoteTraceabilityModal } from '../components/LoteTraceabilityModal';
+import { ChangeLocationBottomSheet } from '../components/ChangeLocationBottomSheet.container';
+import { LoteTraceabilityBottomSheet } from '../components/LoteTraceabilityBottomSheet.container';
 
 const MaterialLotesPageContent = () => {
   const { materialId } = useParams();
@@ -467,7 +467,8 @@ const MaterialLotesPageContent = () => {
       </div>
 
       {lotesToMove.length > 0 && (
-        <ChangeLocationModal
+        <ChangeLocationBottomSheet
+          isOpen={lotesToMove.length > 0}
           lotes={lotesToMove}
           onClose={handleCloseModal}
           onSuccess={() => {}}
@@ -475,7 +476,8 @@ const MaterialLotesPageContent = () => {
       )}
       {/* Lote Traceability Modal */}
       {traceabilityLoteId && (
-        <LoteTraceabilityModal
+        <LoteTraceabilityBottomSheet
+          isOpen={!!traceabilityLoteId}
           loteId={traceabilityLoteId}
           onClose={() => setTraceabilityLoteId(null)}
         />
