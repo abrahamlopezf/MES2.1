@@ -41,6 +41,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      unit_cost: {
+        type: DataTypes.DECIMAL(12, 4),
+        allowNull: true,
+      },
+      total_cost: {
+        type: DataTypes.DECIMAL(12, 4),
+        allowNull: true,
+      },
     },
     {
       tableName: 'inventory_movements',

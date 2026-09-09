@@ -32,6 +32,15 @@ axiosClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
+      
+      // Si el mensaje es específico de otra sesión, enviar parámetro por URL
+      if (message.includes('otro dispositivo')) {
+        window.location.href = '/login?reason=multidevice';
+      } else if (message.includes('12 horas')) {
+        window.location.href = '/login?reason=timeout';
+      } else {
+        window.location.href = '/login?reason=expired';
+      }
     }
 
     return Promise.reject({

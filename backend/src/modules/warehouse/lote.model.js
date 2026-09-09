@@ -59,6 +59,14 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: false,
     },
+    unit_cost: {
+      type: DataTypes.DECIMAL(12, 4),
+      allowNull: true,
+    },
+    total_cost: {
+      type: DataTypes.DECIMAL(12, 4),
+      allowNull: true,
+    },
   }, {
     tableName: 'lotes',
     timestamps: true,

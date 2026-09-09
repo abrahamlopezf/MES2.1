@@ -16,7 +16,12 @@ export const InfoModal = ({ item, onClose }) => {
     enabled: !!item?.material?.id
   });
 
-  const lastLotes = lotes ? [...lotes].reverse().slice(0, 3) : [];
+  // El backend ya los devuelve ordenados LIFO (DESC).
+  // Filtramos para mostrar solo los lotes activos y con cantidad > 0.
+  const activeLotes = lotes 
+    ? lotes.filter((lote: any) => lote.is_active !== false && lote.is_active !== 0 && Number(lote.available_amount ?? lote.amount) > 0)
+    : [];
+  const lastLotes = activeLotes.slice(0, 3);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm">
@@ -55,7 +60,10 @@ export const InfoModal = ({ item, onClose }) => {
             <div className="grid grid-cols-2 gap-3 mt-1">
               <div className="bg-background rounded-lg p-3 border border-border/50">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Cantidad Actual</p>
-                <p className="font-bold text-xl text-primary">{Number(item.amount).toFixed(2)}</p>
+                <p className="font-bold text-xl text-primary flex items-baseline gap-1">
+                  {Number(item.amount).toFixed(2)}
+                  <span className="text-sm font-semibold text-muted-foreground">{item.material?.base_unit?.code || ''}</span>
+                </p>
               </div>
               <div className="bg-background rounded-lg p-3 border border-border/50">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Clasificación</p>
@@ -110,7 +118,7 @@ export const InfoModal = ({ item, onClose }) => {
                         )}
                       </div>
                       <Badge variant="outline" className={`shrink-0 ${isInactive ? 'bg-destructive/5 text-destructive border-destructive/20' : 'bg-primary/5 text-primary border-primary/20'}`}>
-                        {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)}
+                        {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)} <span className="text-[10px] ml-1">{lote.material?.base_unit?.code || ''}</span>
                       </Badge>
                     </div>
                   </div>

@@ -48,6 +48,12 @@
 
 @layer base {
   /* Fallbacks y overrides adicionales */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transform: translateZ(0); /* Force hardware acceleration for smooth rendering */
+  }
+  
   
   /* Scrollbars globales */
   ::-webkit-scrollbar {

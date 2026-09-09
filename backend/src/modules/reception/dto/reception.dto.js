@@ -8,6 +8,8 @@ const ReceiveMaterialSchema = z.object({
   quantity: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   folio: z.string().min(1, "El folio es obligatorio"),
   notes: z.string().optional().nullable(),
+  unit_cost: z.coerce.number().nonnegative("El costo unitario no puede ser negativo"),
+  total_cost: z.coerce.number().nonnegative("El costo total no puede ser negativo"),
 });
 
 module.exports = {

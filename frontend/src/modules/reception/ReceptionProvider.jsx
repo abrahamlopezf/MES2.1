@@ -89,7 +89,7 @@ export const ReceptionProvider = () => {
     }
 
     if (command.type === 'SUBMIT_RECEPTION_COMMAND') {
-      const { qrCode, materialId, quantity, rack, observations, folio, supplierId } = command.payload;
+      const { qrCode, materialId, quantity, rack, observations, folio, supplierId, unitCost, totalCost } = command.payload;
       const start = performance.now();
       try {
         await apiClient.post('/reception', {
@@ -100,7 +100,9 @@ export const ReceptionProvider = () => {
           quantity: Number(quantity),
           supplier_id: supplierId ? Number(supplierId) : null,
           notes: observations,
-          folio: folio
+          folio: folio,
+          unit_cost: unitCost,
+          total_cost: totalCost
         });
 
         const duration = performance.now() - start;

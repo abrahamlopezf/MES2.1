@@ -17,6 +17,20 @@ class DashboardController {
       });
     }
   }
+
+  static async getFinancialDashboard(req, res) {
+    try {
+      const payload = await DashboardService.getFinancialDashboard();
+      
+      return res.status(200).json(payload);
+    } catch (error) {
+      console.error('[DashboardController] Financial Error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al consultar estado financiero'
+      });
+    }
+  }
 }
 
 module.exports = DashboardController;

@@ -5,6 +5,7 @@ import {
   useOperationalAreasQuery, 
   useOperationalAreaMutation
 } from '../hooks/useMaterialsQueries';
+import LocationForm from '../components/LocationForm';
 
 const LocationsPage = () => {
   const [filters, setFilters] = useState({
@@ -46,6 +47,7 @@ const LocationsPage = () => {
         namePlaceholder: 'Ej. Rack A1 Nivel 1',
         descriptionLabel: 'Descripción Extendida'
       }}
+      CustomForm={LocationForm}
     />
   );
 };

@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
     description: {
       type: DataTypes.STRING(255)
     },
+    area_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
@@ -46,6 +50,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Location.associate = function(models) {
     Location.hasMany(models.Material, { foreignKey: 'location_id', as: 'materials' });
+    Location.belongsTo(models.Area, { foreignKey: 'area_id', as: 'area' });
   };
 
   return Location;

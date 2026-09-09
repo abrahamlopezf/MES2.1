@@ -59,6 +59,10 @@ const initUserModel = (sequelize) => {
         allowNull: false,
         defaultValue: true,
       },
+      session_token: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
       avatar_url: {
         type: DataTypes.STRING(500),
         allowNull: true,

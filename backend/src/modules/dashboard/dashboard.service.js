@@ -59,6 +59,123 @@ class DashboardService {
       throw error;
     }
   }
+
+  /**
+   * Obtiene el payload del Dashboard Financiero Ejecutivo
+   */
+  static async getFinancialDashboard() {
+    try {
+      const { Lote, InventoryMovement, Location, Area } = require('../../database/models');
+      const { sequelize } = require('../../config/database');
+
+      // 1. Total Invertido
+      const totalInvestedResult = await Lote.findOne({
+        attributes: [
+          [sequelize.literal('SUM(initial_amount * COALESCE(unit_cost, 0))'), 'totalInvested']
+        ]
+      });
+      const totalInvested = Number(totalInvestedResult?.get('totalInvested') || 0);
+
+      // 2. Inventario Actual en Dinero
+      const currentInventoryResult = await Lote.findOne({
+        where: { is_active: true },
+        attributes: [
+          [sequelize.literal('SUM(available_amount * COALESCE(unit_cost, 0))'), 'currentValue']
+        ]
+      });
+      const currentInventoryValue = Number(currentInventoryResult?.get('currentValue') || 0);
+
+      // 3. Total Perdido por Scrap
+      const totalScrapResult = await InventoryMovement.sum('total_cost', {
+        where: { type: 'SCRAP' }
+      });
+      const totalLostScrap = Number(totalScrapResult || 0);
+
+      // 4. Total Perdido por Merma
+      const totalMermaResult = await InventoryMovement.sum('total_cost', {
+        where: { type: 'MERMA' }
+      });
+      const totalLostMerma = Number(totalMermaResult || 0);
+
+      // 5. Inventario por Área
+      const inventoryByAreaQuery = await Lote.findAll({
+        where: { is_active: true },
+        attributes: [
+          [sequelize.col('location.area.name'), 'areaName'],
+          [sequelize.literal('SUM(available_amount * COALESCE("Lote"."unit_cost", 0))'), 'value']
+        ],
+        include: [{
+          model: Location,
+          as: 'location',
+          attributes: [],
+          include: [{
+            model: Area,
+            as: 'area',
+            attributes: []
+          }]
+        }],
+        group: ['location->area.id', 'location->area.name'],
+        raw: true
+      });
+
+      const inventoryByAreaGraph = inventoryByAreaQuery.map(item => ({
+        name: item.areaName || 'Sin Área',
+        value: Number(item.value || 0)
+      }));
+
+      // 6. Pérdidas por Área (Merma)
+      const mermaByAreaQuery = await InventoryMovement.findAll({
+        where: { type: 'MERMA' },
+        attributes: [
+          [sequelize.col('fromLocation.area.name'), 'areaName'],
+          [sequelize.literal('SUM(total_cost)'), 'value']
+        ],
+        include: [{
+          model: Location,
+          as: 'fromLocation',
+          attributes: [],
+          include: [{
+            model: Area,
+            as: 'area',
+            attributes: []
+          }]
+        }],
+        group: ['fromLocation->area.id', 'fromLocation->area.name'],
+        raw: true
+      });
+
+      const colors = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6'];
+      const investmentVsLossGraph = mermaByAreaQuery.map((item, index) => ({
+        name: `${item.areaName || 'Sin Área'} (Merma)`,
+        value: Number(item.value || 0),
+        color: colors[index % colors.length]
+      }));
+
+      // Si no hay merma, mostrar un array vacío o el resumen general
+      if (investmentVsLossGraph.length === 0) {
+        investmentVsLossGraph.push({ name: 'Sin Pérdidas', value: 0, color: '#f59e0b' });
+      }
+
+      return {
+        success: true,
+        data: {
+          kpis: {
+            totalInvested,
+            currentInventoryValue,
+            totalLostScrap,
+            totalLostMerma
+          },
+          charts: {
+            inventoryByArea: inventoryByAreaGraph,
+            investmentVsLoss: investmentVsLossGraph
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Error in DashboardService.getFinancialDashboard:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = DashboardService;

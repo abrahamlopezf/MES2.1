@@ -25,6 +25,8 @@ export interface SubmitReceptionRequest {
   rack?: string;
   supplierId?: number;
   observations?: string;
+  unitCost?: number;
+  totalCost?: number;
 }
 
 export class SubmitReceptionCommand {

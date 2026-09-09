@@ -3,13 +3,15 @@ const { z } = require('zod');
 const createSchema = z.object({
   code: z.string().min(1).max(50),
   name: z.string().min(1).max(100),
-  description: z.string().max(255).optional().nullable()
+  description: z.string().max(255).optional().nullable(),
+  area_id: z.number().int().positive()
 });
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(255).optional().nullable(),
-  is_active: z.boolean().optional()
+  is_active: z.boolean().optional(),
+  area_id: z.number().int().positive().optional()
 });
 
 const searchSchema = z.object({

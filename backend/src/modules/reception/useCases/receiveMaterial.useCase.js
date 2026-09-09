@@ -17,7 +17,9 @@ class ReceiveMaterialUseCase {
       unit_id,
       quantity,
       folio,
-      notes = null
+      notes = null,
+      unit_cost = null,
+      total_cost = null
     } = payload;
 
     if (!folio) {
@@ -74,7 +76,9 @@ class ReceiveMaterialUseCase {
         location_id: finalLocationId,
         quantity,
         folio,
-        notes
+        notes,
+        unit_cost,
+        total_cost
       }, t);
 
       // 3. Activar el QR (QrDomainService)

@@ -40,6 +40,7 @@ const StatCard = ({ title, value, unit = '', icon: Icon, colorClass, delay, stat
 };
 
 import { WarehouseDashboard } from '../../warehouse/presentation/pages/WarehouseDashboard';
+import { FinancialDashboard } from '../components/FinancialDashboard';
 
 const DashboardPage = () => {
   const { user, hasPermission } = useAuthStore();
@@ -86,7 +87,7 @@ const DashboardPage = () => {
   const yieldData = dashboardData?.charts?.yieldData || [];
   const scrapData = dashboardData?.charts?.scrapData || [];
 
-  if (isLoading) {
+  if (isLoading && !hasPermission('dashboard.financial')) {
     return (
       <div className="h-full flex items-center justify-center">
         <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Dashboard en Tiempo Real...</p>
@@ -96,7 +97,6 @@ const DashboardPage = () => {
 
   return (
     <div className="h-full flex flex-col gap-8 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 overflow-x-hidden">
-      
       {/* Header Section */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
@@ -115,6 +115,9 @@ const DashboardPage = () => {
           Monitor de <span className="font-bold text-foreground">Producción y Rendimiento</span> en Tiempo Real.
         </p>
       </motion.div>
+
+      {/* Financial Section */}
+      {hasPermission('dashboard.financial') && <FinancialDashboard />}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">

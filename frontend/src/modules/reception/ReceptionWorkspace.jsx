@@ -23,6 +23,8 @@ export const ReceptionWorkspace = ({
   const [rack, setRack] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [notes, setNotes] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [totalCost, setTotalCost] = useState('');
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -120,11 +122,39 @@ export const ReceptionWorkspace = ({
       folio,
       rack,
       supplierId: supplierId ? Number(supplierId) : undefined,
-      observations: notes
+      observations: notes,
+      unitCost: unitCost ? Number(unitCost) : undefined,
+      totalCost: totalCost ? Number(totalCost) : undefined
     }));
   };
 
-  const isFormValid = selectedMaterialId && quantity !== '' && folio.trim() !== '' && rack !== '';
+  const handleQuantityChange = (val) => {
+    setQuantity(val);
+    const q = Number(val);
+    if (q > 0 && unitCost) {
+      setTotalCost((q * Number(unitCost)).toFixed(2));
+    } else if (q > 0 && totalCost) {
+      setUnitCost((Number(totalCost) / q).toFixed(4));
+    }
+  };
+
+  const handleUnitCostChange = (val) => {
+    setUnitCost(val);
+    const q = Number(quantity);
+    if (q > 0 && val !== '') {
+      setTotalCost((q * Number(val)).toFixed(2));
+    }
+  };
+
+  const handleTotalCostChange = (val) => {
+    setTotalCost(val);
+    const q = Number(quantity);
+    if (q > 0 && val !== '') {
+      setUnitCost((Number(val) / q).toFixed(4));
+    }
+  };
+
+  const isFormValid = selectedMaterialId && quantity !== '' && folio.trim() !== '' && rack !== '' && unitCost !== '' && Number(unitCost) >= 0 && totalCost !== '' && Number(totalCost) >= 0;
 
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (
@@ -272,7 +302,7 @@ export const ReceptionWorkspace = ({
                   <TFInput 
                     type="number"
                     value={quantity}
-                    onChange={e => setQuantity(e.target.value)}
+                    onChange={e => handleQuantityChange(e.target.value)}
                     disabled={workflowState === 'SUBMITTING'}
                     placeholder="Ej. 1000"
                     className="flex-1"
@@ -280,6 +310,33 @@ export const ReceptionWorkspace = ({
                   <div className="bg-muted border border-border rounded-lg px-4 flex items-center justify-center font-medium text-muted-foreground shrink-0 min-w-[80px]">
                     {selectedMaterial.default_unit?.code || selectedMaterial.base_unit_id ? 'KG' : '—'}
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Costo Unitario *
+                  </label>
+                  <TFInput 
+                    type="number"
+                    value={unitCost}
+                    onChange={e => handleUnitCostChange(e.target.value)}
+                    disabled={workflowState === 'SUBMITTING'}
+                    placeholder="Ej. 12.50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Costo Total *
+                  </label>
+                  <TFInput 
+                    type="number"
+                    value={totalCost}
+                    disabled={true}
+                    placeholder="Ej. 12500.00"
+                    className="opacity-70 cursor-not-allowed bg-muted"
+                  />
                 </div>
               </div>
 

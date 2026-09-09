@@ -146,6 +146,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                   <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Código</th>
                   <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Ranking</th>
                   <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cantidad</th>
+                  <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Valor (Total)</th>
                   <th className="bg-secondary/50 px-4 py-3 text-right font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
@@ -178,7 +179,10 @@ export const WarehouseInventoryPage: React.FC = () => {
                         </Badge>
                       </td>
                       <td className="border-b border-border/50 px-4 py-3 align-middle">
-                        <span className="font-bold text-lg text-primary">{Number(item.amount).toFixed(2)}</span>
+                        <span className="font-bold text-lg text-primary">{Number(item.amount).toFixed(2)} <span className="text-sm text-muted-foreground">{item.material?.base_unit?.code || ''}</span></span>
+                      </td>
+                      <td className="border-b border-border/50 px-4 py-3 align-middle">
+                        <span className="font-bold text-lg text-emerald-500">${Number(item.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </td>
                       <td className="border-b border-border/50 px-4 py-3 align-middle text-right">
                         <div className="flex justify-end gap-2">
@@ -233,11 +237,17 @@ export const WarehouseInventoryPage: React.FC = () => {
                     </Badge>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
                       <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Cantidad Total</span>
                       <div className="flex items-baseline gap-1">
-                        <span className="font-bold text-primary text-base leading-none">{Number(item.amount).toFixed(2)}</span>
+                        <span className="font-bold text-primary text-base leading-none">{Number(item.amount).toFixed(2)} <span className="text-xs text-muted-foreground ml-0.5">{item.material?.base_unit?.code || ''}</span></span>
+                      </div>
+                    </div>
+                    <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Valor Total</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-bold text-emerald-500 text-base leading-none">${Number(item.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                   </div>

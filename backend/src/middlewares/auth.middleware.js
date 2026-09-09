@@ -75,6 +75,15 @@ const authMiddleware = async (req, res, next) => {
       );
     }
 
+    if (decoded.session_token && user.session_token !== decoded.session_token) {
+      return errorResponse(
+        res,
+        'Sesión finalizada. Has iniciado sesión en otro dispositivo.',
+        [],
+        401
+      );
+    }
+
     const plainUser = user.get({ plain: true });
 
     req.user = {
@@ -91,6 +100,14 @@ const authMiddleware = async (req, res, next) => {
 
     return next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return errorResponse(
+        res,
+        'Por seguridad, tu sesión ha expirado después de 12 horas. Por favor, inicia sesión nuevamente.',
+        [],
+        401
+      );
+    }
     return errorResponse(
       res,
       'Tu sesión expiró o no es válida. Inicia sesión nuevamente.',

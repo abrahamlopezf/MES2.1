@@ -132,6 +132,12 @@ db.Area.hasMany(db.Subarea, {
   as: 'subareas',
 });
 
+// Area -> Location
+db.Area.hasMany(db.Location, {
+  foreignKey: 'area_id',
+  as: 'locations',
+});
+
 /**
  * QR BATCH RELATIONS
  */
@@ -288,6 +294,11 @@ db.Material.hasOne(db.Inventory, {
 db.InventoryMovement.belongsTo(db.Inventory, {
   foreignKey: 'inventory_id',
   as: 'inventory',
+});
+
+db.InventoryMovement.belongsTo(db.Location, {
+  foreignKey: 'from_location_id',
+  as: 'fromLocation',
 });
 
 db.Inventory.hasMany(db.InventoryMovement, {

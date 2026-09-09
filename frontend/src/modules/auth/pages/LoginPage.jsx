@@ -21,6 +21,9 @@ const loginSchema = z.object({
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuthStore();
+  
+  const searchParams = new URLSearchParams(window.location.search);
+  const reason = searchParams.get('reason');
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -54,6 +57,16 @@ const LoginPage = () => {
   return (
     <main className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-lg border-border">
+        {reason === 'multidevice' && (
+          <div className="p-4 bg-danger/10 text-danger border-b border-danger/20 text-sm font-medium text-center">
+            Se ha cerrado tu sesión porque iniciaste sesión en otro dispositivo.
+          </div>
+        )}
+        {reason === 'timeout' && (
+          <div className="p-4 bg-warning/10 text-warning-foreground border-b border-warning/20 text-sm font-medium text-center">
+            Por seguridad, tu sesión se ha cerrado automáticamente tras 12 horas de actividad.
+          </div>
+        )}
         <CardHeader className="space-y-3 items-center text-center pb-6">
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-2">
             <Lock className="w-8 h-8 text-primary" />

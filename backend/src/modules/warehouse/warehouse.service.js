@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { sequelize, Inventory, Material, Lote, User, Ranking } = require('../../database/models');
+const { sequelize, Inventory, Material, Lote, User, Ranking, MaterialUnit } = require('../../database/models');
 const { throwHttpError } = require('../../shared/security/accessRules');
 const inventoryDomainService = require('./inventoryDomain.service');
 
@@ -27,7 +27,8 @@ const getInventory = async (query = {}) => {
     attributes: [
       'material_id',
       [sequelize.fn('SUM', sequelize.col('amount')), 'amount'],
-      [sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'updated_at']
+      [sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'updated_at'],
+      [sequelize.literal('(SELECT COALESCE(SUM(available_amount * unit_cost), 0) FROM lotes WHERE lotes.material_id = "Inventory"."material_id" AND lotes.is_active = true)'), 'total_value']
     ],
     include: [
       {
@@ -35,11 +36,12 @@ const getInventory = async (query = {}) => {
         as: 'material',
         attributes: ['id', 'internal_code', 'name'],
         include: [
-          { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] }
+          { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
+          { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }
         ]
       }
     ],
-    group: ['material_id', 'material.id', 'material->ranking.id'],
+    group: ['material_id', 'material.id', 'material->ranking.id', 'material->base_unit.id'],
     order: [[sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'DESC']],
     limit,
     offset,
@@ -61,14 +63,20 @@ const getMaterialLotes = async (material_id) => {
     throwHttpError('Falta el material_id', 400);
   }
 
-  const { User, Location } = require('../../database/models');
+  const { User, Location, Material, MaterialUnit } = require('../../database/models');
   const lotes = await Lote.findAll({
     where: { material_id },
     include: [
       { model: User, as: 'user', attributes: ['id', 'first_name', 'last_name'] },
-      { model: Location, as: 'location', attributes: ['id', 'name', 'code'] }
+      { model: Location, as: 'location', attributes: ['id', 'name', 'code'] },
+      { 
+        model: Material, 
+        as: 'material', 
+        attributes: ['id', 'name'],
+        include: [{ model: MaterialUnit, as: 'base_unit', attributes: ['code'] }]
+      }
     ],
-    order: [['date_received', 'ASC']]
+    order: [['date_received', 'DESC']]
   });
 
   return lotes;
@@ -103,6 +111,7 @@ const disposeLotes = async (payload, currentUser) => {
       inventory_id: result.inventory.id,
       type: movementType,
       quantity_change: -result.totalDisposed,
+      total_cost: result.totalCostDisposed, // Costo total perdido en la baja
       performed_by: currentUser.id,
       notes: `Facturas afectadas: ${foliosAfectados}. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`
     }, { transaction: t });
@@ -458,6 +467,9 @@ const manualEntry = async (payload, currentUser) => {
       if (!entry.quantity || Number(entry.quantity) <= 0) {
         throwHttpError(`La entrada con folio "${generatedFolio}" tiene cantidad menor o igual a 0.`, 400);
       }
+      if (entry.unit_cost === undefined || entry.unit_cost === null || Number(entry.unit_cost) < 0) {
+        throwHttpError(`La entrada con folio "${generatedFolio}" requiere un costo unitario válido.`, 400);
+      }
       
       const q = Number(entry.quantity);
       totalQuantity += q;
@@ -472,7 +484,9 @@ const manualEntry = async (payload, currentUser) => {
         available_amount: q,
         notes: payload.notes || 'Ingreso manual',
         is_active: true,
-        supplier_id: entry.supplier_id || null
+        supplier_id: entry.supplier_id || null,
+        unit_cost: entry.unit_cost || null,
+        total_cost: entry.unit_cost ? Number(entry.unit_cost) * q : null
       });
     }
 
@@ -507,6 +521,8 @@ const manualEntry = async (payload, currentUser) => {
       inventory_id: inventory.id,
       type: 'MANUAL_ENTRY',
       quantity_change: Number(entry.quantity),
+      unit_cost: entry.unit_cost || null,
+      total_cost: entry.unit_cost ? Number(entry.unit_cost) * Number(entry.quantity) : null,
       performed_by: currentUser.id,
       notes: payload.notes || 'Ingreso manual al sistema (Lote virtual)'
     }));

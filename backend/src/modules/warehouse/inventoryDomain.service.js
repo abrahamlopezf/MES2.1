@@ -13,7 +13,9 @@ class InventoryDomainService {
       supplier_id,
       quantity,
       folio,
-      notes = null
+      notes = null,
+      unit_cost = null,
+      total_cost = null
     } = payload;
 
     if (!folio) throw new Error("Folio de lote es obligatorio");
@@ -29,6 +31,8 @@ class InventoryDomainService {
       initial_amount: quantity,
       available_amount: quantity,
       notes,
+      unit_cost,
+      total_cost,
       is_active: true
     }, { transaction });
 
@@ -72,8 +76,11 @@ class InventoryDomainService {
     }
 
     let totalDisposed = 0;
+    let totalCostDisposed = 0;
     for (const lote of lotes) {
-      totalDisposed += Number(lote.available_amount);
+      const amount = Number(lote.available_amount);
+      totalDisposed += amount;
+      totalCostDisposed += amount * (Number(lote.unit_cost) || 0);
       lote.available_amount = 0;
       lote.is_active = false;
       await lote.save({ transaction });
@@ -94,7 +101,7 @@ class InventoryDomainService {
 
     await this.checkStockThresholds(material_id, inventory.amount, transaction);
 
-    return { lotes, totalDisposed, inventory };
+    return { lotes, totalDisposed, totalCostDisposed, inventory };
   }
 
   /**

@@ -10,7 +10,7 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
   const queryClient = useQueryClient();
   const [materialId, setMaterialId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
-  const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '' }]);
+  const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
   const [notes, setNotes] = useState('');
 
   // Fetch materials
@@ -67,7 +67,8 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
         entries: entries.map(e => ({ 
           folio: e.folio, 
           quantity: Number(e.quantity),
-          supplier_id: e.supplier_id ? Number(e.supplier_id) : null
+          supplier_id: e.supplier_id ? Number(e.supplier_id) : null,
+          unit_cost: e.unit_cost ? Number(e.unit_cost) : null
         })),
         notes
       });
@@ -148,7 +149,7 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setEntries([...entries, { folio: '', quantity: '', supplier_id: '' }])}
+                  onClick={() => setEntries([...entries, { folio: '', quantity: '', supplier_id: '', unit_cost: '' }])}
                 >
                   <Plus className="w-4 h-4 mr-1.5" /> Agregar
                 </Button>
@@ -203,22 +204,41 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
                       )}
                     </div>
                     
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-muted-foreground uppercase">Proveedor (Opcional)</label>
-                      <SearchSelect
-                        options={suppliers}
-                        value={entry.supplier_id}
-                        onChange={(val) => {
-                          const newEntries = [...entries];
-                          newEntries[index].supplier_id = val;
-                          setEntries(newEntries);
-                        }}
-                        getLabel={(sup: any) => `${sup.code} - ${sup.name}`}
-                        getValue={(sup: any) => sup.id.toString()}
-                        placeholder="Buscar proveedor por código o nombre..."
-                        loading={loadingSuppliers}
-                        searchable={true}
-                      />
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Costo Unitario *</label>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.0001"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          placeholder="Ej. 12.50"
+                          value={entry.unit_cost || ''}
+                          onChange={e => {
+                            const newEntries = [...entries];
+                            newEntries[index].unit_cost = e.target.value;
+                            setEntries(newEntries);
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Proveedor (Opcional)</label>
+                        <SearchSelect
+                          options={suppliers}
+                          value={entry.supplier_id}
+                          onChange={(val) => {
+                            const newEntries = [...entries];
+                            newEntries[index].supplier_id = val;
+                            setEntries(newEntries);
+                          }}
+                          getLabel={(sup: any) => `${sup.code} - ${sup.name}`}
+                          getValue={(sup: any) => sup.id.toString()}
+                          placeholder="Buscar proveedor..."
+                          loading={loadingSuppliers}
+                          searchable={true}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -239,11 +259,11 @@ export const ManualEntryModal = ({ onClose, onSuccess }) => {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border bg-secondary/20 flex justify-end gap-3 shrink-0">
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
           <Button 
             variant="default" 
             onClick={() => handleManualEntry()}
-            disabled={isSubmitting || !materialId || !locationId || entries.some(e => !e.quantity || Number(e.quantity) <= 0)}
+            disabled={isSubmitting || !materialId || !locationId || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
           >
             {isSubmitting && <Loader2 className="mr-2 animate-spin" size={16} />}
             Confirmar Ingreso

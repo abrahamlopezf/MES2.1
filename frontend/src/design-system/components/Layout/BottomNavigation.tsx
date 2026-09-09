@@ -27,17 +27,17 @@ export function BottomNavigation({ items, className, ...props }: BottomNavigatio
           key={index}
           onClick={item.onClick}
           className={cn(
-            'flex flex-col items-center justify-center space-y-1 w-full h-full text-muted-foreground transition-colors hover:text-foreground active:scale-95',
-            item.isActive && 'text-primary font-semibold'
+            'group flex flex-col items-center justify-center space-y-1 w-full h-full text-muted-foreground transition-colors hover:text-foreground',
+            item.isActive && 'text-primary font-bold'
           )}
         >
           <div className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-full transition-all',
-            item.isActive && 'bg-primary/10'
+            'flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200',
+            item.isActive ? 'bg-primary/10 scale-110' : 'active:scale-90 group-active:scale-90'
           )}>
             {item.icon}
           </div>
-          <span className="text-[10px] leading-none">{item.label}</span>
+          <span className="text-[10px] leading-none tracking-wide">{item.label}</span>
         </button>
       ))}
     </div>

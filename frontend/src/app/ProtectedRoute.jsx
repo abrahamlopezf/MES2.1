@@ -13,10 +13,11 @@ const ProtectedRoute = () => {
   } = useAuthStore();
 
   useEffect(() => {
-    if (token) {
+    // Solo inicializar si venimos de una recarga de página (isInitializing = true por defecto si hay token)
+    if (token && isInitializing) {
       initializeAuth();
     }
-  }, [token, initializeAuth]);
+  }, [token, isInitializing, initializeAuth]);
 
   if (isInitializing) {
     return (

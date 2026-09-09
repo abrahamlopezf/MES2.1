@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
+const crypto = require('crypto');
 
 const db = require('../../database/models');
 const env = require('../../config/env');
@@ -46,6 +47,7 @@ const generateToken = (user) => {
       sub: user.id,
       roleCode: user.role?.code,
       areaId: user.role?.area?.id || null,
+      session_token: user.session_token,
     },
     env.jwt.secret,
     {
@@ -122,8 +124,11 @@ const login = async ({ identifier, password }) => {
     throw error;
   }
 
+  const sessionToken = crypto.randomUUID();
+
   await user.update({
     last_login_at: new Date(),
+    session_token: sessionToken,
   });
 
   const refreshedUser = await findUserWithSecurityData({ id: user.id }, false);
