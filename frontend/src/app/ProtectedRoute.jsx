@@ -24,7 +24,6 @@ const ProtectedRoute = () => {
   useEffect(() => {
     let timer;
     if (isInitializing) {
-      // Si la validación toma más de 8 segundos (ej. app suspendida en mobile), mostrar botón de reintento
       timer = setTimeout(() => setShowRetry(true), 8000);
     } else {
       setShowRetry(false);
@@ -37,7 +36,11 @@ const ProtectedRoute = () => {
     initializeAuth();
   };
 
-  if (isInitializing) {
+  // Optimistic UI: If we already have the user data in localStorage, we can render the app immediately 
+  // while we validate the session in the background. This eliminates the loading screen wait time.
+  const isHardLoading = isInitializing && !user;
+
+  if (isHardLoading) {
     return (
       <main className="page-container flex flex-col items-center justify-center min-h-[100dvh] bg-background text-foreground">
         <section className="flex flex-col items-center justify-center p-8 bg-card rounded-3xl shadow-lg border border-border text-center max-w-sm w-full mx-4">
