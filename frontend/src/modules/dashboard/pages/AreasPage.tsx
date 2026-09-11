@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Layers, QrCode, Factory, Settings, ChevronLeft, ArrowRight } from 'lucide-react';
+import { Package, Layers, QrCode, Factory, Users, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 
@@ -35,12 +35,12 @@ export const AreasPage: React.FC = () => {
     },
     { 
       id: 'admin', 
-      title: 'Configuración', 
-      description: 'Usuarios y Sistema', 
-      icon: Settings, 
+      title: 'Gestor de Usuarios', 
+      description: 'Cuentas, Roles y Permisos', 
+      icon: Users, 
       path: '/users',
       permission: 'users.read',
-      gradient: 'from-slate-500/20 to-zinc-500/20 text-slate-400',
+      gradient: 'from-emerald-500/20 to-teal-500/20 text-emerald-500',
     },
   ];
 
