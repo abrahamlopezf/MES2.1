@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
-import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers } from 'lucide-react';
+import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers, Trash2 } from 'lucide-react';
 import { Badge, Input, Button, TopBar } from '../../../../design-system';
 import { BajaBottomSheet } from '../components/BajaBottomSheet.container';
 import { InfoBottomSheet } from '../components/InfoBottomSheet.container';
@@ -22,6 +22,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   const [selectedInfoItem, setSelectedInfoItem] = useState<any>(null);
   const [isManualEntryModalOpen, setIsManualEntryModalOpen] = useState(false);
   const [isConsumoModalOpen, setIsConsumoModalOpen] = useState(false);
+  const [isBajaModalOpen, setIsBajaModalOpen] = useState(false);
   const pageSize = 50; // Internal pagination size
 
   useEffect(() => {
@@ -76,8 +77,19 @@ export const WarehouseInventoryPage: React.FC = () => {
                 <RefreshCw className={`w-5 h-5 mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
                 <span>Actualizar</span>
               </Button>
-              {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry')) && (
+              {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry') || hasPermission('warehouse.waste') || hasPermission('warehouse.dispose')) && (
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                  {(hasPermission('warehouse.waste') || hasPermission('warehouse.dispose')) && (
+                    <Button
+                      variant="destructive"
+                      size="lg"
+                      onClick={() => setIsBajaModalOpen(true)}
+                      className="font-bold shadow-sm w-full sm:w-auto justify-center bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    >
+                      <Trash2 className="w-5 h-5 mr-2 shrink-0" />
+                      <span>Baja de Material</span>
+                    </Button>
+                  )}
                   {hasPermission('warehouse.consume') && (
                     <Button
                       variant="primary"
@@ -241,7 +253,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                     <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
                       <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Cantidad Total</span>
                       <div className="flex items-baseline gap-1">
-                        <span className="font-bold text-primary text-base leading-none">{Number(item.amount).toFixed(2)} <span className="text-xs text-muted-foreground ml-0.5">{item.material?.base_unit?.code || ''}</span></span>
+                        <span className="font-bold text-foreground text-base leading-none">{Number(item.amount).toFixed(2)} <span className="text-xs text-muted-foreground ml-0.5">{item.material?.base_unit?.code || ''}</span></span>
                       </div>
                     </div>
                     <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
@@ -297,14 +309,15 @@ export const WarehouseInventoryPage: React.FC = () => {
           )}
         </div>
       </div>
-      {(selectedBajaItem || resolutionRequestId) && (
+      {(selectedBajaItem || resolutionRequestId || isBajaModalOpen) && (
         <BajaBottomSheet 
           item={selectedBajaItem} 
           resolutionRequestId={resolutionRequestId}
-          isOpen={!!(selectedBajaItem || resolutionRequestId)}
+          isOpen={!!(selectedBajaItem || resolutionRequestId || isBajaModalOpen)}
           onClose={() => {
             setSelectedBajaItem(null);
             setResolutionRequestId(null);
+            setIsBajaModalOpen(false);
           }}
           onSuccess={() => refetch()}
         />

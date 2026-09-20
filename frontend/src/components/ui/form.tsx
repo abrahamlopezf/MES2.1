@@ -12,6 +12,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { TriangleAlert } from "lucide-react"
 
 const Form = FormProvider
 
@@ -78,7 +79,7 @@ const FormItem = React.forwardRef<
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      <div ref={ref} className={cn("space-y-2 animate-form-field", className)} {...props} />
     </FormItemContext.Provider>
   )
 })
@@ -155,9 +156,10 @@ const FormMessage = React.forwardRef<
     <p
       ref={ref}
       id={formMessageId}
-      className={cn("text-[0.8rem] font-medium text-destructive", className)}
+      className={cn("text-[0.8rem] font-bold text-destructive flex items-center gap-1.5 animate-shake", className)}
       {...props}
     >
+      {error && <TriangleAlert size={14} className="shrink-0" />}
       {body}
     </p>
   )

@@ -136,6 +136,7 @@ const SubcatalogPageTemplate = ({
         inactiveCount={inactiveCount}
         canCreate={canManageCatalogs}
         onCreateMaterial={handleOpenCreate}
+        createButtonText={`Nueva ${title.replace(/s$/, '')}`.replace('Nueva Articulo', 'Nuevo Artículo').replace('Nueva Artículo', 'Nuevo Artículo').replace('Nueva Tipo', 'Nuevo Tipo').replace('Nueva Proveedore', 'Nuevo Proveedor').replace('Nueva Lote', 'Nuevo Lote').replace('Nueva Materiale', 'Nuevo Material').replace('Nueva Role', 'Nuevo Rol').replace('Nueva Almacene', 'Nuevo Almacén').replace('Nueva Movimiento', 'Nuevo Movimiento').replace('Nueva Unidade', 'Nueva Unidad').replace('Nueva Unidad', 'Nueva Unidad')}
         onRefresh={() => dataQuery.refetch()}
         isRefreshing={dataQuery.isFetching && !dataQuery.isLoading}
       />

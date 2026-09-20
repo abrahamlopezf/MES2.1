@@ -5,6 +5,7 @@ import { ForceChangePasswordModal } from '../../modules/auth/components/ForceCha
 import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
 import { Home, Grid, QrCode } from 'lucide-react';
 import { PageContainer, BottomNavigation, FAB } from '../../design-system';
+import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../../store/authStore';
 
@@ -94,9 +95,10 @@ const AppLayout = () => {
 
       {/* Mobile-First Layout for ALL screens */}
       <div className="flex-1 h-full overflow-y-auto relative custom-scrollbar flex flex-col">
+        <GlobalBreadcrumbs />
         
       {/* Main Content Area */}
-        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-16 lg:pt-16 flex-1">
+        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-4 lg:pt-4 flex-1">
           {/* Transition Wrapper */}
           <div key={location.pathname} className="animate-page-enter w-full h-full">
             <Outlet />

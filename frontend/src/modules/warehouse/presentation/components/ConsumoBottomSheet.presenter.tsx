@@ -1,8 +1,10 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Plus, QrCode, Trash2, Package } from 'lucide-react';
 import { Button, Input } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
+import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 
 export interface ConsumoBottomSheetPresenterProps {
   isOpen: boolean;
@@ -49,40 +51,13 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
   onRemoveItem,
   onConsume
 }) => {
-  const [isRendered, setIsRendered] = useState(isOpen);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [startY, setStartY] = useState<number | null>(null);
-  const [currentY, setCurrentY] = useState<number>(0);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-    } else {
-      const timer = setTimeout(() => setIsRendered(false), 400); 
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY === null) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
-    if (deltaY > 0) {
-      setCurrentY(deltaY);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY > 100) {
-      onClose();
-    }
-    setStartY(null);
-    setCurrentY(0);
-  };
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(isOpen, 400);
 
   if (!isRendered) return null;
 
@@ -99,9 +74,9 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
     );
   }
 
-  return (
+  return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
@@ -111,22 +86,22 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${isOpen && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
         <div 
           className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onClose)}
         >
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
 
         {/* Header */}
         <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
-          <h3 className="font-bold text-lg text-primary flex items-center gap-2">
+          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
             <Package size={20} />
             Consumo de Material
           </h3>
@@ -180,7 +155,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                 <Button variant="secondary" onClick={() => onSetIsScanning(true)} className="shrink-0 group rounded-xl px-4" title="Escanear QR">
                   <QrCode size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
                 </Button>
-                <Button variant="primary" onClick={onAddMaterial} className="shrink-0 rounded-xl" disabled={!selectedMaterialId}>
+                <Button variant="default" onClick={onAddMaterial} className="shrink-0 rounded-xl" disabled={!selectedMaterialId}>
                   <Plus size={18} className="mr-1.5" />
                   <span className="hidden sm:inline">Agregar</span>
                   <span className="sm:hidden">Add</span>
@@ -223,7 +198,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                         step="0.1"
                         value={item.quantity}
                         onChange={e => onUpdateItemQuantity(idx, Number(e.target.value))}
-                        className="h-10 text-right font-bold text-primary flex-1"
+                        className="h-10 text-right font-bold text-foreground flex-1"
                       />
                     </div>
                   </div>
@@ -235,7 +210,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
         </div>
 
         {/* Footer actions fixed at bottom */}
-        <div className="sticky bottom-0 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-8">
+        <div className="sticky bottom-0 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-4 sm:pb-4">
           <div className="flex justify-between items-center px-5 py-3 border-b border-border/50 bg-secondary/10">
              <div className="flex flex-col">
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Items</span>
@@ -243,7 +218,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
             </div>
             <div className="flex flex-col text-right">
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total a consumir</span>
-              <span className="font-bold text-primary text-xl leading-tight">{totalQuantity.toFixed(2)}</span>
+              <span className="font-bold text-foreground text-xl leading-tight">{totalQuantity.toFixed(2)}</span>
             </div>
           </div>
           <div className="flex gap-3 p-4">
@@ -251,7 +226,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
               Cancelar
             </Button>
             <Button 
-              variant="primary" 
+              variant="default" 
               onClick={onConsume} 
               disabled={isSubmitting || items.length === 0 || !orderNumber}
               className="flex-[1.5] font-bold py-6 rounded-xl shadow-md"
@@ -262,6 +237,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

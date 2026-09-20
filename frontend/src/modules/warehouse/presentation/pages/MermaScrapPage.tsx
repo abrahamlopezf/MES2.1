@@ -22,6 +22,7 @@ export const MermaScrapPage: React.FC = () => {
 
   const topMerma = [...report].sort((a, b) => b.merma - a.merma).slice(0, 5);
   const topScrap = [...report].sort((a, b) => b.scrap - a.scrap).slice(0, 5);
+  const topBaja = [...report].sort((a, b) => (b.baja || 0) - (a.baja || 0)).slice(0, 5);
 
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
@@ -41,7 +42,7 @@ export const MermaScrapPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         
         {/* Gráficas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
             <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
               <TrendingDown className="text-warning" size={20} />
@@ -85,6 +86,28 @@ export const MermaScrapPage: React.FC = () => {
               )}
             </div>
           </div>
+
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
+              <Package className="text-info" size={20} />
+              Top 5 - Otras Bajas
+            </h3>
+            <div className="h-64 w-full">
+              {topBaja.length > 0 && topBaja.some(b => b.baja > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topBaja} layout="vertical" margin={{ top: 5, right: 20, left: 40, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                    <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} />
+                    <YAxis dataKey="name" type="category" stroke="var(--muted-foreground)" fontSize={11} width={100} />
+                    <Tooltip cursor={{ fill: 'var(--muted)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
+                    <Bar dataKey="baja" name="Otras Bajas" fill="var(--info)" radius={[0, 4, 4, 0]} barSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sin datos de bajas</div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Tabla de Materiales */}
@@ -110,6 +133,7 @@ export const MermaScrapPage: React.FC = () => {
                     <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Material</th>
                     <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Total Merma</th>
                     <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Total Scrap</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Otras Bajas</th>
                     <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Acciones</th>
                   </tr>
                 </thead>
@@ -132,6 +156,9 @@ export const MermaScrapPage: React.FC = () => {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <span className="font-mono font-bold text-destructive">{Number(item.scrap).toFixed(2)}</span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <span className="font-mono font-bold text-info">{Number(item.baja || 0).toFixed(2)}</span>
                       </td>
                       <td className="px-5 py-4 text-center">
                         <Button variant="outline" size="sm" className="font-bold bg-background" onClick={() => setSelectedMaterialId(item.material_id)}>

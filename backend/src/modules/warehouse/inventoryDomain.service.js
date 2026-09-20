@@ -59,49 +59,73 @@ class InventoryDomainService {
    * Dar de baja lotes específicos.
    */
   async disposeLotes(payload, transaction = null) {
-    const { material_id, lote_ids, tipo_baja_id, user_id, notes } = payload;
+    const { items, tipo_baja_id, user_id, notes, material_id, lote_ids } = payload;
+    const { Lote, Inventory } = require('../../database/models');
 
-    // Obtener lotes activos correspondientes
-    const lotes = await Lote.findAll({
-      where: {
-        id: lote_ids,
-        material_id,
-        is_active: true
-      },
-      transaction
-    });
-
-    if (lotes.length !== lote_ids.length) {
-      throw new Error('Algunos lotes seleccionados no existen o ya fueron dados de baja.');
+    // Retrocompatibilidad: Si viene en formato antiguo (material_id + lote_ids)
+    let processedItems = items;
+    if (!processedItems && lote_ids && material_id) {
+      // Buscar los lotes completos para obtener sus cantidades disponibles
+      const oldLotes = await Lote.findAll({ where: { id: lote_ids, material_id, is_active: true }, transaction });
+      processedItems = oldLotes.map(l => ({
+        material_id: material_id,
+        lote_id: l.id,
+        quantity: Number(l.available_amount)
+      }));
     }
 
-    let totalDisposed = 0;
+    if (!processedItems || processedItems.length === 0) {
+      throw new Error('No hay ítems especificados para la baja.');
+    }
+
     let totalCostDisposed = 0;
-    for (const lote of lotes) {
-      const amount = Number(lote.available_amount);
-      totalDisposed += amount;
-      totalCostDisposed += amount * (Number(lote.unit_cost) || 0);
-      lote.available_amount = 0;
-      lote.is_active = false;
+    const materialDiscounts = {};
+    const processedLotesResult = [];
+
+    // Validar y consumir cada item
+    for (const item of processedItems) {
+      const lote = await Lote.findOne({
+        where: { id: item.lote_id, material_id: item.material_id, is_active: true },
+        transaction
+      });
+
+      if (!lote) {
+        throw new Error(`Lote ${item.lote_id} no encontrado o inactivo.`);
+      }
+
+      const qtyToDispose = Number(item.quantity);
+      if (qtyToDispose <= 0 || Number(lote.available_amount) < qtyToDispose) {
+        throw new Error(`Cantidad a dar de baja inválida para el lote ${item.lote_id}.`);
+      }
+
+      totalCostDisposed += qtyToDispose * (Number(lote.unit_cost) || 0);
+      
+      lote.available_amount = Number(lote.available_amount) - qtyToDispose;
+      if (lote.available_amount <= 0) {
+        lote.available_amount = 0;
+        lote.is_active = false;
+      }
       await lote.save({ transaction });
+      processedLotesResult.push(lote);
+
+      materialDiscounts[item.material_id] = (materialDiscounts[item.material_id] || 0) + qtyToDispose;
     }
 
-    // Descontar del inventario consolidado
-    const inventory = await Inventory.findOne({
-      where: { material_id },
-      transaction
-    });
-
-    if (!inventory) {
-      throw new Error('No hay inventario registrado para este material.');
+    // Descontar inventarios consolidados
+    for (const [matId, qty] of Object.entries(materialDiscounts)) {
+      const inventory = await Inventory.findOne({ where: { material_id: matId }, transaction });
+      if (!inventory) throw new Error(`No hay inventario registrado para el material ${matId}.`);
+      
+      inventory.amount = Math.max(0, Number(inventory.amount) - qty);
+      await inventory.save({ transaction });
+      await this.checkStockThresholds(matId, inventory.amount, transaction);
     }
 
-    inventory.amount = Math.max(0, Number(inventory.amount) - totalDisposed);
-    await inventory.save({ transaction });
-
-    await this.checkStockThresholds(material_id, inventory.amount, transaction);
-
-    return { lotes, totalDisposed, totalCostDisposed, inventory };
+    return { 
+      lotes: processedLotesResult, 
+      totalCostDisposed, 
+      materialDiscounts 
+    };
   }
 
   /**
@@ -327,46 +351,80 @@ class InventoryDomainService {
   }
 
   async requestDisposeLotes(payload, user, transaction = null) {
-    const { material_id, lote_ids, tipo_baja_id, notes } = payload;
+    const { items, tipo_baja_id, notes, material_id, lote_ids } = payload;
     const { Lote, WasteRequest, Notification, User, Role } = require('../../database/models');
 
-    const lotes = await Lote.findAll({
-      where: { id: lote_ids, material_id, is_active: true, is_frozen: false },
-      transaction
-    });
-
-    if (lotes.length !== lote_ids.length) {
-      throw new Error('Algunos lotes seleccionados no existen, están inactivos o ya están congelados.');
+    // Retrocompatibilidad
+    let processedItems = items;
+    if (!processedItems && lote_ids && material_id) {
+      const oldLotes = await Lote.findAll({ where: { id: lote_ids, material_id, is_active: true, is_frozen: false }, transaction });
+      processedItems = oldLotes.map(l => ({
+        material_id: material_id,
+        lote_id: l.id,
+        quantity: Number(l.available_amount)
+      }));
     }
 
-    for (const lote of lotes) {
-      lote.is_frozen = true;
-      await lote.save({ transaction });
+    if (!processedItems || processedItems.length === 0) {
+      throw new Error('No hay ítems para solicitar la baja.');
     }
 
-    const wasteReq = await WasteRequest.create({
-      material_id,
-      lote_ids,
-      tipo_baja_id,
-      notes,
-      status: 'PENDING',
-      requested_by: user.id
-    }, { transaction });
+    // Agrupar por material (WasteRequest requiere un material_id no nulo en la BD)
+    const groupedItems = {};
+    for (const item of processedItems) {
+      if (!groupedItems[item.material_id]) groupedItems[item.material_id] = [];
+      groupedItems[item.material_id].push(item);
+    }
+
+    const createdRequests = [];
+
+    for (const [matId, group] of Object.entries(groupedItems)) {
+      const gLoteIds = group.map(i => i.lote_id);
+      const lotes = await Lote.findAll({
+        where: { id: gLoteIds, material_id: matId, is_active: true, is_frozen: false },
+        transaction
+      });
+
+      if (lotes.length !== gLoteIds.length) {
+        throw new Error(`Algunos lotes del material ${matId} no existen, están inactivos o congelados.`);
+      }
+
+      for (const lote of lotes) {
+        lote.is_frozen = true;
+        await lote.save({ transaction });
+      }
+
+      const wasteReq = await WasteRequest.create({
+        material_id: matId,
+        lote_ids: group, // Pasamos el array de objetos { material_id, lote_id, quantity }
+        tipo_baja_id,
+        notes,
+        status: 'PENDING',
+        requested_by: user.id
+      }, { transaction });
+      
+      createdRequests.push(wasteReq);
+    }
 
     const adminRole = await Role.findOne({ where: { code: 'ADMIN_ALM' }, transaction });
-    if (adminRole) {
+    if (adminRole && createdRequests.length > 0) {
       const admins = await User.findAll({ where: { role_id: adminRole.id, is_active: true }, transaction });
-      const notifications = admins.map(admin => ({
-        recipient_id: admin.id,
-        sender_id: user.id,
-        type: 'WASTE_REQUEST',
-        title: 'Solicitud de Baja de Material',
-        message: `El usuario ${user.first_name || 'Sistema'} ha solicitado dar de baja ${lote_ids.length} lote(s).?waste_request_id=${wasteReq.id}`
-      }));
+      const notifications = [];
+      for (const admin of admins) {
+        for (const req of createdRequests) {
+          notifications.push({
+            recipient_id: admin.id,
+            sender_id: user.id,
+            type: 'WASTE_REQUEST',
+            title: 'Solicitud de Baja de Material',
+            message: `El usuario ${user.first_name || 'Sistema'} ha solicitado dar de baja ${req.lote_ids.length} lote(s).?waste_request_id=${req.id}`
+          });
+        }
+      }
       await Notification.bulkCreate(notifications, { transaction });
     }
 
-    return wasteReq;
+    return createdRequests;
   }
 
   async getWasteRequest(requestId, user) {
@@ -397,8 +455,13 @@ class InventoryDomainService {
     request.resolved_at = new Date();
     await request.save({ transaction });
 
+    // Retrocompatibilidad: extraer IDs si son objetos o usar directamente si son números
+    const loteIdsToSearch = Array.isArray(request.lote_ids) 
+      ? request.lote_ids.map(i => typeof i === 'object' ? i.lote_id : i)
+      : [];
+
     const lotes = await Lote.findAll({
-      where: { id: request.lote_ids },
+      where: { id: loteIdsToSearch },
       transaction
     });
 
@@ -407,9 +470,12 @@ class InventoryDomainService {
         lote.is_frozen = false;
         await lote.save({ transaction });
       }
+      // Si los lotes en el request son objetos, los pasamos como items.
+      // Si son números, la función disposeLotes los convertirá (retrocompatibilidad).
       const payload = {
         material_id: request.material_id,
-        lote_ids: request.lote_ids,
+        items: typeof request.lote_ids[0] === 'object' ? request.lote_ids : undefined,
+        lote_ids: typeof request.lote_ids[0] === 'number' ? request.lote_ids : undefined,
         tipo_baja_id: request.tipo_baja_id,
         notes: request.notes
       };

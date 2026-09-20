@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
+import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { ManualEntryBottomSheetPresenter } from './ManualEntryBottomSheet.presenter';
 
 export interface ManualEntryBottomSheetContainerProps {
@@ -16,6 +17,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   onSuccess 
 }) => {
   const queryClient = useQueryClient();
+  const { confirm } = useConfirmAction();
   const [materialId, setMaterialId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
   const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
@@ -125,6 +127,24 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     setEntries(entries.filter((_, i) => i !== index));
   };
 
+  const onConfirmEntry = async () => {
+    if (!materialId || !locationId || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)) {
+      toast.error('Por favor complete todos los campos obligatorios correctamente.');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Ingreso Manual',
+      message: `¿Confirmas el ingreso manual de ${entries.length} lote(s)?`,
+      confirmText: 'Sí, ingresar',
+      variant: 'primary'
+    });
+
+    if (!confirmed) return;
+
+    handleManualEntry();
+  };
+
   return (
     <ManualEntryBottomSheetPresenter
       isOpen={isOpen}
@@ -146,7 +166,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       onAddEntry={handleAddEntry}
       onUpdateEntry={handleUpdateEntry}
       onRemoveEntry={handleRemoveEntry}
-      onConfirmEntry={() => handleManualEntry()}
+      onConfirmEntry={onConfirmEntry}
     />
   );
 };

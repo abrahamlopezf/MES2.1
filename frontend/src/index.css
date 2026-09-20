@@ -47,6 +47,9 @@
 
   --animate-page-enter: pageEnter 0.4s cubic-bezier(0.32,0.72,0,1) forwards;
   --animate-page-exit: pageExit 0.3s cubic-bezier(0.32,0.72,0,1) forwards;
+  
+  --animate-form-field-enter: formFieldEnter 0.5s cubic-bezier(0.32,0.72,0,1) forwards;
+  --animate-error-shake: errorShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
 
 @keyframes pageEnter {
@@ -56,19 +59,37 @@
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
 }
 
 @keyframes pageExit {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
   to {
     opacity: 0;
     transform: translateY(-10px) scale(0.98);
   }
+}
+
+@keyframes formFieldEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes errorShake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 
 @layer base {
@@ -117,5 +138,24 @@
   .animate-page-enter {
     animation: var(--animate-page-enter);
   }
+  
+  .animate-form-field {
+    opacity: 0;
+    animation: var(--animate-form-field-enter);
+    animation-delay: calc(var(--stagger, 0) * 80ms);
+  }
+  
+  .animate-shake {
+    animation: var(--animate-error-shake);
+  }
 }
 
+/* Modal Freeze System: Bloquea interacción y pausas animaciones del fondo */
+body.global-modal-open #root {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+body.global-modal-open #root * {
+  animation-play-state: paused !important;
+  transition: none !important;
+}

@@ -9,6 +9,7 @@ const MaterialModuleHeader = ({
   inactiveCount = 0,
   canCreate,
   onCreateMaterial,
+  createButtonText = "Nuevo Material",
   onRefresh,
   isRefreshing = false,
 }) => {
@@ -48,7 +49,7 @@ const MaterialModuleHeader = ({
         {canCreate && (
           <Button onClick={onCreateMaterial} size="lg" className="font-bold shadow-sm w-full sm:w-auto justify-center">
             <Plus className="w-5 h-5 mr-2 shrink-0" />
-            <span>Nuevo Material</span>
+            <span>{createButtonText}</span>
           </Button>
         )}
       </div>

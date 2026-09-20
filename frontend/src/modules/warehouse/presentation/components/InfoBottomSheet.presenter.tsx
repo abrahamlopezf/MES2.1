@@ -1,5 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Info } from 'lucide-react';
+import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button, Badge } from '../../../../design-system';
 
 export interface InfoBottomSheetPresenterProps {
@@ -19,53 +21,21 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
   onClose,
   onViewAllLotes
 }) => {
-  const [isRendered, setIsRendered] = useState(isOpen);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [startY, setStartY] = useState<number | null>(null);
-  const [currentY, setCurrentY] = useState<number>(0);
-
-  // Handle mount/unmount animations
-  useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-    } else {
-      const timer = setTimeout(() => setIsRendered(false), 300); // match transition duration
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // Touch handlers for swipe-to-close
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY === null) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
-    
-    // Only allow swiping down
-    if (deltaY > 0) {
-      setCurrentY(deltaY);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY > 100) {
-      // Swiped down far enough, close it
-      onClose();
-    }
-    setStartY(null);
-    setCurrentY(0);
-  };
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(isOpen, 300);
 
   if (!isRendered) return null;
 
   const activeLotes = lotes || [];
 
-  return (
+  return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
     >
       {/* Overlay */}
       <div 
@@ -77,15 +47,15 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-300 ease-out transform ${isOpen && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-300 ease-out transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle Area */}
         <div 
           className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onClose)}
         >
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
@@ -204,6 +174,7 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

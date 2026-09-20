@@ -68,16 +68,45 @@ const TFButton = React.forwardRef(
     },
     ref
   ) => {
+    const [internalLoading, setInternalLoading] = React.useState(false);
+    const lastClickTime = React.useRef(0);
+
     const classes = cn(buttonVariants({ variant, size, fullWidth }), className);
+
+    const isEffectivelyLoading = isLoading || internalLoading;
+
+    const handleClick = async (e) => {
+      const now = Date.now();
+      // Bloqueo Anti-Spam: Ignorar clics menores a 500ms o si ya está cargando
+      if (isEffectivelyLoading || disabled || (now - lastClickTime.current < 500)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      lastClickTime.current = now;
+
+      if (props.onClick) {
+        try {
+          const result = props.onClick(e);
+          if (result && typeof result.then === 'function') {
+            setInternalLoading(true);
+            await result;
+          }
+        } finally {
+          setInternalLoading(false);
+        }
+      }
+    };
 
     if (asChild) {
       return (
         <Slot
           ref={ref}
           className={classes}
-          aria-disabled={disabled || isLoading}
-          data-loading={isLoading ? 'true' : undefined}
+          aria-disabled={disabled || isEffectivelyLoading}
+          data-loading={isEffectivelyLoading ? 'true' : undefined}
           {...props}
+          onClick={props.onClick ? handleClick : undefined}
         >
           {children}
         </Slot>
@@ -89,12 +118,13 @@ const TFButton = React.forwardRef(
         ref={ref}
         type={type}
         className={classes}
-        disabled={disabled || isLoading}
-        data-loading={isLoading ? 'true' : undefined}
+        disabled={disabled || isEffectivelyLoading}
+        data-loading={isEffectivelyLoading ? 'true' : undefined}
         {...props}
+        onClick={handleClick}
       >
         {Icon && <Icon className="size-5 shrink-0" />}
-        <span>{isLoading ? 'Procesando...' : children}</span>
+        <span>{isEffectivelyLoading ? 'Procesando...' : children}</span>
         {IconRight && <IconRight className="size-5 shrink-0" />}
       </button>
     );

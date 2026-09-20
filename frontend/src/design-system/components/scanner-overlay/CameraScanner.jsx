@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { X, Camera } from 'lucide-react';
 
-export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }) => {
+export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, inline = false }) => {
   const onScanRef = React.useRef(onScan);
   const hasScannedRef = React.useRef(false);
 
@@ -11,49 +11,61 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
   }, [onScan]);
 
   useEffect(() => {
-    // Configuración optimizada para escaneo de QRs industriales complejos (con logos)
-    const scanner = new Html5QrcodeScanner('qr-reader-container', { 
-      fps: 10, 
-      qrbox: (viewfinderWidth, viewfinderHeight) => {
-        const minEdgePercentage = 0.7; // 70% of the screen
-        const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-        const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-        return {
-          width: qrboxSize,
-          height: qrboxSize
-        };
-      },
-      aspectRatio: 1.0,
-      showTorchButtonIfSupported: true,
-      formatsToSupport: [ 0 ] // 0 es Html5QrcodeSupportedFormats.QR_CODE (acelera la lectura ignorando códigos de barras)
-    }, false);
-    
-    scanner.render((text) => {
-      if (hasScannedRef.current) return;
-      hasScannedRef.current = true;
+    let isMounted = true;
+    let scanner = null;
+
+    const initScanner = () => {
+      if (!isMounted) return;
       
-      // Detener el escáner ANTES de disparar onScan para evitar que
-      // React desmonte el DOM mientras la librería sigue procesando.
-      try {
-        scanner.clear().then(() => {
-          if (onScanRef.current) onScanRef.current(text);
-        }).catch(() => {
-          if (onScanRef.current) onScanRef.current(text);
-        });
-      } catch(e) {
-        if (onScanRef.current) onScanRef.current(text);
+      // Prevent double initialization if container already has content
+      const container = document.getElementById('qr-reader-container');
+      if (container && container.innerHTML.trim() !== '') {
+        container.innerHTML = '';
       }
 
-    }, (err) => {
-      // Errores de frame (normales durante escaneo), no hacer nada
-    });
+      scanner = new Html5QrcodeScanner('qr-reader-container', { 
+        fps: 10, 
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const minEdgePercentage = 0.7; // 70% of the screen
+          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+          return {
+            width: qrboxSize,
+            height: qrboxSize
+          };
+        },
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true,
+        formatsToSupport: [ 0 ] 
+      }, false);
+      
+      scanner.render((text) => {
+        if (hasScannedRef.current) return;
+        hasScannedRef.current = true;
+        
+        try {
+          scanner.clear().then(() => {
+            if (onScanRef.current) onScanRef.current(text);
+          }).catch(() => {
+            if (onScanRef.current) onScanRef.current(text);
+          });
+        } catch(e) {
+          if (onScanRef.current) onScanRef.current(text);
+        }
+      }, (err) => {
+        // Ignorar errores de frame
+      });
+    };
+
+    // Delay initialization to avoid React 18 StrictMode double-render bug
+    const timer = setTimeout(initScanner, 100);
 
     return () => {
-      if (!hasScannedRef.current) {
+      isMounted = false;
+      clearTimeout(timer);
+      if (!hasScannedRef.current && scanner) {
         try {
-          if (scanner) {
-            scanner.clear().catch(() => {});
-          }
+          scanner.clear().catch(() => {});
         } catch (e) {
           console.warn("Scanner unmount error ignored", e);
         }
@@ -62,7 +74,7 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
+    <div className={inline ? "flex flex-col w-full h-full" : "fixed inset-0 z-[9999] bg-background flex flex-col"}>
       <style>{`
         /* Overrides for html5-qrcode default UI */
         #qr-reader-container {
@@ -92,48 +104,24 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
           opacity: 0.1 !important; 
         }
 
-        /* Text inside the dashboard */
+        /* Hide the text inside the dashboard */
         #qr-reader-container__dashboard_section_csr span {
-          color: var(--foreground) !important;
-          font-family: inherit !important;
-          font-size: 1rem !important;
+          display: none !important;
         }
 
-        /* Style the 'Request Permissions' button */
+        /* Hide the 'Stop Scanning' and other buttons */
         #qr-reader-container__dashboard_section_csr button {
-          background-color: var(--primary) !important;
-          color: var(--primary-foreground) !important;
-          padding: 12px 24px !important;
-          border-radius: var(--radius) !important;
-          font-family: inherit !important;
-          font-size: 0.875rem !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          margin-top: 16px !important;
-          transition: opacity 0.2s ease;
-          width: auto !important;
-        }
-        
-        #qr-reader-container__dashboard_section_csr button:hover {
-          opacity: 0.9 !important;
+          display: none !important;
         }
 
-        /* HIDE the 'Scan an Image File' link */
+        /* Hide the 'Scan an Image File' link */
         #qr-reader-container a {
           display: none !important;
         }
 
-        /* Style the camera select dropdown */
+        /* Hide the camera select dropdown */
         #qr-reader-container select {
-          background-color: var(--input) !important;
-          color: var(--foreground) !important;
-          border: 1px solid var(--border) !important;
-          padding: 8px 12px !important;
-          border-radius: var(--radius) !important;
-          font-family: inherit !important;
-          margin-bottom: 16px !important;
-          width: 100%;
-          outline: none !important;
+          display: none !important;
         }
 
         /* Style the video feed */
@@ -144,25 +132,27 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose }
       `}</style>
 
       {/* Header */}
-      <header className="px-6 py-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
-            <Camera className="w-5 h-5" />
+      {!inline && (
+        <header className="px-6 py-4 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
+              <Camera className="w-5 h-5" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground m-0">{title}</h2>
           </div>
-          <h2 className="text-xl font-bold text-foreground m-0">{title}</h2>
-        </div>
-        <button 
-          onClick={onClose} 
-          className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-danger hover:bg-danger/10 rounded-md transition-colors"
-        >
-          <X className="w-4 h-4" />
-          Cerrar
-        </button>
-      </header>
+          <button 
+            onClick={onClose} 
+            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-danger hover:bg-danger/10 rounded-md transition-colors"
+          >
+            <X className="w-4 h-4" />
+            Cerrar
+          </button>
+        </header>
+      )}
 
       {/* Scanner Container */}
-      <div className="flex-1 flex items-center justify-center bg-background/95 p-6">
-        <div id="qr-reader-container" className="w-full max-w-[500px] border border-border shadow-xl rounded-xl"></div>
+      <div className={`flex-1 flex items-center justify-center bg-background/95 ${inline ? 'p-0 py-2' : 'p-6'}`}>
+        <div id="qr-reader-container" className={`w-full ${inline ? 'max-w-[300px]' : 'max-w-[500px]'} border border-border shadow-xl rounded-xl overflow-hidden`}></div>
       </div>
     </div>
   );

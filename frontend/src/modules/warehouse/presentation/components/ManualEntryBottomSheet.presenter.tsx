@@ -1,5 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, PackagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
 
@@ -50,46 +52,19 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   onRemoveEntry,
   onConfirmEntry
 }) => {
-  const [isRendered, setIsRendered] = useState(isOpen);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [startY, setStartY] = useState<number | null>(null);
-  const [currentY, setCurrentY] = useState<number>(0);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-    } else {
-      const timer = setTimeout(() => setIsRendered(false), 400); 
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY === null) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
-    if (deltaY > 0) {
-      setCurrentY(deltaY);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY > 100) {
-      onClose();
-    }
-    setStartY(null);
-    setCurrentY(0);
-  };
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(isOpen, 400);
 
   if (!isRendered) return null;
 
-  return (
+  return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
@@ -99,22 +74,22 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${isOpen && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
         <div 
           className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onClose)}
         >
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
 
         {/* Header */}
         <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
-          <h3 className="font-bold text-lg text-primary flex items-center gap-2">
+          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
             <PackagePlus size={20} />
             Ingreso Manual (Lote Virtual)
           </h3>
@@ -180,7 +155,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Folio</label>
                         <input 
                           type="text"
-                          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
+                          className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
                           placeholder="Ej. FAC-001 (Opcional)"
                           value={entry.folio}
                           onChange={e => onUpdateEntry(index, 'folio', e.target.value)}
@@ -192,7 +167,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           type="number"
                           min="0.01"
                           step="0.01"
-                          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm font-bold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
+                          className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
                           placeholder="Ej. 10.00"
                           value={entry.quantity}
                           onChange={e => onUpdateEntry(index, 'quantity', e.target.value)}
@@ -217,7 +192,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           type="number"
                           min="0"
                           step="0.0001"
-                          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
+                          className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-mono text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
                           placeholder="Ej. 12.50"
                           value={entry.unit_cost}
                           onChange={e => onUpdateEntry(index, 'unit_cost', e.target.value)}
@@ -273,6 +248,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

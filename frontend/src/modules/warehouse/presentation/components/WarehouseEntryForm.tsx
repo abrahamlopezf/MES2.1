@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useWarehouseEntry } from '../hooks/useWarehouseEntry';
 import { useMaterialsQuery, useSuppliersQuery } from '../../../materials/hooks/useMaterialsQueries';
 import { PackagePlus, QrCode, MapPin, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { toast } from 'sonner';
 
 export const WarehouseEntryForm: React.FC = () => {
   const mutation = useWarehouseEntry();
+  const { confirm } = useConfirmAction();
   const { data: materialsData, isLoading: loadingMaterials } = useMaterialsQuery({});
   const materials = materialsData?.items || [];
 
@@ -58,24 +60,28 @@ export const WarehouseEntryForm: React.FC = () => {
     amountInputRef.current?.focus();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!qrCode || !materialId || !amount || Number(amount) <= 0 || !folio) {
       toast.error('Complete todos los campos correctamente (incluyendo folio).');
       return;
     }
 
-    mutation.mutate(
-      {
-        qr_code: qrCode,
-        material_id: Number(materialId),
-        quantity: Number(amount),
-        location: locationId,
-        supplier_id: supplierId ? Number(supplierId) : null,
-        folio: folio
-      },
-      {
-        onSuccess: () => {
+    confirm({
+      title: 'Registrar Entrada',
+      message: `¿Confirmas la entrada de ${amount} unidades al almacén?`,
+      confirmText: 'Sí, registrar',
+      variant: 'primary',
+      action: async () => {
+        try {
+          await mutation.mutateAsync({
+            qr_code: qrCode,
+            material_id: Number(materialId),
+            quantity: Number(amount),
+            location: locationId,
+            supplier_id: supplierId ? Number(supplierId) : null,
+            folio: folio
+          });
           toast.success('Entrada registrada exitosamente.');
           setQrCode('');
           setAmount('');
@@ -83,34 +89,33 @@ export const WarehouseEntryForm: React.FC = () => {
           setSupplierId('');
           setSearchTerm('');
           qrInputRef.current?.focus();
-        },
-        onError: (err: any) => {
+        } catch (err: any) {
           toast.error(err.response?.data?.message || 'Error al registrar entrada.');
           qrInputRef.current?.focus();
         }
       }
-    );
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-2xl border-4 border-slate-200/60 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-10 pb-6 border-b-2 border-slate-100">
+    <form onSubmit={handleSubmit} className="bg-card p-8 rounded-2xl shadow-lg border border-border max-w-5xl mx-auto animate-form-field" style={{ '--stagger': 1 } as React.CSSProperties}>
+      <div className="flex items-center justify-between mb-10 pb-6 border-b border-border">
         <div className="flex items-center gap-4">
-          <div className="bg-blue-600 p-4 rounded-xl text-white shadow-md">
+          <div className="bg-primary p-4 rounded-xl text-primary-foreground shadow-sm">
             <PackagePlus size={40} />
           </div>
           <div>
-            <h2 className="text-3xl font-black text-slate-800 tracking-tight">RECEPCIÓN DE MATERIAL</h2>
-            <p className="text-slate-500 font-medium text-lg mt-1">Escanee la etiqueta para iniciar el registro</p>
+            <h2 className="text-3xl font-black text-foreground tracking-tight">RECEPCIÓN DE MATERIAL</h2>
+            <p className="text-muted-foreground font-medium text-lg mt-1">Escanee la etiqueta para iniciar el registro</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="inline-flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
+          <div className="inline-flex items-center gap-2 bg-secondary px-4 py-2 rounded-lg border border-border">
             <MapPin size={20} className="text-slate-500" />
             <select 
               value={locationId}
               onChange={e => setLocationId(e.target.value)}
-              className="bg-transparent border-none font-bold text-slate-700 outline-none text-lg"
+              className="bg-transparent border-none font-bold text-foreground outline-none text-lg"
             >
               <option value="ALMACEN-PRINCIPAL">ALMACEN-PRINCIPAL</option>
               <option value="CUARENTENA">CUARENTENA</option>
@@ -121,9 +126,9 @@ export const WarehouseEntryForm: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-8 mb-10">
         {/* ESCANEO QR */}
-        <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
-          <label className="block text-xl font-bold text-slate-700 mb-3 flex items-center gap-2 uppercase tracking-wide">
-            <QrCode size={24} className="text-blue-600" /> 1. Escanear Etiqueta (QR Virgen)
+        <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 2 } as React.CSSProperties}>
+          <label className="block text-xl font-bold text-foreground mb-3 flex items-center gap-2 uppercase tracking-wide">
+            <QrCode size={24} className="text-primary" /> 1. Escanear Etiqueta (QR Virgen)
           </label>
           <input 
             ref={qrInputRef}
@@ -132,7 +137,7 @@ export const WarehouseEntryForm: React.FC = () => {
             value={qrCode}
             onChange={(e) => setQrCode(e.target.value)}
             onKeyDown={handleQrKeyPress}
-            className="w-full border-2 border-blue-300 rounded-xl px-6 py-6 text-4xl text-slate-900 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none uppercase font-mono font-black tracking-widest bg-white shadow-inner placeholder:text-slate-300"
+            className="w-full min-h-[48px] border border-border rounded-2xl px-6 py-4 text-2xl text-foreground focus:ring-0 focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 outline-none uppercase font-mono font-black tracking-widest bg-card transition-all placeholder:text-muted-foreground/60"
             placeholder="ESCANEE EL CÓDIGO QR"
             autoComplete="off"
           />
@@ -140,12 +145,12 @@ export const WarehouseEntryForm: React.FC = () => {
 
         {/* MATERIAL Y CANTIDAD */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
-            <label className="block text-xl font-bold text-slate-700 mb-3 uppercase tracking-wide">
+          <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 3 } as React.CSSProperties}>
+            <label className="block text-xl font-bold text-foreground mb-3 uppercase tracking-wide">
               2. Material Recibido
             </label>
             {loadingMaterials ? (
-              <div className="h-20 flex items-center justify-center gap-3 text-slate-500 font-bold text-lg">
+              <div className="h-20 flex items-center justify-center gap-3 text-muted-foreground font-bold text-lg">
                 <Loader2 className="animate-spin" size={24} /> Cargando catálogo...
               </div>
             ) : (
@@ -155,14 +160,14 @@ export const WarehouseEntryForm: React.FC = () => {
                   placeholder="Buscador Inteligente (Ej. PLAS-BOLS-001 o Bobina...)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg font-medium text-slate-700 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+                  className="w-full min-h-[48px] border border-border rounded-2xl px-4 py-3 text-base font-semibold text-foreground focus:ring-0 focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 outline-none bg-card transition-all placeholder:text-muted-foreground/60"
                 />
                 <select
                   id="material-select"
                   required
                   value={materialId}
                   onChange={handleMaterialChange}
-                  className="w-full border-2 border-slate-300 rounded-xl px-4 py-4 text-xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+                  className="w-full min-h-[48px] border border-border rounded-2xl px-4 py-3 text-base font-semibold text-foreground focus:ring-0 focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 outline-none bg-card transition-all cursor-pointer"
                 >
                   <option value="" disabled>-- SELECCIONE MATERIAL --</option>
                   {filteredMaterials?.map((m: any) => (
@@ -172,14 +177,14 @@ export const WarehouseEntryForm: React.FC = () => {
                   ))}
                 </select>
                 {filteredMaterials.length === 0 && (
-                  <span className="text-sm text-red-500 font-bold">No se encontraron materiales.</span>
+                  <span className="text-sm text-destructive font-bold">No se encontraron materiales.</span>
                 )}
               </div>
             )}
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
-            <label className="block text-xl font-bold text-slate-700 mb-3 uppercase tracking-wide">
+          <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 4 } as React.CSSProperties}>
+            <label className="block text-xl font-bold text-foreground mb-3 uppercase tracking-wide">
               3. Cantidad Recibida
             </label>
             <input 
@@ -190,24 +195,24 @@ export const WarehouseEntryForm: React.FC = () => {
               required
               value={amount}
               onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
-              className="w-full border-2 border-slate-300 rounded-xl px-6 py-6 text-4xl font-black text-slate-900 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-mono bg-white shadow-inner"
+              className="w-full border-2 border-input rounded-xl px-6 py-6 text-4xl font-black text-foreground focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none font-mono bg-card shadow-sm transition-all"
               placeholder="0.000"
             />
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-8 border-2 border-slate-200">
-            <label className="block text-xl font-bold text-slate-700 mb-3 uppercase tracking-wide">
+          <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 5 } as React.CSSProperties}>
+            <label className="block text-xl font-bold text-foreground mb-3 uppercase tracking-wide">
               4. Proveedor (Opcional)
             </label>
             {loadingSuppliers ? (
-              <div className="h-20 flex items-center justify-center gap-3 text-slate-500 font-bold text-lg">
+              <div className="h-20 flex items-center justify-center gap-3 text-muted-foreground font-bold text-lg">
                 <Loader2 className="animate-spin" size={24} /> Cargando catálogo...
               </div>
             ) : (
               <select
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
-                className="w-full border-2 border-slate-300 rounded-xl px-4 py-4 text-xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white shadow-sm"
+                className="w-full min-h-[48px] border border-border rounded-2xl px-4 py-3 text-xl font-bold text-foreground focus:ring-0 focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 outline-none bg-card transition-all cursor-pointer"
               >
                 <option value="">-- SELECCIONE PROVEEDOR --</option>
                 {suppliers?.map((s: any) => (
@@ -224,7 +229,7 @@ export const WarehouseEntryForm: React.FC = () => {
       <button
         type="submit"
         disabled={mutation.isPending || loadingMaterials || !qrCode || !materialId || !amount}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-3xl tracking-wide py-8 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-primary hover:bg-primary/90 active:scale-[0.99] text-primary-foreground font-black text-3xl tracking-wide py-8 rounded-2xl shadow-md hover:shadow-xl transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed animate-form-field" style={{ '--stagger': 6 } as React.CSSProperties}
       >
         {mutation.isPending ? (
           <>

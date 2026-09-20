@@ -83,8 +83,11 @@ const getMaterialLotes = async (material_id) => {
 };
 
 const disposeLotes = async (payload, currentUser) => {
-  if (!payload.material_id || !payload.lote_ids || !payload.tipo_baja_id) {
+  if ((!payload.material_id || !payload.lote_ids) && (!payload.items || payload.items.length === 0)) {
     throwHttpError('Faltan datos obligatorios para la baja', 400);
+  }
+  if (!payload.tipo_baja_id) {
+    throwHttpError('Falta el tipo de baja', 400);
   }
 
   return await sequelize.transaction(async (t) => {
@@ -93,28 +96,39 @@ const disposeLotes = async (payload, currentUser) => {
       user_id: currentUser.id
     }, t);
 
-    let movementType = 'DISPOSE';
-    const tipoBajaId = Number(payload.tipo_baja_id);
-    if (tipoBajaId === 2) movementType = 'MERMA';
-    else if ([1, 3, 4].includes(tipoBajaId)) movementType = 'SCRAP';
-
-    // Registrar Movimiento de Inventario de la baja
-    const { InventoryMovement, TraceabilityEvent, TipoBaja } = require('../../database/models');
+    // Obtener Tipo de Baja
+    const { InventoryMovement, TraceabilityEvent, TipoBaja, Inventory } = require('../../database/models');
     
     let motivoName = 'Desconocido';
+    let movementType = 'DISPOSE';
     const tipoBaja = await TipoBaja.findByPk(payload.tipo_baja_id);
-    if (tipoBaja) motivoName = tipoBaja.name;
+    
+    if (tipoBaja) {
+      motivoName = tipoBaja.name;
+      const lowerName = motivoName.toLowerCase();
+      if (lowerName.includes('merma')) {
+        movementType = 'MERMA';
+      } else if (lowerName.includes('scrap')) {
+        movementType = 'SCRAP';
+      }
+    }
     
     const foliosAfectados = result.lotes ? result.lotes.map(l => l.folio).filter(Boolean).join(', ') : '';
 
-    await InventoryMovement.create({
-      inventory_id: result.inventory.id,
-      type: movementType,
-      quantity_change: -result.totalDisposed,
-      total_cost: result.totalCostDisposed, // Costo total perdido en la baja
-      performed_by: currentUser.id,
-      notes: `Facturas afectadas: ${foliosAfectados}. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`
-    }, { transaction: t });
+    // Crear un movimiento por cada material descontado
+    for (const [matId, qty] of Object.entries(result.materialDiscounts || {})) {
+      const inventory = await Inventory.findOne({ where: { material_id: matId }, transaction: t });
+      if (inventory) {
+        await InventoryMovement.create({
+          inventory_id: inventory.id,
+          type: movementType,
+          quantity_change: -qty,
+          total_cost: 0, // Nota: el costo global ahora está en result.totalCostDisposed pero para el histórico requeriríamos costo por material
+          performed_by: currentUser.id,
+          notes: `Baja Global. Facturas afectadas: ${foliosAfectados}. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`
+        }, { transaction: t });
+      }
+    }
 
     // Registrar Evento de Trazabilidad por cada Lote
     if (result.lotes && result.lotes.length > 0) {
@@ -138,8 +152,11 @@ const disposeLotes = async (payload, currentUser) => {
 };
 
 const requestDisposeLotes = async (payload, currentUser) => {
-  if (!payload.material_id || !payload.lote_ids || !payload.tipo_baja_id) {
+  if ((!payload.material_id || !payload.lote_ids) && (!payload.items || payload.items.length === 0)) {
     throwHttpError('Faltan datos obligatorios para solicitar la baja', 400);
+  }
+  if (!payload.tipo_baja_id) {
+    throwHttpError('Falta el tipo de baja', 400);
   }
 
   return await sequelize.transaction(async (t) => {
@@ -558,7 +575,7 @@ const getMermaScrapReport = async () => {
       [sequelize.fn('SUM', sequelize.col('quantity_change')), 'total_quantity']
     ],
     where: {
-      type: { [Op.in]: ['MERMA', 'SCRAP'] }
+      type: { [Op.in]: ['MERMA', 'SCRAP', 'DISPOSE'] }
     },
     include: [{
       model: Inventory,
@@ -585,11 +602,13 @@ const getMermaScrapReport = async () => {
         name: row.material_name,
         merma: 0,
         scrap: 0,
+        baja: 0,
       };
     }
     // quantity_change es negativo, tomamos Math.abs
     if (row.type === 'MERMA') materialsMap[matId].merma += Math.abs(Number(row.total_quantity));
     if (row.type === 'SCRAP') materialsMap[matId].scrap += Math.abs(Number(row.total_quantity));
+    if (row.type === 'DISPOSE') materialsMap[matId].baja += Math.abs(Number(row.total_quantity));
   });
 
   const materialsList = Object.values(materialsMap);
@@ -611,7 +630,7 @@ const getMermaScrapDetails = async (material_id) => {
   const movements = await InventoryMovement.findAll({
     where: {
       inventory_id: inventory.id,
-      type: { [Op.in]: ['MERMA', 'SCRAP'] }
+      type: { [Op.in]: ['MERMA', 'SCRAP', 'DISPOSE'] }
     },
     order: [['created_at', 'DESC']],
     raw: true

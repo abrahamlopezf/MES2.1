@@ -92,11 +92,11 @@ const LoginPage = () => {
                 control={form.control}
                 name="identifier"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem style={{ '--stagger': 1 }}>
                     <FormLabel>Usuario o No. de Nómina</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                        <User className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
                         <Input
                           placeholder="Ingresa tu usuario o número de nómina"
                           autoComplete="username"
@@ -115,11 +115,11 @@ const LoginPage = () => {
                 control={form.control}
                 name="password"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem style={{ '--stagger': 2 }}>
                     <FormLabel>Contraseña</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                        <Lock className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
                         <Input
                           type="password"
                           placeholder="Escribe tu contraseña"
@@ -135,7 +135,12 @@ const LoginPage = () => {
                 )}
               />
 
-              <Button type="submit" className="w-full h-11 text-base font-semibold mt-2" disabled={mutation.isPending}>
+              <Button 
+                type="submit" 
+                className="w-full text-base font-semibold mt-6 animate-form-field" 
+                style={{ '--stagger': 3 }}
+                disabled={mutation.isPending}
+              >
                 <LogIn className={`mr-2 h-5 w-5 ${mutation.isPending ? 'animate-pulse' : ''}`} />
                 {mutation.isPending ? 'Validando...' : 'Ingresar al sistema'}
               </Button>

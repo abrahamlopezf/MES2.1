@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
+import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { ConsumoBottomSheetPresenter } from './ConsumoBottomSheet.presenter';
 
 export interface ConsumoBottomSheetContainerProps {
@@ -16,6 +17,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
   onSuccess 
 }) => {
   const queryClient = useQueryClient();
+  const { confirm } = useConfirmAction();
   const [orderNumber, setOrderNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<{ id?: string; qrCode?: string; lote_id?: number; folio?: string; material_id: number; maxQuantity: number; quantity: number; materialName: string }[]>([]);
@@ -158,6 +160,28 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
 
   const totalQuantity = useMemo(() => items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0), [items]);
 
+  const onConsume = async () => {
+    if (items.length === 0) {
+      toast.error('Agregue al menos un material para consumir.');
+      return;
+    }
+    if (items.some(i => i.quantity <= 0)) {
+      toast.error('Las cantidades deben ser mayores a cero.');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Consumo de Material',
+      message: `¿Confirmas el consumo de ${items.length} material(es)? Esta acción afectará el inventario.`,
+      confirmText: 'Sí, consumir',
+      variant: 'primary'
+    });
+
+    if (!confirmed) return;
+
+    handleConsume();
+  };
+
   return (
     <ConsumoBottomSheetPresenter
       isOpen={isOpen}
@@ -178,7 +202,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
       onAddMaterial={handleAddMaterial}
       onUpdateItemQuantity={updateItemQuantity}
       onRemoveItem={removeItem}
-      onConsume={() => handleConsume()}
+      onConsume={onConsume}
     />
   );
 };

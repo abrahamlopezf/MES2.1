@@ -165,12 +165,16 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 label="Nombres"
                 placeholder="Ej. Juan Carlos"
                 error={form.formState.errors.nombres?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 1 } as React.CSSProperties}
                 {...form.register('nombres')}
               />
               <TFInput
                 label="Apellidos"
                 placeholder="Ej. Pérez"
                 error={form.formState.errors.apellidos?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 2 } as React.CSSProperties}
                 {...form.register('apellidos')}
               />
               <TFInput
@@ -178,6 +182,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 placeholder={isEdit ? '' : "Autogenerado por el sistema"}
                 disabled={true}
                 error={form.formState.errors.username?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 3 } as React.CSSProperties}
                 {...form.register('username')}
               />
               <TFInput
@@ -185,10 +191,12 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 type="password"
                 placeholder="Ej. Password123!"
                 error={form.formState.errors.password?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 4 } as React.CSSProperties}
                 {...form.register('password')}
               />
               
-              <div className="col-span-1 md:col-span-1 flex items-center space-x-3 mt-4">
+              <div className="col-span-1 md:col-span-1 flex items-center space-x-3 mt-4 animate-form-field" style={{ '--stagger': 5 } as React.CSSProperties}>
                 <Checkbox
                   id="mustChangePassword"
                   checked={form.watch('mustChangePassword')}
@@ -212,6 +220,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 placeholder="Ej. EMP-001"
                 disabled={isSupervisor}
                 error={form.formState.errors.numeroNomina?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 6 } as React.CSSProperties}
                 {...form.register('numeroNomina')}
               />
               
@@ -220,6 +230,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 type="email"
                 placeholder="correo@empresa.com"
                 error={form.formState.errors.correo?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 7 } as React.CSSProperties}
                 {...form.register('correo')}
               />
               
@@ -227,6 +239,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 label="Teléfono"
                 placeholder="Ej. 5551234567"
                 error={form.formState.errors.telefono?.message}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 8 } as React.CSSProperties}
                 {...form.register('telefono')}
               />
 
@@ -235,11 +249,13 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 options={roles.map(r => ({ label: r.name, value: String(r.id) }))}
                 error={form.formState.errors.rolId?.message}
                 disabled={roles.length === 0}
+                containerClassName="animate-form-field"
+                style={{ '--stagger': 9 } as React.CSSProperties}
                 {...form.register('rolId')}
               />
             </div>
 
-            <DialogFooter className="flex flex-wrap items-center justify-end gap-2 pt-6 border-t border-border mt-6">
+            <DialogFooter className="flex flex-wrap items-center justify-end gap-2 pt-6 border-t border-border mt-6 animate-form-field" style={{ '--stagger': 10 } as React.CSSProperties}>
               <TFButton 
                 type="button" 
                 variant="secondary" 

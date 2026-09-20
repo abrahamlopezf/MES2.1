@@ -41,13 +41,44 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, fullWidth, ...props }, ref) => {
+  ({ className, variant, size, fullWidth, disabled, children, onClick, ...props }, ref) => {
+    const [internalLoading, setInternalLoading] = React.useState(false);
+    const lastClickTime = React.useRef(0);
+
+    const isEffectivelyLoading = internalLoading;
+
+    const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+      const now = Date.now();
+      if (isEffectivelyLoading || disabled || (now - lastClickTime.current < 500)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      lastClickTime.current = now;
+
+      if (onClick) {
+        try {
+          const result = onClick(e) as any;
+          if (result && typeof result.then === 'function') {
+            setInternalLoading(true);
+            await result;
+          }
+        } finally {
+          setInternalLoading(false);
+        }
+      }
+    };
+
     return (
       <button
         className={cn(buttonVariants({ variant, size, fullWidth, className }))}
         ref={ref}
+        disabled={disabled || isEffectivelyLoading}
+        onClick={handleClick}
         {...props}
-      />
+      >
+        {isEffectivelyLoading ? 'Procesando...' : children}
+      </button>
     );
   }
 );

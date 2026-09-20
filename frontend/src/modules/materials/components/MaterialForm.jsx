@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Save, X, QrCode, ShieldAlert } from 'lucide-react';
+import { useConfirmAction } from '../../../providers/ConfirmProvider';
 import { TFAlert, TFButton, TFCard, TFCardContent, TFInput, TFSelect, TFTextarea } from '../../../components/tf-ui';
 
 import {
@@ -20,6 +21,7 @@ const MaterialForm = ({
   onCancel,
   onDeactivate,
 }) => {
+  const { confirm } = useConfirmAction();
   const isEditing = Boolean(initialData?.id);
 
   const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });
@@ -174,7 +176,7 @@ const MaterialForm = ({
     return `${famCode}-${artCode}-XXX`;
   }, [selectedFamily, selectedCode, isEditing, initialData]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!formData.family_uuid || !formData.material_code_uuid || !formData.name.trim() || !formData.ranking_id) {
@@ -202,7 +204,17 @@ const MaterialForm = ({
       payload.is_active = Boolean(formData.is_active);
     }
 
-    onSubmit?.(payload);
+    confirm({
+      title: isEditing ? 'Guardar Cambios' : 'Registrar Material',
+      message: '¿Está seguro de guardar la información de este material?',
+      confirmText: 'Sí, guardar',
+      variant: 'primary',
+      action: async () => {
+        if (onSubmit) {
+          await onSubmit(payload);
+        }
+      }
+    });
   };
 
   return (

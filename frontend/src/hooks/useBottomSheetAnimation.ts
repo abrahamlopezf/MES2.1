@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export const useBottomSheetAnimation = (isOpen: boolean, duration: number = 400) => {
+export const useBottomSheetAnimation = (isOpen: boolean, duration: number = 700) => {
   const [isRendered, setIsRendered] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
 
@@ -11,12 +11,12 @@ export const useBottomSheetAnimation = (isOpen: boolean, duration: number = 400)
   useEffect(() => {
     if (isOpen) {
       setIsRendered(true);
-      // Double requestAnimationFrame ensures the initial state is painted before applying the open state
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAnimateIn(true);
-        });
-      });
+      // Use a timeout to ensure the initial state is painted before applying the open state
+      // This prevents abrupt snapping if the browser hasn't processed the initial DOM insertion yet
+      const timer = setTimeout(() => {
+        setAnimateIn(true);
+      }, 50);
+      return () => clearTimeout(timer);
     } else {
       setAnimateIn(false);
       const timer = setTimeout(() => setIsRendered(false), duration);
