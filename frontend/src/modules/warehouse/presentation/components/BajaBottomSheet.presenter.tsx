@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, X, QrCode, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { Package, X, QrCode, Plus, Trash2, ShieldAlert, Search } from 'lucide-react';
 import { Button, Input } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
@@ -23,6 +23,9 @@ export interface BajaBottomSheetPresenterProps {
   onSetStep: (step: 'SELECT_METHOD' | 'SCANNING' | 'FORM') => void;
   isScanning: boolean;
   selectedMaterialId: string;
+  isMaterialLocked: boolean;
+  loteSearch?: string;
+  onChangeLoteSearch?: (val: string) => void;
   onChangeTipoBajaId: (val: string) => void;
   onChangeNotes: (val: string) => void;
   onScanInput: (val: string) => void;
@@ -55,6 +58,9 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
   onSetStep,
   isScanning,
   selectedMaterialId,
+  isMaterialLocked,
+  loteSearch = '',
+  onChangeLoteSearch,
   onChangeTipoBajaId,
   onChangeNotes,
   onScanInput,
@@ -109,7 +115,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
       style={{ isolation: 'isolate' }}
     >
       <div 
@@ -120,12 +126,12 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
 
       <div
         ref={sheetRef}
-        className={`relative w-full sm:w-[500px] bg-card sm:rounded-3xl rounded-t-3xl border sm:border border-t border-border flex flex-col overflow-hidden max-h-[95dvh] sm:max-h-[90vh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0 sm:scale-100' : 'translate-y-full sm:translate-y-0 sm:scale-95 sm:opacity-0'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
-        {/* Drag Handle (Mobile only) */}
+        {/* Drag Handle */}
         <div 
-          className="w-full pt-3 pb-2 flex justify-center items-center touch-none sm:hidden bg-card"
+          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
           onTouchStart={handlers.onTouchStart}
           onTouchMove={handlers.onTouchMove}
           onTouchEnd={() => handlers.onTouchEnd(onClose)}
@@ -265,11 +271,14 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                             getValue={(m: any) => m.id.toString()}
                             placeholder="Buscar material..."
                             emptyMessage="No se encontraron materiales"
+                            disabled={isMaterialLocked}
                           />
                         </div>
-                        <Button variant="secondary" onClick={() => onSetStep('SCANNING')} className="shrink-0 group rounded-xl px-4 h-12" title="Escanear QR">
-                          <QrCode size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
-                        </Button>
+                        {!isMaterialLocked && (
+                          <Button variant="secondary" onClick={() => onSetStep('SCANNING')} className="shrink-0 group rounded-xl px-4 h-12" title="Escanear QR">
+                            <QrCode size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -283,8 +292,26 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 mt-2">
-                    {items.map((item, idx) => (
-                      <div key={idx} className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card shadow-sm relative">
+                    {isMaterialLocked && items.length > 1 && (
+                      <div className="relative mb-2">
+                        <Input 
+                          placeholder="Buscar por lote, folio o código QR..." 
+                          value={loteSearch}
+                          onChange={e => onChangeLoteSearch?.(e.target.value)}
+                          className="!pl-10 h-11 rounded-xl bg-background shadow-sm w-full"
+                        />
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          <Search size={18} />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {items.map((item, originalIdx) => ({...item, originalIdx})).filter(item => {
+                      if (!loteSearch) return true;
+                      const term = loteSearch.toLowerCase();
+                      return (item.folio?.toLowerCase().includes(term) || String(item.lote_id).includes(term) || item.qrCode?.toLowerCase().includes(term));
+                    }).map((item, idx) => (
+                      <div key={item.originalIdx} className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card shadow-sm relative">
                         <div className="flex justify-between items-start">
                           <div className="pr-8">
                             <p className="font-bold text-foreground text-sm">{item.materialName}</p>
@@ -295,7 +322,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                           </div>
                           {!isResolutionMode && (
                             <button 
-                              onClick={() => onRemoveItem(idx)}
+                              onClick={() => onRemoveItem(item.originalIdx)}
                               className="absolute top-3 right-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-full transition-colors"
                             >
                               <Trash2 size={16} />
@@ -311,7 +338,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                             max={item.maxQuantity}
                             step="0.1"
                             value={item.quantity}
-                            onChange={e => onUpdateQuantity(idx, Number(e.target.value))}
+                            onChange={e => onUpdateQuantity(item.originalIdx, Number(e.target.value))}
                             disabled={isResolutionMode}
                             className="h-10 text-right font-bold text-foreground flex-1 disabled:opacity-100 disabled:bg-muted"
                           />

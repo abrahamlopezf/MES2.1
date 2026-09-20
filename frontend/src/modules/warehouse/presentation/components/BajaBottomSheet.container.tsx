@@ -28,6 +28,7 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
   const isResolutionMode = !!resolutionRequestId;
   const canDirectDispose = hasPermission('warehouse.waste') || hasPermission('warehouse.dispose');
   const isRequestMode = !isResolutionMode && !canDirectDispose;
+  const isMaterialLocked = !!item?.material_id;
 
   const [step, setStep] = useState<'SELECT_METHOD' | 'SCANNING' | 'FORM'>('SELECT_METHOD');
   const [items, setItems] = useState<{ id?: string; qrCode?: string; lote_id: number; folio?: string; material_id: number; maxQuantity: number; quantity: number; materialName: string }[]>([]);
@@ -36,6 +37,7 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
   const [scanInput, setScanInput] = useState('');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
+  const [loteSearch, setLoteSearch] = useState('');
 
   const { data: requestDetails, isLoading: loadingRequest } = useQuery({
     queryKey: ['warehouse', 'dispose-request', resolutionRequestId],
@@ -80,6 +82,7 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
         setScanInput('');
         setSelectedMaterialId('');
         setIsScanning(false);
+        setLoteSearch('');
         setItems([]);
         
         if (item?.material_id) {
@@ -277,11 +280,19 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
       }));
 
       setItems(prev => [...prev, ...newItems]);
-      setSelectedMaterialId('');
+      if (!isMaterialLocked) {
+        setSelectedMaterialId('');
+      }
     } catch (e) {
       toast.error('Error al obtener lotes del material.');
     }
   };
+
+  useEffect(() => {
+    if (isOpen && !isResolutionMode && item?.material_id && materials?.length > 0 && items.length === 0) {
+      handleAddMaterial(String(item.material_id));
+    }
+  }, [isOpen, isResolutionMode, item, materials]);
 
   const updateItemQuantity = (index: number, val: number) => {
     const newItems = [...items];
@@ -324,6 +335,9 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
       onSetStep={setStep}
       isScanning={isScanning}
       selectedMaterialId={selectedMaterialId}
+      isMaterialLocked={isMaterialLocked}
+      loteSearch={loteSearch}
+      onChangeLoteSearch={setLoteSearch}
       onChangeTipoBajaId={setTipoBajaId}
       onChangeNotes={setNotes}
       onScanInput={setScanInput}

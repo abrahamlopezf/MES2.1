@@ -1,8 +1,10 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, Info } from 'lucide-react';
+import { X, Info, QrCode } from 'lucide-react';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button, Badge } from '../../../../design-system';
+import { downloadQrPdf } from '../../../identity/presentation/hooks/useIdentityBatches';
+import { toast } from 'sonner';
 
 export interface InfoBottomSheetPresenterProps {
   item: any;
@@ -127,33 +129,52 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
                   No hay lotes en existencia para este material.
                 </div>
               ) : (
-                activeLotes.map((lote: any) => (
-                  <div 
-                    key={lote.id}
-                    className="flex flex-col sm:flex-row gap-2 sm:gap-4 p-3.5 rounded-xl border border-border bg-card items-start sm:items-center justify-between shadow-sm"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-bold text-sm text-foreground truncate mb-0.5">
-                        Folio: {lote.folio || 'LEGACY-LOT'}
-                      </span>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {new Date(lote.date_received).toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-border/50 sm:border-0">
-                      <div className="text-xs text-muted-foreground flex flex-col items-start sm:items-end">
-                        <span>Por: <span className="font-semibold text-foreground">{lote.user?.first_name} {lote.user?.last_name}</span></span>
-                        {lote.location && (
-                          <span className="mt-0.5">Loc: <span className="font-semibold text-foreground">{lote.location.code}</span></span>
-                        )}
+                activeLotes.map((lote: any) => {
+                  const isDepleted = lote.is_active === false || Number(lote.available_amount ?? lote.amount) <= 0;
+                  
+                  return (
+                    <div 
+                      key={lote.id}
+                      className={`flex flex-col sm:flex-row gap-2 sm:gap-4 p-3.5 rounded-xl border items-start sm:items-center justify-between shadow-sm transition-all
+                        ${isDepleted ? 'border-destructive/30 bg-destructive/5 opacity-75' : 'border-border bg-card'}`}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`font-bold text-sm truncate ${isDepleted ? 'text-destructive' : 'text-foreground'}`}>
+                            Folio: {lote.folio || 'LEGACY-LOT'}
+                          </span>
+                          {isDepleted && (
+                            <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4">DADO DE BAJA</Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {new Date(lote.date_received).toLocaleString()}
+                        </span>
                       </div>
-                      <Badge variant="outline" className="shrink-0 bg-primary/5 text-primary border-primary/20 text-sm py-1">
-                        {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)} <span className="text-[10px] ml-1 font-medium">{lote.material?.base_unit?.code || ''}</span>
-                      </Badge>
+                      
+                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-border/50 sm:border-0">
+                        {lote.qr_code?.uuid && !isDepleted && (
+                          <button
+                            onClick={() => downloadQrPdf(lote.qr_code.uuid, lote.qr_code.qr_code).catch(() => toast.error('Error al descargar QR'))}
+                            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors border border-primary/20 flex items-center justify-center shrink-0"
+                            title="Descargar Código QR"
+                          >
+                            <QrCode size={16} />
+                          </button>
+                        )}
+                        <div className="text-xs text-muted-foreground flex flex-col items-start sm:items-end">
+                          <span>Por: <span className="font-semibold text-foreground">{lote.user?.first_name} {lote.user?.last_name}</span></span>
+                          {lote.location && (
+                            <span className="mt-0.5">Loc: <span className="font-semibold text-foreground">{lote.location.code}</span></span>
+                          )}
+                        </div>
+                        <Badge variant="outline" className={`shrink-0 text-sm py-1 ${isDepleted ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-primary/5 text-primary border-primary/20'}`}>
+                          {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)} <span className="text-[10px] ml-1 font-medium">{lote.material?.base_unit?.code || ''}</span>
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

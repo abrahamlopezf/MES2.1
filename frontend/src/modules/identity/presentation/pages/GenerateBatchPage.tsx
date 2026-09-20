@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +11,7 @@ import { toast } from 'sonner';
 import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from 'lucide-react';
 import nomenclature from '@shared/config/nomenclature.json';
 import { useAuthStore } from '../../../../store/authStore';
+import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 
 const getAreaIcon = (mainAreaId: string) => {
   if (mainAreaId === 'ALM') return <Truck size={24} className="text-white" />;
@@ -162,44 +164,17 @@ export function GenerateBatchPage() {
     setExpandedBatchId(prev => prev === batchId ? null : batchId);
   };
 
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [startY, setStartY] = useState<number | null>(null);
-  const [currentY, setCurrentY] = useState<number>(0);
-  const [isRendered, setIsRendered] = useState(false);
-
-  useEffect(() => {
-    if (isModalOpen) {
-      setIsRendered(true);
-    } else {
-      const timer = setTimeout(() => setIsRendered(false), 400); 
-      return () => clearTimeout(timer);
-    }
-  }, [isModalOpen]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY === null) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
-    if (deltaY > 0) {
-      setCurrentY(deltaY);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY > 100) {
-      handleCloseModal();
-    }
-    setStartY(null);
-    setCurrentY(0);
-  };
-
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
+
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(isModalOpen, 400);
 
   return (
     <div className="space-y-4 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 pb-32 sm:pb-12 overflow-x-hidden flex flex-col">
@@ -430,24 +405,27 @@ export function GenerateBatchPage() {
       </div>
 
       {/* GENERATE / REQUEST BATCH BOTTOM SHEET */}
-      {isRendered && (
-        <div className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${isModalOpen ? 'opacity-100' : 'opacity-0'}`}>
+      {isRendered && createPortal(
+        <div 
+          className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+          style={{ isolation: 'isolate' }}
+        >
           <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
             onClick={handleCloseModal}
             aria-hidden="true"
           />
           <div 
             ref={sheetRef}
-            className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${isModalOpen && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+            className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
             style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
           >
             {/* Drag Handle */}
             <div 
               className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
+              onTouchStart={handlers.onTouchStart}
+              onTouchMove={handlers.onTouchMove}
+              onTouchEnd={() => handlers.onTouchEnd(handleCloseModal)}
             >
               <div className="w-12 h-1.5 bg-muted rounded-full" />
             </div>
@@ -561,9 +539,9 @@ export function GenerateBatchPage() {
                 {mutation.isPending ? 'Procesando...' : 'Generar Lote'}
               </button>
             </div>
-
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

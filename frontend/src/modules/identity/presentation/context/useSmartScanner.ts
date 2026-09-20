@@ -58,8 +58,11 @@ export const useSmartScanner = () => {
         // Virgin QR logic
         switch (user.role) {
           case 'WAREHOUSE_OPERATOR':
+          case 'WAREHOUSEMAN':
+          case 'ADMIN_ALM':
           case 'ADMIN':
           case 'SUPERADMIN':
+          case 'ADMIN_GRAL':
             // Route admins and warehouse operators to the reception screen
             navigate(`/warehouse/receive?qr=${cleanQrCode}`);
             return true;

@@ -175,7 +175,7 @@ const buildEventResponse = (event) => {
     performed_by: buildUserMiniResponse(plainEvent.performedByUser),
     notes: plainEvent.notes,
     metadata: plainEvent.metadata || {},
-    created_at: plainEvent.created_at,
+    created_at: plainEvent.created_at || plainEvent.createdAt,
   };
 };
 

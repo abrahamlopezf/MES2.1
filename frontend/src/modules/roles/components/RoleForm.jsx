@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Save, X, AlertTriangle } from 'lucide-react';
+import { useBottomSheetAnimation } from '@/hooks/useBottomSheetAnimation';
 
 import { Button } from '../../../design-system';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog';
 import { Input } from '../../../design-system/components/Input/Input';
 
 const getInitialFormData = (role) => ({
@@ -122,17 +123,62 @@ const RoleForm = ({
     onSubmit(payload);
   };
 
-  return (
-    <Dialog open={true} onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar rol' : 'Nuevo rol personalizado'}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? 'Actualiza el nombre, descripción y permisos del rol seleccionado.'
-              : 'Crea un rol personalizado seleccionando los permisos que tendrá.'}
-          </DialogDescription>
-        </DialogHeader>
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(true, 400);
+
+  if (!isRendered) return null;
+
+  return createPortal(
+    <div 
+      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      style={{ isolation: 'isolate' }}
+    >
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+        onClick={onCancel}
+        aria-hidden="true"
+      />
+
+      <div
+        ref={sheetRef}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
+      >
+        {/* Drag Handle */}
+        <div 
+          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onCancel)}
+        >
+          <div className="w-12 h-1.5 bg-muted rounded-full" />
+        </div>
+
+        <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
+          <div className="flex flex-col">
+            <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+              {isEdit ? 'Editar rol' : 'Nuevo rol personalizado'}
+            </h3>
+            <p className="italic text-sm text-muted-foreground mt-1">
+              {isEdit
+                ? 'Actualiza el nombre, descripción y permisos del rol seleccionado.'
+                : 'Crea un rol personalizado seleccionando los permisos que tendrá.'}
+            </p>
+          </div>
+          <button 
+            onClick={onCancel}
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50 self-start"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-5 overflow-y-auto flex-1 flex flex-col bg-background">
 
         <form className="role-form space-y-5" onSubmit={handleSubmit}>
           {isSystemRole && (
@@ -261,8 +307,10 @@ const RoleForm = ({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 

@@ -1,19 +1,19 @@
 import React from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FileSearch, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
-import axiosClient from '../../../../api/axiosClient';
+import { FileSearch, ArrowLeft, Loader2, AlertCircle, History, Clock, ArrowRight, User, CheckCircle2, XCircle } from 'lucide-react';
+import { lookupQrCodeRequest } from '../../../../modules/qrcodes/services/qrcodesApi';
 
 export function TraceabilityTreePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const tokenId = searchParams.get('tokenId');
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data: qrInfo, isLoading, isError, error } = useQuery({
     queryKey: ['traceability', tokenId],
     queryFn: async () => {
-      const response = await axiosClient.get(`/traceability/scan/${tokenId}`);
-      return response.data.message;
+      const response = await lookupQrCodeRequest(tokenId);
+      return response.data;
     },
     enabled: !!tokenId,
     retry: false
@@ -45,133 +45,97 @@ export function TraceabilityTreePage() {
         </button>
       </div>
 
-      <div className="bg-card p-8 rounded-lg shadow-sm border border-border">
-        <div className="flex items-center gap-4 border-b border-border pb-6 mb-6">
-          <div className="p-3 bg-primary/10 text-primary rounded-lg">
-            <FileSearch size={28} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-card-foreground">Árbol de Trazabilidad</h1>
-            <p className="text-muted-foreground font-mono text-sm mt-1">{tokenId}</p>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-            <Loader2 className="animate-spin mx-auto mb-4" size={32} />
-            <p>Consultando historial del token...</p>
-          </div>
-        ) : isError ? (
-          <div className="py-8 px-4 bg-danger/10 border border-danger/20 rounded-lg text-danger flex items-start gap-3">
-            <AlertCircle className="shrink-0 mt-0.5" />
+      <div className="bg-card text-card-foreground border border-border rounded-xl shadow-sm p-6 flex flex-col">
+        <h2 className="text-2xl font-black text-foreground mb-6">Detalle del Material</h2>
+        
+        <div className="flex flex-col gap-4">
+          <div className="p-4 bg-background border border-border rounded-lg shadow-inner flex items-center justify-between">
             <div>
-              <h3 className="font-bold">Error al consultar el QR</h3>
-              <p className="text-sm mt-1 opacity-90">
-                {(error as any)?.response?.data?.message || 'El código QR no existe o hubo un error en la conexión.'}
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Código Físico QR</span>
+              <p className="text-xl font-mono text-foreground break-all mt-1 font-bold">{tokenId}</p>
+            </div>
+            <FileSearch size={32} className="text-primary opacity-20" />
+          </div>
+          
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-8 text-slate-500">
+              <Loader2 className="animate-spin mb-2" size={32} />
+              <span className="font-bold">Buscando información de trazabilidad...</span>
+            </div>
+          ) : isError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm">
+              <h3 className="text-red-600 font-bold flex items-center gap-2 mb-2">
+                <XCircle size={18} /> Error de Búsqueda
+              </h3>
+              <p className="text-sm font-semibold text-red-800">
+                {(error as any)?.response?.data?.message || 'Error al obtener la información de trazabilidad del código QR.'}
               </p>
             </div>
-          </div>
-        ) : (
-          <div className="relative pl-8 border-l-2 border-primary/20 space-y-8 py-4">
-            
-            {/* Nodo 1: Identidad Generada */}
-            <div className="relative">
-              <div className="absolute -left-10 w-4 h-4 bg-primary rounded-full ring-4 ring-background mt-1"></div>
-              <div className="bg-muted/30 border border-border rounded-md p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold text-foreground">Identidad Generada</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(data?.qr?.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <span className="px-2 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full">
-                    {data?.qr?.status || 'VIRGIN'}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  El código industrial fue generado exitosamente.
-                </p>
-              </div>
-            </div>
-
-            {/* Eventos de Trazabilidad */}
-            {data?.traceability_events?.map((evt: any) => (
-              <div key={evt.id} className="relative">
-                <div className="absolute -left-10 w-4 h-4 bg-primary rounded-full ring-4 ring-background mt-1"></div>
-                <div className="bg-card border border-border rounded-md p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{evt.event_type}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(evt.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
-                      COMPLETADO
-                    </span>
-                  </div>
-                  {evt.notes && (
-                    <p className="text-sm text-foreground mt-2">{evt.notes}</p>
-                  )}
-                  {evt.performed_by && (
-                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Registrado por: <strong>{evt.performed_by.name || evt.performed_by.username}</strong></span>
-                    </div>
-                  )}
+          ) : qrInfo ? (
+            <>
+              <div className="p-4 bg-surface border border-primary/30 rounded-lg shadow-sm">
+                <h3 className="text-primary font-bold flex items-center gap-2 mb-2">
+                  <CheckCircle2 size={18} /> Historial de Lote QR
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                  <span className="font-semibold text-muted-foreground">Estado Actual:</span>
+                  <span className="font-bold text-foreground">{qrInfo.qr?.status || qrInfo.status}</span>
+                  <span className="font-semibold text-muted-foreground">Área Asignada:</span>
+                  <span className="font-bold text-foreground">{qrInfo.qr?.assigned_area?.name || qrInfo.area_name || 'N/A'}</span>
                 </div>
               </div>
-            ))}
 
-            {/* Movimientos */}
-            {data?.movements?.map((mov: any) => (
-              <div key={mov.id} className="relative">
-                <div className="absolute -left-10 w-4 h-4 bg-primary rounded-full ring-4 ring-background mt-1"></div>
-                <div className="bg-card border border-border rounded-md p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{mov.movement_type}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(mov.performed_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
-                      {mov.quantity} {mov.unit}
-                    </span>
-                  </div>
-                  {mov.notes && (
-                    <p className="text-sm text-foreground mt-2">{mov.notes}</p>
-                  )}
-                  <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    {mov.from_area && (
-                      <div>
-                        <span className="block opacity-70">Origen:</span>
-                        <span className="font-medium text-foreground">{mov.from_area.name}</span>
+              {qrInfo.events && qrInfo.events.length > 0 && (
+                <div className="mt-4 p-4 bg-background border border-border rounded-lg shadow-sm">
+                  <h3 className="text-foreground font-bold flex items-center gap-2 mb-6">
+                    <History size={20} className="text-primary" /> Árbol de Trazabilidad
+                  </h3>
+                  <div className="relative border-l-2 border-border ml-3 pl-6 space-y-6">
+                    {qrInfo.events.map((event: any, idx: number) => (
+                      <div key={event.id || idx} className="relative">
+                        <div className="absolute -left-[33px] top-1 w-4 h-4 rounded-full bg-primary ring-4 ring-background" />
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-start gap-4">
+                            <span className="font-bold text-foreground text-sm uppercase tracking-wide">
+                              {event.event_type?.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1 shrink-0">
+                              <Clock size={12} />
+                              {new Date(event.created_at || event.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <User size={14} className="opacity-70" />
+                              <span className="font-medium text-foreground">
+                                {event.performed_by ? `${event.performed_by.first_name} ${event.performed_by.last_name || ''}` : 'Sistema'}
+                              </span>
+                            </div>
+                            
+                            {event.from_status && event.to_status && event.from_status !== event.to_status && (
+                              <div className="flex items-center gap-1.5 font-mono text-xs">
+                                <span className="px-1.5 py-0.5 bg-secondary/50 rounded text-foreground">{event.from_status}</span>
+                                <ArrowRight size={12} />
+                                <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded">{event.to_status}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {event.notes && (
+                            <p className="text-sm text-foreground/80 bg-secondary/30 p-2 rounded-md mt-1 border border-border/50">
+                              {event.notes}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {mov.to_area && (
-                      <div>
-                        <span className="block opacity-70">Destino:</span>
-                        <span className="font-medium text-foreground">{mov.to_area.name}</span>
-                      </div>
-                    )}
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
-
-            {(!data?.traceability_events?.length && !data?.movements?.length) && (
-              <div className="relative opacity-50">
-                <div className="absolute -left-10 w-4 h-4 bg-muted-foreground/30 rounded-full ring-4 ring-background mt-1"></div>
-                <div className="bg-muted/10 border border-dashed border-border rounded-md p-4">
-                  <h3 className="font-semibold text-muted-foreground">Asignación Física (Pendiente)</h3>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Esperando primer escaneo operativo...</p>
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
+              )}
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   );

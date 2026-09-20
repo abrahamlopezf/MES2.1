@@ -19,7 +19,7 @@ import UnitsPage from "../modules/materials/pages/UnitsPage";
 import LocationsPage from "../modules/materials/pages/LocationsPage";
 import SuppliersPage from "../modules/materials/pages/SuppliersPage";
 import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
-import QrCodesPage from "../modules/qrcodes/pages/QrCodesPage";
+
 import { AreasPage } from "../modules/dashboard/pages/AreasPage";
 import ProfilePage from "../modules/users/pages/ProfilePage";
 
@@ -88,6 +88,10 @@ export const router = createBrowserRouter([
             element: <AreasPage />,
           },
           {
+            path: '/areas/:group',
+            element: <AreasPage />,
+          },
+          {
             path: '/profile',
             element: <ProfilePage />,
           },
@@ -132,10 +136,6 @@ export const router = createBrowserRouter([
                 element: <SuppliersPage />
               }
             ]
-          },
-          {
-            path: '/qrcodes',
-            element: <QrCodesPage />,
           },
           // Rutas de Identity Center
           {

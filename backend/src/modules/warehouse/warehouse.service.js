@@ -63,12 +63,13 @@ const getMaterialLotes = async (material_id) => {
     throwHttpError('Falta el material_id', 400);
   }
 
-  const { User, Location, Material, MaterialUnit } = require('../../database/models');
+  const { User, Location, Material, MaterialUnit, QrCode } = require('../../database/models');
   const lotes = await Lote.findAll({
     where: { material_id },
     include: [
       { model: User, as: 'user', attributes: ['id', 'first_name', 'last_name'] },
       { model: Location, as: 'location', attributes: ['id', 'name', 'code'] },
+      { model: QrCode, as: 'qr_code', attributes: ['id', 'qr_code', 'uuid'] },
       { 
         model: Material, 
         as: 'material', 
@@ -472,8 +473,67 @@ const manualEntry = async (payload, currentUser) => {
   }
 
   return await sequelize.transaction(async (t) => {
-    const { InventoryMovement, Lote, Inventory } = require('../../database/models');
+    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area } = require('../../database/models');
     
+    // 1. Generate QR Batch and Codes
+    const now = new Date();
+    const batchCode = `QRB-MAN-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${now.toISOString().slice(11, 19).replace(/:/g, '')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const areaALM = await Area.findOne({ where: { code: 'ALM' }, transaction: t });
+    const assignedAreaId = areaALM ? areaALM.id : null;
+
+    const qrBatch = await QrBatch.create({
+      batch_code: batchCode,
+      quantity: payload.entries.length,
+      assigned_area_id: assignedAreaId,
+      status: 'ASSIGNED',
+      notes: 'Generado desde Ingreso Manual',
+      created_by: currentUser.id,
+    }, { transaction: t });
+
+    const crypto = require('crypto');
+    const seqResult = await sequelize.query(
+      `SELECT nextval('qr_code_serial_seq') as serial FROM generate_series(1, :qty);`,
+      {
+        replacements: { qty: payload.entries.length },
+        type: sequelize.QueryTypes.SELECT,
+        transaction: t,
+      }
+    );
+    const serials = seqResult.map(r => Number(r.serial));
+
+    const qrRows = [];
+    for (let i = 0; i < payload.entries.length; i++) {
+      const serial = serials[i];
+      qrRows.push({
+        uuid: crypto.randomUUID(),
+        serial,
+        qr_code: `LOT-${String(serial).padStart(9, '0')}`,
+        batch_id: qrBatch.id,
+        assigned_area_id: assignedAreaId,
+        status: 'IN_USE',
+        created_by: currentUser.id,
+        is_active: true,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    const createdQrs = await QrCode.bulkCreate(qrRows, { transaction: t, returning: true });
+
+    const eventRows = createdQrs.map(qr => ({
+      uuid: crypto.randomUUID(),
+      qr_code_id: qr.id,
+      event_type: 'ASSIGNED',
+      to_status: 'IN_USE',
+      to_area_id: assignedAreaId,
+      performed_by: currentUser.id,
+      notes: 'QR asignado a lote en Ingreso Manual.',
+      metadata: { batch_code: batchCode },
+      created_at: now,
+      updated_at: now,
+    }));
+    await TraceabilityEvent.bulkCreate(eventRows, { transaction: t });
+
     let totalQuantity = 0;
     const loteData = [];
     
@@ -494,7 +554,7 @@ const manualEntry = async (payload, currentUser) => {
       loteData.push({
         material_id: payload.material_id,
         user_id: currentUser.id,
-        qr_id: null,
+        qr_id: createdQrs[i].id,
         location_id: payload.location_id,
         folio: generatedFolio,
         initial_amount: q,

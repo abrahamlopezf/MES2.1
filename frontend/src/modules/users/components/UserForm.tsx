@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, Power, X, Info } from 'lucide-react';
@@ -8,18 +9,11 @@ import { userSchema, UserFormValues } from '../schemas/userSchema';
 import { User, UserStatus } from '../types/user';
 import { useCreateUserMutation, useUpdateUserMutation, useRequestDeactivationMutation } from '../hooks/useUsers';
 import { useAuthStore } from '@/store/authStore';
+import { useBottomSheetAnimation } from '@/hooks/useBottomSheetAnimation';
 
 import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { TFInput, TFSelect, TFButton } from '../../../components/tf-ui';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog.tsx';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 
 interface UserFormProps {
@@ -148,16 +142,60 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
 
   const isPending = createMutation.isPending || updateMutation.isPending || requestDeactMutation.isPending;
 
-  return (
-    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[90vh] bg-card border-border shadow-2xl p-0">
-        <div className="p-6">
-          <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl font-black">{isEdit ? 'Editar usuario' : 'Nuevo usuario'}</DialogTitle>
-            <DialogDescription className="italic text-muted-foreground mt-1">
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(true, 400);
+
+  if (!isRendered) return null;
+
+  return createPortal(
+    <div 
+      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      style={{ isolation: 'isolate' }}
+    >
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div
+        ref={sheetRef}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
+      >
+        {/* Drag Handle */}
+        <div 
+          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onClose)}
+        >
+          <div className="w-12 h-1.5 bg-muted rounded-full" />
+        </div>
+
+        <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
+          <div className="flex flex-col">
+            <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+              {isEdit ? 'Editar usuario' : 'Nuevo usuario'}
+            </h3>
+            <p className="italic text-sm text-muted-foreground mt-1">
               {isEdit ? 'Modifica los datos del usuario en el sistema.' : 'Registra un nuevo usuario para darle acceso al ERP.'}
-            </DialogDescription>
-          </DialogHeader>
+            </p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50 self-start"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-5 overflow-y-auto flex-1 flex flex-col bg-background">
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -255,7 +293,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
               />
             </div>
 
-            <DialogFooter className="flex flex-wrap items-center justify-end gap-2 pt-6 border-t border-border mt-6 animate-form-field" style={{ '--stagger': 10 } as React.CSSProperties}>
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-6 border-t border-border mt-6 animate-form-field" style={{ '--stagger': 10 } as React.CSSProperties}>
               <TFButton 
                 type="button" 
                 variant="secondary" 
@@ -325,11 +363,12 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 <Save className="w-4 h-4 mr-2" />
                 {isEdit ? 'Guardar cambios' : 'Registrar'}
               </TFButton>
-            </DialogFooter>
+            </div>
           </form>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body
   );
 };
 

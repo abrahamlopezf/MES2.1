@@ -10,38 +10,69 @@ class DashboardService {
    */
   static async getOperationsDashboard() {
     try {
-      // Obtener datos reales de Merma/Scrap desde la base de datos
-      const { InventoryMovement } = require('../../database/models');
+      const { InventoryMovement, ProcessRun, ProcessRunOutput, ProcessRunInput, sequelize } = require('../../database/models');
+      
+      // 1. Scrap/Merma Total
       const scrapSum = await InventoryMovement.sum('quantity_change', {
         where: { type: { [Op.in]: ['MERMA', 'SCRAP'] } }
       });
-      const realScrapTotal = scrapSum ? Math.abs(scrapSum) : 0;
+      const scrapTotal = scrapSum ? Math.abs(scrapSum) : 0;
 
-      // Mock data para KPIs
-      const productionTotal = 4250;
-      const totalInput = 4600;
-      const scrapTotal = realScrapTotal;
-      const activeRuns = [
-        { id: 1, code: 'RUN-EXT-001', total_output: 1200 },
-        { id: 2, code: 'RUN-EXT-002', total_output: 800 },
-      ];
+      // 2. Production Total (quantity_secondary assumed to be KG)
+      const prodSum = await ProcessRunOutput.sum('quantity_secondary') || 0;
+      const productionTotal = Number(prodSum);
+
+      // 3. Total Input (quantity_used)
+      const inputSum = await ProcessRunInput.sum('quantity_used') || 0;
+      const totalInput = Number(inputSum);
+
+      // 4. Active Runs
+      const dbActiveRuns = await ProcessRun.findAll({
+        where: { status: 'RUNNING' },
+        limit: 5,
+        attributes: ['id', 'folio', 'target_quantity']
+      });
+      const activeRuns = dbActiveRuns.map(r => ({
+        id: r.id,
+        code: r.folio,
+        total_output: Number(r.target_quantity || 0)
+      }));
       const lowStockAlerts = [];
       
-      // Mock Data para Gráficas
-      const yieldData = [
-        { name: 'Lun', entradas: 800, salidas: 760, dateStr: '2023-10-01' },
-        { name: 'Mar', entradas: 650, salidas: 610, dateStr: '2023-10-02' },
-        { name: 'Mie', entradas: 900, salidas: 870, dateStr: '2023-10-03' },
-        { name: 'Jue', entradas: 400, salidas: 380, dateStr: '2023-10-04' },
-        { name: 'Vie', entradas: 750, salidas: 710, dateStr: '2023-10-05' },
-        { name: 'Sab', entradas: 300, salidas: 280, dateStr: '2023-10-06' },
-      ];
+      // 5. Yield Data (Ultimos 7 dias de producción real)
+      const outputsByDate = await ProcessRunOutput.findAll({
+        attributes: [
+          [sequelize.fn('DATE', sequelize.col('produced_at')), 'dateStr'],
+          [sequelize.fn('SUM', sequelize.col('quantity_secondary')), 'salidas']
+        ],
+        group: [sequelize.fn('DATE', sequelize.col('produced_at'))],
+        order: [[sequelize.fn('DATE', sequelize.col('produced_at')), 'DESC']],
+        limit: 7,
+        raw: true
+      });
       
-      const scrapData = [
-        { area: 'Mezclado', kg: 45 },
-        { area: 'Extrusión', kg: 85 },
-        { area: 'Telares', kg: 12 },
-      ];
+      const yieldData = outputsByDate.reverse().map(o => ({
+         name: o.dateStr,
+         dateStr: o.dateStr,
+         entradas: 0, // Podriamos sumar inputs por fecha tambien
+         salidas: Number(o.salidas || 0)
+      }));
+      
+      // 6. Scrap Data (Ultimos 7 dias)
+      const scrapByArea = await InventoryMovement.findAll({
+        where: { type: { [Op.in]: ['MERMA', 'SCRAP'] } },
+        attributes: [
+          'type',
+          [sequelize.fn('SUM', sequelize.col('quantity_change')), 'kg']
+        ],
+        group: ['type'],
+        raw: true
+      });
+
+      const scrapData = scrapByArea.map(s => ({
+        area: s.type,
+        kg: Math.abs(Number(s.kg || 0))
+      }));
 
       const rawData = {
         productionTotal,

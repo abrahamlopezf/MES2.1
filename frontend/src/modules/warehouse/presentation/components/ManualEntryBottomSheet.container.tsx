@@ -4,6 +4,7 @@ import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
 import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { ManualEntryBottomSheetPresenter } from './ManualEntryBottomSheet.presenter';
+import { downloadBatchPdf } from '../../../identity/presentation/hooks/useIdentityBatches';
 
 export interface ManualEntryBottomSheetContainerProps {
   isOpen: boolean;
@@ -81,7 +82,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
 
   const { mutate: handleManualEntry, isPending: isSubmitting } = useMutation({
     mutationFn: async () => {
-      await axiosClient.post('/warehouse/inventory/manual-entry', {
+      const response = await axiosClient.post('/warehouse/inventory/manual-entry', {
         material_id: Number(materialId),
         location_id: Number(locationId),
         entries: entries.map(e => ({ 
@@ -92,10 +93,22 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         })),
         notes
       });
+      return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       toast.success('Ingreso manual registrado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
+      
+      const qrBatchId = data?.data?.qrBatchId;
+      if (qrBatchId) {
+        toast.info('Generando y descargando códigos QR...');
+        try {
+          await downloadBatchPdf(qrBatchId, 'MANUAL-ENTRY');
+        } catch (e) {
+          toast.error('Ocurrió un error al descargar el PDF de Códigos QR.');
+        }
+      }
+
       if (onSuccess) onSuccess();
       onClose();
     },

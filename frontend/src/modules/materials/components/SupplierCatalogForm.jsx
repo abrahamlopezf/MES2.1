@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { TFButton, TFInput, TFTextarea } from '../../../components/tf-ui';
 
 const supplierSchema = z.object({
@@ -38,8 +38,8 @@ const SupplierCatalogForm = ({
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full bg-background rounded-lg border border-border overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+    <form className="flex flex-col h-full overflow-hidden" onSubmit={handleSubmit(onSubmit)}>
+      <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-6">
         
         {/* Código autogenerado info */}
         {!initialData && (
@@ -53,6 +53,8 @@ const SupplierCatalogForm = ({
           placeholder="Ej. Proveedora de Plásticos S.A."
           error={errors.name?.message}
           disabled={isSubmitting}
+          containerClassName="animate-form-field"
+          style={{ '--stagger': 1 }}
           {...register('name')}
         />
 
@@ -60,10 +62,12 @@ const SupplierCatalogForm = ({
           label="Nombre Comercial"
           placeholder="Ej. ProPlastics"
           disabled={isSubmitting}
+          containerClassName="animate-form-field"
+          style={{ '--stagger': 2 }}
           {...register('commercial_name')}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 animate-form-field" style={{ '--stagger': 3 }}>
           <TFInput
             label="RFC"
             placeholder="Ej. ABCD123456EF7"
@@ -79,7 +83,7 @@ const SupplierCatalogForm = ({
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 animate-form-field" style={{ '--stagger': 4 }}>
           <TFInput
             label="Teléfono"
             placeholder="Ej. 555-1234"
@@ -99,29 +103,31 @@ const SupplierCatalogForm = ({
           label="Información Adicional (Dirección, Contacto)"
           placeholder="Información adicional sobre el proveedor..."
           disabled={isSubmitting}
+          containerClassName="animate-form-field"
+          style={{ '--stagger': 5 }}
           {...register('description')}
         />
-      </div>
 
-      <div className="p-4 sm:p-6 bg-card border-t border-border flex items-center justify-end gap-3 mt-auto shrink-0">
-        <TFButton 
-          type="button" 
-          variant="secondary" 
-          icon={X} 
-          onClick={onCancel} 
-          disabled={isSubmitting}
-        >
-          Cancelar
-        </TFButton>
-        <TFButton 
-          type="submit" 
-          variant="primary"
-          icon={Check}
-          disabled={isSubmitting || (!isDirty && !!initialData)}
-          isLoading={isSubmitting}
-        >
-          {initialData ? 'Guardar Cambios' : 'Crear Proveedor'}
-        </TFButton>
+        {/* FOOTER ACTIONS */}
+        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 animate-form-field" style={{ '--stagger': 6 }}>
+          <TFButton 
+            type="button" 
+            variant="secondary" 
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </TFButton>
+          <TFButton 
+            type="submit" 
+            variant="primary"
+            icon={Save}
+            disabled={isSubmitting || (!isDirty && !!initialData)}
+            isLoading={isSubmitting}
+          >
+            {initialData ? 'Actualizar' : 'Guardar'}
+          </TFButton>
+        </div>
       </div>
     </form>
   );

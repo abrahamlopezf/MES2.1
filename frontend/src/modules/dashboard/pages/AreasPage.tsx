@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Package, Layers, QrCode, Factory, Users, ChevronLeft, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 
 export const AreasPage: React.FC = () => {
   const navigate = useNavigate();
+  const { group } = useParams();
   const { hasPermission } = useAuthStore();
-  const [selectedGroup, setSelectedGroup] = useState<any>(null);
 
   const allAreas = [
     { 
@@ -58,12 +58,13 @@ export const AreasPage: React.FC = () => {
 
   const handleCardClick = (item: any) => {
     if (item.children && item.children.length > 0) {
-      setSelectedGroup(item);
+      navigate(`/areas/${item.id}`);
     } else if (item.path) {
       navigate(item.path);
     }
   };
 
+  const selectedGroup = areas.find(a => a.id === group);
   const currentList = selectedGroup ? selectedGroup.children : areas;
 
   return (
@@ -72,14 +73,7 @@ export const AreasPage: React.FC = () => {
       {/* Header Premium */}
       <div className="relative mb-8">
         <div className="flex items-center gap-4 relative z-10">
-          {selectedGroup && (
-            <button 
-              onClick={() => setSelectedGroup(null)}
-              className="p-3 bg-secondary/80 hover:bg-secondary backdrop-blur-md rounded-2xl shadow-sm border border-border/50 transition-all active:scale-95"
-            >
-              <ChevronLeft size={24} className="text-foreground" />
-            </button>
-          )}
+
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
               {selectedGroup ? selectedGroup.title : "Áreas Operativas"}

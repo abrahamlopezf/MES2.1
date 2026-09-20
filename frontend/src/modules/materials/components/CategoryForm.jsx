@@ -79,18 +79,17 @@ const CategoryForm = ({
   };
 
   return (
-    <TFCard>
-      <TFCardContent>
-        <form className="grid gap-5" onSubmit={handleSubmit}>
-          {formError && (
-            <TFAlert
-              variant="danger"
-              title="Revisa el formulario"
-              message={formError}
-            />
-          )}
+    <form className="flex flex-col h-full overflow-hidden" onSubmit={handleSubmit}>
+      <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-6">
+        {formError && (
+          <TFAlert
+            variant="danger"
+            title="Revisa el formulario"
+            message={formError}
+          />
+        )}
 
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 animate-form-field" style={{ '--stagger': 1 }}>
             <TFInput
               label="Código"
               name="code"
@@ -132,13 +131,15 @@ const CategoryForm = ({
             placeholder="Describe qué materiales agrupa esta categoría."
             value={formData.description}
             onChange={(event) => updateField('description', event.target.value)}
+            containerClassName="animate-form-field"
+            style={{ '--stagger': 2 }}
           />
 
-          <div className="grid gap-3 sm:flex sm:justify-end">
+        {/* FOOTER ACTIONS */}
+        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 animate-form-field" style={{ '--stagger': 3 }}>
             <TFButton
               type="button"
               variant="secondary"
-              icon={X}
               onClick={onCancel}
               disabled={isSubmitting}
             >
@@ -147,15 +148,16 @@ const CategoryForm = ({
 
             <TFButton
               type="submit"
+              variant="primary"
               icon={Save}
               isLoading={isSubmitting}
             >
               {isEditing ? 'Guardar cambios' : 'Crear categoría'}
             </TFButton>
-          </div>
-        </form>
-      </TFCardContent>
-    </TFCard>
+        </div>
+
+      </div>
+    </form>
   );
 };
 

@@ -28,9 +28,13 @@ const ROUTE_DICTIONARY = {
   machines: 'Andon Board',
   
   warehouse: 'Almacén',
+  almacen: 'Almacén',
   receive: 'Recepción',
   inventory: 'Inventario',
   'merma-scrap': 'Merma y Scrap',
+  
+  areas: 'Áreas',
+  admin: 'Gestor de Usuarios',
 };
 
 const getTranslatedSegment = (segment) => {
@@ -55,12 +59,12 @@ export const GlobalBreadcrumbs = () => {
   return (
     <div className="w-full bg-background border-b border-border sticky top-0 z-40">
       <div className="max-w-full px-4 md:px-6 py-2.5 flex items-center overflow-x-auto custom-scrollbar whitespace-nowrap">
-        {/* Botón de volver inspirado en Mercado Libre */}
+        {/* Botón de volver genérico */}
         <button 
           onClick={() => navigate(-1)}
-          className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors mr-3 shrink-0"
+          className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors mr-3 shrink-0 flex items-center"
         >
-          Volver al listado
+          Volver
         </button>
         
         <span className="text-border mx-2 shrink-0">|</span>

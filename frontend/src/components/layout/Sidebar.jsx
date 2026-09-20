@@ -44,14 +44,12 @@ const menuGroups = [
     ]
   },
   {
-    label: "Generación de QR",
+    label: "Identidad y Lotes",
     icon: QrCode,
     permission: "qr.create",
     isGroup: true,
     children: [
-      { label: "Escanear QR", path: "#", icon: QrCode, permission: "inventory.view", onClick: () => window.dispatchEvent(new Event('open-scanner')) },
-      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "qr.create" },
-      { label: "Historial QRs", path: "/qrcodes", icon: List, permission: "qr.create" }
+      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "qr.create" }
     ]
   },
   {

@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
 import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
 import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
-import { Home, Grid, QrCode } from 'lucide-react';
+import { Home, Grid, QrCode, ScanLine } from 'lucide-react';
 import { PageContainer, BottomNavigation, FAB } from '../../design-system';
 import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
@@ -70,12 +70,6 @@ const AppLayout = () => {
       isActive: location.pathname.startsWith('/areas')
     },
     {
-      icon: <QrCode size={26} />,
-      label: 'Escanear',
-      onClick: () => window.dispatchEvent(new Event('open-scanner')),
-      isActive: false
-    },
-    {
       icon: <MiniAvatar user={user} size={26} />,
       label: 'Perfil',
       onClick: () => handleNav('/profile'),
@@ -115,8 +109,27 @@ const AppLayout = () => {
         />
       </div>
 
-      {/* Global Scanner Modal manages its own state and renders the FAB centrally */}
+      {/* Global Scanner Modal */}
       <GlobalScannerModal />
+
+      {/* FAB: Global Scanner Trigger */}
+      <div className="fixed bottom-[90px] lg:bottom-8 right-4 lg:right-8 z-40 group">
+        {/* Animated Glow/Pulse ring behind the button */}
+        <div 
+          className="absolute inset-0 bg-primary/30 rounded-full animate-ping opacity-50 group-hover:bg-primary/50 transition-colors duration-500"
+          style={{ animationDuration: '3s' }}
+        ></div>
+        
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+          className="relative w-16 h-16 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.24)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 border-[3px] border-background overflow-hidden"
+        >
+          {/* Shine effect on hover */}
+          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
+          
+          <ScanLine size={28} className="drop-shadow-md" />
+        </button>
+      </div>
 
       {/* Modal for forcing password change */}
       <ForceChangePasswordModal />

@@ -154,14 +154,7 @@ const MaterialForm = ({
     label: `${l.code} - ${l.name}` 
   }));
 
-  console.log("MaterialForm render debug:", {
-    typesLoaded: types.length > 0,
-    locationsLoaded: locations.length > 0,
-    currentTypeUuid: formData.type_uuid,
-    currentLocationUuid: formData.location_uuid,
-    typeOptions: typeOptions,
-    locationOptions: locationOptions,
-  });
+
   const unitOptions = units.map(u => ({ value: u.uuid || String(u.id), label: `${u.code} - ${u.name}` }));
   const rankingOptions = rankings.map(r => ({ value: String(r.id), label: `${r.nomenclature} - ${r.name}` }));
 
@@ -218,15 +211,14 @@ const MaterialForm = ({
   };
 
   return (
-    <TFCard className="w-full overflow-hidden">
-      <TFCardContent>
-        <form className="grid gap-6" onSubmit={handleSubmit}>
-          {formError && (
-            <TFAlert variant="danger" title="Revisa el formulario" message={formError} />
-          )}
+    <form className="flex flex-col h-full overflow-hidden" onSubmit={handleSubmit}>
+      <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-6">
+        {formError && (
+          <TFAlert variant="danger" title="Revisa el formulario" message={formError} />
+        )}
 
-          {/* TARJETA VISUAL DE CÓDIGO */}
-          <div className="bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-6 text-center shadow-inner overflow-hidden">
+        {/* TARJETA VISUAL DE CÓDIGO */}
+        <div className="bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-6 text-center shadow-inner overflow-hidden animate-form-field" style={{ '--stagger': 1 }}>
             <p className="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
               <QrCode size={14} /> Código Interno del Material
             </p>
@@ -238,7 +230,7 @@ const MaterialForm = ({
             </p>
           </div>
 
-          <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 [&>*]:min-w-0">
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 animate-form-field [&>*]:min-w-0" style={{ '--stagger': 2 }}>
             <TFSelect
               label="Ranking *"
               name="ranking_id"
@@ -281,9 +273,9 @@ const MaterialForm = ({
               disabled={isSubmitting}
               required
             />
+        </div>
 
-
-
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 animate-form-field [&>*]:min-w-0" style={{ '--stagger': 3 }}>
             <TFSelect
               label="Tipo de Material"
               name="type_uuid"
@@ -325,7 +317,7 @@ const MaterialForm = ({
             />
           </div>
 
-          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2">
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 animate-form-field" style={{ '--stagger': 4 }}>
             <TFInput
               label="Stock Mínimo"
               name="minimum_stock"
@@ -347,44 +339,50 @@ const MaterialForm = ({
             />
           </div>
 
-          <TFTextarea
-            label="Descripción"
-            name="description"
-            placeholder="Describe características adicionales, empaque, uso general, etc."
-            value={formData.description}
-            onChange={(e) => updateField('description', e.target.value)}
+        <TFTextarea
+          label="Descripción"
+          name="description"
+          placeholder="Describe características adicionales, empaque, uso general, etc."
+          value={formData.description}
+          onChange={(e) => updateField('description', e.target.value)}
+          disabled={isSubmitting}
+          containerClassName="animate-form-field"
+          style={{ '--stagger': 5 }}
+        />
+      {/* FOOTER ACTIONS */}
+      <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 animate-form-field flex-wrap" style={{ '--stagger': 6 }}>
+        {isEditing && onDeactivate && initialData?.is_active && (
+          <TFButton
+            variant="danger"
+            icon={ShieldAlert}
+            type="button"
+            onClick={() => onDeactivate(initialData)}
             disabled={isSubmitting}
-          />
+            className="order-first sm:mr-auto"
+          >
+            Desactivar
+          </TFButton>
+        )}
+        <TFButton 
+          type="button" 
+          variant="secondary" 
+          onClick={onCancel} 
+          disabled={isSubmitting} 
+        >
+          Cancelar
+        </TFButton>
+        <TFButton 
+          type="submit" 
+          variant="primary"
+          icon={Save} 
+          isLoading={isSubmitting} 
+        >
+          {isEditing ? 'Guardar cambios' : 'Crear material'}
+        </TFButton>
+      </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800 mt-2 w-full">
-            <div className="flex flex-col gap-3 w-full sm:w-auto">
-              <TFButton type="button" variant="secondary" icon={X} onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
-                Cancelar
-              </TFButton>
-              
-              {isEditing && onDeactivate && initialData?.is_active && (
-                <TFButton
-                  variant="danger"
-                  icon={ShieldAlert}
-                  type="button"
-                  onClick={() => onDeactivate(initialData)}
-                  disabled={isSubmitting}
-                  className="w-full sm:w-auto"
-                >
-                  Desactivar material
-                </TFButton>
-              )}
-            </div>
-
-            <div className="w-full sm:w-auto">
-              <TFButton type="submit" icon={Save} isLoading={isSubmitting} className="w-full sm:w-auto h-full sm:h-12">
-                {isEditing ? 'Guardar cambios' : 'Crear material'}
-              </TFButton>
-            </div>
-          </div>
-        </form>
-      </TFCardContent>
-    </TFCard>
+      </div>
+    </form>
   );
 };
 
