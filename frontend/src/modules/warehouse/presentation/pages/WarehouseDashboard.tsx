@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../design-sys
 import { TFSelect } from '../../../../components/tf-ui';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../../core/api/apiClient';
+import { LowStockReportModal } from '../components/LowStockReportModal';
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-MX', {
@@ -23,9 +24,13 @@ const formatCurrency = (value) => {
 };
 
 // KPI Card para la cabecera
-const ExecutiveKpiCard = ({ title, value, unit = '', isCurrency, colorClass }) => {
+const ExecutiveKpiCard = ({ title, value, unit = '', isCurrency, colorClass, onClick, cursor = 'default' }) => {
   return (
-    <Card className={`flex flex-col justify-center px-6 py-4 shadow-sm border-b-4 ${colorClass}`}>
+    <Card 
+      onClick={onClick}
+      className={`flex flex-col justify-center px-6 py-4 shadow-sm border-b-4 ${colorClass} ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+      style={{ cursor }}
+    >
       <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
       <p className="text-3xl font-black text-foreground tracking-tight">
         {isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)} {unit && !isCurrency && <span className="text-xl opacity-60 font-medium">{unit}</span>}
@@ -37,6 +42,7 @@ const ExecutiveKpiCard = ({ title, value, unit = '', isCurrency, colorClass }) =
 export const WarehouseDashboard = () => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
+  const [isLowStockModalOpen, setIsLowStockModalOpen] = useState(false);
   
   const isDark = theme === 'dark';
   const axisColor = isDark ? '#e4e4e7' : '#18181b'; 
@@ -49,7 +55,7 @@ export const WarehouseDashboard = () => {
     queryFn: async () => {
       try {
         const response = await apiClient.get('/warehouse/dashboard-metrics');
-        return response.data;
+        return response.data?.data || response.data || {};
       } catch (e) {
         return {};
       }
@@ -71,22 +77,12 @@ export const WarehouseDashboard = () => {
     bajas: metrics?.bajasRegistradas || 0,
     stockBajo: metrics?.materialesStockBajo || 0,
     merma: metrics?.mermaRegistrada || 0,
+    inventoryValue: metrics?.financial?.inventoryValue || 0,
+    lossValue: metrics?.financial?.lossValue || 0,
   };
 
-  const chartData = metrics?.chartData || [
-    { date: 'Lun', entradas: 45, bajas: 30 },
-    { date: 'Mar', entradas: 52, bajas: 38 },
-    { date: 'Mié', entradas: 38, bajas: 42 },
-    { date: 'Jue', entradas: 65, bajas: 45 },
-    { date: 'Vie', entradas: 48, bajas: 50 },
-  ];
-
-  const mermaData = metrics?.mermaData || [
-    { date: 'Sem 1', merma: 120 },
-    { date: 'Sem 2', merma: 150 },
-    { date: 'Sem 3', merma: 90 },
-    { date: 'Sem 4', merma: 110 },
-  ];
+  const chartData = metrics?.chartData || [];
+  const mermaData = metrics?.mermaData || [];
 
   return (
     <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background overflow-x-hidden">
@@ -98,52 +94,85 @@ export const WarehouseDashboard = () => {
         </h1>
       </div>
 
-      {/* TOP FILTERS */}
-      <div className="w-full shrink-0">
-        <div className="bg-secondary/40 p-5 rounded-2xl border border-border/50 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="shrink-0">
-            <h2 className="text-lg font-black text-foreground tracking-tight">Filtros Operativos</h2>
-            <p className="text-xs text-muted-foreground">Vista de Almacén</p>
-          </div>
+      {/* FILTER BAR SECTION */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-primary/10 p-4 rounded-xl border border-primary/20 items-end">
+        <div className="md:col-span-1">
+          <h2 className="text-lg font-black tracking-tight text-primary flex items-center gap-2">
+            <Boxes className="h-5 w-5" />
+            Filtros Operativos
+          </h2>
+          <p className="text-xs font-semibold text-muted-foreground mt-0.5">Vista de Almacén</p>
+        </div>
+        
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider opacity-70">Año</label>
+          <TFSelect 
+            value="2026"
+            options={[{value: '2026', label: '2026'}]}
+            onChange={() => {}}
+            className="h-10"
+          />
+        </div>
+        
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider opacity-70">Periodo</label>
+          <TFSelect 
+            value="current"
+            options={[{value: 'current', label: 'Mes Actual'}]}
+            onChange={() => {}}
+            className="h-10"
+          />
+        </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 lg:max-w-4xl">
-            <TFSelect label="Año" options={[{value: '2025', label: '2025'}, {value: '2026', label: '2026'}]} value="2026" onChange={() => {}} />
-            <TFSelect label="Periodo" options={[{value: 'mes', label: 'Mes Actual'}]} value="mes" onChange={() => {}} />
-            <TFSelect label="Familia" options={[{value: 'todas', label: 'Todas las Familias'}]} value="todas" onChange={() => {}} />
-            <TFSelect label="Ubicación" options={[{value: 'todas', label: 'Todas las Ubicaciones'}]} value="todas" onChange={() => {}} />
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider opacity-70">Familia</label>
+          <TFSelect 
+            value="all"
+            options={[{value: 'all', label: 'Todas las Familias'}]}
+            onChange={() => {}}
+            className="h-10"
+          />
         </div>
       </div>
 
+      {/* EXECUTIVE SUMMARY KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <ExecutiveKpiCard 
+          title="COSTO TOTAL ALMACÉN"
+          value={kpis.inventoryValue}
+          isCurrency={true}
+          colorClass="border-blue-500 bg-blue-500/5"
+        />
+        <ExecutiveKpiCard 
+          title="COSTO TOTAL SCRAP/MERMA"
+          value={kpis.lossValue}
+          isCurrency={true}
+          colorClass="border-red-500 bg-red-500/5"
+        />
+        <ExecutiveKpiCard 
+          title="TOTAL INGRESOS (LOTES)"
+          value={kpis.entradas}
+          isCurrency={false}
+          colorClass="border-emerald-500 bg-emerald-500/5"
+        />
+        <ExecutiveKpiCard 
+          title="STOCKS BAJOS (CRÍTICO/ALERTA)"
+          value={kpis.stockBajo}
+          unit="items"
+          isCurrency={false}
+          colorClass="border-amber-500 bg-amber-500/5"
+          onClick={() => setIsLowStockModalOpen(true)}
+          cursor="pointer"
+        />
+      </div>
+
+      <LowStockReportModal 
+        isOpen={isLowStockModalOpen}
+        onClose={() => setIsLowStockModalOpen(false)}
+      />
+
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col gap-6 pb-20">
-        
-        {/* TOP KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ExecutiveKpiCard 
-            title="Costo Total Almacén" 
-            value={metrics?.financial?.inventoryValue || 19967835} 
-            isCurrency={true}
-            colorClass="border-blue-500" 
-          />
-          <ExecutiveKpiCard 
-            title="Costo Total Merma" 
-            value={metrics?.financial?.lossValue || 1486756} 
-            isCurrency={true}
-            colorClass="border-red-500" 
-          />
-          <ExecutiveKpiCard 
-            title="Total Entradas" 
-            value={kpis.entradas} 
-            colorClass="border-emerald-500" 
-          />
-          <ExecutiveKpiCard 
-            title="Merma Operativa" 
-            value={kpis.merma} 
-            unit="kg"
-            colorClass="border-amber-500" 
-          />
-        </div>
 
         {/* MIDDLE CHARTS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
@@ -151,7 +180,7 @@ export const WarehouseDashboard = () => {
           {/* Bar Chart: Transacciones */}
           <Card className="p-5 shadow-sm">
             <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
-              Transacciones (Entradas vs Salidas)
+              Inventario vs Scrap/Merma
             </h3>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -163,8 +192,8 @@ export const WarehouseDashboard = () => {
                     contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                  <Bar dataKey="entradas" name="ENTRADAS" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Bar dataKey="bajas" name="SALIDAS" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="entradas" name="ENTRADAS (Lotes)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="bajas" name="SALIDAS (Mermas/Bajas)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -173,7 +202,7 @@ export const WarehouseDashboard = () => {
           {/* Area Chart: Merma */}
           <Card className="p-5 shadow-sm">
             <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
-              Tendencia de Merma (kg)
+              Consumos
             </h3>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -190,7 +219,7 @@ export const WarehouseDashboard = () => {
                   <RechartsTooltip 
                     contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
                   />
-                  <Area type="monotone" dataKey="merma" name="MERMA" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorMermaExec)" />
+                  <Area type="monotone" dataKey="merma" name="CONSUMOS Y MERMAS" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorMermaExec)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

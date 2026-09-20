@@ -109,19 +109,37 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
           display: none !important;
         }
 
-        /* Hide the 'Stop Scanning' and other buttons */
+        /* Style the 'Stop Scanning' and other buttons */
         #qr-reader-container__dashboard_section_csr button {
-          display: none !important;
+          background-color: var(--primary);
+          color: var(--primary-foreground);
+          padding: 0.5rem 1rem;
+          border-radius: var(--radius);
+          font-weight: 500;
+          cursor: pointer;
+          margin-top: 1rem;
+          transition: background-color 0.2s;
+        }
+        
+        #qr-reader-container__dashboard_section_csr button:hover {
+          background-color: var(--primary)/90;
         }
 
         /* Hide the 'Scan an Image File' link */
         #qr-reader-container a {
-          display: none !important;
+          color: var(--primary);
+          text-decoration: underline;
         }
 
-        /* Hide the camera select dropdown */
+        /* Style the camera select dropdown */
         #qr-reader-container select {
-          display: none !important;
+          padding: 0.5rem;
+          border-radius: var(--radius);
+          background-color: var(--secondary);
+          color: var(--foreground);
+          border: 1px solid var(--border) !important;
+          margin-bottom: 0.5rem;
+          width: 100%;
         }
 
         /* Style the video feed */

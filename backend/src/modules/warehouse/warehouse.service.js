@@ -270,6 +270,54 @@ const consumeMaterials = async (payload, currentUser) => {
       }
     }
 
+    // Check for low stock and notify admin_alm
+    const { Material, Notification, User, Role } = require('../../database/models');
+    
+    // Group consumed items by material_id to check totals once per material
+    const materialIds = [...new Set(result.items.map(i => i.material_id))];
+    
+    for (const matId of materialIds) {
+      const inventory = await Inventory.findOne({
+        where: { material_id: matId },
+        attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total_amount']],
+        include: [{ model: Material, as: 'material', attributes: ['name', 'minimum_stock', 'reorder_point', 'internal_code'] }],
+        group: ['material_id', 'material.id'],
+        transaction: t
+      });
+
+      if (inventory) {
+        const total = parseFloat(inventory.getDataValue('total_amount') || 0);
+        const minStock = parseFloat(inventory.material?.minimum_stock || 0);
+        const reorderPoint = parseFloat(inventory.material?.reorder_point || 0);
+        
+        let alertType = null;
+        if (minStock > 0 && total <= minStock) {
+          alertType = 'CRÍTICO';
+        } else if (reorderPoint > 0 && total <= reorderPoint) {
+          alertType = 'ALERTA';
+        }
+
+        if (alertType) {
+          // Find users with admin_alm role
+          const admins = await User.findAll({
+            include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' }, attributes: [] }],
+            transaction: t
+          });
+
+          for (const admin of admins) {
+            await Notification.create({
+              recipient_id: admin.id,
+              sender_id: currentUser.id,
+              type: 'LOW_STOCK',
+              title: `Stock ${alertType}: ${inventory.material.internal_code}`,
+              message: `El material ${inventory.material.name} ha bajado a ${total} unidades.`,
+              is_read: false
+            }, { transaction: t });
+          }
+        }
+      }
+    }
+
     return result;
   });
 };
@@ -336,6 +384,21 @@ const changeLocation = async (payload, currentUser) => {
 const getDashboardMetrics = async (user) => {
   const { sequelize, Inventory, Material, InventoryMovement, Lote } = require('../../database/models');
 
+  // Financieros
+  const [invValueResult] = await sequelize.query(`
+    SELECT SUM(available_amount * unit_cost) as total_value 
+    FROM lotes 
+    WHERE is_active = true
+  `);
+  const inventoryValue = parseFloat(invValueResult[0]?.total_value || 0);
+
+  const [lossValueResult] = await sequelize.query(`
+    SELECT SUM(ABS(quantity_change) * COALESCE(unit_cost, 0)) as total_loss 
+    FROM inventory_movements 
+    WHERE type IN ('MERMA', 'SCRAP', 'BAJA', 'DISPOSE')
+  `);
+  const lossValue = parseFloat(lossValueResult[0]?.total_loss || 0);
+
   // 1. Total Entradas (Número de lotes recibidos reales)
   const entradasCount = await Lote.count();
 
@@ -343,7 +406,7 @@ const getDashboardMetrics = async (user) => {
   const bajasCount = await InventoryMovement.count({
     where: {
       type: {
-        [Op.in]: ['BAJA', 'DISPOSE', 'CONSUMPTION']
+        [sequelize.Sequelize.Op.in]: ['BAJA', 'DISPOSE', 'CONSUMPTION']
       }
     }
   });
@@ -352,10 +415,11 @@ const getDashboardMetrics = async (user) => {
   const mermaResult = await InventoryMovement.sum('quantity_change', {
     where: {
       type: {
-        [Op.in]: ['MERMA', 'SCRAP']
+        [sequelize.Sequelize.Op.in]: ['MERMA', 'SCRAP']
       }
     }
   });
+  const mermaKg = Math.abs(parseFloat(mermaResult || 0));
 
   // 4. Materiales con Stock Bajo
   const inventoryItems = await Inventory.findAll({
@@ -367,7 +431,7 @@ const getDashboardMetrics = async (user) => {
       {
         model: Material,
         as: 'material',
-        attributes: ['minimum_stock'],
+        attributes: ['minimum_stock', 'reorder_point'],
       }
     ],
     group: ['material_id', 'material.id']
@@ -377,91 +441,92 @@ const getDashboardMetrics = async (user) => {
   for (const item of inventoryItems) {
     const total = parseFloat(item.getDataValue('total_amount') || 0);
     const minStock = parseFloat(item.material?.minimum_stock || 0);
-    if (minStock > 0 && total <= minStock) {
+    const reorderPoint = parseFloat(item.material?.reorder_point || 0);
+    // Rojo (<= minimo) o Amarillo (<= reorder)
+    if ((minStock > 0 && total <= minStock) || (reorderPoint > 0 && total <= reorderPoint)) {
       stockBajoCount++;
     }
   }
 
   // Gráficas adaptativas: Combinando fechas de Lotes (Entradas) y Movimientos (Salidas)
-  const recentLotes = await Lote.findAll({
-    attributes: ['date_received'],
-    order: [['date_received', 'DESC']],
-    limit: 2000,
-    raw: true
-  });
+  // Generamos un chartData con los últimos 7 días con datos agrupados por día
+  const [chartDataResult] = await sequelize.query(`
+    WITH RECURSIVE dates AS (
+      SELECT CURRENT_DATE - INTERVAL '6 days' AS date
+      UNION ALL
+      SELECT date + INTERVAL '1 day'
+      FROM dates
+      WHERE date < CURRENT_DATE
+    ),
+    entradas AS (
+      SELECT DATE(date_received) as date, COUNT(*) as count 
+      FROM lotes 
+      WHERE date_received >= CURRENT_DATE - INTERVAL '6 days'
+      GROUP BY DATE(date_received)
+    ),
+    bajas AS (
+      SELECT DATE(created_at) as date, COUNT(*) as count 
+      FROM inventory_movements 
+      WHERE created_at >= CURRENT_DATE - INTERVAL '6 days' 
+        AND type IN ('BAJA', 'DISPOSE', 'MERMA', 'SCRAP')
+      GROUP BY DATE(created_at)
+    )
+    SELECT 
+      to_char(d.date, 'DY') as date_label,
+      COALESCE(e.count, 0) as entradas,
+      COALESCE(b.count, 0) as bajas
+    FROM dates d
+    LEFT JOIN entradas e ON d.date = e.date
+    LEFT JOIN bajas b ON d.date = b.date
+    ORDER BY d.date ASC
+  `);
 
-  const recentSalidas = await InventoryMovement.findAll({
-    attributes: ['type', 'quantity_change', 'created_at'],
-    where: {
-      type: {
-        [Op.in]: ['BAJA', 'DISPOSE', 'CONSUMPTION', 'MERMA', 'SCRAP']
-      }
-    },
-    order: [['created_at', 'DESC']],
-    limit: 2000,
-    raw: true
-  });
+  // Transform labels like 'mon' to 'Lun'
+  const dayMap = { 'mon': 'Lun', 'tue': 'Mar', 'wed': 'Mié', 'thu': 'Jue', 'fri': 'Vie', 'sat': 'Sáb', 'sun': 'Dom' };
+  const chartData = chartDataResult.map(row => ({
+    date: dayMap[row.date_label?.toLowerCase().trim()] || row.date_label,
+    entradas: parseInt(row.entradas, 10),
+    bajas: parseInt(row.bajas, 10)
+  }));
 
-  const activeDaysMap = new Map();
+  // Consumos Data
+  const [mermaDataResult] = await sequelize.query(`
+    WITH RECURSIVE dates AS (
+      SELECT CURRENT_DATE - INTERVAL '6 days' AS date
+      UNION ALL
+      SELECT date + INTERVAL '1 day'
+      FROM dates
+      WHERE date < CURRENT_DATE
+    ),
+    consumos AS (
+      SELECT DATE(created_at) as date, SUM(ABS(quantity_change)) as total 
+      FROM inventory_movements 
+      WHERE created_at >= CURRENT_DATE - INTERVAL '6 days' 
+        AND type IN ('CONSUMPTION', 'MERMA', 'SCRAP')
+      GROUP BY DATE(created_at)
+    )
+    SELECT 
+      to_char(d.date, 'DY') as date_label,
+      COALESCE(c.total, 0) as consumos
+    FROM dates d
+    LEFT JOIN consumos c ON d.date = c.date
+    ORDER BY d.date ASC
+  `);
 
-  // Procesar Entradas (Lotes ingresados)
-  for (const lote of recentLotes) {
-    if (!lote.date_received) continue;
-    const mDate = new Date(lote.date_received);
-    if (isNaN(mDate.getTime())) continue;
-
-    const dateStr = mDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
-    const sortKey = mDate.toISOString().split('T')[0]; 
-
-    if (!activeDaysMap.has(dateStr)) {
-      activeDaysMap.set(dateStr, { sortKey, date: dateStr, entradas: 0, bajas: 0, merma: 0 });
-    }
-    activeDaysMap.get(dateStr).entradas += 1;
-  }
-
-  // Procesar Salidas y Mermas (Movimientos)
-  for (const movement of recentSalidas) {
-    if (!movement.created_at) continue;
-    const mDate = new Date(movement.created_at);
-    if (isNaN(mDate.getTime())) continue;
-
-    const dateStr = mDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
-    const sortKey = mDate.toISOString().split('T')[0]; 
-
-    if (!activeDaysMap.has(dateStr)) {
-      activeDaysMap.set(dateStr, { sortKey, date: dateStr, entradas: 0, bajas: 0, merma: 0 });
-    }
-
-    const entry = activeDaysMap.get(dateStr);
-    const type = movement.type;
-    
-    if (['BAJA', 'DISPOSE', 'CONSUMPTION'].includes(type)) {
-      entry.bajas += 1;
-    } else if (['MERMA', 'SCRAP'].includes(type)) {
-      entry.merma += Math.abs(parseFloat(movement.quantity_change) || 0);
-    }
-  }
-
-  // Seleccionar los últimos 7 días de actividad, y ordenarlos de izquierda a derecha
-  let chartDataArray = Array.from(activeDaysMap.values())
-    .sort((a, b) => b.sortKey.localeCompare(a.sortKey)) // Descendente para tomar los mas recientes
-    .slice(0, 7)
-    .sort((a, b) => a.sortKey.localeCompare(b.sortKey)); // Ascendente para la grafica
-
-  if (chartDataArray.length === 0) {
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
-    chartDataArray = [{ date: dateStr, entradas: 0, bajas: 0, merma: 0 }];
-  }
-
-  const chartData = chartDataArray.map(e => ({ date: e.date, entradas: e.entradas, bajas: e.bajas }));
-  const mermaData = chartDataArray.map(e => ({ date: e.date, merma: parseFloat(e.merma.toFixed(2)) }));
+  const mermaData = mermaDataResult.map(row => ({
+    date: dayMap[row.date_label?.toLowerCase().trim()] || row.date_label,
+    merma: parseFloat(row.consumos)
+  }));
 
   return {
     totalEntradas: entradasCount || 0,
     bajasRegistradas: bajasCount || 0, // Number of transactions for bajas/consumptions
     materialesStockBajo: stockBajoCount,
-    mermaRegistrada: Math.abs(mermaResult || 0),
+    mermaRegistrada: Math.abs(mermaKg || 0),
+    financial: {
+      inventoryValue,
+      lossValue
+    },
     chartData,
     mermaData
   };
@@ -714,6 +779,92 @@ const getMermaScrapDetails = async (material_id) => {
   return result;
 };
 
+const getLowStockReport = async () => {
+  const { sequelize, Inventory, Material, MaterialFamily, MaterialCode, MaterialType, MaterialBrand, InventoryMovement } = require('../../database/models');
+  const { Op } = require('sequelize');
+
+  const inventoryItems = await Inventory.findAll({
+    attributes: [
+      'material_id',
+      [sequelize.fn('SUM', sequelize.col('amount')), 'total_amount']
+    ],
+    include: [
+      {
+        model: Material,
+        as: 'material',
+        attributes: ['id', 'name', 'minimum_stock', 'reorder_point', 'internal_code'],
+        include: [
+          { model: MaterialFamily, as: 'family', attributes: ['name'] },
+          { model: MaterialCode, as: 'material_code', attributes: ['code'] },
+          { model: MaterialType, as: 'type', attributes: ['name'] },
+          { model: MaterialBrand, as: 'brand', attributes: ['name'] },
+        ]
+      }
+    ],
+    group: [
+      'material_id', 
+      'material.id', 
+      'material->family.id', 
+      'material->material_code.id',
+      'material->type.id',
+      'material->brand.id'
+    ]
+  });
+
+  const lowStockItems = [];
+
+  for (const item of inventoryItems) {
+    const total = parseFloat(item.getDataValue('total_amount') || 0);
+    const minStock = parseFloat(item.material?.minimum_stock || 0);
+    const reorderPoint = parseFloat(item.material?.reorder_point || 0);
+    
+    // Check if it's yellow or red alert
+    if ((minStock > 0 && total <= minStock) || (reorderPoint > 0 && total <= reorderPoint)) {
+      // It is in low stock, calculate weekly consumption
+      const materialId = item.material.id;
+      
+      const lastWeekDate = new Date();
+      lastWeekDate.setDate(lastWeekDate.getDate() - 7);
+
+      // Find all consumption in the last 7 days for this material's inventories
+      const [consumptionResult] = await sequelize.query(`
+        SELECT SUM(ABS(im.quantity_change)) as total_consumed
+        FROM inventory_movements im
+        INNER JOIN inventories i ON im.inventory_id = i.id
+        WHERE i.material_id = :materialId
+          AND im.type = 'CONSUMPTION'
+          AND im.created_at >= :lastWeek
+      `, {
+        replacements: { materialId, lastWeek: lastWeekDate }
+      });
+
+      const weeklyConsumption = parseFloat(consumptionResult[0]?.total_consumed || 0);
+      
+      // Calculate amount to buy: (Weekly * 4 weeks) - current stock
+      // If result is negative or less than minimum package, recommend at least enough to reach minimum_stock or 0 if they don't want any
+      let toBuy = (weeklyConsumption * 4) - total;
+      
+      // If consumption is very low but it's under minimum stock, suggest buying at least enough to reach reorder point
+      if (toBuy <= 0) {
+        toBuy = Math.max(0, reorderPoint - total, minStock - total);
+      }
+
+      lowStockItems.push({
+        material_id: materialId,
+        familia_articulo: `${item.material.family?.name || ''} - ${item.material.material_code?.code || item.material.internal_code || ''}`,
+        descripcion: item.material.name,
+        tipo: item.material.type?.name || 'N/A',
+        marca: item.material.brand?.name || 'N/A',
+        stock_actual: total,
+        estado: (minStock > 0 && total <= minStock) ? 'Rojo (Crítico)' : 'Amarillo (Alerta)',
+        cantidad_a_comprar: Math.ceil(toBuy)
+      });
+    }
+  }
+
+  return lowStockItems;
+};
+
 module.exports = {
   getInventory,
   getMaterialLotes,
@@ -722,6 +873,7 @@ module.exports = {
   changeLocation,
   getLoteDetails,
   getDashboardMetrics,
+  getLowStockReport,
   manualEntry,
   getMermaScrapReport,
   getMermaScrapDetails,

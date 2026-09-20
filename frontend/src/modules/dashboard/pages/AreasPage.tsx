@@ -17,7 +17,7 @@ export const AreasPage: React.FC = () => {
       gradient: 'from-blue-500/20 to-indigo-500/20 text-blue-500',
       children: [
         { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y Fórmulas', icon: Package, path: '/materials', permission: 'materials.read' },
-        { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, path: '/warehouse/receive', permission: 'inventory.receive' },
+        { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, onClick: () => window.dispatchEvent(new Event('open-scanner')), permission: 'inventory.receive' },
         { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
         { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
       ]
@@ -57,7 +57,9 @@ export const AreasPage: React.FC = () => {
   });
 
   const handleCardClick = (item: any) => {
-    if (item.children && item.children.length > 0) {
+    if (item.onClick) {
+      item.onClick();
+    } else if (item.children && item.children.length > 0) {
       navigate(`/areas/${item.id}`);
     } else if (item.path) {
       navigate(item.path);

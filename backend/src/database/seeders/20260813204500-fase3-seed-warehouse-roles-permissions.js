@@ -71,7 +71,7 @@ module.exports = {
         'inventory.view', 'warehouse.consume', 'warehouse.dispose', 'warehouse.read', 
         'lotes.view', 'lotes.detail', 'materials.create', 'materials.update', 'materials.read',
         'qr.create', 'qr.read', 'warehouse.dashboard.view', 'warehouse.reports.view',
-        'users.read', 'users.update'
+        'users.read', 'users.update', 'inventory.receive'
       ];
       for (const code of adminAlmPerms) {
         if (permMap[code]) {

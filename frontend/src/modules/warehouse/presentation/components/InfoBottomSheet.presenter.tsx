@@ -130,21 +130,31 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
                 </div>
               ) : (
                 activeLotes.map((lote: any) => {
-                  const isDepleted = lote.is_active === false || Number(lote.available_amount ?? lote.amount) <= 0;
+                  const initial = Number(lote.initial_amount ?? lote.amount) || 0;
+                  const available = Number(lote.available_amount ?? lote.amount) || 0;
+                  const disposed = initial - available;
+                  
+                  const isDepleted = lote.is_active === false || available <= 0;
+                  const isPartial = !isDepleted && disposed > 0;
                   
                   return (
                     <div 
                       key={lote.id}
                       className={`flex flex-col sm:flex-row gap-2 sm:gap-4 p-3.5 rounded-xl border items-start sm:items-center justify-between shadow-sm transition-all
-                        ${isDepleted ? 'border-destructive/30 bg-destructive/5 opacity-75' : 'border-border bg-card'}`}
+                        ${isDepleted ? 'border-destructive/30 bg-destructive/5 opacity-50 grayscale-[50%]' : 'border-border bg-card'}`}
                     >
                       <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className={`font-bold text-sm truncate ${isDepleted ? 'text-destructive' : 'text-foreground'}`}>
                             Folio: {lote.folio || 'LEGACY-LOT'}
                           </span>
                           {isDepleted && (
                             <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4">DADO DE BAJA</Badge>
+                          )}
+                          {isPartial && (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-amber-500/30 text-amber-600 bg-amber-500/10 whitespace-nowrap">
+                              BAJA PARCIAL: -{disposed.toFixed(2)}
+                            </Badge>
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground font-medium">
@@ -169,7 +179,7 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
                           )}
                         </div>
                         <Badge variant="outline" className={`shrink-0 text-sm py-1 ${isDepleted ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-primary/5 text-primary border-primary/20'}`}>
-                          {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)} <span className="text-[10px] ml-1 font-medium">{lote.material?.base_unit?.code || ''}</span>
+                          {available.toFixed(2)} <span className="text-[10px] ml-1 font-medium">{lote.material?.base_unit?.code || ''}</span>
                         </Badge>
                       </div>
                     </div>

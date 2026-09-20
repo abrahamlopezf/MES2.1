@@ -25,6 +25,8 @@ const MaterialLotesPageContent = () => {
     }
   });
 
+  const material = data?.[0]?.material;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'inactive' | 'all'
 
@@ -140,45 +142,63 @@ const MaterialLotesPageContent = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
-
-      {/* TopBar */}
-      <TopBar
-        title="Lotes del Material"
-        leftAction={
-          <button
-            onClick={() => navigate('/warehouse/inventory')}
-            className="p-1 rounded-lg hover:bg-muted transition-colors text-foreground"
-            aria-label="Volver al inventario"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        }
-        rightAction={
-          !isSelectionMode ? (
-            <button
-              onClick={toggleSelectionMode}
-              disabled={activeLotes.length === 0}
-              className="p-1 rounded-lg hover:bg-muted transition-colors text-foreground disabled:opacity-40"
-              title="Seleccionar lotes"
-            >
-              <MousePointerSquareDashed size={20} />
-            </button>
-          ) : (
-            <button
-              onClick={toggleSelectionMode}
-              className="p-1 rounded-lg hover:bg-muted transition-colors text-foreground"
-              title="Cancelar selección"
-            >
-              <X size={20} />
-            </button>
-          )
-        }
-      />
+    <div className="flex flex-col h-full bg-background overflow-x-hidden">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-5">
+        
+        {/* Header */}
+        <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-0">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  onClick={() => navigate('/warehouse/inventory')}
+                  className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  aria-label="Volver al inventario"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <Badge variant="outline" className="text-xs bg-secondary/50 font-mono">
+                  {material?.internal_code ? `Código: ${material.internal_code}` : 'Gestión de Lotes'}
+                </Badge>
+              </div>
+              <h1 className="text-3xl font-black text-foreground tracking-tight">
+                {material?.name || 'Cargando material...'}
+              </h1>
+              <p className="text-muted-foreground font-semibold mt-1">
+                Catálogo de lotes y existencias registradas.
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
+              {!isSelectionMode ? (
+                <Button 
+                  variant="secondary"
+                  size="lg"
+                  onClick={toggleSelectionMode}
+                  disabled={activeLotes.length === 0}
+                  className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                >
+                  <MousePointerSquareDashed className="w-5 h-5 mr-2 shrink-0" />
+                  <span>Seleccionar lotes</span>
+                </Button>
+              ) : (
+                <Button 
+                  variant="secondary"
+                  size="lg"
+                  onClick={toggleSelectionMode}
+                  className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                >
+                  <X className="w-5 h-5 mr-2 shrink-0" />
+                  <span>Cancelar selección</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
 
       {/* Barra de acciones en modo selección */}
       {isSelectionMode && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border-b border-border overflow-x-auto">
+        <div className="flex items-center gap-2 px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl overflow-x-auto shadow-sm">
           <Badge variant="secondary" className="shrink-0">{selectedLotes.size} selec.</Badge>
           <Button variant="secondary" size="sm" onClick={handleSelectAll} className="shrink-0 whitespace-nowrap">
             <CheckSquare className="w-4 h-4 mr-1" />
@@ -195,8 +215,6 @@ const MaterialLotesPageContent = () => {
           </Button>
         </div>
       )}
-
-      <div className="flex-1 overflow-y-auto p-3 sm:p-5">
 
         {/* Filters Panel */}
         <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-5">

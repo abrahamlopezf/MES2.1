@@ -59,7 +59,7 @@ const menuGroups = [
     isGroup: true,
     children: [
       { label: "Catálogo", path: "/materials", icon: Package, permission: "materials.read" },
-      { label: "Recepción", path: "/warehouse/receive", icon: PackagePlus, permission: "inventory.receive" },
+      { label: "Recepción", onClick: () => window.dispatchEvent(new Event('open-scanner')), icon: PackagePlus, permission: "inventory.receive" },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
       { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" }
     ]

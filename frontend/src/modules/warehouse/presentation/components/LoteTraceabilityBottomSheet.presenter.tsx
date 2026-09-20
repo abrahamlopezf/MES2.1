@@ -1,6 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, History, User, MapPin, Package, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { Button, Badge } from '../../../../design-system';
+import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 
 export interface LoteTraceabilityBottomSheetPresenterProps {
   isOpen: boolean;
@@ -8,6 +10,7 @@ export interface LoteTraceabilityBottomSheetPresenterProps {
   // State
   lote: any;
   consumptions: any[];
+  events?: any[];
   isLoading: boolean;
   isError: boolean;
 }
@@ -17,49 +20,77 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
   onClose,
   lote,
   consumptions,
+  events = [],
   isLoading,
   isError
 }) => {
-  const [isRendered, setIsRendered] = useState(isOpen);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [startY, setStartY] = useState<number | null>(null);
-  const [currentY, setCurrentY] = useState<number>(0);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-    } else {
-      const timer = setTimeout(() => setIsRendered(false), 400); 
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY === null) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
-    if (deltaY > 0) {
-      setCurrentY(deltaY);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY > 100) {
-      onClose();
-    }
-    setStartY(null);
-    setCurrentY(0);
-  };
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(isOpen, 300);
 
   if (!isRendered) return null;
 
-  return (
+  const initial = Number(lote?.initial_amount || 0);
+  const available = Number(lote?.available_amount || 0);
+  
+  const totalConsumed = consumptions.reduce((acc: number, c: any) => {
+    const item = c.items?.[0] || c;
+    return acc + Number(item.quantity || 0);
+  }, 0);
+
+  let missing = initial - available - totalConsumed;
+  if (missing < 0.01) missing = 0;
+
+  let remainingMissing = missing;
+  const disposeEvents = events.filter((e: any) => e.event_type === 'DISPOSE');
+
+  const movements: any[] = [
+    ...consumptions.map((c: any) => {
+      const item = c.items?.[0] || c;
+      return {
+        type: 'CONSUME',
+        date: new Date(c.created_at || c.createdAt || c.date || Date.now()).getTime(),
+        qty: Number(item.quantity),
+        user: c.user,
+        order: c.order_number || 'N/A'
+      };
+    }),
+    ...disposeEvents.map((e: any, idx: number) => {
+      let assignedQty = null;
+      // Asignar la cantidad faltante al último evento de baja explícito para cuadrar el balance
+      if (idx === disposeEvents.length - 1 && remainingMissing > 0) {
+        assignedQty = remainingMissing;
+        remainingMissing = 0;
+      }
+      return {
+        type: 'DISPOSE_EVENT',
+        date: new Date(e.created_at || e.createdAt || Date.now()).getTime(),
+        qty: assignedQty,
+        user: e.user,
+        notes: e.notes
+      };
+    })
+  ];
+
+  if (remainingMissing > 0) {
+    movements.push({
+      type: 'DISPOSE_ADJUSTMENT',
+      date: new Date().getTime(),
+      qty: remainingMissing,
+      user: { first_name: 'Sistema', last_name: '(Ajuste)' },
+      notes: 'Baja, Merma o Ajuste de Inventario (Registrada como Movimiento Global)'
+    });
+  }
+
+  movements.sort((a, b) => a.date - b.date);
+
+  return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[60] flex flex-col justify-end transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
@@ -69,15 +100,15 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${isOpen && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle Area */}
         <div 
           className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onClose)}
         >
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
@@ -116,7 +147,7 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
                     <h4 className="font-bold text-foreground text-lg leading-tight">{lote.material?.name || 'Material Desconocido'}</h4>
                     <p className="text-[11px] text-muted-foreground font-mono mt-1">Folio: <span className="font-semibold text-foreground">{lote.folio}</span></p>
                   </div>
-                  <Badge variant={Number(lote.available_amount) > 0 ? 'primary' : 'secondary'} className={`shrink-0 ${Number(lote.available_amount) === 0 ? 'opacity-70' : ''}`}>
+                  <Badge variant="outline" className={`shrink-0 ${Number(lote.available_amount) > 0 ? 'bg-primary/20 text-primary border-primary/30 font-bold' : 'bg-secondary/20 text-muted-foreground border-border opacity-70'}`}>
                     {Number(lote.available_amount) > 0 ? 'Activo' : 'Consumido'}
                   </Badge>
                 </div>
@@ -168,55 +199,64 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
                           <span className="truncate">{lote.location?.code}</span>
                         </div>
                       </div>
-                      <div className="mt-3 text-sm font-medium">
-                        Cantidad ingresada: <span className="font-bold text-primary ml-1">+{Number(lote.initial_amount)}</span>
+                      <div className="mt-3 text-sm font-medium flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="text-foreground">Cantidad ingresada:</span> 
+                        <span className="font-black text-emerald-600 dark:text-emerald-400">+{Number(lote.initial_amount)} PZA</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Child Nodes: Consumptions */}
-                  {consumptions.map((consumption: any, idx: number) => {
-                    const item = consumption.items?.[0] || consumption; 
-                    const qty = item.quantity;
-                    const date = consumption.created_at || consumption.date;
-                    const user = consumption.user;
+                  {/* Child Nodes: Movements */}
+                  {movements.map((movement: any, idx: number) => {
+                    const isConsume = movement.type === 'CONSUME';
+                    const isAdjustment = movement.type === 'DISPOSE_ADJUSTMENT';
+                    const isEvent = movement.type === 'DISPOSE_EVENT';
                     
                     return (
                       <div key={idx} className="relative pl-6">
-                        <div className="absolute w-3 h-3 bg-destructive rounded-full -left-[7px] top-1.5 ring-4 ring-background shadow-sm" />
+                        <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 ring-4 ring-background shadow-sm ${isConsume ? 'bg-destructive' : 'bg-amber-500'}`} />
                         <div className="bg-card border border-border rounded-xl p-3 shadow-sm">
                           <div className="flex justify-between items-start mb-2">
-                            <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                              <ArrowUpRight size={14} className="text-destructive" /> 
-                              Consumo de Material
+                            <span className={`font-bold text-sm flex items-center gap-1.5 ${isConsume ? 'text-destructive' : 'text-amber-500'}`}>
+                              <ArrowUpRight size={14} /> 
+                              {isConsume ? 'Consumo de Material' : 'Baja / Merma'}
                             </span>
                             <span className="text-[10px] text-muted-foreground font-mono">
-                              {new Date(date).toLocaleString()}
+                              {new Date(movement.date).toLocaleString()}
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-muted-foreground bg-secondary/20 p-2 rounded-lg">
                             <div className="flex items-center gap-1.5 truncate">
                               <User size={12} className="text-muted-foreground/70" /> 
-                              <span className="truncate">{user?.first_name} {user?.last_name}</span>
+                              <span className="truncate">{movement.user?.first_name} {movement.user?.last_name}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 truncate" title={`Orden: ${consumption.order_number || 'N/A'}`}>
-                              <span className="text-[10px] uppercase font-bold">ORD:</span>
-                              <span className="truncate">{consumption.order_number || 'N/A'}</span>
+                            {isConsume ? (
+                              <div className="flex items-center gap-1.5 truncate" title={`Orden: ${movement.order || 'N/A'}`}>
+                                <span className="text-[10px] uppercase font-bold">ORD:</span>
+                                <span className="truncate">{movement.order || 'N/A'}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 truncate col-span-1" title={movement.notes}>
+                                <span className="truncate">{movement.notes}</span>
+                              </div>
+                            )}
+                          </div>
+                          {(movement.qty !== null && movement.qty > 0) && (
+                            <div className={`mt-3 text-sm font-medium flex items-center justify-between p-2 rounded-lg border ${isConsume ? 'bg-destructive/10 border-destructive/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                              <span className="text-foreground">{isConsume ? 'Cantidad consumida:' : 'Ajuste detectado:'}</span> 
+                              <span className={`font-black ${isConsume ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'}`}>-{Number(movement.qty).toFixed(2)} PZA</span>
                             </div>
-                          </div>
-                          <div className="mt-3 text-sm font-medium">
-                            Cantidad consumida: <span className="font-bold text-destructive ml-1">-{Number(qty)}</span>
-                          </div>
+                          )}
                         </div>
                       </div>
                     );
                   })}
                   
-                  {consumptions.length === 0 && (
+                  {movements.length === 0 && (
                     <div className="relative pl-6">
                       <div className="absolute w-3 h-3 bg-muted rounded-full -left-[7px] top-1.5 ring-4 ring-background shadow-sm" />
                       <div className="text-sm text-muted-foreground py-1 font-medium">
-                        No se han registrado consumos para este lote aún.
+                        No se han registrado consumos ni mermas para este lote aún.
                       </div>
                     </div>
                   )}
@@ -235,6 +275,7 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

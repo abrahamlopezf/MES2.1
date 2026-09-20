@@ -184,4 +184,19 @@ no existe la columna «type» en la relación «material_locations»2026-08-24T2
     at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
     at async MaterialUnit.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
     at async MaterialUnitService.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:65:12)
-    at async create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\materialUnit\materialUnit.controller.js:15:18)\n\n
+    at async create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\materialUnit\materialUnit.controller.js:15:18)\n\n2026-09-20T21:39:10.087Z\nMessage: no existe la columna «deleted_at»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:340:28)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-09-20T21:40:14.364Z\nMessage: no existe la columna «deleted_at»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:340:28)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-09-20T21:41:11.179Z\nMessage: no existe la columna «deleted_at»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:340:28)
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n

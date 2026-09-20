@@ -22,6 +22,12 @@ router.get(
 );
 
 router.get(
+  '/low-stock-report',
+  authorizePermission('warehouse.dashboard.view', 'inventory.view'),
+  warehouseController.getLowStockReport
+);
+
+router.get(
   '/reports/merma-scrap',
   authorizePermission('warehouse.read', 'inventory.view'),
   warehouseController.getMermaScrapReport

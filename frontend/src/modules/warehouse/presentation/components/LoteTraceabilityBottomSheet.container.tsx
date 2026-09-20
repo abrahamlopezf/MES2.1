@@ -25,6 +25,7 @@ export const LoteTraceabilityBottomSheet: React.FC<LoteTraceabilityBottomSheetCo
 
   const lote = response?.lote;
   const consumptions = response?.consumptions || [];
+  const events = response?.events || [];
 
   return (
     <LoteTraceabilityBottomSheetPresenter
@@ -32,8 +33,10 @@ export const LoteTraceabilityBottomSheet: React.FC<LoteTraceabilityBottomSheetCo
       onClose={onClose}
       lote={lote}
       consumptions={consumptions}
+      events={events}
       isLoading={isLoading}
       isError={isError}
     />
   );
 };
+

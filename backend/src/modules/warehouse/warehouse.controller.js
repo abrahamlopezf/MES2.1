@@ -126,6 +126,15 @@ const resolveWasteRequest = async (req, res, next) => {
   }
 };
 
+const getLowStockReport = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getLowStockReport();
+    return successResponse(res, 'Reporte de stocks bajos obtenido.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getInventory,
   getMaterialLotes,
@@ -139,5 +148,6 @@ module.exports = {
   getMermaScrapDetails,
   requestDisposeLotes,
   getWasteRequest,
-  resolveWasteRequest
+  resolveWasteRequest,
+  getLowStockReport
 };

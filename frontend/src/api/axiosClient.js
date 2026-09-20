@@ -29,7 +29,8 @@ axiosClient.interceptors.response.use(
       error.response?.data?.message ||
       'No pudimos conectar con el servidor. Intenta nuevamente.';
 
-    if (error.response?.status === 401) {
+    // Solo redirigir si no estamos intentando iniciar sesión
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
       
