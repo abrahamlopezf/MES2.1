@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
 import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
 import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
-import { Home, Grid, QrCode, ScanLine } from 'lucide-react';
+import { Home, Grid, QrCode, ScanLine, Package } from 'lucide-react';
 import { PageContainer, BottomNavigation, FAB } from '../../design-system';
 import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
@@ -61,21 +61,31 @@ const AppLayout = () => {
       icon: <Home size={24} />,
       label: 'Home',
       onClick: () => handleNav('/dashboard'),
-      isActive: location.pathname === '/dashboard' || location.pathname === '/'
+      isActive: location.pathname === '/dashboard' || location.pathname === '/',
+      show: true
+    },
+    {
+      icon: <Package size={24} />,
+      label: 'Órdenes',
+      onClick: () => handleNav('/warehouse/orders'),
+      isActive: location.pathname.startsWith('/warehouse/orders'),
+      show: useAuthStore().hasPermission('inventory.view')
     },
     {
       icon: <Grid size={24} />,
       label: 'Áreas',
       onClick: () => handleNav('/areas'),
-      isActive: location.pathname.startsWith('/areas')
+      isActive: location.pathname.startsWith('/areas'),
+      show: true
     },
     {
       icon: <MiniAvatar user={user} size={26} />,
       label: 'Perfil',
       onClick: () => handleNav('/profile'),
-      isActive: location.pathname.startsWith('/profile')
+      isActive: location.pathname.startsWith('/profile'),
+      show: true
     }
-  ];
+  ].filter(item => item.show);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 

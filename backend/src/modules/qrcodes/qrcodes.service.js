@@ -546,6 +546,21 @@ const getQrCodeByValue = async (qrCodeValue, currentUser) => {
   return buildQrResponse(qrCode);
 };
 
+const getQrCodesByUuids = async (uuids, currentUser) => {
+  const where = {
+    uuid: {
+      [Op.in]: uuids
+    }
+  };
+
+  const qrCodes = await QrCode.findAll({
+    where,
+    include: qrInclude,
+  });
+
+  return qrCodes;
+};
+
 const getQrEvents = async (qrCodeId, currentUser) => {
   const qrCode = await QrCode.findOne({
     where: {
@@ -833,6 +848,7 @@ module.exports = {
   generateQrBatch,
   getQrCodes,
   getQrCodeByValue,
+  getQrCodesByUuids,
   getQrEvents,
   assignQrCodes,
   validateQrForUse,

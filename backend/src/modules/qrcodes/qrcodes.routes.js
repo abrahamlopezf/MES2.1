@@ -75,6 +75,12 @@ router.post(
   qrcodesController.printQrBatch
 );
 
+router.post(
+  '/print-multiple',
+  permissionMiddleware('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
+  qrcodesController.printMultipleQrs
+);
+
 // --- RUTAS DINÁMICAS (Códigos Individuales) ---
 
 router.get(

@@ -21,6 +21,7 @@ const initLocationModel = require('../../modules/materials/location/location.mod
 const initMaterialModel = require('../../modules/materials/material.model');
 const initMaterialUnitModel = require('../../modules/materials/materialUnit.model');
 const initRankingModel = require('../../modules/materials/ranking.model');
+
 const initSupplierModel = require('../../modules/catalogs/supplier/supplier.model');
 
 const initInventoryModel = require('../../modules/warehouse/inventory.model');
@@ -29,6 +30,8 @@ const initLoteModel = require('../../modules/warehouse/lote.model');
 const initTipoBajaModel = require('../../modules/warehouse/tipoBaja.model');
 const initMaterialConsumptionModel = require('../../modules/warehouse/materialConsumption.model');
 const initMaterialConsumptionItemModel = require('../../modules/warehouse/materialConsumptionItem.model');
+const initConsumptionOrderModel = require('../../modules/warehouse/consumptionOrder.model');
+const initConsumptionOrderItemModel = require('../../modules/warehouse/consumptionOrderItem.model');
 
 // WMS Master Data
 const initQrAreaAssignmentModel = require('../../modules/traceability/qrAreaAssignment.model');
@@ -69,6 +72,8 @@ db.Lote = initLoteModel(sequelize, DataTypes);
 db.TipoBaja = initTipoBajaModel(sequelize, DataTypes);
 db.MaterialConsumption = initMaterialConsumptionModel(sequelize, DataTypes);
 db.MaterialConsumptionItem = initMaterialConsumptionItemModel(sequelize, DataTypes);
+db.ConsumptionOrder = initConsumptionOrderModel(sequelize, DataTypes);
+db.ConsumptionOrderItem = initConsumptionOrderItemModel(sequelize, DataTypes);
 db.WasteRequest = require('../../modules/warehouse/wasteRequest.model')(sequelize);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
@@ -519,6 +524,17 @@ db.TraceabilityLink.belongsTo(db.User, {
 
 db.MaterialConsumption.belongsTo(db.User, { foreignKey: 'user_id', as: 'user' });
 db.MaterialConsumption.hasMany(db.MaterialConsumptionItem, { foreignKey: 'consumption_id', as: 'items' });
+
+db.ConsumptionOrder.belongsTo(db.User, { foreignKey: 'requested_by', as: 'requester' });
+db.ConsumptionOrder.belongsTo(db.User, { foreignKey: 'resolved_by', as: 'resolver' });
+db.ConsumptionOrder.belongsTo(db.Area, { foreignKey: 'requesting_area_id', as: 'requesting_area' });
+db.ConsumptionOrder.belongsTo(db.QrCode, { foreignKey: 'qr_code_id', as: 'qr_code' });
+db.ConsumptionOrder.hasMany(db.ConsumptionOrderItem, { foreignKey: 'order_id', as: 'items' });
+
+db.ConsumptionOrderItem.belongsTo(db.ConsumptionOrder, { foreignKey: 'order_id', as: 'order' });
+db.ConsumptionOrderItem.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+db.ConsumptionOrderItem.belongsTo(db.Lote, { foreignKey: 'lote_id', as: 'lote' });
+db.ConsumptionOrderItem.belongsTo(db.MaterialUnit, { foreignKey: 'unit_id', as: 'unit' });
 
 /* =========================
    NOTIFICATIONS & USERS

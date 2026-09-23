@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TopBar, Button, Badge } from '../../../../design-system';
+import { Button, Badge } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { ArrowLeft, Package, Trash2, TrendingDown, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { MermaScrapDetallesBottomSheet } from '../components/MermaScrapDetallesBottomSheet.container';
 
 export const MermaScrapPage: React.FC = () => {
@@ -25,25 +25,31 @@ export const MermaScrapPage: React.FC = () => {
   const topBaja = [...report].sort((a, b) => (b.baja || 0) - (a.baja || 0)).slice(0, 5);
 
   return (
-    <div className="flex flex-col h-full bg-background relative overflow-hidden">
-      <TopBar
-        title="Control de Merma y Scrap"
-        leftAction={
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="p-1 rounded-lg hover:bg-muted transition-colors text-foreground"
-            aria-label="Volver al inicio"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        }
-      />
-
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+    <div className="flex flex-col h-full bg-background overflow-x-hidden">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
         
+        {/* Header */}
+        <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-0">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-xs bg-secondary/50 font-mono">
+                  Módulo de Almacén
+                </Badge>
+              </div>
+              <h1 className="text-3xl font-black text-foreground tracking-tight">
+                Control de Merma y Scrap
+              </h1>
+              <p className="text-muted-foreground font-semibold mt-1">
+                Monitoreo general de mermas, scrap y otras bajas registradas.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Gráficas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:border-primary/50 transition-colors">
             <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
               <TrendingDown className="text-warning" size={20} />
               Top 5 - Merma
@@ -51,21 +57,29 @@ export const MermaScrapPage: React.FC = () => {
             <div className="h-64 w-full">
               {topMerma.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topMerma} layout="vertical" margin={{ top: 5, right: 20, left: 40, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                    <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="var(--muted-foreground)" fontSize={11} width={100} />
-                    <Tooltip cursor={{ fill: 'var(--muted)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
-                    <Bar dataKey="merma" name="Merma" fill="var(--warning)" radius={[0, 4, 4, 0]} barSize={24} />
-                  </BarChart>
+                  <AreaChart data={topMerma} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorMerma" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.5} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} />
+                    <YAxis hide type="number" domain={[0, 'dataMax + 10']} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f8fafc', fontWeight: 600, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="merma" name="Merma" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorMerma)" activeDot={{ r: 6, fill: '#f59e0b', strokeWidth: 0 }}>
+                      <LabelList dataKey="merma" position="top" fill="#f8fafc" fontSize={12} fontWeight="bold" formatter={(val: number) => val.toFixed(2)} />
+                    </Area>
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sin datos de merma</div>
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm font-semibold border-2 border-dashed rounded-xl border-border bg-muted/20">Sin datos de merma</div>
               )}
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:border-primary/50 transition-colors">
             <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
               <Trash2 className="text-destructive" size={20} />
               Top 5 - Scrap
@@ -73,21 +87,29 @@ export const MermaScrapPage: React.FC = () => {
             <div className="h-64 w-full">
               {topScrap.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topScrap} layout="vertical" margin={{ top: 5, right: 20, left: 40, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                    <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="var(--muted-foreground)" fontSize={11} width={100} />
-                    <Tooltip cursor={{ fill: 'var(--muted)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
-                    <Bar dataKey="scrap" name="Scrap" fill="var(--danger)" radius={[0, 4, 4, 0]} barSize={24} />
-                  </BarChart>
+                  <AreaChart data={topScrap} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorScrap" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.5} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} />
+                    <YAxis hide type="number" domain={[0, 'dataMax + 10']} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f8fafc', fontWeight: 600, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="scrap" name="Scrap" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorScrap)" activeDot={{ r: 6, fill: '#ef4444', strokeWidth: 0 }}>
+                      <LabelList dataKey="scrap" position="top" fill="#f8fafc" fontSize={12} fontWeight="bold" formatter={(val: number) => val.toFixed(2)} />
+                    </Area>
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sin datos de scrap</div>
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm font-semibold border-2 border-dashed rounded-xl border-border bg-muted/20">Sin datos de scrap</div>
               )}
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:border-primary/50 transition-colors">
             <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
               <Package className="text-info" size={20} />
               Top 5 - Otras Bajas
@@ -95,16 +117,24 @@ export const MermaScrapPage: React.FC = () => {
             <div className="h-64 w-full">
               {topBaja.length > 0 && topBaja.some(b => b.baja > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topBaja} layout="vertical" margin={{ top: 5, right: 20, left: 40, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                    <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="var(--muted-foreground)" fontSize={11} width={100} />
-                    <Tooltip cursor={{ fill: 'var(--muted)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--card-foreground)' }} />
-                    <Bar dataKey="baja" name="Otras Bajas" fill="var(--info)" radius={[0, 4, 4, 0]} barSize={24} />
-                  </BarChart>
+                  <AreaChart data={topBaja} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorBaja" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.5} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} />
+                    <YAxis hide type="number" domain={[0, 'dataMax + 10']} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f8fafc', fontWeight: 600, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="baja" name="Otras Bajas" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorBaja)" activeDot={{ r: 6, fill: '#3b82f6', strokeWidth: 0 }}>
+                      <LabelList dataKey="baja" position="top" fill="#f8fafc" fontSize={12} fontWeight="bold" formatter={(val: number) => val.toFixed(2)} />
+                    </Area>
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Sin datos de bajas</div>
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm font-semibold border-2 border-dashed rounded-xl border-border bg-muted/20">Sin datos de bajas</div>
               )}
             </div>
           </div>
@@ -112,32 +142,47 @@ export const MermaScrapPage: React.FC = () => {
 
         {/* Tabla de Materiales */}
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-          <div className="px-5 py-4 border-b border-border bg-muted/20">
-            <h3 className="font-bold text-foreground">Listado General</h3>
+          <div className="p-5 border-b border-border flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <h3 className="font-bold text-foreground text-lg tracking-tight flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                Listado General
+              </h3>
+              <p className="text-sm text-muted-foreground font-semibold mt-1">
+                Desglose detallado de todos los materiales con registros de bajas.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="bg-secondary/50 px-3 py-1.5 rounded-md border border-border text-sm font-bold text-foreground">
+                {report.length} registros
+              </div>
+            </div>
           </div>
           
-          <div className="overflow-x-auto">
+          <div className="p-5 pt-0">
             {isLoading ? (
               <div className="py-12 flex flex-col items-center justify-center text-muted-foreground gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <span className="font-medium">Cargando reporte...</span>
               </div>
             ) : report.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground font-medium">
+              <div className="py-12 text-center text-muted-foreground font-medium border-2 border-dashed rounded-xl border-border bg-muted/20 mt-4">
                 No hay registros de Merma o Scrap.
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="bg-muted/30">
-                  <tr>
-                    <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Material</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Total Merma</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Total Scrap</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Otras Bajas</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+              <div className="rounded-xl border border-border overflow-x-auto mt-4">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-primary text-primary-foreground border-b border-border">
+                    <tr>
+                      <th className="px-5 py-3.5 font-bold tracking-tight">Material</th>
+                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Merma</th>
+                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Scrap</th>
+                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Otras Bajas</th>
+                      <th className="px-5 py-3.5 font-bold tracking-tight text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
                   {report.map((item: any) => (
                     <tr key={item.material_id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-5 py-4">
@@ -169,6 +214,7 @@ export const MermaScrapPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
             )}
           </div>
         </div>

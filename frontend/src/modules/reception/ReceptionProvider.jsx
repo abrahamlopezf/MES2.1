@@ -52,7 +52,7 @@ export const ReceptionProvider = () => {
           }
         } catch(e) {}
 
-        const response = await apiClient.get(`/qr/lookup/${cleanQrCode}`);
+        const response = await apiClient.get(`/qr/lookup/${encodeURIComponent(cleanQrCode)}`);
         const responseData = response.data || response;
         const resultData = responseData.data || responseData;
         const qrData = resultData.qr || resultData; 

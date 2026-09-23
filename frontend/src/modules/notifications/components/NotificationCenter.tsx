@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../store/authStore';
 
 export const NotificationCenter = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ALL');
 
   const { user } = useAuthStore();
@@ -75,13 +76,20 @@ export const NotificationCenter = () => {
         setIsOpen(false);
         navigate(`/warehouse/inventory?waste_request_id=${urlMatch[1]}`);
       }
+    } else if (notif.type === 'SYSTEM' && notif.message.includes('order_uuid')) {
+      const urlMatch = notif.message.match(/\?order_uuid=([a-zA-Z0-9-]+)/);
+      if (urlMatch) {
+        setIsOpen(false);
+        navigate(`/warehouse/orders?order_id=${urlMatch[1]}`);
+      }
     }
   };
 
   return (
     <>
       {/* Top-right pill: avatar (md+) + bell */}
-      <div className="fixed top-4 right-4 z-[50] flex items-center gap-0 bg-card border border-border rounded-full shadow-md overflow-hidden">
+      <div className="fixed top-4 right-4 z-[50]">
+        <div className="flex items-center gap-0 bg-card border border-border rounded-full shadow-md overflow-hidden">
 
         {/* Avatar — desktop only */}
         <button
@@ -113,18 +121,82 @@ export const NotificationCenter = () => {
 
         {/* Bell button */}
         <button
-          onClick={() => setIsOpen(true)}
-          className="relative p-3 hover:bg-secondary/60 transition-colors flex items-center justify-center group"
-          title="Abrir Centro de Notificaciones"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className={`relative p-3 transition-colors flex items-center justify-center group ${isDropdownOpen ? 'bg-secondary/80' : 'hover:bg-secondary/60'}`}
+          title="Notificaciones"
         >
-          <Bell className="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />
+          <Bell className={`w-6 h-6 transition-colors ${isDropdownOpen ? 'text-primary' : 'text-foreground group-hover:text-primary'}`} />
           {unreadCount > 0 && (
             <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive border-2 border-background text-destructive-foreground rounded-full text-[10px] font-black flex items-center justify-center shadow-sm">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </button>
+        </div>
 
+        {/* Invisible Overlay to close dropdown */}
+        {isDropdownOpen && (
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setIsDropdownOpen(false)}
+          />
+        )}
+
+        {/* Dropdown Menu */}
+        {isDropdownOpen && (
+          <div className="absolute top-[110%] right-0 mt-2 w-80 sm:w-96 bg-card border border-border shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="font-bold text-foreground">Recientes</h3>
+              {unreadCount > 0 && (
+                <span className="bg-destructive/10 text-destructive text-xs font-bold px-2 py-0.5 rounded-full border border-destructive/20">
+                  {unreadCount} Nuevas
+                </span>
+              )}
+            </div>
+            <div className="max-h-[350px] overflow-y-auto divide-y divide-border">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground text-sm">
+                  No tienes notificaciones
+                </div>
+              ) : (
+                notifications.slice(0, 3).map((n: any) => (
+                  <div 
+                    key={n.id} 
+                    className={`p-4 flex gap-3 transition-colors ${n.is_read ? 'bg-background hover:bg-muted/30' : 'bg-primary/5 hover:bg-primary/10'}`}
+                  >
+                    <div className="shrink-0 mt-0.5">
+                      <div className="scale-75 origin-top-left">
+                        {getIcon(n.type)}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-sm font-bold truncate ${n.is_read ? 'text-foreground' : 'text-primary'}`}>
+                        {n.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {n.message}
+                      </p>
+                      <span className="text-[10px] font-medium text-muted-foreground/70 mt-2 block">
+                        {(n.created_at || n.createdAt) ? new Date(n.created_at || n.createdAt).toLocaleString() : 'Fecha desconocida'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-3 border-t border-border bg-muted/10">
+              <button 
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  setIsOpen(true);
+                }}
+                className="w-full py-2.5 bg-background border border-border rounded-xl text-sm font-bold text-foreground hover:bg-muted hover:text-primary transition-colors flex justify-center items-center gap-2"
+              >
+                Ver Todas las Notificaciones
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Workspace de Notificaciones (Pantalla Completa) */}
@@ -201,7 +273,7 @@ export const NotificationCenter = () => {
               ) : (
                 filteredNotifications.map((notif: any) => {
                   // Clean message string (remove query params)
-                  const displayMessage = notif.message ? notif.message.split('?waste_request_id=')[0] : '';
+                  const displayMessage = notif.message ? notif.message.split('?')[0] : '';
                   return (
                   <div 
                     key={notif.id} 
@@ -241,7 +313,7 @@ export const NotificationCenter = () => {
                             onClick={() => handleActionClick(notif)}
                             className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-4 md:px-10 rounded-xl text-sm md:text-lg font-black tracking-widest uppercase transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
                           >
-                            {notif.type.startsWith('USER_DEACTIVATION') || notif.type === 'WASTE_REQUEST' ? 'Revisar Solicitud' : 'Enterado'}
+                            {notif.type.startsWith('USER_DEACTIVATION') || notif.type === 'WASTE_REQUEST' || notif.message.includes('order_uuid') ? 'Revisar Solicitud' : 'Enterado'}
                             <Check className="w-5 h-5" />
                           </button>
                         </div>

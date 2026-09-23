@@ -91,19 +91,14 @@ export const LowStockReportModal: React.FC<LowStockReportModalProps> = ({ isOpen
               Exportar CSV
             </Button>
 
-            {/* Botón de cerrar usando DialogClose */}
-            <DialogClose asChild>
-              <div 
-                onClick={(e) => {
-                  e.stopPropagation(); // Evita que el clic se propague a otros elementos
-                  onClose();
-                }}
-                className="h-10 w-10 bg-red-600 hover:bg-red-700 flex items-center justify-center rounded-xl cursor-pointer shadow-md transition-colors"
-                title="Cerrar"
-              >
-                <X className="h-6 w-6 text-white" strokeWidth={3} />
-              </div>
-            </DialogClose>
+            <button 
+              type="button"
+              onClick={() => onClose()}
+              className="h-10 w-10 shrink-0 rounded-full border-2 border-slate-500/50 bg-slate-800 hover:bg-destructive hover:text-white hover:border-destructive transition-all flex items-center justify-center shadow-sm"
+              title="Cerrar"
+            >
+              <X className="h-5 w-5 text-slate-100" strokeWidth={2.5} />
+            </button>
           </div>
           
         </DialogHeader>

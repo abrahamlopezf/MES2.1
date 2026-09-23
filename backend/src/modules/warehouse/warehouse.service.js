@@ -131,18 +131,26 @@ const disposeLotes = async (payload, currentUser) => {
       }
     }
 
-    // Registrar Evento de Trazabilidad por cada Lote
+    // Registrar Evento de Trazabilidad por cada Lote y actualizar QR status si aplica
     if (result.lotes && result.lotes.length > 0) {
+      const { QrCode } = require('../../database/models');
       for (const lote of result.lotes) {
         if (lote.qr_id) {
+          const qty = result.disposedQuantities?.[lote.id] || 'N/A';
+          const isTotal = !lote.is_active;
+          
+          if (isTotal) {
+            await QrCode.update({ status: 'DISPOSED', is_active: false }, { where: { id: lote.qr_id }, transaction: t });
+          }
+
           await TraceabilityEvent.create({
             qr_code_id: lote.qr_id,
             event_type: 'DISPOSE',
             entity_type: 'LOTE',
             entity_id: lote.id.toString(),
             performed_by: currentUser.id,
-            notes: `Factura ${lote.folio} dada de baja. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`,
-            metadata: { tipo_baja_id: payload.tipo_baja_id }
+            notes: `Baja ${isTotal ? 'TOTAL' : 'PARCIAL'} de ${qty} unidades. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`,
+            metadata: { tipo_baja_id: payload.tipo_baja_id, quantity: qty, isTotal }
           }, { transaction: t });
         }
       }

@@ -18,7 +18,9 @@ const startServer = async () => {
     // await db.Lote.sync({ alter: true });
     // await db.Inventory.sync({ alter: true });
     // await db.WasteRequest.sync({ alter: true });
-
+    
+    // await db.ConsumptionOrder.sync({ alter: true });
+    // await db.ConsumptionOrderItem.sync({ alter: true });
     // Seed Ranking
     // const rankingsCount = await db.Ranking.count();
     // if (rankingsCount === 0) {

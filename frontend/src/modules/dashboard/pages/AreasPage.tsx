@@ -20,6 +20,7 @@ export const AreasPage: React.FC = () => {
         { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, onClick: () => window.dispatchEvent(new Event('open-scanner')), permission: 'inventory.receive' },
         { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
         { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
+        { id: 'ordenes_consumo', title: 'Órdenes de Consumo', description: 'Solicitudes y Surtido', icon: Package, path: '/warehouse/orders', permission: 'warehouse.orders.create' },
       ]
     },
     { 
@@ -30,7 +31,7 @@ export const AreasPage: React.FC = () => {
       gradient: 'from-purple-500/20 to-fuchsia-500/20 text-purple-500',
       children: [
         { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión de QRs', icon: QrCode, path: '/identity/generate', permission: 'qr.create' },
-        { id: 'identity_hist', title: 'Historial QRs', description: 'Trazabilidad', icon: QrCode, path: '/qrcodes', permission: 'qr.events.read' },
+        { id: 'identity_hist', title: 'Historial QRs', description: 'Trazabilidad', icon: QrCode, path: '/qrcodes', permission: 'qr.history.read' },
       ]
     },
     { 

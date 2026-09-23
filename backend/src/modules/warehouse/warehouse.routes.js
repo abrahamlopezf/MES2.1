@@ -1,6 +1,7 @@
 const express = require('express');
 
 const warehouseController = require('./warehouse.controller');
+const consumptionOrderController = require('./consumptionOrder.controller');
 const { receiveMaterialSchema } = require('./warehouse.validator');
 
 const authMiddleware = require('../../middlewares/auth.middleware');
@@ -111,6 +112,49 @@ router.post(
   '/inventory/manual-entry',
   authorizePermission('warehouse.manual_entry'),
   warehouseController.manualEntry
+);
+
+// Consumption Orders
+router.post(
+  '/consumption-orders',
+  authorizePermission('warehouse.orders.create'),
+  consumptionOrderController.createOrder
+);
+
+router.get(
+  '/consumption-orders',
+  authorizePermission('warehouse.orders.create'),
+  consumptionOrderController.getOrders
+);
+
+router.get(
+  '/consumption-orders/:uuid',
+  authorizePermission('warehouse.orders.create'),
+  consumptionOrderController.getOrderDetails
+);
+
+router.get(
+  '/consumption-orders/:uuid/print',
+  authorizePermission('warehouse.orders.create'),
+  consumptionOrderController.printOrder
+);
+
+router.post(
+  '/consumption-orders/:uuid/scan-item',
+  authorizePermission('warehouse.orders.fulfill'),
+  consumptionOrderController.scanItem
+);
+
+router.put(
+  '/consumption-orders/:uuid/status',
+  authorizePermission('warehouse.consume'),
+  consumptionOrderController.updateOrderStatus
+);
+
+router.put(
+  '/consumption-orders/:uuid/cancel',
+  authorizePermission('warehouse.orders.create'),
+  consumptionOrderController.cancelOrder
 );
 
 module.exports = router;

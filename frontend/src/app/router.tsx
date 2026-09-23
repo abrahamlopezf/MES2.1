@@ -12,12 +12,14 @@ import { IdentityCustodyPage } from '../modules/identity/presentation/pages/Iden
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
 import { WarehouseProvider } from '../modules/warehouse/WarehouseProvider';
 import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/WarehouseInventoryPage';
+import { QrHistoryPage } from '../modules/identity/presentation/pages/QrHistoryPage';
 import { MixingTerminalPage } from '../modules/production/presentation/pages/MixingTerminalPage';
 import { AndonBoardPage } from '../modules/production/presentation/pages/AndonBoardPage';
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
 import { AdminDashboard } from './AdminDashboard';
 import UsersPage from '../modules/users/pages/UsersPage';
 import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
+import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
 
 // Router Config Definitivo
 export const AppRouter = () => {
@@ -44,6 +46,9 @@ export const AppRouter = () => {
             <Route path="tokens" element={<div>Identity Tokens</div>} />
           </Route>
           
+          {/* QR History (mapped from AreasPage "Historial QRs" path="/qrcodes") */}
+          <Route path="/qrcodes" element={<QrHistoryPage />} />
+          
           {/* Traceability Center */}
           <Route path="/traceability">
             <Route path="ledger" element={<div>Traceability Ledger</div>} />
@@ -67,6 +72,7 @@ export const AppRouter = () => {
             <Route path="inventory" element={<WarehouseInventoryPage />} />
             <Route path="traceability" element={<WarehouseProvider />} />
             <Route path="merma-scrap" element={<MermaScrapPage />} />
+            <Route path="orders" element={<ConsumptionOrdersPage />} />
           </Route>
         </Route>
     </Routes>

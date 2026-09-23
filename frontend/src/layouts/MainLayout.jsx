@@ -50,6 +50,7 @@ export const MainLayout = () => {
           <nav className="px-3 flex flex-col gap-2 mt-4">
             <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
             <SidebarItem to="/almacen" icon={Package} label="Almacén (Próx)" />
+            <SidebarItem to="/warehouse/orders" icon={Package} label="Órdenes de Consumo" />
           </nav>
         </div>
 

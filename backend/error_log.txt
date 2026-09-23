@@ -199,4 +199,34 @@ no existe la columna «type» en la relación «material_locations»2026-08-24T2
     at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
     at async Object.getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:340:28)
-    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n
+    at async getDashboardMetrics (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:60:20)\n\n2026-09-23T01:49:33.537Z\nMessage: decryptQrData is not defined\nStack: ReferenceError: decryptQrData is not defined
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:240:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15\n\n2026-09-23T01:53:52.709Z\nMessage: decryptQrData is not defined\nStack: ReferenceError: decryptQrData is not defined
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:240:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15\n\n2026-09-23T02:54:38.607Z\nMessage: decryptQrData is not defined\nStack: ReferenceError: decryptQrData is not defined
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:240:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15\n\n

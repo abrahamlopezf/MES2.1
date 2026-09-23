@@ -32,6 +32,7 @@ import { GenerateBatchPage } from '../modules/identity/presentation/pages/Genera
 import { IdentityRequestsPage } from '../modules/identity/presentation/pages/IdentityRequestsPage';
 import { PrintBatchPage } from '../modules/identity/presentation/pages/PrintBatchPage';
 import { IdentityCustodyPage } from '../modules/identity/presentation/pages/IdentityCustodyPage';
+import { QrHistoryPage } from '../modules/identity/presentation/pages/QrHistoryPage';
 
 // Production
 import WorkStationTerminalPage from '../modules/production/presentation/pages/WorkStationTerminalPage';
@@ -47,7 +48,7 @@ import { WarehouseInventoryPage } from '../modules/warehouse/presentation/pages/
 import { MaterialLotesPage } from '../modules/warehouse/presentation/pages/MaterialLotesPage';
 import { LoteDetailsPage } from '../modules/warehouse/presentation/pages/LoteDetailsPage';
 import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
-
+import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -159,6 +160,11 @@ export const router = createBrowserRouter([
             path: '/traceability/genealogy',
             element: <TraceabilityTreePage />,
           },
+          // Historial de QRs (Identity)
+          {
+            path: '/qrcodes',
+            element: <QrHistoryPage />,
+          },
           // Rutas de Producción
           {
             path: '/production',
@@ -212,6 +218,10 @@ export const router = createBrowserRouter([
               {
                 path: 'traceability',
                 element: <WarehouseProvider />
+              },
+              {
+                path: 'orders',
+                element: <ConsumptionOrdersPage />
               }
             ]
           }

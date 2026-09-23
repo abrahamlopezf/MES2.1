@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Boxes, AlertCircle, CheckSquare, X, MousePointerSquareDashed, MapPin, Calendar, User, Hash, Search, Filter } from 'lucide-react';
+import { ArrowLeft, Boxes, AlertCircle, CheckSquare, X, MousePointerSquareDashed, MapPin, Calendar, User, Hash, Search, Filter, QrCode } from 'lucide-react';
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent, TopBar } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { GlobalErrorBoundary } from '../../../../core/error/GlobalErrorBoundary';
@@ -16,6 +16,7 @@ const MaterialLotesPageContent = () => {
   
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedLotes, setSelectedLotes] = useState<Set<number>>(new Set());
+  const [isDownloadingQRs, setIsDownloadingQRs] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['material-lotes', materialId],
@@ -141,6 +142,46 @@ const MaterialLotesPageContent = () => {
     }
   };
 
+  const handleDownloadSelectedQRs = async () => {
+    setIsDownloadingQRs(true);
+    try {
+      const selectedLotsData = data.filter((lote: any) => selectedLotes.has(lote.id));
+      const lotsWithQRs = selectedLotsData.filter((lote: any) => lote.qr_code?.uuid);
+
+      if (lotsWithQRs.length === 0) {
+        alert('Ninguno de los lotes seleccionados tiene un código QR válido asignado.');
+        setIsDownloadingQRs(false);
+        return;
+      }
+
+      if (lotsWithQRs.length < selectedLotsData.length) {
+        const missingCount = selectedLotsData.length - lotsWithQRs.length;
+        alert(`Atención: ${missingCount} lote(s) seleccionado(s) no tienen un Código QR asignado y serán omitidos en la impresión.`);
+      }
+
+      const uuids = lotsWithQRs.map((lote: any) => lote.qr_code.uuid);
+
+      const response = await axiosClient.post('/qr/print-multiple', { uuids }, { responseType: 'blob' });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('download', `lotes-seleccionados-${dateStr}.pdf`);
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Error al descargar QRs:', error);
+      alert('Ocurrió un error al intentar descargar los códigos QR.');
+    } finally {
+      setIsDownloadingQRs(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-background overflow-x-hidden">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-5">
@@ -170,7 +211,7 @@ const MaterialLotesPageContent = () => {
             </div>
             
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
-              {!isSelectionMode ? (
+              {!isSelectionMode && (
                 <Button 
                   variant="secondary"
                   size="lg"
@@ -180,16 +221,6 @@ const MaterialLotesPageContent = () => {
                 >
                   <MousePointerSquareDashed className="w-5 h-5 mr-2 shrink-0" />
                   <span>Seleccionar lotes</span>
-                </Button>
-              ) : (
-                <Button 
-                  variant="secondary"
-                  size="lg"
-                  onClick={toggleSelectionMode}
-                  className="font-bold shadow-sm w-full sm:w-auto justify-center"
-                >
-                  <X className="w-5 h-5 mr-2 shrink-0" />
-                  <span>Cancelar selección</span>
                 </Button>
               )}
             </div>
@@ -212,6 +243,19 @@ const MaterialLotesPageContent = () => {
             className="shrink-0 whitespace-nowrap"
           >
             Cambiar localidad
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleDownloadSelectedQRs}
+            disabled={selectedLotes.size === 0 || isDownloadingQRs}
+            className="shrink-0 whitespace-nowrap font-bold bg-slate-800 text-slate-100 hover:bg-slate-700"
+          >
+            <QrCode className="w-4 h-4 mr-2" />
+            {isDownloadingQRs ? 'Generando...' : 'Descargar QR'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={toggleSelectionMode} className="shrink-0 whitespace-nowrap ml-auto font-bold hover:bg-destructive hover:text-destructive-foreground">
+            <X className="w-4 h-4 mr-2" /> Cancelar
           </Button>
         </div>
       )}
@@ -362,24 +406,6 @@ const MaterialLotesPageContent = () => {
                 <div className="bg-secondary/50 px-3 py-1.5 rounded-md border border-border text-sm font-bold text-foreground">
                   {filteredLotes.length} registros
                 </div>
-                {!isSelectionMode ? (
-                  <Button variant="outline" size="sm" onClick={toggleSelectionMode} disabled={activeLotes.length === 0} className="font-bold shadow-sm h-[34px]">
-                    <MousePointerSquareDashed className="w-4 h-4 mr-2" />Seleccionar
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={handleSelectAll} className="font-bold h-[34px]">
-                      <CheckSquare className="w-4 h-4 mr-2" />
-                      {selectedLotes.size === activeLotes.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
-                    </Button>
-                    <Button variant="primary" size="sm" onClick={handleBulkChangeLocation} disabled={selectedLotes.size === 0} className="font-bold shadow-sm h-[34px]">
-                      Cambiar Todo de Loc.
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={toggleSelectionMode} className="font-bold shadow-sm h-[34px]">
-                      <X className="w-4 h-4 mr-2" />Cancelar
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
 

@@ -46,10 +46,11 @@ const menuGroups = [
   {
     label: "Identidad y Lotes",
     icon: QrCode,
-    permission: "qr.create",
+    permission: ["qr.create", "qr.history.read", "qr.events.read"],
     isGroup: true,
     children: [
-      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "qr.create" }
+      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "qr.create" },
+      { label: "Historial QRs", path: "/qrcodes", icon: List, permission: ["qr.history.read", "qr.events.read"] }
     ]
   },
   {
@@ -61,7 +62,8 @@ const menuGroups = [
       { label: "Catálogo", path: "/materials", icon: Package, permission: "materials.read" },
       { label: "Recepción", onClick: () => window.dispatchEvent(new Event('open-scanner')), icon: PackagePlus, permission: "inventory.receive" },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
-      { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" }
+      { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" },
+      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "warehouse.orders.create" }
     ]
   }
 ];
@@ -143,7 +145,10 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand }) => {
       {isOpen && !isCollapsed && (
         <div className="flex flex-col ml-8 gap-1 mt-1 border-l border-border pl-2">
           {item.children?.map(child => {
-            if (!hasPermission(child.permission)) return null;
+            const hasChildAccess = Array.isArray(child.permission)
+              ? hasAnyPermission(child.permission)
+              : hasPermission(child.permission);
+            if (!hasChildAccess) return null;
             if (child.onClick) {
               return (
                 <button

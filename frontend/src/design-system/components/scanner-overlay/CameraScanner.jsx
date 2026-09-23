@@ -5,6 +5,7 @@ import { X, Camera } from 'lucide-react';
 export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, inline = false }) => {
   const onScanRef = React.useRef(onScan);
   const hasScannedRef = React.useRef(false);
+  const scannerId = React.useMemo(() => 'qr-reader-' + Math.random().toString(36).substr(2, 9), []);
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -13,22 +14,36 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
   useEffect(() => {
     let isMounted = true;
     let scanner = null;
+    let initTimeout = null;
 
-    const initScanner = () => {
+    const initScanner = async () => {
       if (!isMounted) return;
       
-      // Prevent double initialization if container already has content
-      const container = document.getElementById('qr-reader-container');
+      // Wait for any global scanner clear to finish (StrictMode workaround)
+      while (window.__scannerClearing) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      
+      if (!isMounted) return;
+
+      const container = document.getElementById(scannerId);
       if (container && container.innerHTML.trim() !== '') {
         container.innerHTML = '';
       }
 
-      scanner = new Html5QrcodeScanner('qr-reader-container', { 
+      scanner = new Html5QrcodeScanner(scannerId, { 
         fps: 10, 
         qrbox: (viewfinderWidth, viewfinderHeight) => {
           const minEdgePercentage = 0.7; // 70% of the screen
           const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+          let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+          
+          // Prevenir crash: "minimum size of 'config.qrbox' dimension value is 50px"
+          // Ocurre cuando el contenedor aún no tiene dimensiones reales en el DOM.
+          if (qrboxSize < 50) {
+            qrboxSize = 250;
+          }
+
           return {
             width: qrboxSize,
             height: qrboxSize
@@ -58,26 +73,28 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
     };
 
     // Delay initialization to avoid React 18 StrictMode double-render bug
-    const timer = setTimeout(initScanner, 100);
+    initTimeout = setTimeout(initScanner, 150);
 
     return () => {
       isMounted = false;
-      clearTimeout(timer);
+      clearTimeout(initTimeout);
       if (!hasScannedRef.current && scanner) {
-        try {
-          scanner.clear().catch(() => {});
-        } catch (e) {
+        window.__scannerClearing = true;
+        scanner.clear().catch((e) => {
           console.warn("Scanner unmount error ignored", e);
-        }
+        }).finally(() => {
+          window.__scannerClearing = false;
+        });
       }
     };
-  }, []);
+  }, [scannerId]);
 
   return (
-    <div className={inline ? "flex flex-col w-full h-full" : "fixed inset-0 z-[9999] bg-background flex flex-col"}>
+    <div className={inline ? "flex flex-col w-full h-full" : "fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"}>
+      <div className={inline ? "flex-1 w-full h-full flex flex-col relative" : "w-full max-w-[600px] bg-background border border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden relative"}>
       <style>{`
         /* Overrides for html5-qrcode default UI */
-        #qr-reader-container {
+        #${scannerId} {
           border: none !important;
           border-radius: var(--radius) !important;
           overflow: hidden;
@@ -86,31 +103,31 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
         }
         
         /* Remove ALL borders from inner injected elements */
-        #qr-reader-container * {
+        #${scannerId} * {
           border: none !important;
           box-shadow: none !important;
         }
 
         /* Hide the annoying info icon and header */
-        #qr-reader-container__header_message {
+        #${scannerId}__header_message {
           display: none !important;
         }
-        #qr-reader-container img[alt="Info icon"] {
+        #${scannerId} img[alt="Info icon"] {
           display: none !important;
         }
         
         /* Soften the big camera icon */
-        #qr-reader-container img {
+        #${scannerId} img {
           opacity: 0.1 !important; 
         }
 
         /* Hide the text inside the dashboard */
-        #qr-reader-container__dashboard_section_csr span {
+        #${scannerId}__dashboard_section_csr span {
           display: none !important;
         }
 
         /* Style the 'Stop Scanning' and other buttons */
-        #qr-reader-container__dashboard_section_csr button {
+        #${scannerId}__dashboard_section_csr button {
           background-color: var(--primary);
           color: var(--primary-foreground);
           padding: 0.5rem 1rem;
@@ -121,18 +138,18 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
           transition: background-color 0.2s;
         }
         
-        #qr-reader-container__dashboard_section_csr button:hover {
+        #${scannerId}__dashboard_section_csr button:hover {
           background-color: var(--primary)/90;
         }
 
         /* Hide the 'Scan an Image File' link */
-        #qr-reader-container a {
+        #${scannerId} a {
           color: var(--primary);
           text-decoration: underline;
         }
 
         /* Style the camera select dropdown */
-        #qr-reader-container select {
+        #${scannerId} select {
           padding: 0.5rem;
           border-radius: var(--radius);
           background-color: var(--secondary);
@@ -143,7 +160,7 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
         }
 
         /* Style the video feed */
-        #qr-reader-container video {
+        #${scannerId} video {
           border-radius: var(--radius) !important;
           object-fit: cover;
         }
@@ -168,9 +185,9 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
         </header>
       )}
 
-      {/* Scanner Container */}
-      <div className={`flex-1 flex items-center justify-center bg-background/95 ${inline ? 'p-0 py-2' : 'p-6'}`}>
-        <div id="qr-reader-container" className={`w-full ${inline ? 'max-w-[300px]' : 'max-w-[500px]'} border border-border shadow-xl rounded-xl overflow-hidden`}></div>
+      <div className={`flex-1 flex items-center justify-center bg-background/50 ${inline ? 'p-0 py-2' : 'p-6 pb-8'}`}>
+        <div id={scannerId} className={`w-full ${inline ? 'max-w-[300px]' : 'max-w-[500px]'} border border-border shadow-md rounded-xl overflow-hidden`}></div>
+      </div>
       </div>
     </div>
   );

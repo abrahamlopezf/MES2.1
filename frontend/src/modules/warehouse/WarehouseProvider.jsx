@@ -53,7 +53,7 @@ export const WarehouseProvider = () => {
       } catch(e) {}
 
       // CQRS: Consulta 1 - Obtener info de identidad del QR
-      const qrResponse = await apiClient.get(`/qr/lookup/${cleanQrCode}`);
+      const qrResponse = await apiClient.get(`/qr/lookup/${encodeURIComponent(cleanQrCode)}`);
       
       // Manejar las múltiples formas en las que puede venir envuelta la respuesta en Axios/API
       const responseData = qrResponse.data || qrResponse;

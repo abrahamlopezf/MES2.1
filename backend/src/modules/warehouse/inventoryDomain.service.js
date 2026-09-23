@@ -81,6 +81,7 @@ class InventoryDomainService {
     let totalCostDisposed = 0;
     const materialDiscounts = {};
     const processedLotesResult = [];
+    const disposedQuantities = {};
 
     // Validar y consumir cada item
     for (const item of processedItems) {
@@ -107,6 +108,7 @@ class InventoryDomainService {
       }
       await lote.save({ transaction });
       processedLotesResult.push(lote);
+      disposedQuantities[lote.id] = qtyToDispose;
 
       materialDiscounts[item.material_id] = (materialDiscounts[item.material_id] || 0) + qtyToDispose;
     }
@@ -124,7 +126,8 @@ class InventoryDomainService {
     return { 
       lotes: processedLotesResult, 
       totalCostDisposed, 
-      materialDiscounts 
+      materialDiscounts,
+      disposedQuantities
     };
   }
 

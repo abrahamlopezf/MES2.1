@@ -27,9 +27,16 @@ export const useSmartScanner = () => {
         }
       } catch(e) {}
 
+      // 0. Intercept Consumption Order QRs
+      if (cleanQrCode.startsWith('ORD-')) {
+        const orderUuid = cleanQrCode.replace('ORD-', '');
+        navigate(`/warehouse/orders?order_id=${orderUuid}`);
+        return true;
+      }
+
       // 1. Try real backend first (so we know if it was used/activated)
       try {
-        const response = await apiClient.get(`/qr/lookup/${cleanQrCode}`);
+        const response = await apiClient.get(`/qr/lookup/${encodeURIComponent(cleanQrCode)}`);
         const responseData = response.data || response;
         const resultData = responseData.data || responseData;
         const qrData = resultData.qr || resultData;

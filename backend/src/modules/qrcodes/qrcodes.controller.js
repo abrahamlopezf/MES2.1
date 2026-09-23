@@ -3,14 +3,13 @@ const { successResponse } = require('../../shared/responses/apiResponse');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 
-const fs = require('fs');
+const { encryptQrData, decryptQrData } = require('../../shared/utils/crypto.utils');
 const generateQrBatch = async (req, res, next) => {
   try {
     const result = await qrcodesService.generateQrBatch(req.body, req.user);
 
     return successResponse(res, 'Lote de códigos QR generado correctamente.', result, 201);
   } catch (error) {
-    fs.writeFileSync('C:\\Users\\maicr\\OneDrive\\Desktop\\Demo\\backend\\error_log.txt', error.stack || error.toString());
     return next(error);
   }
 };
@@ -110,7 +109,9 @@ const generatePDFForQRs = async (codes) => {
         const qrX = x + (cellSize - qrSize) / 2;
         const qrY = y + 10; 
 
-        const qrDataUrl = await QRCode.toDataURL(qrString, { 
+        const encryptedQrString = encryptQrData(qrString);
+        
+        const qrDataUrl = await QRCode.toDataURL(encryptedQrString, { 
           width: 300, 
           margin: 0, 
           errorCorrectionLevel: 'H',
@@ -196,9 +197,34 @@ const printQrCode = async (req, res, next) => {
   }
 };
 
+const printMultipleQrs = async (req, res, next) => {
+  try {
+    const { uuids } = req.body;
+    
+    if (!uuids || !Array.isArray(uuids) || uuids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Se requiere un arreglo de uuids de códigos QR.' });
+    }
+    
+    const codes = await qrcodesService.getQrCodesByUuids(uuids, req.user);
+    
+    if (!codes || codes.length === 0) {
+      return res.status(404).json({ success: false, message: 'No se encontraron códigos QR válidos.' });
+    }
+    
+    const pdfBuffer = await generatePDFForQRs(codes);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=qr-codes-multiprint.pdf`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getQrCodeByValue = async (req, res, next) => {
   try {
-    const result = await qrcodesService.getQrCodeByValue(req.params.qrCode, req.user);
+    const decryptedQr = decryptQrData(req.params.qrCode);
+    const result = await qrcodesService.getQrCodeByValue(decryptedQr, req.user);
 
     return successResponse(res, 'Código QR obtenido correctamente.', result);
   } catch (error) {
@@ -209,7 +235,8 @@ const getQrCodeByValue = async (req, res, next) => {
 const lookup = async (req, res, next) => {
   try {
     const cleanCode = String(req.params.qrCode || '').trim();
-    const result = await qrcodesService.lookup(cleanCode);
+    const decryptedQr = decryptQrData(cleanCode);
+    const result = await qrcodesService.lookup(decryptedQr);
     return successResponse(res, 'Información del QR obtenida correctamente.', result);
   } catch (error) {
     return next(error);
@@ -238,7 +265,11 @@ const assignQrCodes = async (req, res, next) => {
 
 const validateQrForUse = async (req, res, next) => {
   try {
-    const result = await qrcodesService.validateQrForUse(req.body, req.user);
+    const payload = { ...req.body };
+    if (payload.qr_code) {
+      payload.qr_code = decryptQrData(payload.qr_code);
+    }
+    const result = await qrcodesService.validateQrForUse(payload, req.user);
 
     return successResponse(res, 'Código QR validado correctamente.', result);
   } catch (error) {
@@ -268,5 +299,6 @@ module.exports = {
   getQrBatchById,
   printQrBatch,
   printQrCode,
+  printMultipleQrs,
   lookup,
 };
