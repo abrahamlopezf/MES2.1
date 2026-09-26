@@ -68,7 +68,7 @@ export const NotificationCenter = () => {
       const parts = notif.type.split('userId=');
       if (parts.length > 1) {
         setIsOpen(false);
-        navigate(`/usuarios?openUser=${parts[1]}`);
+        navigate(`/users?openUser=${parts[1]}`);
       }
     } else if (notif.type === 'WASTE_REQUEST') {
       const urlMatch = notif.message.match(/\?waste_request_id=(\d+)/);
@@ -162,7 +162,11 @@ export const NotificationCenter = () => {
                 notifications.slice(0, 3).map((n: any) => (
                   <div 
                     key={n.id} 
-                    className={`p-4 flex gap-3 transition-colors ${n.is_read ? 'bg-background hover:bg-muted/30' : 'bg-primary/5 hover:bg-primary/10'}`}
+                    onClick={() => {
+                      handleActionClick(n);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`p-4 flex gap-3 transition-colors cursor-pointer ${n.is_read ? 'bg-background hover:bg-muted/30' : 'bg-primary/5 hover:bg-primary/10'}`}
                   >
                     <div className="shrink-0 mt-0.5">
                       <div className="scale-75 origin-top-left">

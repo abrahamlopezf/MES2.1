@@ -338,6 +338,11 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                             max={item.maxQuantity}
                             step="0.1"
                             value={item.quantity}
+                            onKeyDown={(e) => {
+                              if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                             onChange={e => onUpdateQuantity(item.originalIdx, Number(e.target.value))}
                             disabled={isResolutionMode}
                             className="h-10 text-right font-bold text-foreground flex-1 disabled:opacity-100 disabled:bg-muted"

@@ -6,6 +6,7 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
   const onScanRef = React.useRef(onScan);
   const hasScannedRef = React.useRef(false);
   const scannerId = React.useMemo(() => 'qr-reader-' + Math.random().toString(36).substr(2, 9), []);
+  const [cameraError, setCameraError] = React.useState(null);
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -25,6 +26,11 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
       }
       
       if (!isMounted) return;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError("Tu navegador ha bloqueado el acceso a la cámara. Esto suele ocurrir porque la página no se está cargando a través de una conexión segura (HTTPS). Por favor, instala un certificado SSL o cambia a localhost.");
+        return;
+      }
 
       const container = document.getElementById(scannerId);
       if (container && container.innerHTML.trim() !== '') {
@@ -186,7 +192,14 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
       )}
 
       <div className={`flex-1 flex items-center justify-center bg-background/50 ${inline ? 'p-0 py-2' : 'p-6 pb-8'}`}>
-        <div id={scannerId} className={`w-full ${inline ? 'max-w-[300px]' : 'max-w-[500px]'} border border-border shadow-md rounded-xl overflow-hidden`}></div>
+        {cameraError ? (
+          <div className={`w-full ${inline ? 'max-w-[300px]' : 'max-w-[500px]'} p-6 bg-destructive/10 text-destructive text-center rounded-xl font-medium border border-destructive/20 flex flex-col items-center gap-3`}>
+            <Camera className="w-10 h-10 opacity-70" />
+            <p>{cameraError}</p>
+          </div>
+        ) : (
+          <div id={scannerId} className={`w-full ${inline ? 'max-w-[300px]' : 'max-w-[500px]'} border border-border shadow-md rounded-xl overflow-hidden`}></div>
+        )}
       </div>
       </div>
     </div>

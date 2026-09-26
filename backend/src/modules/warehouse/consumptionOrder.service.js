@@ -1,4 +1,4 @@
-const { ConsumptionOrder, ConsumptionOrderItem, QrCode, Material, Lote, User, Area, MaterialUnit, Inventory, InventoryMovement, TraceabilityEvent } = require('../../database/models');
+const { ConsumptionOrder, ConsumptionOrderItem, QrCode, Material, Lote, User, Area, MaterialUnit, Inventory, InventoryMovement, TraceabilityEvent, Notification } = require('../../database/models');
 const { encryptQrData } = require('../../shared/utils/crypto.utils');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
@@ -329,6 +329,16 @@ class ConsumptionOrderService {
         notes: appendedNotes,
         resolved_by: operatorId,
         resolved_at: new Date()
+      }, { transaction });
+
+      // Enviar notificacion al creador
+      await Notification.create({
+        recipient_id: order.requested_by,
+        sender_id: operatorId,
+        type: 'SYSTEM',
+        title: `Orden Cancelada: ${order.order_number}`,
+        message: `Orden Cancelada. Motivo: ${reason} ?order_uuid=${order.uuid}`,
+        is_read: false
       }, { transaction });
 
       if (!existingTransaction) await transaction.commit();

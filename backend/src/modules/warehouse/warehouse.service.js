@@ -526,6 +526,20 @@ const getDashboardMetrics = async (user) => {
     merma: parseFloat(row.consumos)
   }));
 
+  const [pieDataResult] = await sequelize.query(`
+    SELECT r.name, SUM(l.available_amount * l.unit_cost) as value
+    FROM lotes l
+    JOIN materials m ON l.material_id = m.id
+    JOIN rankings r ON m.ranking_id = r.id
+    WHERE l.is_active = true
+    GROUP BY r.name
+  `);
+  
+  const pieData = pieDataResult.map(r => ({
+    name: r.name,
+    value: parseFloat(r.value || 0)
+  })).filter(r => r.value > 0);
+
   return {
     totalEntradas: entradasCount || 0,
     bajasRegistradas: bajasCount || 0, // Number of transactions for bajas/consumptions
@@ -536,7 +550,8 @@ const getDashboardMetrics = async (user) => {
       lossValue
     },
     chartData,
-    mermaData
+    mermaData,
+    pieData
   };
 };
 
@@ -690,7 +705,7 @@ const manualEntry = async (payload, currentUser) => {
       });
     }
 
-    return results;
+    return { results, qrBatchId: qrBatch.id };
   });
 };
 

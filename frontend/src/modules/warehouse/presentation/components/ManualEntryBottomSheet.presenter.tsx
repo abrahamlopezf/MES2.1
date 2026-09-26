@@ -170,6 +170,11 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
                           placeholder="Ej. 10.00"
                           value={entry.quantity}
+                          onKeyDown={(e) => {
+                            if (['-', '+', 'e', 'E'].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           onChange={e => onUpdateEntry(index, 'quantity', e.target.value)}
                         />
                       </div>
@@ -195,6 +200,11 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-mono text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
                           placeholder="Ej. 12.50"
                           value={entry.unit_cost}
+                          onKeyDown={(e) => {
+                            if (['-', '+', 'e', 'E'].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           onChange={e => onUpdateEntry(index, 'unit_cost', e.target.value)}
                         />
                       </div>

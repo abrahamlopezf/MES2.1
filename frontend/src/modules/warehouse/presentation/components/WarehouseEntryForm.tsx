@@ -194,6 +194,11 @@ export const WarehouseEntryForm: React.FC = () => {
               step="0.001"
               required
               value={amount}
+              onKeyDown={(e) => {
+                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
               className="w-full border-2 border-input rounded-xl px-6 py-6 text-4xl font-black text-foreground focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none font-mono bg-card shadow-sm transition-all"
               placeholder="0.000"

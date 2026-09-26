@@ -73,10 +73,6 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const updateItemQty = (material_id: number, qty: number) => {
     setItems(items.map(i => {
       if (i.material_id === material_id) {
-        if (qty > i.total_quantity) {
-          toast.warning(`La cantidad máxima disponible de ${i.material?.name} es ${i.total_quantity} ${i.material?.unit?.abbreviation || ''}`);
-          return { ...i, req_quantity: i.total_quantity };
-        }
         return { ...i, req_quantity: qty };
       }
       return i;
@@ -84,7 +80,16 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   };
 
   const toggleConfirmItem = (material_id: number) => {
-    setItems(items.map(i => i.material_id === material_id ? { ...i, isConfirmed: !i.isConfirmed } : i));
+    setItems(items.map(i => {
+      if (i.material_id === material_id) {
+        if (!i.isConfirmed && i.req_quantity < 1) {
+          toast.error(`La cantidad debe ser mayor a 0 para ${i.material?.name}`);
+          return i;
+        }
+        return { ...i, isConfirmed: !i.isConfirmed };
+      }
+      return i;
+    }));
   };
 
   const removeItem = (material_id: number) => {
@@ -95,10 +100,9 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
     e.preventDefault();
     if (items.length === 0) return alert('Debes agregar al menos un material');
     
-    // Validate quantities against inventory stock
+    // Validate quantities
     for (const item of items) {
-      if (item.req_quantity <= 0) return alert(`Cantidad inválida para ${item.material.name}`);
-      if (item.req_quantity > item.total_quantity) return alert(`Cantidad solicitada supera el inventario disponible de ${item.material.name} (${item.total_quantity} max)`);
+      if (item.req_quantity < 1) return alert(`La cantidad mínima permitida para ${item.material.name} es 1`);
     }
 
     try {
@@ -282,11 +286,15 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                             <div className="w-28 relative flex items-center">
                               <input 
                                 type="number" 
-                                min="0.1" 
-                                step="0.1"
-                                max={item.total_quantity}
-                                value={item.req_quantity}
-                                onChange={(e) => updateItemQty(item.material_id, parseFloat(e.target.value) || 0)}
+                                min="1" 
+                                step="1"
+                                value={item.req_quantity === 0 ? '' : item.req_quantity}
+                                onChange={(e) => {
+                                  let val = parseFloat(e.target.value);
+                                  if (isNaN(val)) val = 0;
+                                  if (val < 0) val = Math.abs(val);
+                                  updateItemQty(item.material_id, val);
+                                }}
                                 className="w-full px-3 py-1.5 pr-8 bg-background border border-border rounded-lg text-sm focus:border-primary outline-none font-bold text-center text-primary"
                               />
                               <span className="absolute right-3 text-xs text-muted-foreground font-medium pointer-events-none">{item.material?.unit?.abbreviation}</span>

@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip as RechartsTooltip, ResponsiveContainer, 
-  AreaChart, Area, Legend 
+  AreaChart, Area, Legend, PieChart, Pie, Cell
 } from 'recharts';
 import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../../../../store/authStore';
@@ -83,20 +83,26 @@ export const WarehouseDashboard = () => {
 
   const chartData = metrics?.chartData || [];
   const mermaData = metrics?.mermaData || [];
+  const pieData = metrics?.pieData || [];
+  
+  const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
   return (
     <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background overflow-x-hidden">
       
       {/* HEADER GREETING */}
-      <div className="flex flex-col gap-1 w-full">
+      <div className="flex flex-col gap-0.5 w-full pr-12 sm:pr-0">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Monitor de Almacén <span className="text-primary opacity-80 text-xl ml-2 font-normal">| Hola, {userName}</span>
+          Monitor de Almacén
         </h1>
+        <p className="text-primary opacity-80 text-sm sm:text-xl font-normal">
+          Hola, {userName}
+        </p>
       </div>
 
       {/* FILTER BAR SECTION */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-primary/10 p-4 rounded-xl border border-primary/20 items-end">
-        <div className="md:col-span-1">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-primary/10 p-4 rounded-xl border border-primary/20 items-end">
+        <div className="col-span-2 md:col-span-1">
           <h2 className="text-lg font-black tracking-tight text-primary flex items-center gap-2">
             <Boxes className="h-5 w-5" />
             Filtros Operativos
@@ -104,7 +110,7 @@ export const WarehouseDashboard = () => {
           <p className="text-xs font-semibold text-muted-foreground mt-0.5">Vista de Almacén</p>
         </div>
         
-        <div className="flex flex-col gap-1.5">
+        <div className="col-span-1 flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider opacity-70">Año</label>
           <TFSelect 
             value="2026"
@@ -114,7 +120,7 @@ export const WarehouseDashboard = () => {
           />
         </div>
         
-        <div className="flex flex-col gap-1.5">
+        <div className="col-span-1 flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider opacity-70">Periodo</label>
           <TFSelect 
             value="current"
@@ -124,7 +130,7 @@ export const WarehouseDashboard = () => {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="col-span-2 md:col-span-1 flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider opacity-70">Familia</label>
           <TFSelect 
             value="all"
@@ -136,7 +142,7 @@ export const WarehouseDashboard = () => {
       </div>
 
       {/* EXECUTIVE SUMMARY KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ExecutiveKpiCard 
           title="COSTO TOTAL ALMACÉN"
           value={kpis.inventoryValue}
@@ -175,10 +181,10 @@ export const WarehouseDashboard = () => {
       <div className="flex-1 flex flex-col gap-6 pb-20">
 
         {/* MIDDLE CHARTS */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mt-2">
           
           {/* Bar Chart: Transacciones */}
-          <Card className="p-5 shadow-sm">
+          <Card className="p-5 shadow-sm lg:col-span-1">
             <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
               Inventario vs Scrap/Merma
             </h3>
@@ -200,7 +206,7 @@ export const WarehouseDashboard = () => {
           </Card>
 
           {/* Area Chart: Merma */}
-          <Card className="p-5 shadow-sm">
+          <Card className="p-5 shadow-sm lg:col-span-1">
             <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
               Consumos
             </h3>
@@ -222,6 +228,51 @@ export const WarehouseDashboard = () => {
                   <Area type="monotone" dataKey="merma" name="CONSUMOS Y MERMAS" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorMermaExec)" />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Pie Chart: Inventory Value by Family */}
+          <Card className="p-5 shadow-sm lg:col-span-2 xl:col-span-1">
+            <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
+              Valor de Inventario por Familia
+            </h3>
+            <div className="h-[300px] w-full">
+              {pieData.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  Sin datos de inventario
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={60}
+                      outerRadius={95}
+                      paddingAngle={5}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {pieData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="transparent" />
+                      ))}
+                    </Pie>
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle" 
+                      wrapperStyle={{ fontSize: '12px' }}
+                    />
+                    <RechartsTooltip 
+                      formatter={(value) => formatCurrency(value)}
+                      contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
+                      itemStyle={{ color: isDark ? '#e2e8f0' : '#0f172a' }}
+                      labelStyle={{ display: 'none' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
 
