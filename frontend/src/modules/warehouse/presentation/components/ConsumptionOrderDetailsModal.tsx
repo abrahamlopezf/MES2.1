@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Package, Hash, User, Clock, CheckCircle2, Search, QrCode, Download } from 'lucide-react';
+import { X, Package, Hash, User, Clock, CheckCircle2, Search, QrCode, Download, ChevronUp, ChevronDown } from 'lucide-react';
 import axiosClient from '../../../../api/axiosClient';
 import { downloadConsumptionOrderPdf } from '../../utils/pdfUtils';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
   const [showScanner, setShowScanner] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [showActionsMobile, setShowActionsMobile] = useState(false);
 
   useEffect(() => {
     if (isOpen && orderUuid) {
@@ -101,28 +102,33 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
       <div className="bg-card w-full max-w-4xl rounded-2xl shadow-2xl border border-border flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center shadow-inner">
-              <Package size={24} />
+        <div className="flex items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-muted/20">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-2">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center shadow-inner shrink-0 mt-0.5 sm:mt-0">
+              <Package size={20} className="sm:hidden" />
+              <Package size={24} className="hidden sm:block" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
-                {order?.order_number || 'Cargando...'}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-1 sm:mb-0">
+                <h2 className="text-lg sm:text-xl font-bold text-foreground break-all sm:break-normal">
+                  {order?.order_number || 'Cargando...'}
+                </h2>
                 {order && (
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${statusColors[order.status] || ''}`}>
+                  <span className={`w-fit text-[10px] sm:text-xs font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border ${statusColors[order.status] || ''}`}>
                     {order.status}
                   </span>
                 )}
-              </h2>
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Clock size={14} /> Solicitado: {order ? new Date(order.created_at).toLocaleString() : ''}
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0.5">
+                <Clock size={12} className="sm:hidden shrink-0" />
+                <Clock size={14} className="hidden sm:block shrink-0" /> 
+                <span className="truncate">Solicitado: {order ? new Date(order.created_at).toLocaleString() : ''}</span>
               </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground"
+            className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground shrink-0 mt-0.5 sm:mt-0 bg-background/50 sm:bg-transparent"
           >
             <X size={20} />
           </button>
@@ -250,62 +256,72 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-border bg-muted/10 flex flex-col-reverse sm:flex-row justify-end gap-3">
-          {order && (
-            <button 
-              onClick={async () => {
-                try {
-                  toast.info('Generando PDF...');
-                  await downloadConsumptionOrderPdf(order);
-                  toast.success('PDF descargado exitosamente.');
-                } catch (err) {
-                  console.error(err);
-                  toast.error('Ocurrió un error al generar el PDF.');
-                }
-              }}
-              className="w-full sm:w-auto px-5 py-2.5 bg-secondary text-secondary-foreground border border-border rounded-xl font-medium hover:bg-secondary/80 transition-colors shadow-sm flex items-center justify-center gap-2 mr-auto"
-            >
-              <Download size={18} /> Descargar PDF
-            </button>
-          )}
-
-          {(order?.status === 'PENDIENTE' || order?.status === 'PREPARANDO') && (
-            <button 
-              onClick={() => setShowCancelConfirm(true)}
-              disabled={updating}
-              className="w-full sm:w-auto px-5 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-medium hover:bg-red-500 hover:text-white transition-colors shadow-sm flex items-center justify-center"
-            >
-              Cancelar Orden
-            </button>
-          )}
-
-          {order?.status === 'PENDIENTE' && (
-            <button 
-              onClick={() => updateStatus('PREPARANDO')}
-              disabled={updating}
-              className="w-full sm:w-auto px-5 py-2.5 bg-info text-info-foreground rounded-xl font-medium hover:bg-info/90 transition-colors shadow-sm flex items-center justify-center"
-            >
-              Iniciar Preparación
-            </button>
-          )}
-
-          {order?.status === 'PREPARANDO' && (
-            <button 
-              onClick={() => setShowScanner(true)}
-              disabled={updating}
-              className="w-full sm:w-auto px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-md flex items-center justify-center gap-2"
-            >
-              <QrCode size={18} /> Escanear Lotes
-            </button>
-          )}
-          {/* Botón de surtido manual eliminado para forzar uso del QR */}
+        <div className="px-4 sm:px-6 py-4 border-t border-border bg-muted/10 flex flex-col sm:flex-row justify-end gap-3 rounded-b-2xl">
           
+          {/* Mobile Toggle Button */}
           <button 
-            onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2.5 bg-background border border-border text-foreground rounded-xl font-medium hover:bg-muted transition-colors flex items-center justify-center"
+            onClick={() => setShowActionsMobile(!showActionsMobile)}
+            className="sm:hidden w-full flex items-center justify-center gap-2 py-2 text-sm font-bold text-muted-foreground bg-background border border-border rounded-xl"
           >
-            Cerrar
+            {showActionsMobile ? (
+              <>Ocultar Acciones <ChevronDown size={16} /></>
+            ) : (
+              <>Ver Acciones <ChevronUp size={16} /></>
+            )}
           </button>
+
+          {/* Action Buttons Container */}
+          <div className={`flex flex-col-reverse sm:flex-row sm:justify-end gap-3 w-full sm:w-auto overflow-hidden transition-all duration-300 ${showActionsMobile ? 'max-h-[500px] opacity-100 mt-2 sm:mt-0' : 'max-h-0 opacity-0 sm:max-h-full sm:opacity-100'}`}>
+            
+            {order && (
+              <button 
+                onClick={async () => {
+                  try {
+                    toast.info('Generando PDF...');
+                    await downloadConsumptionOrderPdf(order);
+                    toast.success('PDF descargado exitosamente.');
+                  } catch (err) {
+                    console.error(err);
+                    toast.error('Ocurrió un error al generar el PDF.');
+                  }
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 bg-secondary text-secondary-foreground border border-border rounded-xl font-medium hover:bg-secondary/80 transition-colors shadow-sm flex items-center justify-center gap-2 sm:mr-auto"
+              >
+                <Download size={18} /> Descargar PDF
+              </button>
+            )}
+
+            {(order?.status === 'PENDIENTE' || order?.status === 'PREPARANDO') && (
+              <button 
+                onClick={() => setShowCancelConfirm(true)}
+                disabled={updating}
+                className="w-full sm:w-auto px-5 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-medium hover:bg-red-500 hover:text-white transition-colors shadow-sm flex items-center justify-center"
+              >
+                Cancelar Orden
+              </button>
+            )}
+
+            {order?.status === 'PENDIENTE' && (
+              <button 
+                onClick={() => updateStatus('PREPARANDO')}
+                disabled={updating}
+                className="w-full sm:w-auto px-5 py-2.5 bg-info text-info-foreground rounded-xl font-medium hover:bg-info/90 transition-colors shadow-sm flex items-center justify-center"
+              >
+                Iniciar Preparación
+              </button>
+            )}
+
+            {order?.status === 'PREPARANDO' && (
+              <button 
+                onClick={() => setShowScanner(true)}
+                disabled={updating}
+                className="w-full sm:w-auto px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-md flex items-center justify-center gap-2"
+              >
+                <QrCode size={18} /> Escanear Lotes
+              </button>
+            )}
+            
+          </div>
         </div>
 
         {/* Cancel Confirmation Modal / Overlay */}

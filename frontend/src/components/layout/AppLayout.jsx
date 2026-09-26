@@ -98,7 +98,7 @@ const AppLayout = () => {
       </div>
 
       {/* Mobile-First Layout for ALL screens */}
-      <div className="flex-1 h-full overflow-y-auto relative custom-scrollbar flex flex-col">
+      <div className="flex-1 h-full overflow-y-auto overflow-x-hidden relative custom-scrollbar flex flex-col">
         <GlobalBreadcrumbs />
         
       {/* Main Content Area */}

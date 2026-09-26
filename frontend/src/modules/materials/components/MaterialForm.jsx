@@ -350,7 +350,7 @@ const MaterialForm = ({
           style={{ '--stagger': 5 }}
         />
       {/* FOOTER ACTIONS */}
-      <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 animate-form-field flex-wrap" style={{ '--stagger': 6 }}>
+      <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 mt-6 border-t border-border animate-form-field" style={{ '--stagger': 6 }}>
         {isEditing && onDeactivate && initialData?.is_active && (
           <TFButton
             variant="danger"
@@ -358,7 +358,7 @@ const MaterialForm = ({
             type="button"
             onClick={() => onDeactivate(initialData)}
             disabled={isSubmitting}
-            className="order-first sm:mr-auto"
+            className="w-full sm:w-auto sm:mr-auto mb-3 sm:mb-0"
           >
             Desactivar
           </TFButton>
@@ -367,7 +367,8 @@ const MaterialForm = ({
           type="button" 
           variant="secondary" 
           onClick={onCancel} 
-          disabled={isSubmitting} 
+          disabled={isSubmitting}
+          className="w-full sm:w-auto"
         >
           Cancelar
         </TFButton>
@@ -375,7 +376,8 @@ const MaterialForm = ({
           type="submit" 
           variant="primary"
           icon={Save} 
-          isLoading={isSubmitting} 
+          isLoading={isSubmitting}
+          className="w-full sm:w-auto"
         >
           {isEditing ? 'Guardar cambios' : 'Crear material'}
         </TFButton>

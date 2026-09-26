@@ -180,14 +180,14 @@ export function GenerateBatchPage() {
     <div className="space-y-4 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 pb-32 sm:pb-12 overflow-x-hidden flex flex-col">
       
       {/* HEADER ROW */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Centro de Identidad</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Gestiona y genera lotes de QRs para trazabilidad.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2 sm:mb-4 w-full">
+        <div className="flex-1 w-full min-w-[250px]">
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Centro de Identidad</h1>
+          <p className="text-muted-foreground font-semibold mt-1 text-sm">Gestiona y genera lotes de QRs para trazabilidad.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 sm:py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 shadow-sm w-full sm:w-auto"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm w-full md:w-auto shrink-0 h-12 px-6 rounded-md transition-colors flex items-center justify-center gap-2 text-sm"
         >
           <Plus size={18} />
           Generar Nuevo Lote
@@ -198,7 +198,7 @@ export function GenerateBatchPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2 mb-2">
           <Package2 size={24} className="text-muted-foreground" />
-          <h2 className="text-xl font-semibold text-foreground tracking-tight">
+          <h2 className="text-xl font-black text-foreground tracking-tight">
             Lotes {isAdmin ? 'Generados' : 'de mi Área'}
           </h2>
         </div>
@@ -354,7 +354,7 @@ export function GenerateBatchPage() {
                                   </div>
                                   
                                   {/* Trazabilidad & Print Actions */}
-                                  <div className="flex flex-col gap-2 w-full mt-auto pt-3 border-t border-border/50">
+                                  <div className={`grid gap-2 w-full mt-auto pt-3 border-t border-border/50 ${token.status !== 'UNASSIGNED' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                     {token.status !== 'UNASSIGNED' && (
                                       <button 
                                         onClick={() => handleTraceability(token.industrialCode)}

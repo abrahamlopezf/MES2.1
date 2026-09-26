@@ -87,12 +87,13 @@ const GenericCatalogForm = ({
         />
 
         {/* FOOTER ACTIONS */}
-        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 animate-form-field" style={{ '--stagger': 4 }}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 animate-form-field" style={{ '--stagger': 4 }}>
           <TFButton
             type="button"
             variant="secondary"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Cancelar
           </TFButton>
@@ -102,6 +103,7 @@ const GenericCatalogForm = ({
             icon={Save}
             isLoading={isSubmitting}
             disabled={!formData.code || !formData.name}
+            className="w-full sm:w-auto"
           >
             {initialData?.id ? 'Actualizar' : 'Crear'}
           </TFButton>

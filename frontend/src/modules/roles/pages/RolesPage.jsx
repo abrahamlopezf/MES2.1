@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FilterX, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { FilterX, Plus, RefreshCw, Search, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 
 import { Card, CardContent, Button, Badge } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
@@ -43,9 +44,11 @@ const RolesPage = () => {
   const canCreate = hasPermission('roles.create');
   const canUpdate = hasPermission('roles.update');
   const canDelete = hasPermission('roles.delete');
+  const canViewUsers = hasPermission('users.read');
 
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [selectedRole, setSelectedRole] = useState(null);
   const [roleToDelete, setRoleToDelete] = useState(null);
@@ -181,18 +184,26 @@ const RolesPage = () => {
 
   return (
     <div className="space-y-4 px-4 sm:px-6 md:px-8 pt-2 pb-4 md:pb-6 pb-32 sm:pb-12 overflow-x-hidden">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
-        <div>
+      {/* Mobile Navigation Tabs */}
+      {canViewUsers && (
+        <div className="lg:hidden flex bg-muted/30 p-1 rounded-lg w-full mb-2 border border-border">
+          <Link to="/users" className="flex-1 text-center py-2 px-4 rounded-md hover:bg-muted/80 text-muted-foreground font-bold text-sm transition-colors">Usuarios</Link>
+          <Link to="/roles" className="flex-1 text-center py-2 px-4 rounded-md bg-background shadow-sm font-bold text-sm text-foreground">Roles</Link>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2 w-full">
+        <div className="flex-1 w-full min-w-[250px]">
           <h1 className="text-3xl font-black text-foreground tracking-tight">Gestión de Roles</h1>
           <p className="text-muted-foreground font-semibold mt-1">Consulta roles del sistema y administra roles personalizados.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={loadRolesData} className="font-bold shadow-sm">
-            <RefreshCw className="w-5 h-5 mr-2" />
-            Actualizar
+        <div className="flex w-full md:w-auto items-center gap-2 shrink-0">
+          <Button variant="secondary" onClick={loadRolesData} className="font-bold shadow-sm flex-1 md:flex-none justify-center h-12 text-sm">
+            <RefreshCw className="w-5 h-5 md:mr-2" />
+            <span className="hidden md:inline">Actualizar</span>
           </Button>
           <PermissionGate permission="roles.create">
-            <Button onClick={openCreateForm} size="lg" className="font-bold shadow-sm">
+            <Button onClick={openCreateForm} size="lg" className="font-bold shadow-sm flex-1 md:flex-none justify-center h-12 text-sm">
               <Plus className="w-5 h-5 mr-2" />
               Nuevo Rol
             </Button>
@@ -207,19 +218,27 @@ const RolesPage = () => {
         {successMessage && <Alert variant="success" title="Operación correcta" message={successMessage} />}
         {error && <Alert variant="danger" title="Revisa la operación" message={error} />}
 
-        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
-          <div className="flex justify-between items-center border-b border-border pb-3">
-            <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
+        <section className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-sm space-y-0 md:space-y-4">
+          <div 
+            className={`flex justify-between items-center cursor-pointer md:cursor-default ${showFilters ? 'border-b border-border pb-3 mb-4 md:mb-0' : ''} md:border-b md:border-border md:pb-3`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
+              <div className="md:hidden text-muted-foreground">
+                {showFilters ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </div>
+            </div>
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
-                <FilterX className="w-4 h-4 mr-2" />
-                Limpiar Filtros
+              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); clearFilters(); }} className="text-muted-foreground hover:text-foreground h-8 px-2">
+                <FilterX className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Limpiar Filtros</span>
               </Button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="relative md:col-span-1 lg:col-span-1">
+          <div className={`${showFilters ? 'grid' : 'hidden'} md:grid grid-cols-1 md:grid-cols-12 gap-4 animate-in fade-in slide-in-from-top-2 duration-200`}>
+              <div className="relative md:col-span-12 lg:col-span-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar roles por nombre..."
@@ -229,28 +248,32 @@ const RolesPage = () => {
                 />
               </div>
             
-            <select
-              className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">Todos los tipos</option>
-              <option value="system">Base del sistema</option>
-              <option value="custom">Personalizado</option>
-            </select>
+            <div className="md:col-span-6 lg:col-span-3">
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="">Todos los tipos</option>
+                <option value="system">Base del sistema</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </div>
 
-            <select
-              className="flex h-14 w-full rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">Todos los estados</option>
-              <option value="active">Activos</option>
-              <option value="inactive">Inactivos</option>
-            </select>
+            <div className="md:col-span-6 lg:col-span-3">
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">Todos los estados</option>
+                <option value="active">Activos</option>
+                <option value="inactive">Inactivos</option>
+              </select>
+            </div>
           </div>
           
-          <div className="text-xs text-muted-foreground text-right font-medium">
+          <div className={`${showFilters ? 'block' : 'hidden'} md:block text-xs text-muted-foreground text-right font-medium mt-3 md:mt-0`}>
             Mostrando <strong>{filteredRoles.length}</strong> de <strong>{roles.length}</strong> roles.
           </div>
         </section>

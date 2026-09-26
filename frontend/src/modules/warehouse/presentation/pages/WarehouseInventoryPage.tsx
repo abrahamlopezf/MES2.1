@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
-import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers, Trash2 } from 'lucide-react';
+import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge, Input, Button, TopBar } from '../../../../design-system';
 import { BajaBottomSheet } from '../components/BajaBottomSheet.container';
 import { InfoBottomSheet } from '../components/InfoBottomSheet.container';
@@ -23,6 +23,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   const [isManualEntryModalOpen, setIsManualEntryModalOpen] = useState(false);
   const [isConsumoModalOpen, setIsConsumoModalOpen] = useState(false);
   const [isBajaModalOpen, setIsBajaModalOpen] = useState(false);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const pageSize = 50; // Internal pagination size
 
   useEffect(() => {
@@ -54,8 +55,8 @@ export const WarehouseInventoryPage: React.FC = () => {
       <div className="p-4 sm:p-6 lg:p-8 space-y-4">
         {/* Header (Mismo diseño que MaterialModuleHeader) */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-0">
-            <div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-0 w-full">
+            <div className="flex-1 w-full min-w-[250px]">
               <h1 className="text-3xl font-black text-foreground tracking-tight">Inventario de Almacén</h1>
               <p className="text-muted-foreground font-semibold mt-1">Gestión y consulta de existencias físicas en tiempo real.</p>
               
@@ -66,28 +67,28 @@ export const WarehouseInventoryPage: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 w-full md:w-auto gap-2 sm:gap-3 shrink-0">
               <Button 
                 variant="secondary"
                 size="lg" 
                 onClick={() => refetch()} 
                 disabled={isRefetching}
-                className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                className="font-bold shadow-sm w-full justify-center h-12 text-xs sm:text-sm"
               >
-                <RefreshCw className={`w-5 h-5 mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
-                <span>Actualizar</span>
+                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
+                <span className="truncate">Actualizar</span>
               </Button>
               {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry') || hasPermission('warehouse.waste') || hasPermission('warehouse.dispose')) && (
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                <>
                   {(hasPermission('warehouse.waste') || hasPermission('warehouse.dispose')) && (
                     <Button
                       variant="destructive"
                       size="lg"
                       onClick={() => setIsBajaModalOpen(true)}
-                      className="font-bold shadow-sm w-full sm:w-auto justify-center bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      className="font-bold shadow-sm w-full justify-center bg-red-600 hover:bg-red-700 text-white h-12 text-xs sm:text-sm"
                     >
-                      <Trash2 className="w-5 h-5 mr-2 shrink-0" />
-                      <span>Baja de Material</span>
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
+                      <span className="truncate">Baja</span>
                     </Button>
                   )}
                   {hasPermission('warehouse.consume') && (
@@ -95,10 +96,10 @@ export const WarehouseInventoryPage: React.FC = () => {
                       variant="primary"
                       size="lg"
                       onClick={() => setIsConsumoModalOpen(true)}
-                      className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                      className="font-bold shadow-sm w-full justify-center bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-12 text-xs sm:text-sm"
                     >
-                      <QrCode className="w-5 h-5 mr-2 shrink-0" />
-                      <span>Consumo de Material</span>
+                      <QrCode className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
+                      <span className="truncate">Consumo</span>
                     </Button>
                   )}
                   {hasPermission('warehouse.manual_entry') && (
@@ -106,13 +107,13 @@ export const WarehouseInventoryPage: React.FC = () => {
                       variant="secondary"
                       size="lg"
                       onClick={() => setIsManualEntryModalOpen(true)}
-                      className="font-bold shadow-sm w-full sm:w-auto justify-center"
+                      className="font-bold shadow-sm w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 h-12 text-xs sm:text-sm"
                     >
-                      <Layers className="w-5 h-5 mr-2 shrink-0" />
-                      <span>Ingreso Manual</span>
+                      <Layers className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
+                      <span className="truncate">Ingreso</span>
                     </Button>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>
@@ -264,16 +265,30 @@ export const WarehouseInventoryPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex justify-end mt-1 border-t border-border pt-3 gap-2 flex-wrap">
-                    <Button variant="outline" size="sm" className="h-8 px-3" onClick={() => navigate(`/warehouse/materials/${item.material_id}/lotes`)}>
-                      <Layers size={14} className="mr-1" /> Ver lotes
+                  <div className="flex flex-col mt-1 border-t border-border pt-1 gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-muted-foreground hover:text-foreground hover:bg-secondary/20 flex justify-between items-center px-2 py-1.5 h-auto"
+                      onClick={() => setExpandedCardId(expandedCardId === item.material_id ? null : item.material_id)}
+                    >
+                      <span className="text-xs font-bold uppercase tracking-wider">Acciones</span>
+                      {expandedCardId === item.material_id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </Button>
-                    <Button variant="secondary" size="sm" className="h-8 px-3" onClick={() => setSelectedInfoItem(item)}>
-                      <Info size={14} className="mr-1" /> Detalles
-                    </Button>
-                    <Button variant="destructive" size="sm" className="h-8 px-3" onClick={() => setSelectedBajaItem(item)}>
-                      <ShieldAlert size={14} className="mr-1" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
-                    </Button>
+                    
+                    {expandedCardId === item.material_id && (
+                      <div className="flex flex-col gap-2 pb-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <Button variant="outline" size="sm" className="w-full justify-start h-10 bg-secondary/5" onClick={() => navigate(`/warehouse/materials/${item.material_id}/lotes`)}>
+                          <Layers size={16} className="mr-2 text-muted-foreground" /> Ver lotes
+                        </Button>
+                        <Button variant="secondary" size="sm" className="w-full justify-start h-10" onClick={() => setSelectedInfoItem(item)}>
+                          <Info size={16} className="mr-2 text-muted-foreground" /> Detalles
+                        </Button>
+                        <Button variant="destructive" size="sm" className="w-full justify-start h-10 bg-red-600 hover:bg-red-700 text-white" onClick={() => setSelectedBajaItem(item)}>
+                          <ShieldAlert size={16} className="mr-2" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))

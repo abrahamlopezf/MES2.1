@@ -14,23 +14,20 @@ const MaterialModuleHeader = ({
   isRefreshing = false,
 }) => {
   return (
-    <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-0">
-      <div>
-        <h1 className="text-3xl font-black text-foreground tracking-tight">{title}</h1>
-        <p className="text-muted-foreground font-semibold mt-1">{description}</p>
-        
-        <div className="flex flex-wrap items-center gap-3 mt-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-foreground bg-secondary/50 px-2.5 py-1 rounded-md border border-border">
-            <span>{total} Total</span>
+    <section className="bg-card rounded-xl border border-border shadow-sm p-4 w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-0">
+      <div className="w-full sm:w-auto">
+        <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-3 w-full">
+          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-foreground bg-secondary/50 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-border">
+            <span className="truncate">{total} Total</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-            <CheckCircle2 className="size-3.5" />
-            <span>{activeCount} Activos</span>
+          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-emerald-500/20">
+            <CheckCircle2 className="size-3 sm:size-3.5 shrink-0" />
+            <span className="truncate">{activeCount} Activos</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground bg-secondary/50 px-2.5 py-1 rounded-md border border-border">
-            <Archive className="size-3.5" />
-            <span>{inactiveCount} Inactivos</span>
+          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-muted-foreground bg-secondary/50 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-border">
+            <Archive className="size-3 sm:size-3.5 shrink-0" />
+            <span className="truncate">{inactiveCount} Inactivos</span>
           </div>
         </div>
       </div>
