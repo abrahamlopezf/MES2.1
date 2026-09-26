@@ -55,6 +55,9 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
             height: qrboxSize
           };
         },
+        videoConstraints: {
+          facingMode: "environment"
+        },
         showTorchButtonIfSupported: true,
         formatsToSupport: [ 0 ] 
       }, false);
