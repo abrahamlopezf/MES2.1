@@ -55,7 +55,6 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
             height: qrboxSize
           };
         },
-        aspectRatio: 1.0,
         showTorchButtonIfSupported: true,
         formatsToSupport: [ 0 ] 
       }, false);
@@ -125,11 +124,6 @@ export const CameraScanner = ({ title = "Escáner Industrial", onScan, onClose, 
         /* Soften the big camera icon */
         #${scannerId} img {
           opacity: 0.1 !important; 
-        }
-
-        /* Hide the text inside the dashboard */
-        #${scannerId}__dashboard_section_csr span {
-          display: none !important;
         }
 
         /* Style the 'Stop Scanning' and other buttons */
