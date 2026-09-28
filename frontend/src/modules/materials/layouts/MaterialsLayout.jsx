@@ -31,9 +31,9 @@ const MaterialsLayout = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="w-full overflow-x-auto pb-2 custom-scrollbar text-center">
-        <div className="p-1.5 border border-border/50 shadow-sm bg-secondary/30 rounded-xl inline-flex min-w-max items-center gap-1 mx-auto text-left">
-            <nav className="flex items-center gap-1" aria-label="Tabs">
+      <div className="w-full overflow-x-auto pb-2 custom-scrollbar">
+        <div className="p-1.5 border border-border/50 shadow-sm bg-secondary/30 rounded-xl w-max min-w-full lg:min-w-max lg:mx-auto flex items-center gap-1 justify-start">
+            <nav className="flex items-center gap-1 w-full" aria-label="Tabs">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (

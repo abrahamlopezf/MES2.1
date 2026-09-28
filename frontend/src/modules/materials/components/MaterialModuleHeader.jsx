@@ -15,24 +15,24 @@ const MaterialModuleHeader = ({
 }) => {
   return (
     <section className="bg-card rounded-xl border border-border shadow-sm p-4 w-full">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-0">
-      <div className="w-full sm:w-auto">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-0 w-full">
+      <div className="w-full xl:w-auto">
         <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-3 w-full">
-          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-foreground bg-secondary/50 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-border">
+          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-foreground bg-secondary/50 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-border min-w-0">
             <span className="truncate">{total} Total</span>
           </div>
-          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-emerald-500/20">
-            <CheckCircle2 className="size-3 sm:size-3.5 shrink-0" />
+          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-emerald-500/20 min-w-0">
+            <CheckCircle2 className="size-3 sm:size-3.5 shrink-0 hidden sm:block" />
             <span className="truncate">{activeCount} Activos</span>
           </div>
-          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-muted-foreground bg-secondary/50 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-border">
-            <Archive className="size-3 sm:size-3.5 shrink-0" />
+          <div className="flex justify-center items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold text-muted-foreground bg-secondary/50 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-md border border-border min-w-0">
+            <Archive className="size-3 sm:size-3.5 shrink-0 hidden sm:block" />
             <span className="truncate">{inactiveCount} Inactivos</span>
           </div>
         </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
+      <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-2 sm:gap-3 shrink-0">
         <Button 
           variant="secondary"
           size="lg" 

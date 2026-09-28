@@ -1158,13 +1158,12 @@ module.exports = {
       ON CONFLICT (code) DO NOTHING`);
 
     // ── 5. Material Brands ───────────────────────────────────────────────────
-    console.log('  → material_brands (29 rows)');
+    console.log('  → material_brands (26 rows)');
     await queryInterface.sequelize.query(`INSERT INTO material_brands (uuid, code, name, is_active, created_at, updated_at)
       VALUES
         ('7ecde5d3-63d2-405e-a20c-b2606944fb3e', 'ACP', 'ACP', true, NOW(), NOW()),
       ('803e0a19-fb86-4805-9dc4-f2b53b56fd76', 'ADHECINTAS', 'ADHECINTAS', true, NOW(), NOW()),
       ('ff168a5c-b866-44a4-9f8f-2d270ec04653', 'CHINA', 'CHINA', true, NOW(), NOW()),
-      ('549f7337-cb38-4f40-bb1a-dc08253d7fae', 'DERMACAERE   Y SUK', 'DERMACAERE   Y SUK', true, NOW(), NOW()),
       ('f510ac8b-390a-4675-bd1d-54d237a0c6d6', 'DERMACAERE Y SUK', 'DERMACAERE Y SUK', true, NOW(), NOW()),
       ('85e11015-5a9e-46a0-9f3a-9dec7324b75e', 'DERMACARE', 'DERMACARE', true, NOW(), NOW()),
       ('4772d7e9-b449-4ece-9b2f-efe5e3bb80ab', 'DURACELL', 'DURACELL', true, NOW(), NOW()),
@@ -1178,9 +1177,7 @@ module.exports = {
       ('8da99a83-f90b-478e-b570-dacf065d42a8', 'NICHOLSON', 'NICHOLSON', true, NOW(), NOW()),
       ('f60ead0e-9177-42fc-a75c-811cc3374670', 'PLASTI', 'PLASTI', true, NOW(), NOW()),
       ('c8f0a50f-3730-409f-bbdd-a5a8b0056fd7', 'PROPIA', 'PROPIA', true, NOW(), NOW()),
-      ('968bba5e-d0a3-4a52-b4a8-e653ec422b14', 'RESISTOL   5000', 'RESISTOL   5000', true, NOW(), NOW()),
       ('63f9fc02-37de-422c-8de6-ab231f29340a', 'RESISTOL 5000', 'RESISTOL 5000', true, NOW(), NOW()),
-      ('e9fb07ec-ac30-4d32-b7a3-75cc60652fa6', 'ROMA,   SALVO ETC', 'ROMA,   SALVO ETC', true, NOW(), NOW()),
       ('db075935-34c3-44b0-b8f1-53c0f7d2fd7e', 'ROMA, SALVO ETC', 'ROMA, SALVO ETC', true, NOW(), NOW()),
       ('5c70a431-6d60-4a36-8902-6a4e8f6272bd', 'SANDYQUIM', 'SANDYQUIM', true, NOW(), NOW()),
       ('c5b9f602-bf57-4462-a68a-df208c8f70cb', 'SANITAS', 'SANITAS', true, NOW(), NOW()),
@@ -1270,6 +1267,7 @@ module.exports = {
       ('2c3858a5-254f-49a2-bd53-27c44c81ac5a', 'EE2', 'EE2', true, NOW(), NOW()),
       ('d20f987d-d50d-4b43-887d-822e87602645', 'EE3', 'EE3', true, NOW(), NOW()),
       ('fbf0a8c0-1deb-4078-ac46-8bd1a5efc6d2', 'EE4', 'EE4', true, NOW(), NOW()),
+      ('d2e617a9-79df-49c8-9757-593cf38c2aa3', 'F 2', 'F 2', true, NOW(), NOW()),
       ('7bdf5c4d-d3a9-4539-93bb-14ae241709a0', 'F1', 'F1', true, NOW(), NOW()),
       ('44e4f5ac-32e0-42fc-8e40-a6a30e2f7e33', 'F2', 'F2', true, NOW(), NOW()),
       ('a706531b-bd56-4aea-964f-e1fea6cb6f8e', 'F3', 'F3', true, NOW(), NOW()),
@@ -1301,7 +1299,6 @@ module.exports = {
       ('cef48fd0-57d7-491c-bd62-beed6b54b1d6', 'L2', 'L2', true, NOW(), NOW()),
       ('80b34187-8316-4b27-a23e-d5ccca50b688', 'L3', 'L3', true, NOW(), NOW()),
       ('3c326913-d46e-4aab-b5e7-81f620c8751b', 'L4', 'L4', true, NOW(), NOW()),
-      ('d2e617a9-79df-49c8-9757-593cf38c2aa3', 'LOCALIDAD', 'LOCALIDAD', true, NOW(), NOW()),
       ('59c223b6-613d-48af-adaa-8c72f4bf5e15', 'M1', 'M1', true, NOW(), NOW()),
       ('8b225033-6cce-4787-9f40-c8a8c1cd9bb3', 'M2', 'M2', true, NOW(), NOW()),
       ('370a828f-1baf-4087-aea2-8f166bb6dce3', 'M3', 'M3', true, NOW(), NOW()),

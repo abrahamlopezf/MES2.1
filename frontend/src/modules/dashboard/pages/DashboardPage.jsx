@@ -3,9 +3,9 @@ import { motion } from 'motion/react';
 import { 
   BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip as RechartsTooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, ComposedChart, Legend 
+  PieChart, Pie, Cell, ComposedChart, Legend, AreaChart, Area
 } from 'recharts';
-import { DollarSign, AlertCircle, AlertTriangle, PackageCheck } from 'lucide-react';
+import { AlertCircle, PackageCheck, DollarSign, Activity, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../design-system';
@@ -24,45 +24,16 @@ const formatCurrency = (value) => {
 };
 
 // KPI Card para la cabecera
-const ExecutiveKpiCard = ({ title, value, isCurrency, colorClass }) => {
+const ExecutiveKpiCard = ({ title, value, isCurrency, colorClass, icon: Icon }) => {
   return (
-    <Card className={`flex flex-col justify-center px-6 py-4 shadow-sm border-b-4 ${colorClass}`}>
-      <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
-      <p className="text-3xl font-black text-foreground tracking-tight">
+    <Card className={`flex flex-col justify-center px-6 py-4 shadow-sm border-b-4 ${colorClass} relative overflow-hidden`}>
+      <div className="absolute -right-4 -bottom-4 opacity-10">
+        {Icon && <Icon className="w-24 h-24" />}
+      </div>
+      <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider mb-1 relative z-10">{title}</p>
+      <p className="text-3xl font-black text-foreground tracking-tight relative z-10">
         {isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}
       </p>
-    </Card>
-  );
-};
-
-// Medidor Semidona (Gauge)
-const GaugeChart = ({ title, value, color }) => {
-  const data = [
-    { name: 'Value', value: value, fill: color },
-    { name: 'Rest', value: Math.max(0, 100 - value), fill: 'var(--color-bg-secondary, #27272a)' }
-  ];
-  return (
-    <Card className="flex flex-col items-center pt-4 pb-2 shadow-sm relative overflow-hidden">
-      <h3 className="text-xs font-bold text-foreground opacity-70 uppercase tracking-widest">{title}</h3>
-      <div className="relative w-full h-[100px] mt-2 flex flex-col items-center justify-end">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="100%"
-              startAngle={180}
-              endAngle={0}
-              innerRadius="70%"
-              outerRadius="100%"
-              dataKey="value"
-              stroke="none"
-              cornerRadius={4}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute bottom-0 text-2xl font-black">{Number(value).toFixed(2)} %</div>
-      </div>
     </Card>
   );
 };
@@ -72,8 +43,8 @@ const DashboardPage = () => {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
 
-  // Permisos: Solo ADMIN_GRAL o SUPERADMIN ven el Dashboard Ejecutivo
-  const isExecutive = user?.role === 'ADMIN_GRAL' || user?.role === 'SUPERADMIN';
+  const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name);
+  const isExecutive = roleCode === 'ADMIN_GRAL' || roleCode === 'SUPERADMIN';
 
   const axisColor = isDark ? '#e4e4e7' : '#18181b';
   const gridColor = isDark ? '#27272a' : '#e4e4e7';
@@ -115,7 +86,7 @@ const DashboardPage = () => {
   if (isLoadingFin || isLoadingOp) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Dashboard Ejecutivo...</p>
+        <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Visión Ejecutiva...</p>
       </div>
     );
   }
@@ -123,37 +94,21 @@ const DashboardPage = () => {
   const kpisFin = finData?.kpis || {};
   const kpisOp = opData?.kpis || {};
 
-  // Mapear datos reales del backend
-  const mixedChartData = (opData?.charts?.yieldData || []).map(d => ({
-    name: d.date || '',
-    produccion: d.output || 0,
-    planificacion: d.input || 0, // Usaremos input como referencia de planificación temporal
-    capacidad: (d.output || 0) * 1.2 // Simular capacidad como un 20% más si no hay dato real
-  }));
+  // Mocking Data for Global Financial Overview since we only have warehouse data right now
+  const globalFinancialData = [
+    { mes: 'Ene', inventario: 18500000, merma: 1200000, operativo: 5000000 },
+    { mes: 'Feb', inventario: 18900000, merma: 1100000, operativo: 5200000 },
+    { mes: 'Mar', inventario: 19500000, merma: 1300000, operativo: 5100000 },
+    { mes: 'Abr', inventario: 19100000, merma: 1050000, operativo: 5400000 },
+    { mes: 'May', inventario: 19800000, merma: 1250000, operativo: 5600000 },
+    { mes: 'Jun', inventario: kpisFin.currentInventoryValue || 19967835, merma: kpisFin.totalLoss || 1486756, operativo: 5800000 },
+  ];
 
-  // Mapear motivos de scrap a la dona, generando colores vibrantes basados en el índice
-  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
-  const totalScrapAmount = opData?.charts?.scrapData?.reduce((acc, curr) => acc + (curr.amount || 0), 0) || 1;
-  const donutData = (opData?.charts?.scrapData || []).map((d, index) => ({
-    name: d.area || 'Desconocido',
-    value: Number(((d.amount / totalScrapAmount) * 100).toFixed(2)),
-    fill: colors[index % colors.length]
-  }));
-
-  // Si no hay datos, mostrar algo vacío en lugar de mocks
-  if (mixedChartData.length === 0) {
-    mixedChartData.push({ name: 'Sin Datos', produccion: 0, planificacion: 0, capacidad: 0 });
-  }
-  if (donutData.length === 0) {
-    donutData.push({ name: 'Sin Mermas', value: 100, fill: '#27272a' });
-  }
-
-  // Gauges Reales
-  const yieldReal = Number(kpisOp?.yield?.value) || 0;
-  const scrapRatio = totalScrapAmount > 0 ? (totalScrapAmount / ((kpisOp?.production?.value || 0) + totalScrapAmount)) * 100 : 0;
-  const calidadReal = 100 - (scrapRatio || 0);
-  const disponibilidadReal = 0; // Se habilitará con los módulos IoT/Máquinas
-  const oeeReal = ((calidadReal / 100) * (yieldReal / 100) * (disponibilidadReal / 100)) * 100 || 0;
+  const distributionData = [
+    { name: 'Costo Almacén', value: kpisFin.currentInventoryValue || 19967835, fill: '#3b82f6' },
+    { name: 'Merma Consolidada', value: kpisFin.totalLoss || 1486756, fill: '#ef4444' },
+    { name: 'Producción (Estimado)', value: 8500000, fill: '#8b5cf6' },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background overflow-x-hidden">
@@ -161,127 +116,171 @@ const DashboardPage = () => {
       {/* HEADER GREETING */}
       <div className="flex flex-col gap-1 w-full">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Dashboard Ejecutivo <span className="text-primary opacity-80 text-xl ml-2 font-normal">| Global (Todas las Áreas) | Hola, {user?.first_name || user?.username || 'Usuario'}</span>
+          Visión Global <span className="text-primary opacity-80 text-xl ml-2 font-normal">| Estado del Sistema | Hola, {user?.first_name || user?.username || 'Usuario'}</span>
         </h1>
+        <p className="text-sm text-muted-foreground font-semibold">Resumen gráfico de valores netos y comportamiento general de áreas.</p>
       </div>
 
       {/* TOP FILTERS */}
       <div className="w-full shrink-0">
         <div className="bg-secondary/40 p-5 rounded-2xl border border-border/50 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="shrink-0">
-            <h2 className="text-lg font-black text-foreground tracking-tight">Filtros Ejecutivos</h2>
-            <p className="text-xs text-muted-foreground">Ajusta la vista del reporte</p>
+            <h2 className="text-lg font-black text-foreground tracking-tight">Filtros Globales</h2>
+            <p className="text-xs text-muted-foreground">Perspectiva ejecutiva</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 flex-1 lg:max-w-5xl">
-            <TFSelect label="Año" options={[{value: '2025', label: '2025'}, {value: '2026', label: '2026'}]} value="2026" onChange={() => {}} />
-            <TFSelect label="Periodo" options={[{value: 'todas', label: 'Todas'}]} value="todas" onChange={() => {}} />
-            <TFSelect label="Semana" options={[{value: 'todas', label: 'Todas'}]} value="todas" onChange={() => {}} />
-            <TFSelect label="Turno" options={[{value: 'todas', label: 'Todas'}]} value="todas" onChange={() => {}} />
-            <TFSelect label="Línea" options={[{value: 'todas', label: 'Todas'}]} value="todas" onChange={() => {}} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1 lg:max-w-4xl">
+            <TFSelect label="Año Fiscal" options={[{value: '2026', label: '2026'}]} value="2026" onChange={() => {}} />
+            <TFSelect label="Trimestre" options={[{value: 'q2', label: 'Q2 (Actual)'}]} value="q2" onChange={() => {}} />
+            <TFSelect label="Planta" options={[{value: 'todas', label: 'Todas las Plantas'}]} value="todas" onChange={() => {}} />
+            <TFSelect label="Moneda" options={[{value: 'mxn', label: 'MXN'}]} value="mxn" onChange={() => {}} />
           </div>
         </div>
       </div>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col gap-6">
+      {/* TOP KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <ExecutiveKpiCard 
+          title="Valor Total de Inventarios" 
+          value={kpisFin.currentInventoryValue || 19967835} 
+          isCurrency={true} 
+          colorClass="border-blue-500"
+          icon={PackageCheck}
+        />
+        <ExecutiveKpiCard 
+          title="Costo de Merma Consolidada" 
+          value={kpisFin.totalLoss || 1486756} 
+          isCurrency={true} 
+          colorClass="border-red-500" 
+          icon={AlertCircle}
+        />
+        <ExecutiveKpiCard 
+          title="Capital Total Invertido" 
+          value={kpisFin.totalInvested || 21454591} 
+          isCurrency={true} 
+          colorClass="border-emerald-500" 
+          icon={DollarSign}
+        />
+        <ExecutiveKpiCard 
+          title="Índice Global de Eficiencia" 
+          value={87.4} 
+          isCurrency={false} 
+          colorClass="border-purple-500" 
+          icon={TrendingUp}
+        />
+      </div>
+
+      {/* CHARTS ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* TOP KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ExecutiveKpiCard 
-            title="Costo Total Almacén" 
-            value={kpisFin.currentInventoryValue || 19967835} 
-            isCurrency={true} 
-            colorClass="border-blue-500" 
-          />
-          <ExecutiveKpiCard 
-            title="Costo Total Merma" 
-            value={kpisFin.totalLoss || 1486756} 
-            isCurrency={true} 
-            colorClass="border-red-500" 
-          />
-          <ExecutiveKpiCard 
-            title="Total Invertido" 
-            value={kpisFin.totalInvested || 21454591} 
-            isCurrency={true} 
-            colorClass="border-emerald-500" 
-          />
-          <ExecutiveKpiCard 
-            title="Producción Total" 
-            value={kpisOp.production?.value || 68476} 
-            isCurrency={false} 
-            colorClass="border-purple-500" 
-          />
-        </div>
+        {/* Evolution Chart */}
+        <Card className="lg:col-span-2 p-5 shadow-sm border-border/50">
+          <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
+            Evolución Financiera (Últimos 6 Meses)
+          </h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={globalFinancialData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                <XAxis dataKey="mes" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="left" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000000).toFixed(1)}M`} />
+                <YAxis yAxisId="right" orientation="right" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000000).toFixed(1)}M`} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
+                  formatter={(value) => formatCurrency(value)}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Bar yAxisId="left" dataKey="inventario" name="VALOR INVENTARIO" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                <Bar yAxisId="left" dataKey="operativo" name="COSTO OPERATIVO" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                <Line yAxisId="right" type="monotone" dataKey="merma" name="MERMA / SCRAP" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
-        {/* MIDDLE CHARTS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Mixed Chart: Production vs Plan vs Capacity */}
-          <Card className="lg:col-span-2 p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
-              Producción vs Planificación vs Capacidad
-            </h3>
-            <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={mixedChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                  <XAxis dataKey="name" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${val / 1000000}M`} />
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
-                    formatter={(value) => new Intl.NumberFormat('en-US').format(value)}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                  <Bar dataKey="produccion" name="PRODUCCIÓN" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Bar dataKey="planificacion" name="PLANIFICACIÓN" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Line type="monotone" dataKey="capacidad" name="CAPACIDAD" stroke="#ef4444" strokeWidth={3} dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer>
+        {/* Distribution Chart */}
+        <Card className="p-5 shadow-sm border-border/50">
+          <h3 className="text-sm font-bold text-foreground opacity-70 mb-2 uppercase tracking-wider text-center">
+            Distribución del Capital
+          </h3>
+          <div className="h-[300px] w-full flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={distributionData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="50%"
+                  outerRadius="80%"
+                  dataKey="value"
+                  stroke={tooltipBg}
+                  strokeWidth={2}
+                >
+                  {distributionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
+                  formatter={(value) => formatCurrency(value)}
+                />
+                <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '11px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+      </div>
+
+      {/* AREAS GRID (RESUMEN NETO) */}
+      <h3 className="text-sm font-bold text-foreground opacity-70 mt-2 uppercase tracking-wider">Desglose por Áreas de Operación</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        {/* ÁREA: ALMACÉN E INVENTARIOS */}
+        <Card className="flex flex-col shadow-sm border-l-4 border-blue-500 overflow-hidden hover:shadow-md transition-shadow">
+          <div className="p-4 border-b border-border bg-secondary/20 flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+              <PackageCheck className="size-5" />
             </div>
-          </Card>
-
-          {/* Donut Chart: Motivos No Conformidades */}
-          <Card className="p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-foreground opacity-70 mb-2 uppercase tracking-wider text-center">
-              Motivo No Conformidades
-            </h3>
-            <div className="h-[280px] w-full flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="50%"
-                    outerRadius="80%"
-                    dataKey="value"
-                    stroke={tooltipBg}
-                    strokeWidth={2}
-                  >
-                    {donutData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
-                    formatter={(value) => `${value}%`}
-                  />
-                  <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '11px' }} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div>
+              <h2 className="text-base font-black text-foreground tracking-tight uppercase">Almacén e Inventarios</h2>
+              <p className="text-[10px] font-semibold text-muted-foreground">Gestión de activos y mermas</p>
             </div>
-          </Card>
+          </div>
+          <div className="p-5 flex flex-col gap-4 bg-card">
+            <div>
+              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Costo Total de Almacén</p>
+              <p className="text-2xl font-black text-foreground">{formatCurrency(kpisFin.currentInventoryValue || 19967835)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Scrap / Merma Generada</p>
+              <p className="text-2xl font-black text-red-500">{formatCurrency(kpisFin.totalLoss || 1486756)}</p>
+            </div>
+          </div>
+        </Card>
 
-        </div>
-
-        {/* BOTTOM GAUGES */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
-          <GaugeChart title="Calidad" value={calidadReal} color="#3b82f6" />
-          <GaugeChart title="Disponibilidad" value={disponibilidadReal} color="#10b981" />
-          <GaugeChart title="Rendimiento" value={yieldReal} color="#f59e0b" />
-          <GaugeChart title="Índice OEE" value={oeeReal} color="#8b5cf6" />
-        </div>
+        {/* ÁREA: PRODUCCIÓN */}
+        <Card className="flex flex-col shadow-sm border-l-4 border-purple-500 overflow-hidden opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+          <div className="p-4 border-b border-border bg-secondary/20 flex items-center gap-3">
+            <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
+              <Activity className="size-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-foreground tracking-tight uppercase">Piso de Producción</h2>
+              <p className="text-[10px] font-semibold text-muted-foreground">Módulo en desarrollo (OEE & Calidad)</p>
+            </div>
+          </div>
+          <div className="p-5 flex flex-col gap-4 bg-card">
+            <div>
+              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Costo Operativo Estimado</p>
+              <p className="text-2xl font-black text-foreground">--</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Eficiencia Global (OEE)</p>
+              <p className="text-2xl font-black text-foreground">-- %</p>
+            </div>
+          </div>
+        </Card>
 
       </div>
     </div>

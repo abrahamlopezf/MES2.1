@@ -65,43 +65,42 @@ export const LowStockReportModal: React.FC<LowStockReportModalProps> = ({ isOpen
 
   return (
     <Dialog open={isOpen} onOpenChange={(val) => { if (!val) onClose(); }}>
-      <DialogContent showClose={false} className="max-w-5xl h-[85vh] flex flex-col p-0 overflow-hidden bg-background border-border">
+      <DialogContent showClose={false} className="max-w-5xl w-[95vw] sm:w-[90vw] h-[90vh] sm:h-[85vh] flex flex-col p-0 overflow-hidden bg-card border-border rounded-2xl shadow-2xl">
         
-        <DialogHeader className="px-6 py-4 border-b border-border flex flex-row items-center justify-between shrink-0 bg-secondary/30">
+        <div className="px-4 sm:px-6 py-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between shrink-0 bg-amber-500/5 gap-4 relative pr-14 sm:pr-6">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-black text-foreground tracking-tight">Reporte de Stocks Bajos</DialogTitle>
-              <DialogDescription className="text-xs font-semibold text-muted-foreground mt-0.5">
+              <DialogTitle className="text-lg sm:text-xl font-black text-foreground tracking-tight leading-tight">Reporte de Stocks Bajos</DialogTitle>
+              <DialogDescription className="text-[10px] sm:text-xs font-semibold text-muted-foreground mt-0.5 leading-tight">
                 Materiales en alerta amarilla (punto de reorden) o roja (crítico)
               </DialogDescription>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center w-full sm:w-auto">
             <Button 
               variant="default" 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md h-9 gap-2"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm h-9 gap-2 w-full sm:w-auto justify-center rounded-xl"
               onClick={downloadCSV}
               disabled={isLoading || !reportData || reportData.length === 0}
             >
-              <Download className="h-4 w-4" />
-              Exportar CSV
+              <Download className="h-4 w-4 shrink-0" />
+              <span>Exportar CSV</span>
             </Button>
-
-            <button 
-              type="button"
-              onClick={() => onClose()}
-              className="h-10 w-10 shrink-0 rounded-full border-2 border-slate-500/50 bg-slate-800 hover:bg-destructive hover:text-white hover:border-destructive transition-all flex items-center justify-center shadow-sm"
-              title="Cerrar"
-            >
-              <X className="h-5 w-5 text-slate-100" strokeWidth={2.5} />
-            </button>
           </div>
-          
-        </DialogHeader>
+
+          <button 
+            type="button"
+            onClick={() => onClose()}
+            className="absolute top-4 right-4 sm:relative sm:top-auto sm:right-auto h-10 w-10 shrink-0 rounded-full bg-secondary/50 hover:bg-destructive hover:text-white transition-colors flex items-center justify-center text-muted-foreground shadow-sm border border-border"
+            title="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
         <div className="flex-1 overflow-auto p-6">
           {isLoading ? (
