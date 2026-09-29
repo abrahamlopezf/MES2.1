@@ -26,12 +26,12 @@ const formatCurrency = (value) => {
 // KPI Card para la cabecera
 const ExecutiveKpiCard = ({ title, value, isCurrency, colorClass, icon: Icon }) => {
   return (
-    <Card className={`flex flex-col justify-center px-6 py-4 shadow-sm border-b-4 ${colorClass} relative overflow-hidden`}>
-      <div className="absolute -right-4 -bottom-4 opacity-10">
+    <Card className={`flex flex-col justify-center p-4 shadow-sm border-b-4 ${colorClass} relative overflow-hidden`}>
+      <div className="absolute -right-4 -bottom-4 opacity-10 pointer-events-none">
         {Icon && <Icon className="w-24 h-24" />}
       </div>
-      <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider mb-1 relative z-10">{title}</p>
-      <p className="text-3xl font-black text-foreground tracking-tight relative z-10">
+      <p className="text-foreground opacity-70 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1 relative z-10 line-clamp-2 min-h-[2.5rem]">{title}</p>
+      <p className="text-2xl 2xl:text-3xl font-black text-foreground tracking-tight relative z-10 truncate" title={isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}>
         {isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}
       </p>
     </Card>
@@ -42,6 +42,7 @@ const DashboardPage = () => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
+  const [showFilters, setShowFilters] = React.useState(false);
 
   const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name);
   const isExecutive = roleCode === 'ADMIN_GRAL' || roleCode === 'SUPERADMIN';
@@ -114,32 +115,39 @@ const DashboardPage = () => {
     <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background overflow-x-hidden">
       
       {/* HEADER GREETING */}
-      <div className="flex flex-col gap-1 w-full">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Visión Global <span className="text-primary opacity-80 text-xl ml-2 font-normal">| Estado del Sistema | Hola, {user?.first_name || user?.username || 'Usuario'}</span>
+      <div className="flex flex-col gap-1 w-full pr-14 md:pr-0">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
+          Visión Global <span className="text-primary opacity-80 text-xl font-normal">| Estado del Sistema</span>
         </h1>
-        <p className="text-sm text-muted-foreground font-semibold">Resumen gráfico de valores netos y comportamiento general de áreas.</p>
+        <p className="text-lg text-primary font-medium mb-4">Hola, {user?.first_name || user?.username || 'Usuario'}</p>
       </div>
 
       {/* TOP FILTERS */}
       <div className="w-full shrink-0">
         <div className="bg-secondary/40 p-5 rounded-2xl border border-border/50 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="shrink-0">
-            <h2 className="text-lg font-black text-foreground tracking-tight">Filtros Globales</h2>
-            <p className="text-xs text-muted-foreground">Perspectiva ejecutiva</p>
+          <div className="shrink-0 flex justify-between items-center w-full lg:w-auto">
+            <div>
+              <h2 className="text-lg font-black text-foreground tracking-tight">Filtros Globales</h2>
+              <p className="text-xs text-muted-foreground">Perspectiva ejecutiva</p>
+            </div>
+            <button 
+              className="lg:hidden text-primary text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-lg"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {showFilters ? 'Ocultar' : 'Mostrar'}
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1 lg:max-w-4xl">
+          <div className={`grid grid-cols-2 sm:grid-cols-3 gap-4 flex-1 lg:max-w-3xl ${showFilters ? 'block' : 'hidden lg:grid'}`}>
             <TFSelect label="Año Fiscal" options={[{value: '2026', label: '2026'}]} value="2026" onChange={() => {}} />
             <TFSelect label="Trimestre" options={[{value: 'q2', label: 'Q2 (Actual)'}]} value="q2" onChange={() => {}} />
-            <TFSelect label="Planta" options={[{value: 'todas', label: 'Todas las Plantas'}]} value="todas" onChange={() => {}} />
             <TFSelect label="Moneda" options={[{value: 'mxn', label: 'MXN'}]} value="mxn" onChange={() => {}} />
           </div>
         </div>
       </div>
 
       {/* TOP KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ExecutiveKpiCard 
           title="Valor Total de Inventarios" 
           value={kpisFin.currentInventoryValue || 19967835} 

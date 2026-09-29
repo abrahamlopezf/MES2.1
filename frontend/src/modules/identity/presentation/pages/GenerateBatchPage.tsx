@@ -487,7 +487,14 @@ export function GenerateBatchPage() {
                       <label className="text-sm font-bold text-foreground ml-1">Cantidad a generar</label>
                       <input 
                         type="number" 
+                        min="1"
+                        max="50000"
                         {...register('amount', { valueAsNumber: true })} 
+                        onKeyDown={(e) => {
+                          if (e.key === '-' || e.key === 'e' || e.key === '+' || e.key === '.') {
+                            e.preventDefault();
+                          }
+                        }}
                         className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-primary font-bold focus:ring-2 focus:ring-primary outline-none shadow-inner" 
                         placeholder="Ej. 100"
                       />

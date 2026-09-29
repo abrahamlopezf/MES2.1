@@ -183,9 +183,11 @@ export const WarehouseEntryForm: React.FC = () => {
             )}
           </div>
 
+  const selectedMaterial = materials.find((m: any) => String(m.id) === String(materialId));
+
           <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 4 } as React.CSSProperties}>
             <label className="block text-xl font-bold text-foreground mb-3 uppercase tracking-wide">
-              3. Cantidad Recibida
+              3. Cantidad Recibida {selectedMaterial ? `(${selectedMaterial.unit_measure || 'Unidades'})` : ''}
             </label>
             <input 
               ref={amountInputRef}

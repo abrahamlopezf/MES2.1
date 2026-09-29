@@ -37,18 +37,23 @@ export const ConsumptionOrdersPage: React.FC = () => {
 
   useEffect(() => {
     fetchOrders();
+    // Configurar polling cada 10 segundos para actualizar la vista asíncronamente
+    const interval = setInterval(() => {
+      fetchOrders(true);
+    }, 10000);
+    return () => clearInterval(interval);
   }, [selectedStatus]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       const url = selectedStatus ? `/warehouse/consumption-orders?status=${selectedStatus}` : '/warehouse/consumption-orders';
       const response = await axiosClient.get(url);
       setOrders(response.data);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -141,8 +146,10 @@ export const ConsumptionOrdersPage: React.FC = () => {
                           {conf.label}
                         </span>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="font-medium text-foreground">{order.requester?.name} {order.requester?.last_name}</div>
+                      <td className="px-5 py-4 max-w-[200px]">
+                        <div className="font-medium text-foreground truncate" title={`${order.requester?.first_name || ''} ${order.requester?.last_name || ''}`.trim()}>
+                          {order.requester?.first_name} {order.requester?.last_name}
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-muted-foreground text-sm">{isWarehouseUser ? (order.requesting_area?.name || 'N/A') : 'Almacén'}</div>

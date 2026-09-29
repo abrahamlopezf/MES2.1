@@ -38,33 +38,21 @@ class ConsumptionOrderService {
         transaction
       });
 
-      let remainingQuantity = quantity;
+      // Sum total available
+      const totalAvailable = availableLots.reduce((acc, l) => acc + Number(l.available_amount), 0);
+      if (totalAvailable < quantity) {
+        throw new Error(`Inventario insuficiente para el material ID ${material_id}. Solicitado: ${quantity}, Disponible: ${totalAvailable}.`);
+      }
+
       const allocations = [];
-
-      for (const lote of availableLots) {
-        if (remainingQuantity <= 0) break;
-
-        const qtyToTake = Math.min(remainingQuantity, lote.available_amount);
-        
-        allocations.push({
-          order_id: order.id,
-          material_id,
-          lote_id: lote.id,
-          requested_quantity: qtyToTake,
-          unit_id: lote.unit_id || null, // Assuming lote has unit_id, or we pull from material
-        });
-
-        await lote.update({
-          available_amount: lote.available_amount - qtyToTake,
-          is_active: (lote.available_amount - qtyToTake) > 0
-        }, { transaction });
-
-        remainingQuantity -= qtyToTake;
-      }
-
-      if (remainingQuantity > 0) {
-        throw new Error(`Inventario insuficiente para el material ID ${material_id}. Faltan ${remainingQuantity}.`);
-      }
+      // Create a single soft allocation row (lote_id is assigned to the oldest lot just as a placeholder)
+      allocations.push({
+        order_id: order.id,
+        material_id,
+        lote_id: availableLots[0].id,
+        requested_quantity: quantity,
+        unit_id: availableLots[0].unit_id || null,
+      });
 
       await ConsumptionOrderItem.bulkCreate(allocations, { transaction });
     }
@@ -166,59 +154,75 @@ class ConsumptionOrderService {
       throw new Error('La orden no está en estado PREPARANDO (Lista para surtir).');
     }
 
-    // Identificar el lote correspondiente al QR (qrData usualmente es el folio o UUID del lote)
-    // Asumimos que el QR contiene el folio
+
+    // Identificar el lote correspondiente al QR
     const folioStr = String(qrData).trim();
-    
-    // Buscar si existe un item no surtido que coincida con este folio
+    const scannedLote = await Lote.findOne({
+      where: {
+        [Op.or]: [
+          { folio: folioStr },
+          { '$qr_code.qr_code$': folioStr }
+        ]
+      },
+      include: [{ model: QrCode, as: 'qr_code' }],
+      transaction
+    });
+
+    if (!scannedLote) throw new Error(`El código escaneado (${folioStr}) no corresponde a ningún lote válido.`);
+    if (!scannedLote.is_active || scannedLote.available_amount <= 0) throw new Error(`El lote escaneado está vacío o inactivo.`);
+
+    // Buscar items pendientes en la orden para ESTE material
     const itemsPending = order.items.filter(item => 
+      item.material_id === scannedLote.material_id &&
       Number(item.fulfilled_quantity) < Number(item.requested_quantity)
     );
 
     if (itemsPending.length === 0) {
-      throw new Error('Esta orden ya ha sido surtida por completo.');
+      throw new Error('Esta orden ya no requiere más de este material.');
     }
 
-    // Buscamos el ítem exacto que tenga este lote.folio o su código QR físico
-    // Y debemos respetar FIFO: si hay múltiples items para el mismo material en esta orden, 
-    // se debe surtir el que tenga el lote más viejo. Como `createOrder` los inserta en orden FIFO
-    // y tienen distinto lote, el operador DEBE escanear el folio o QR correcto.
-    const itemToFulfill = itemsPending.find(item => 
-      item.lote && (item.lote.folio === folioStr || item.lote.qr_code?.qr_code === folioStr)
-    );
+    const itemToFulfill = itemsPending[0];
+    const pendingQty = Number(itemToFulfill.requested_quantity) - Number(itemToFulfill.fulfilled_quantity);
+    const qtyToTake = Math.min(pendingQty, Number(scannedLote.available_amount));
 
-    if (!itemToFulfill) {
-      // Si el folio no coincide, verificar por qué
-      const sameMaterialItem = itemsPending.find(item => 
-        itemsPending.some(i => (i.lote?.folio === folioStr || i.lote?.qr_code?.qr_code === folioStr) && i.material_id === item.material_id)
+    if (qtyToTake <= 0) throw new Error('Cantidad a tomar es 0.');
+
+    // Descontar del lote escaneado
+    scannedLote.available_amount = Number(scannedLote.available_amount) - qtyToTake;
+    scannedLote.is_active = scannedLote.available_amount > 0;
+    await scannedLote.save({ transaction });
+
+    // Actualizar el item de la orden
+    if (Number(itemToFulfill.fulfilled_quantity) === 0) {
+      await ConsumptionOrderItem.update(
+        { lote_id: scannedLote.id, fulfilled_quantity: qtyToTake },
+        { where: { id: itemToFulfill.id }, transaction }
       );
-      if (sameMaterialItem) {
-        throw new Error('Error FIFO: Debes escanear el lote correspondiente asignado en el listado.');
-      }
-      throw new Error(`El código escaneado (${folioStr}) no corresponde a ningún lote pendiente en esta orden.`);
+      itemToFulfill.lote_id = scannedLote.id;
+      itemToFulfill.lote = scannedLote;
+      itemToFulfill.fulfilled_quantity = qtyToTake;
+    } else {
+      const alreadyFulfilled = Number(itemToFulfill.fulfilled_quantity);
+      await ConsumptionOrderItem.update(
+        { requested_quantity: alreadyFulfilled },
+        { where: { id: itemToFulfill.id }, transaction }
+      );
+      
+      const newItem = await ConsumptionOrderItem.create({
+        order_id: order.id,
+        material_id: itemToFulfill.material_id,
+        lote_id: scannedLote.id,
+        requested_quantity: pendingQty,
+        fulfilled_quantity: qtyToTake,
+        unit_id: itemToFulfill.unit_id
+      }, { transaction });
+
+      itemToFulfill.id = newItem.id;
+      itemToFulfill.lote_id = scannedLote.id;
+      itemToFulfill.lote = scannedLote;
+      itemToFulfill.requested_quantity = pendingQty;
+      itemToFulfill.fulfilled_quantity = qtyToTake;
     }
-
-    // Verificar FIFO estricto dentro de la orden para el mismo material
-    const olderPendingItem = itemsPending.find(item => 
-      item.material_id === itemToFulfill.material_id && 
-      new Date(item.lote.created_at) < new Date(itemToFulfill.lote.created_at) &&
-      Number(item.fulfilled_quantity) < Number(item.requested_quantity)
-    );
-
-    if (olderPendingItem) {
-      throw new Error(`Por regla FIFO, primero debes surtir el lote ${olderPendingItem.lote.folio} de este material.`);
-    }
-
-    // Marcar como surtido
-    itemToFulfill.fulfilled_quantity = itemToFulfill.requested_quantity;
-    
-    // Actualizar en base de datos
-    await ConsumptionOrderItem.update(
-      { fulfilled_quantity: itemToFulfill.fulfilled_quantity },
-      { where: { id: itemToFulfill.id }, transaction }
-    );
-
-    const qtyToTake = Number(itemToFulfill.requested_quantity);
 
     // 1. Deduct Global Inventory & Create Movement
     const inventory = await Inventory.findOne({ where: { material_id: itemToFulfill.material_id }, transaction });
@@ -239,23 +243,54 @@ class ConsumptionOrderService {
     if (itemToFulfill.lote && itemToFulfill.lote.qr_id) {
       const lote = await Lote.findByPk(itemToFulfill.lote_id, { transaction });
       const isTotal = lote && !lote.is_active;
+      
+      const isExtrusion = order.requesting_area?.name?.toUpperCase().includes('EXTRUS');
+      
       let toStatus = 'ACTIVE';
-
-      if (isTotal) {
-        toStatus = 'CONSUMED';
-        await QrCode.update({ status: 'CONSUMED', is_active: false }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
+      let eventType = 'CONSUMO';
+      
+      if (isExtrusion) {
+        toStatus = 'IN_WIP';
+        eventType = 'TRANSFERENCIA_WIP';
+        
+        await QrCode.update({ status: 'IN_WIP', is_active: true, assigned_area_id: order.requesting_area_id }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
+        
+        const { WipInventory } = require('../../database/models');
+        const wipItem = await WipInventory.findOne({
+          where: { material_id: itemToFulfill.material_id, lote_id: itemToFulfill.lote_id, qr_code_id: itemToFulfill.lote.qr_id, area_id: order.requesting_area_id },
+          transaction
+        });
+        
+        if (wipItem) {
+          wipItem.amount = Number(wipItem.amount) + qtyToTake;
+          await wipItem.save({ transaction });
+        } else {
+          await WipInventory.create({
+            material_id: itemToFulfill.material_id,
+            lote_id: itemToFulfill.lote_id,
+            qr_code_id: itemToFulfill.lote.qr_id,
+            area_id: order.requesting_area_id,
+            amount: qtyToTake
+          }, { transaction });
+        }
+        
+      } else {
+        if (isTotal) {
+          toStatus = 'CONSUMED';
+          await QrCode.update({ status: 'CONSUMED', is_active: false }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
+        }
       }
 
       await TraceabilityEvent.create({
         qr_code_id: itemToFulfill.lote.qr_id,
-        event_type: 'CONSUMO',
+        event_type: eventType,
         entity_type: 'LOTE',
         entity_id: itemToFulfill.lote_id.toString(),
         from_status: 'ACTIVE',
         to_status: toStatus,
         performed_by: resolved_by,
-        notes: `Consumo de ${qtyToTake} unidades. Orden: ${order.order_number}`,
-        metadata: { order_number: order.order_number, quantity: qtyToTake, isTotal }
+        notes: isExtrusion ? `Transferencia de ${qtyToTake} a WIP Extrusión. Orden: ${order.order_number}` : `Consumo de ${qtyToTake} unidades. Orden: ${order.order_number}`,
+        metadata: { order_number: order.order_number, quantity: qtyToTake, isTotal, isExtrusion }
       }, { transaction });
     }
 

@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       lote_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       requested_quantity: {
         type: DataTypes.DECIMAL(10, 2),

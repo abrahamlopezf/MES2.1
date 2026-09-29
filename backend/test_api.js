@@ -1,10 +1,9 @@
-const axios = require('axios');
-(async () => {
-  try {
-    // We don't have a token.
-    // Instead we can temporarily remove authorizePermission from the route to test.
-    console.log("Need token");
-  } catch(e) {
-    console.error(e);
-  }
-})();
+import fs from 'fs';
+import path from 'path';
+
+async function test() {
+  const data = await fetch('http://localhost:3000/api/warehouse/inventory?limit=10000').then(r => r.json());
+  fs.writeFileSync(path.join(__dirname, 'test_output.json'), JSON.stringify(data, null, 2));
+}
+
+test();

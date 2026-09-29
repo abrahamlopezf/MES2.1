@@ -94,6 +94,14 @@ class ReceiveMaterialUseCase {
         notes
       }, t);
 
+      const { notifyAdminsIfNonAdmin } = require('../../notifications/notification.service');
+      await notifyAdminsIfNonAdmin(
+        { id: userId },
+        'Recepción de Material (QR)',
+        `Se recibió material mediante escaneo QR (Folio: ${folio}). Cantidad: ${quantity}. QR: ${qrCode.qr_code}. Notas: ${notes || 'Ninguna'}.`,
+        t
+      );
+
       return {
         success: true,
         message: 'Material recibido correctamente en Lote',

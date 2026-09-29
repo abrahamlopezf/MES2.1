@@ -22,14 +22,26 @@ function mapBackendScanToWorkspace(backendData: any): QRScanResponse {
       parents: payload.traceability_links?.parents || [],
       children: payload.traceability_links?.children || []
     },
-    movements: (payload.movements || []).map((m: any) => ({
-      id: m.id.toString(),
-      type: m.movement_type,
-      title: m.movement_type,
-      description: m.notes || `Transferencia a ${m.to_area?.name || 'Desconocida'}`,
-      date: m.performed_at,
-      user: m.performed_by?.username || 'Sistema',
-    })),
+    movements: [
+      ...(payload.movements || []).map((m: any) => ({
+        id: m.id.toString(),
+        type: m.movement_type,
+        title: m.movement_type,
+        description: m.notes || `Transferencia a ${m.to_area?.name || 'Desconocida'}`,
+        timestamp: new Date(m.performed_at).toLocaleString(),
+        actor: m.performed_by?.username || m.performer?.username || 'Sistema',
+        isCompleted: true
+      })),
+      ...(payload.traceability_events || []).map((e: any) => ({
+        id: `evt-${e.id}`,
+        type: 'EVENT',
+        title: e.event_type?.replace(/_/g, ' ') || 'Evento',
+        description: e.notes || `Entidad: ${e.entity_type} ${e.entity_id}`,
+        timestamp: new Date(e.created_at).toLocaleString(),
+        actor: e.performed_by?.name || e.performed_by?.username || 'Sistema',
+        isCompleted: true
+      }))
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
     allowed_actions: (context.allowed_actions || []).map((a: any) => ({
       code: a.key,
       label: a.label,

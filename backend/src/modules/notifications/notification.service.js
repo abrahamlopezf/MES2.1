@@ -46,9 +46,46 @@ const markAllAsRead = async (userId) => {
   return { message: 'Todas las notificaciones han sido marcadas como leídas.' };
 };
 
+const notifyAdminsIfNonAdmin = async (currentUser, title, message, transaction = null) => {
+  try {
+    const { User, Role } = require('../../database/models');
+    
+    if (!currentUser) return;
+
+    const userWithRoles = await User.findByPk(currentUser.id, {
+      include: [{ model: Role, as: 'role' }],
+      transaction
+    });
+
+    const isWarehouseAdmin = userWithRoles?.role?.code === 'ADMIN_ALM';
+    
+    if (isWarehouseAdmin) return;
+
+    const admins = await User.findAll({
+      include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' } }],
+      transaction
+    });
+
+    if (admins.length > 0) {
+      const { Notification } = require('../../database/models');
+      const notifications = admins.map(admin => ({
+        recipient_id: admin.id,
+        title,
+        message: `${message} (Realizado por: ${userWithRoles.username || 'Sistema'})`,
+        type: 'SYSTEM',
+        is_read: false
+      }));
+      await Notification.bulkCreate(notifications, { transaction });
+    }
+  } catch (error) {
+    console.error('[Notification Service] Error enviando notificaciones a ADMIN_ALM:', error);
+  }
+};
+
 module.exports = {
   getNotifications,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  notifyAdminsIfNonAdmin,
 };

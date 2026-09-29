@@ -49,21 +49,31 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
     enabled: isResolutionMode && isOpen
   });
 
-  const { data: materialsData } = useQuery({
-    queryKey: ['materials', 'all'],
+  const { data: inventoryData } = useQuery({
+    queryKey: ['warehouse', 'inventory', 'all'],
     queryFn: async () => {
-      const response = await axiosClient.get(`/materials?pageSize=10000`);
+      const response = await axiosClient.get(`/warehouse/inventory?limit=10000`);
       return response.data;
     },
     enabled: isOpen && !isResolutionMode
   });
 
-  const materialsList = materialsData?.data?.items || (Array.isArray(materialsData?.data) ? materialsData.data : []);
-  const materials = [...materialsList].sort((a: any, b: any) => {
-    const textA = `${a.internal_code} - ${a.name}`.toLowerCase();
-    const textB = `${b.internal_code} - ${b.name}`.toLowerCase();
-    return textA.localeCompare(textB);
-  });
+  const materials = useMemo(() => {
+    const invItems = inventoryData?.data?.items || (Array.isArray(inventoryData?.data) ? inventoryData.data : []);
+    const uniqueMaterials = new Map();
+    invItems.forEach((inv: any) => {
+      if (inv.material && Number(inv.amount) > 0) {
+        if (!uniqueMaterials.has(inv.material.id)) {
+          uniqueMaterials.set(inv.material.id, inv.material);
+        }
+      }
+    });
+    return Array.from(uniqueMaterials.values()).sort((a: any, b: any) => {
+      const textA = `${a.internal_code} - ${a.name}`.toLowerCase();
+      const textB = `${b.internal_code} - ${b.name}`.toLowerCase();
+      return textA.localeCompare(textB);
+    });
+  }, [inventoryData]);
 
   const { data: tiposBaja = [], isLoading: loadingTipos } = useQuery({
     queryKey: ['warehouse', 'tipo-baja'],
@@ -276,7 +286,7 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
         material_id: material.id,
         materialName: material.name,
         maxQuantity: Number(l.available_amount || l.amount),
-        quantity: 0 // Por defecto en 0 para que el usuario capture la cantidad de cada lote
+        quantity: Number(l.available_amount || l.amount) // Por defecto asume la cantidad total del lote
       }));
 
       setItems(prev => [...prev, ...newItems]);

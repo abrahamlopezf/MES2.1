@@ -114,7 +114,7 @@ const LoteDetailsPageContent = () => {
               <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Cantidad actual</span>
               <span className="text-2xl font-bold text-primary leading-none mt-1">
                 {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)}
-                <span className="text-sm font-normal text-muted-foreground ml-1">kg</span>
+                <span className="text-sm font-normal text-muted-foreground ml-1">{lote.material?.unit_measure || ''}</span>
               </span>
             </CardContent>
           </Card>

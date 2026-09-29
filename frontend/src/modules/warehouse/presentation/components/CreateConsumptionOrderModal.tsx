@@ -46,7 +46,8 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const fetchAreas = async () => {
     try {
       const res = await axiosClient.get('/areas');
-      setAreas(res.data.data || res.data);
+      const allAreas = res.data.data || res.data;
+      setAreas(allAreas.filter((a: any) => a.is_active !== false));
     } catch (err) {
       console.error('Error fetching areas:', err);
     }

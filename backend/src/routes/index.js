@@ -28,6 +28,7 @@ const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const receptionRoutes = require('../modules/reception/reception.routes');
 const notificationRoutes = require('../modules/notifications/notification.routes');
 const supplierRoutes = require('../modules/catalogs/supplier/supplier.routes');
+const extrusionRoutes = require('../modules/extrusion/extrusion.routes');
 
 const router = express.Router();
 
@@ -56,5 +57,6 @@ router.use('/reports', reportsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reception', receptionRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/extrusion', extrusionRoutes);
 
 module.exports = router;

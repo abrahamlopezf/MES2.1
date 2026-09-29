@@ -60,6 +60,8 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
     handlers
   } = useBottomSheetAnimation(isOpen, 400);
 
+  const selectedMaterialObj = materials?.find(m => String(m.id) === String(materialId));
+
   if (!isRendered) return null;
 
   return createPortal(
@@ -161,8 +163,11 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           onChange={e => onUpdateEntry(index, 'folio', e.target.value)}
                         />
                       </div>
+
                       <div className="flex-1 flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cantidad *</label>
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Cantidad {selectedMaterialObj ? `(${selectedMaterialObj.unit_measure || 'U'})` : ''} *
+                        </label>
                         <input 
                           type="number"
                           min="0.01"
@@ -233,7 +238,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
             <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
               <label className="text-sm font-bold text-foreground ml-1">Notas (Opcional)</label>
               <textarea 
-                className="flex min-h-[100px] w-full rounded-xl border border-input bg-card px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 shadow-sm resize-none"
+                className="flex min-h-[100px] w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 shadow-sm resize-none"
                 placeholder="Motivo del ingreso manual..."
                 value={notes}
                 onChange={e => onChangeNotes(e.target.value)}

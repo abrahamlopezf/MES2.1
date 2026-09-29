@@ -32,6 +32,7 @@ const initMaterialConsumptionModel = require('../../modules/warehouse/materialCo
 const initMaterialConsumptionItemModel = require('../../modules/warehouse/materialConsumptionItem.model');
 const initConsumptionOrderModel = require('../../modules/warehouse/consumptionOrder.model');
 const initConsumptionOrderItemModel = require('../../modules/warehouse/consumptionOrderItem.model');
+const initWipInventoryModel = require('../../modules/warehouse/wipInventory.model');
 
 // WMS Master Data
 const initQrAreaAssignmentModel = require('../../modules/traceability/qrAreaAssignment.model');
@@ -74,6 +75,7 @@ db.MaterialConsumption = initMaterialConsumptionModel(sequelize, DataTypes);
 db.MaterialConsumptionItem = initMaterialConsumptionItemModel(sequelize, DataTypes);
 db.ConsumptionOrder = initConsumptionOrderModel(sequelize, DataTypes);
 db.ConsumptionOrderItem = initConsumptionOrderItemModel(sequelize, DataTypes);
+db.WipInventory = initWipInventoryModel(sequelize, DataTypes);
 db.WasteRequest = require('../../modules/warehouse/wasteRequest.model')(sequelize);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
@@ -212,7 +214,7 @@ db.TraceabilityEvent.belongsTo(db.Area, {
   as: 'toArea',
 });
 
-['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'Location', 'Material', 'MaterialUnit'].forEach(modelName => {
+['MaterialCode', 'MaterialFamily', 'MaterialBrand', 'MaterialType', 'Location', 'Material', 'MaterialUnit', 'WipInventory'].forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
   }

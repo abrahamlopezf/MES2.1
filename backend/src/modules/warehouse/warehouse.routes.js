@@ -16,6 +16,8 @@ const validateRequest = validationMiddleware.validateRequest || validationMiddle
 
 router.use(authenticate);
 
+
+
 router.get(
   '/dashboard-metrics',
   authorizePermission('warehouse.dashboard.view', 'inventory.view'),

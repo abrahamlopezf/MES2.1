@@ -133,7 +133,7 @@ const disposeLotes = async (payload, currentUser) => {
 
     // Registrar Evento de Trazabilidad por cada Lote y actualizar QR status si aplica
     if (result.lotes && result.lotes.length > 0) {
-      const { QrCode } = require('../../database/models');
+      const { QrCode, TraceabilityEvent } = require('../../database/models');
       for (const lote of result.lotes) {
         if (lote.qr_id) {
           const qty = result.disposedQuantities?.[lote.id] || 'N/A';
@@ -155,6 +155,14 @@ const disposeLotes = async (payload, currentUser) => {
         }
       }
     }
+
+    const { notifyAdminsIfNonAdmin } = require('../notifications/notification.service');
+    await notifyAdminsIfNonAdmin(
+      currentUser,
+      'Baja de Inventario Crítica',
+      `Se registró una baja de inventario. Motivo: ${motivoName}. Folios afectados: ${foliosAfectados}.`,
+      t
+    );
 
     return result;
   });
@@ -705,10 +713,20 @@ const manualEntry = async (payload, currentUser) => {
       });
     }
 
+    const { notifyAdminsIfNonAdmin } = require('../notifications/notification.service');
+    const { Material } = require('../../database/models');
+    const mat = await Material.findByPk(payload.material_id, { transaction: t });
+    
+    await notifyAdminsIfNonAdmin(
+      currentUser,
+      'Ingreso Manual Crítico',
+      `Se registró un ingreso manual de ${totalQuantity} unidades del material ${mat ? mat.name : payload.material_id}. Notas: ${payload.notes || 'Ninguna'}.`,
+      t
+    );
+
     return { results, qrBatchId: qrBatch.id };
   });
 };
-
 const getMermaScrapReport = async () => {
   const { sequelize, InventoryMovement, Inventory, Material } = require('../../database/models');
   const { Op } = require('sequelize');
