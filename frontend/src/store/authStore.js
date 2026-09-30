@@ -119,6 +119,7 @@ export const useAuthStore = create((set, get) => ({
     const { user } = get();
     // Bypass para SuperAdmin y Administrador General
     if (user?.role?.code === 'SUPERADMIN' || user?.role?.code === 'ADMIN_GENERAL') return true;
+    if (!permissionCode) return true;
     
     return user?.permissions?.includes(permissionCode) ?? false;
   },
@@ -127,6 +128,7 @@ export const useAuthStore = create((set, get) => ({
     const { user } = get();
     // Bypass para SuperAdmin y Administrador General
     if (user?.role?.code === 'SUPERADMIN' || user?.role?.code === 'ADMIN_GENERAL') return true;
+    if (!permissionCodes || permissionCodes.length === 0 || permissionCodes.includes('')) return true;
 
     return permissionCodes.some((permissionCode) =>
       user?.permissions?.includes(permissionCode)

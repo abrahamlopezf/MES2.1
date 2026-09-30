@@ -38,6 +38,12 @@ import { QrHistoryPage } from '../modules/identity/presentation/pages/QrHistoryP
 import WorkStationTerminalPage from '../modules/production/presentation/pages/WorkStationTerminalPage';
 import { MixingTerminalPage } from '../modules/production/presentation/pages/MixingTerminalPage';
 import { AndonBoardPage } from '../modules/production/presentation/pages/AndonBoardPage';
+import { ExtrusionDashboard } from '../modules/production/presentation/pages/ExtrusionDashboard';
+import { FormulasPage } from '../modules/production/presentation/pages/FormulasPage';
+import { MachinesPage } from '../modules/production/presentation/pages/MachinesPage';
+
+
+
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
 
@@ -49,6 +55,7 @@ import { MaterialLotesPage } from '../modules/warehouse/presentation/pages/Mater
 import { LoteDetailsPage } from '../modules/warehouse/presentation/pages/LoteDetailsPage';
 import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
 import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
+import { AreaInventoryPage } from '../modules/warehouse/presentation/pages/AreaInventoryPage';
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -167,8 +174,20 @@ export const router = createBrowserRouter([
           },
           // Rutas de Producción
           {
+            path: '/extrusion/dashboard',
+            element: <ExtrusionDashboard />
+          },
+          {
             path: '/production',
             children: [
+              {
+                path: 'machines',
+                element: <MachinesPage />
+              },
+              {
+                path: 'formulas',
+                element: <FormulasPage />
+              },
               {
                 path: 'stations',
                 element: <WorkStationTerminalPage />
@@ -202,6 +221,10 @@ export const router = createBrowserRouter([
               {
                 path: 'inventory',
                 element: <WarehouseInventoryPage />
+              },
+              {
+                path: 'area-inventory',
+                element: <AreaInventoryPage />
               },
               {
                 path: 'materials/:materialId/lotes',

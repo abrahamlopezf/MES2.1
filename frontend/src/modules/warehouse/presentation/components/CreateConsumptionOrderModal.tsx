@@ -265,15 +265,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
               ) : (
                 <div className="space-y-4 mb-6">
                   {items.map(item => (
-                    <div key={item.material_id} className="flex gap-4 items-start p-4 rounded-xl border border-border bg-muted/5 relative group">
-                      <button 
-                        type="button"
-                        onClick={() => removeItem(item.material_id)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                      >
-                        <X size={12} />
-                      </button>
-                      
+                    <div key={item.material_id} className="flex gap-4 items-start p-4 rounded-xl border border-border bg-muted/5 relative">
                       <div className="flex-1">
                         <div className="font-bold text-foreground text-sm">{item.material?.name}</div>
                         <div className="text-xs text-muted-foreground mt-1">
@@ -308,6 +300,14 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                             >
                               <Check size={16} />
                             </button>
+                            <button 
+                              type="button"
+                              onClick={() => removeItem(item.material_id)}
+                              className="p-1.5 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-colors shadow-sm"
+                              title="Eliminar material"
+                            >
+                              <Trash size={16} />
+                            </button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-3 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
@@ -322,6 +322,15 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                               title="Editar cantidad"
                             >
                               <Pencil size={14} />
+                            </button>
+                            <div className="w-px h-4 bg-border"></div>
+                            <button 
+                              type="button"
+                              onClick={() => removeItem(item.material_id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              title="Eliminar material"
+                            >
+                              <Trash size={14} />
                             </button>
                           </div>
                         )}

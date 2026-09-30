@@ -229,4 +229,80 @@ no existe la columna «type» en la relación «material_locations»2026-08-24T2
     at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
     at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
     at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
-    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15\n\n
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15\n\n2026-09-30T04:41:57.339Z\nMessage: El usuario no tiene un área asignada para ver el inventario de área.\nStack: Error: El usuario no tiene un área asignada para ver el inventario de área.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at Object.getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:63:5)
+    at getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-09-30T05:14:51.040Z\nMessage: El usuario no tiene un área asignada para ver el inventario de área.\nStack: Error: El usuario no tiene un área asignada para ver el inventario de área.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at Object.getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:63:5)
+    at getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-09-30T05:14:53.097Z\nMessage: El usuario no tiene un área asignada para ver el inventario de área.\nStack: Error: El usuario no tiene un área asignada para ver el inventario de área.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at Object.getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:63:5)
+    at getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-09-30T05:17:56.691Z\nMessage: El usuario no tiene un área asignada para ver el inventario de área.\nStack: Error: El usuario no tiene un área asignada para ver el inventario de área.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at Object.getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:65:5)
+    at getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-09-30T05:17:57.776Z\nMessage: El usuario no tiene un área asignada para ver el inventario de área.\nStack: Error: El usuario no tiene un área asignada para ver el inventario de área.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at Object.getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:65:5)
+    at getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-09-30T05:17:59.822Z\nMessage: El usuario no tiene un área asignada para ver el inventario de área.\nStack: Error: El usuario no tiene un área asignada para ver el inventario de área.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at Object.getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.service.js:65:5)
+    at getAreaInventory (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:15:43)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:295:15
+    at processParams (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:582:12)\n\n2026-09-30T15:43:38.380Z\nMessage: Cannot read properties of undefined (reading 'findAll')\nStack: TypeError: Cannot read properties of undefined (reading 'findAll')
+    at Object.listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.service.js:102:44)
+    at listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.controller.js:5:42)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at authMiddleware (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\auth.middleware.js:101:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n\n2026-09-30T15:45:37.474Z\nMessage: no existe la columna items->material.code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ProcessFormula.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Object.listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.service.js:102:20)
+    at async listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.controller.js:5:20)\n\n

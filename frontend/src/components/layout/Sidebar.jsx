@@ -19,7 +19,13 @@ import {
   ChevronLeft,
   Package,
   PackagePlus,
-  AlertTriangle
+  AlertTriangle,
+  Layers,
+  Factory,
+  Activity,
+  Beaker,
+  ClipboardList,
+  MonitorPlay
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useUsersQuery } from "../../modules/users/hooks/useUsers";
@@ -56,14 +62,29 @@ const menuGroups = [
   {
     label: "Almacén",
     icon: Boxes,
-    permission: "inventory.view",
+    permission: "",
+    hiddenRoles: ["ADMIN_EXT"],
     isGroup: true,
     children: [
       { label: "Catálogo", path: "/materials", icon: Package, permission: "materials.read" },
       { label: "Recepción", onClick: () => window.dispatchEvent(new Event('open-scanner')), icon: PackagePlus, permission: "inventory.receive" },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
+      { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: Layers, permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
       { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" },
-      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "warehouse.orders.create" }
+      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "" }
+    ]
+  },
+  {
+    label: "Extrusión",
+    icon: Factory,
+    permission: "extrusion.view",
+    hiddenRoles: ["ADMIN_ALM"],
+    isGroup: true,
+    children: [
+      { label: "Fórmulas y PTI", path: "/production/formulas", icon: ClipboardList, permission: "extrusion.formulas.view" },
+      { label: "Máquinas Extrusoras", path: "/production/machines", icon: Factory, permission: "extrusion.view" },
+      { label: "Centro de Mezclado", path: "/production/mixing", icon: Beaker, permission: "extrusion.wip.manage" },
+      { label: "Tablero Andon", path: "/production/andon", icon: AlertTriangle, permission: "extrusion.view" }
     ]
   }
 ];
@@ -79,7 +100,8 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand }) => {
     ? hasAnyPermission(item.permission)
     : hasPermission(item.permission);
 
-  if (!hasAccess) return null;
+  const isHiddenForRole = item.hiddenRoles?.includes(user?.role?.code);
+  if (!hasAccess || isHiddenForRole) return null;
 
   if (!item.isGroup) {
     return (
@@ -148,7 +170,8 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand }) => {
             const hasChildAccess = Array.isArray(child.permission)
               ? hasAnyPermission(child.permission)
               : hasPermission(child.permission);
-            if (!hasChildAccess) return null;
+            const isHiddenForRole = child.hiddenRoles?.includes(user?.role?.code);
+            if (!hasChildAccess || isHiddenForRole) return null;
             if (child.onClick) {
               return (
                 <button

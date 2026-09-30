@@ -20,6 +20,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [showActionsMobile, setShowActionsMobile] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (isOpen && orderUuid) {
@@ -77,8 +78,14 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
     try {
       setShowScanner(false); // Siempre cerrar el escaner al leer (éxito o error)
       setUpdating(true);
-      await axiosClient.post(`/warehouse/consumption-orders/${orderUuid}/scan-item`, { qr_code: qrCode });
+      const res = await axiosClient.post(`/warehouse/consumption-orders/${orderUuid}/scan-item`, { qr_code: qrCode });
       toast.success(`Lote ${qrCode} surtido correctamente.`);
+      
+      // Mostrar modal de éxito si la orden acaba de completarse
+      if (res.data?.status === 'SURTIDA' && order?.status !== 'SURTIDA') {
+        setShowSuccessModal(true);
+      }
+
       await fetchOrderDetails();
     } catch (err: any) {
       console.error(err);
@@ -167,9 +174,18 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Resolución</span>
                   <div className="font-medium text-foreground">
                     {order.status === 'CANCELADA' ? (
-                      <span className="text-destructive flex items-center gap-1"><X size={16} /> Cancelada el {new Date(order.resolved_at || order.updated_at).toLocaleDateString()}</span>
-                    ) : order.resolved_at ? (
-                      <span className="text-success flex items-center gap-1"><CheckCircle2 size={16} /> Surtida el {new Date(order.resolved_at).toLocaleDateString()}</span>
+                      <div>
+                        <span className="text-destructive flex items-center gap-1"><X size={16} /> Cancelada el {new Date(order.resolved_at || order.updated_at).toLocaleDateString()}</span>
+                        {order.resolver && <span className="text-xs text-muted-foreground font-semibold block mt-1">Por: {order.resolver.first_name} {order.resolver.last_name}</span>}
+                      </div>
+                    ) : order.status === 'PREPARANDO' || order.status === 'SURTIDA' ? (
+                      <div>
+                        <span className={order.status === 'SURTIDA' ? "text-success flex items-center gap-1" : "text-info flex items-center gap-1"}>
+                          {order.status === 'SURTIDA' ? <CheckCircle2 size={16} /> : <Clock size={16} />} 
+                          {order.status === 'SURTIDA' ? 'Surtida el' : 'Preparando desde'} {new Date(order.resolved_at || order.updated_at).toLocaleDateString()}
+                        </span>
+                        {order.resolver && <span className="text-xs text-muted-foreground font-semibold block mt-1">Por: {order.resolver.first_name} {order.resolver.last_name}</span>}
+                      </div>
                     ) : 'Pendiente'}
                   </div>
                 </div>
@@ -197,40 +213,70 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {order.items?.map((item: any, idx: number) => {
-                        const isFulfilled = Number(item.fulfilled_quantity) >= Number(item.requested_quantity);
-                        return (
-                          <tr key={idx} className={`hover:bg-muted/10 ${isFulfilled ? 'bg-success/5' : ''}`}>
-                            <td className="px-4 py-3 text-center">
-                              {isFulfilled ? (
-                                <CheckCircle2 className="text-success inline-block" size={20} />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 inline-block" />
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className={`font-medium ${isFulfilled ? 'text-foreground' : 'text-foreground'}`}>{item.material?.name}</div>
-                              <div className="text-xs text-muted-foreground">{item.material?.material_code}</div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className={`font-mono text-sm px-2 py-1 rounded inline-block border ${isFulfilled ? 'bg-success/20 border-success/30 text-success-foreground' : 'bg-muted/40 border-border text-foreground'}`}>
-                                {item.lote?.folio || 'N/A'}
-                                {item.lote?.qr_code?.qr_code && <span className="ml-2 opacity-70 text-xs">(QR: {item.lote.qr_code.qr_code})</span>}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="font-bold">
-                                <span className={isFulfilled ? 'text-success' : 'text-primary'}>
-                                  {parseFloat(item.fulfilled_quantity || 0).toFixed(2)}
-                                </span>
-                                <span className="text-muted-foreground mx-1">/</span>
-                                <span className="text-foreground">{parseFloat(item.requested_quantity).toFixed(2)}</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground">{item.unit?.abbreviation || 'Unidades'}</div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                        {(() => {
+                          const materialCounters: Record<string, number> = {};
+                          return order.items?.map((item: any, idx: number) => {
+                            const matId = item.material_id;
+                            materialCounters[matId] = (materialCounters[matId] || 0) + 1;
+                            const fifoOrder = materialCounters[matId];
+                            
+                            const reqQty = Number(item.requested_quantity || 1);
+                            const fulfilledQty = Number(item.fulfilled_quantity || 0);
+                            const isFulfilled = fulfilledQty >= reqQty;
+                            const percent = Math.min(100, Math.max(0, (fulfilledQty / reqQty) * 100));
+                            const radius = 9;
+                            const circumference = 2 * Math.PI * radius;
+                            const strokeDashoffset = circumference - (percent / 100) * circumference;
+
+                            return (
+                              <tr key={idx} className={`hover:bg-muted/10 ${isFulfilled ? 'bg-success/5' : ''}`}>
+                                <td className="px-4 py-3 text-center">
+                                  {isFulfilled ? (
+                                    <CheckCircle2 className="text-success inline-block" size={20} />
+                                  ) : (
+                                    <svg width="24" height="24" viewBox="0 0 24 24" className="inline-block transform -rotate-90">
+                                      <circle
+                                        cx="12" cy="12" r={radius}
+                                        stroke="currentColor" strokeWidth="2" fill="transparent"
+                                        className="text-muted-foreground/20"
+                                      />
+                                      <circle
+                                        cx="12" cy="12" r={radius}
+                                        stroke="currentColor" strokeWidth="2" fill="transparent"
+                                        strokeDasharray={circumference}
+                                        strokeDashoffset={strokeDashoffset}
+                                        className="text-primary transition-all duration-500 ease-out"
+                                      />
+                                    </svg>
+                                  )}
+                                </td>
+                              <td className="px-4 py-3">
+                                <div className={`font-medium ${isFulfilled ? 'text-foreground' : 'text-foreground'}`}>{item.material?.name}</div>
+                                <div className="text-xs text-muted-foreground">{item.material?.material_code}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className={`font-mono text-sm px-2 py-1 rounded flex items-center w-fit border ${isFulfilled ? 'bg-success/20 border-success/30 text-success-foreground' : 'bg-muted/40 border-border text-foreground'}`}>
+                                  <span className={`mr-2 text-[10px] px-1.5 py-0.5 rounded font-bold ${fifoOrder === 1 ? 'bg-primary/20 text-primary' : 'bg-muted-foreground/20 text-muted-foreground'}`}>
+                                    #{fifoOrder}
+                                  </span>
+                                  {item.lote?.folio || 'N/A'}
+                                  {item.lote?.qr_code?.qr_code && <span className="ml-2 opacity-70 text-xs hidden sm:inline">(QR: {item.lote.qr_code.qr_code})</span>}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="font-bold">
+                                  <span className={isFulfilled ? 'text-success' : 'text-primary'}>
+                                    {parseFloat(item.fulfilled_quantity || 0).toFixed(2)}
+                                  </span>
+                                  <span className="text-muted-foreground mx-1">/</span>
+                                  <span className="text-foreground">{parseFloat(item.requested_quantity).toFixed(2)}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">{item.unit?.abbreviation || 'Unidades'}</div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                       {(!order.items || order.items.length === 0) && (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">Sin materiales</td>
@@ -356,6 +402,27 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                 </button>
               </div>
             </div>
+          </div>
+        )}
+        {/* Modal Orden Surtida */}
+        {showSuccessModal && (
+          <div className="absolute inset-0 z-[60] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-300">
+            <div className="w-24 h-24 bg-success/20 text-success rounded-full flex items-center justify-center mb-6 animate-bounce shadow-xl shadow-success/10 border border-success/30">
+              <CheckCircle2 size={48} />
+            </div>
+            <h2 className="text-3xl font-black text-foreground mb-2 tracking-tight text-center">¡Orden Completada!</h2>
+            <p className="text-muted-foreground text-center mb-8 max-w-sm">
+              La orden de consumo <span className="font-bold text-foreground">{order?.order_number}</span> ha sido surtida exitosamente en su totalidad.
+            </p>
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                onClose();
+              }}
+              className="px-8 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              Cerrar y Volver
+            </button>
           </div>
         )}
 

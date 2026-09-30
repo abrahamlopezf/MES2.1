@@ -6,7 +6,11 @@ import { useAuthStore } from '../../../store/authStore';
 export const AreasPage: React.FC = () => {
   const navigate = useNavigate();
   const { group } = useParams();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user } = useAuthStore() as any;
+
+  // Determinar si es de almacén
+  const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isWarehouseUser = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN_ALM', 'WAREHOUSEMAN'].includes(roleCode) || user?.area?.code === 'ALM';
 
   const allAreas = [
     { 
@@ -20,7 +24,7 @@ export const AreasPage: React.FC = () => {
         { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, onClick: () => window.dispatchEvent(new Event('open-scanner')), permission: 'inventory.receive' },
         { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
         { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
-        { id: 'ordenes_consumo', title: 'Órdenes de Consumo', description: 'Solicitudes y Surtido', icon: Package, path: '/warehouse/orders', permission: 'warehouse.orders.create' },
+        { id: 'ordenes_consumo', title: 'Órdenes de Consumo', description: 'Solicitudes y Surtido', icon: Package, path: '/warehouse/orders', permission: '' },
       ]
     },
     { 
@@ -39,10 +43,19 @@ export const AreasPage: React.FC = () => {
       title: 'Gestor de Usuarios', 
       description: 'Cuentas, Roles y Permisos', 
       icon: Users, 
-      path: '/users',
+      path: '/usuarios',
       permission: 'users.read',
       gradient: 'from-emerald-500/20 to-teal-500/20 text-emerald-500',
     },
+    ...(isWarehouseUser ? [{ 
+      id: 'area_inventory', 
+      title: 'Inventario de Área', 
+      description: 'Tu almacén interno (WIP)', 
+      icon: Layers, 
+      path: '/warehouse/area-inventory',
+      permission: '',
+      gradient: 'from-amber-500/20 to-orange-500/20 text-amber-500',
+    }] : []),
   ];
 
   // Filtrar áreas y sus hijos por permisos

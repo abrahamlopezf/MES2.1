@@ -63,10 +63,10 @@ const getFormulaInclude = () => [
         as: 'material',
         attributes: [
           'id',
-          'code',
+          'internal_code',
           'name',
-          'material_type',
-          'default_unit',
+          'type_id',
+          'base_unit_id',
           'is_active',
         ],
         required: false,

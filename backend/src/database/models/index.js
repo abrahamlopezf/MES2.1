@@ -42,6 +42,12 @@ const initTraceabilityLinkModel = require('../../modules/traceability/traceabili
 
 const initAuditLogModel = require('../../modules/audit/auditLog.model');
 
+// Formulas & Mezclado
+const initProcessFormulaModel = require('../../modules/formulas/processFormula.model');
+const initProcessFormulaItemModel = require('../../modules/formulas/processFormulaItem.model');
+const initProcessPreparationModel = require('../../modules/formulas/processPreparation.model');
+const initProcessPreparationInputModel = require('../../modules/formulas/processPreparationInput.model');
+
 const db = {};
 
 db.sequelize = sequelize;
@@ -84,6 +90,11 @@ db.TraceabilityMovement = initTraceabilityMovementModel(sequelize, DataTypes);
 db.TraceabilityLink = initTraceabilityLinkModel(sequelize, DataTypes);
 
 db.AuditLog = initAuditLogModel(sequelize, DataTypes);
+
+db.ProcessFormula = initProcessFormulaModel(sequelize, DataTypes);
+db.ProcessFormulaItem = initProcessFormulaItemModel(sequelize, DataTypes);
+db.ProcessPreparation = initProcessPreparationModel(sequelize, DataTypes);
+db.ProcessPreparationInput = initProcessPreparationInputModel(sequelize, DataTypes);
 
 db.Role.belongsToMany(db.Permission, {
   through: 'role_permissions',
@@ -573,6 +584,32 @@ db.Supplier.hasMany(db.Lote, {
 db.Lote.belongsTo(db.Supplier, {
   foreignKey: 'supplier_id',
   as: 'supplier',
+});
+
+/* =========================
+   FORMULAS & MEZCLADO
+========================= */
+
+// Formula -> Items
+db.ProcessFormula.hasMany(db.ProcessFormulaItem, {
+  foreignKey: 'formula_id',
+  as: 'items',
+});
+db.ProcessFormulaItem.belongsTo(db.ProcessFormula, {
+  foreignKey: 'formula_id',
+  as: 'formula',
+});
+
+// FormulaItem -> Material
+db.ProcessFormulaItem.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+// Formula -> Target Area
+db.ProcessFormula.belongsTo(db.Area, {
+  foreignKey: 'target_area_id',
+  as: 'target_area',
 });
 
 module.exports = db;

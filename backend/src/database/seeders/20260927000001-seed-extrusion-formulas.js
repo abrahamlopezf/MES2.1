@@ -1,70 +1,225 @@
 'use strict';
 
 const FORMULAS = [
+  // EXCLUSIVO CLIENTE LIQUITANK
   {
-    code: 'F-EXT-LIQ-ROJO',
-    name: 'MEZCLA COLOR ROJO (LIQUITANK)',
-    target_area_id: 1, // Assume Extrusion area ID will be matched
-    target_machine: 'EXTRUSORA LIQUITANK',
+    code: 'F-EXT-LIQ-ROJO', name: 'MEZCLA COLOR ROJO (LIQUITANK)', target_area_id: 1, target_machine: 'EXTRUSORA LIQUITANK',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 440.6, percentage: 88.1, unit: 'KG', is_required: false },
       { name: 'POLIPROPILENO (C)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: false },
       { name: 'PIGMENTO ROJO LYONDELLBASELL', quantity: 5.2, percentage: 1.0, unit: 'KG', is_required: true },
-      { name: 'ADITIVO UV', quantity: 4.2, percentage: 0.8, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.8, unit: 'KG', is_required: true },
     ]
   },
   {
-    code: 'F-EXT-LIQ-NEGRO',
-    name: 'MEZCLA COLOR NEGRO (LIQUITANK)',
-    target_area_id: 1,
-    target_machine: 'EXTRUSORA LIQUITANK',
+    code: 'F-EXT-LIQ-NEGRO', name: 'MEZCLA COLOR NEGRO (LIQUITANK)', target_area_id: 1, target_machine: 'EXTRUSORA LIQUITANK',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 440.6, percentage: 88.1, unit: 'KG', is_required: false },
       { name: 'POLIPROPILENO (C)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: false },
       { name: 'PIGMENTO NEGRO 40-20', quantity: 5.2, percentage: 1.0, unit: 'KG', is_required: true },
-      { name: 'ADITIVO UV', quantity: 4.2, percentage: 0.8, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.8, unit: 'KG', is_required: true },
     ]
   },
+  // EXTRUSORA 1 RAFIA PARA CINTURÓN
   {
-    code: 'F-EXT-1-BLANCO',
-    name: 'BLANCO - RAFIA PARA CINTURÓN',
-    target_area_id: 1,
-    target_machine: 'EXTRUSORA 1',
+    code: 'F-EXT-1-BLANCO', name: 'BLANCO - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 335.6, percentage: 67.1, unit: 'KG', is_required: false },
       { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
       { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
       { name: 'CARBONATO DE CALCIO', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
       { name: 'PIGMENTO BLANCO', quantity: 6.0, percentage: 1.2, unit: 'KG', is_required: true },
-      { name: 'ADITIVO UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
     ]
   },
   {
-    code: 'F-EXT-1-VERDE',
-    name: 'VERDE - RAFIA PARA CINTURÓN',
-    target_area_id: 1,
-    target_machine: 'EXTRUSORA 1',
+    code: 'F-EXT-1-VERDE', name: 'VERDE - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 340.8, percentage: 68.16, unit: 'KG', is_required: false },
       { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
       { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
-      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.4, unit: 'KG', is_required: true },
-      { name: 'PIGMENTO VERDE', quantity: 3.0, percentage: 0.6, unit: 'KG', is_required: true },
-      { name: 'ADITIVO UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.40, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (VERDE)', quantity: 3.0, percentage: 0.60, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
     ]
   },
   {
-    code: 'F-EXT-4-BLANCO',
-    name: 'MEZCLA BLANCA EXTRUSORA 4',
-    target_area_id: 1,
-    target_machine: 'EXTRUSORA 4',
+    code: 'F-EXT-1-AZUL', name: 'AZUL - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 339.8, percentage: 68.0, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.40, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (AZUL)', quantity: 4.0, percentage: 0.80, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-1-ROJO', name: 'ROJO - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 339.6, percentage: 67.9, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.40, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (ROJO)', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-1-AMARILLO', name: 'AMARILLO HUEVO - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 337.8, percentage: 67.56, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.4, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (AMARILLO HUEVO)', quantity: 6.0, percentage: 1.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-1-NARANJA', name: 'NARANJA - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 340.0, percentage: 68.0, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.4, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (NARANJA)', quantity: 3.8, percentage: 0.8, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-1-NEGRO', name: 'NEGRO - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 334.8, percentage: 67.0, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO', quantity: 11.0, percentage: 2.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-1-NATURAL', name: 'NATURAL ANTIESTÁTICO - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 334.8, percentage: 67.0, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'CONCENTRADO AE-18', quantity: 11.0, percentage: 2.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-1-AMARILLO-ANTI', name: 'AMARILLO ANTIESTÁTICO - RAFIA PARA CINTURÓN', target_area_id: 1, target_machine: 'EXTRUSORA 1',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 335.0, percentage: 67.0, unit: 'KG', is_required: false },
+      { name: 'POLIETILENO (PEBD A)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: true },
+      { name: 'POLIPROPILENO ( B )', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'CONCENTRADO AE-18', quantity: 11.0, percentage: 2.2, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (AMARILLO HUEVO)', quantity: 1.0, percentage: 0.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 3.0, percentage: 0.6, unit: 'KG', is_required: true },
+    ]
+  },
+  // OTRAS EXTRUSORAS Y GENERALES
+  {
+    code: 'F-EXT-2-BLANCA', name: 'MEZCLA BLANCA EXTRUSORA 2', target_area_id: 1, target_machine: 'EXTRUSORA 2',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 385.6, percentage: 77.12, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'CARBONATO DE CALCIO', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO BLANCO', quantity: 6.0, percentage: 1.20, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-4-BLANCO', name: 'MEZCLA BLANCA EXTRUSORA 4', target_area_id: 1, target_machine: 'EXTRUSORA 4',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 485.6, percentage: 97.12, unit: 'KG', is_required: false },
       { name: 'CARBONATO DE CALCIO', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
-      { name: 'PIGMENTO BLANCO', quantity: 6.0, percentage: 1.2, unit: 'KG', is_required: true },
-      { name: 'ADITIVO UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (BLANCO)', quantity: 6.0, percentage: 1.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
     ]
-  }
+  },
+  {
+    code: 'F-EXT-5-BLANCA', name: 'MEZCLA BLANCA EXTRUSORA 5', target_area_id: 1, target_machine: 'EXTRUSORA 5',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 385.6, percentage: 77.12, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'CARBONATO DE CALCIO', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO (BLANCO)', quantity: 6.0, percentage: 1.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  // OTRAS MEZCLAS GENERALES (ASUMO SIN MÁQUINA FIJA O GENERALES)
+  {
+    code: 'F-EXT-AZUL', name: 'MEZCLA COLOR AZUL', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 490.0, percentage: 98.0, unit: 'KG', is_required: false },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.4, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO', quantity: 3.8, percentage: 0.76, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-VERDE', name: 'MEZCLA COLOR VERDE', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 492.8, percentage: 98.56, unit: 'KG', is_required: false },
+      { name: 'PIGMENTO', quantity: 3.0, percentage: 0.6, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-MORADO', name: 'MEZCLA COLOR MORADO', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 492.3, percentage: 98.46, unit: 'KG', is_required: false },
+      { name: 'PIGMENTO', quantity: 3.5, percentage: 0.7, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-ROJO', name: 'MEZCLA COLOR ROJO', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 491.6, percentage: 98.32, unit: 'KG', is_required: false },
+      { name: 'PIGMENTO', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-NEGRO', name: 'MEZCLA COLOR NEGRO', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 382.8, percentage: 76.56, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO ( B )', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.4, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO', quantity: 11.0, percentage: 2.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-VERDE-OPT', name: 'MEZCLA COLOR VERDE ÓPTICO', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 384.8, percentage: 76.96, unit: 'KG', is_required: false },
+      { name: 'POLIPROPILENO (B)', quantity: 100.0, percentage: 20.0, unit: 'KG', is_required: false },
+      { name: 'CARBONATO DE CALCIO', quantity: 2.0, percentage: 0.4, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO VERDE ÓPTICO', quantity: 4.0, percentage: 0.8, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO AMARILLO', quantity: 5.0, percentage: 1.0, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-AMARILLO-ANTI', name: 'MEZCLA AMARILLO ANTIESTÁTICO', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 484.0, percentage: 96.8, unit: 'KG', is_required: false },
+      { name: 'CARBONATO DE CALCIO', quantity: 1.0, percentage: 0.2, unit: 'KG', is_required: true },
+      { name: 'PIGMENTO AMARILLO HUEVO', quantity: 1.0, percentage: 0.2, unit: 'KG', is_required: true },
+      { name: 'CONCENTRADO AE-18', quantity: 11.0, percentage: 2.2, unit: 'KG', is_required: true },
+      { name: 'UV', quantity: 3.0, percentage: 0.6, unit: 'KG', is_required: true },
+    ]
+  },
+  {
+    code: 'F-EXT-NATURAL', name: 'MEZCLA CINTA COLOR NATURAL', target_area_id: 1, target_machine: '',
+    ingredients: [
+      { name: 'POLIPROPILENO (A)', quantity: 495.8, percentage: 99.16, unit: 'KG', is_required: false },
+      { name: 'UV', quantity: 4.2, percentage: 0.84, unit: 'KG', is_required: true },
+    ]
+  },
 ];
 
 module.exports = {
@@ -103,13 +258,12 @@ module.exports = {
         { type: Sequelize.QueryTypes.SELECT }
       );
     }
-    const kgUnitId = unitKg.id;
 
     for (const f of FORMULAS) {
       // Create Formula
       await queryInterface.sequelize.query(
         `INSERT INTO process_formulas (code, name, target_area_id, description, status, is_active, created_at, updated_at, version) 
-         VALUES ('${f.code}', '${f.name}', ${areaId}, 'Para ${f.target_machine}', 'ACTIVA', true, NOW(), NOW(), 1)
+         VALUES ('${f.code}', '${f.name}', ${areaId}, 'Para ${f.target_machine || 'General'}', 'ACTIVA', true, NOW(), NOW(), 1)
          ON CONFLICT (code) DO NOTHING`
       );
       

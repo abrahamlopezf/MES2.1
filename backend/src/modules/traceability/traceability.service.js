@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 
 const db = require('../../database/models');
 const auditService = require('../../modules/audit/audit.service');
+const { decryptQrData } = require('../../shared/utils/crypto.utils');
 
 const {
     QR_AREA_ASSIGNMENT_STATUS,
@@ -453,10 +454,20 @@ const buildTraceableItemDto = (item) => {
 };
 
 const scanQrCode = async ({ scannedCode, user }) => {
-    const cleanCode = String(scannedCode || '').trim();
+    let cleanCode = String(scannedCode || '').trim();
 
     if (!cleanCode) {
         const error = new Error('Debes proporcionar un código QR.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    try {
+        if (cleanCode.startsWith('AGY:')) {
+            cleanCode = decryptQrData(cleanCode);
+        }
+    } catch (e) {
+        const error = new Error('Código QR inválido o dañado.');
         error.statusCode = 400;
         throw error;
     }

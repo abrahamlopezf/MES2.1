@@ -1,5 +1,6 @@
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const { encryptQrData } = require('../../../shared/utils/crypto.utils');
 
 const generateConsumptionOrderPdf = async (order, res) => {
   return new Promise(async (resolve, reject) => {
@@ -25,7 +26,8 @@ const generateConsumptionOrderPdf = async (order, res) => {
       
       // QR Code
       const qrValue = `ORD-${order.uuid}`;
-      const qrDataUrl = await QRCode.toDataURL(qrValue, { errorCorrectionLevel: 'H', margin: 1 });
+      const encryptedQrValue = encryptQrData(qrValue);
+      const qrDataUrl = await QRCode.toDataURL(encryptedQrValue, { errorCorrectionLevel: 'H', margin: 1 });
       doc.image(qrDataUrl, 450, boxTop, { width: 100 });
       doc.fontSize(8).font('Courier').fillColor('black').text(qrValue, 450, boxTop + 105, { width: 100, align: 'center' });
 

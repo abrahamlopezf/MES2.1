@@ -58,6 +58,62 @@ const getInventory = async (query = {}) => {
   };
 };
 
+const getAreaInventory = async (query = {}, currentUser) => {
+  const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_ALM'].includes(currentUser.role?.code);
+
+  if (!currentUser.area_id && !isGlobalAdmin) {
+    throwHttpError('El usuario no tiene un área asignada para ver el inventario de área.', 400);
+  }
+
+  const { WipInventory, QrCode } = require('../../database/models');
+  
+  const where = {
+    amount: { [Op.gt]: 0 }
+  };
+
+  if (!isGlobalAdmin || currentUser.area_id) {
+    where.area_id = currentUser.area_id;
+  }
+
+  const limit = Math.min(Number(query.limit) || 100, 300);
+  const offset = Number(query.offset) || 0;
+
+  const result = await WipInventory.findAndCountAll({
+    where,
+    include: [
+      {
+        model: Material,
+        as: 'material',
+        attributes: ['id', 'internal_code', 'name'],
+        include: [
+          { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
+          { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }
+        ]
+      },
+      {
+        model: Lote,
+        as: 'lote',
+        attributes: ['id', 'folio', 'is_active', 'unit_cost']
+      },
+      {
+        model: QrCode,
+        as: 'qr_code',
+        attributes: ['id', 'qr_code', 'status']
+      }
+    ],
+    order: [['updated_at', 'DESC']],
+    limit,
+    offset,
+  });
+
+  return {
+    items: result.rows,
+    total: result.count,
+    limit,
+    offset,
+  };
+};
+
 const getMaterialLotes = async (material_id) => {
   if (!material_id) {
     throwHttpError('Falta el material_id', 400);
@@ -914,6 +970,7 @@ module.exports = {
   changeLocation,
   getLoteDetails,
   getDashboardMetrics,
+  getAreaInventory,
   getLowStockReport,
   manualEntry,
   getMermaScrapReport,

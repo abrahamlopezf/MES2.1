@@ -25,6 +25,8 @@ const MODULE_CATEGORY_MAP = {
   System: 'Sistema y Usuarios',
   areas: 'Sistema y Usuarios',
   operations: 'Operaciones y Producción',
+  extrusion: 'Extrusión',
+  Extrusión: 'Extrusión',
   Formulas: 'Operaciones y Producción',
   Scrap: 'Mermas y Scrap',
   reports: 'Reportes y Auditoría',
@@ -39,6 +41,7 @@ const getCategoryIcon = (category) => {
     case 'Códigos QR y Trazabilidad': return '🔲';
     case 'Sistema y Usuarios': return '⚙️';
     case 'Operaciones y Producción': return '🏭';
+    case 'Extrusión': return '🏭';
     case 'Mermas y Scrap': return '♻️';
     case 'Reportes y Auditoría': return '📊';
     default: return '🧩';

@@ -10,6 +10,15 @@ const getInventory = async (req, res, next) => {
   }
 };
 
+const getAreaInventory = async (req, res, next) => {
+  try {
+    const result = await warehouseService.getAreaInventory(req.query, req.user);
+    return successResponse(res, 'Inventario de área obtenido correctamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getMaterialLotes = async (req, res, next) => {
   try {
     const result = await warehouseService.getMaterialLotes(req.params.material_id);
@@ -137,6 +146,7 @@ const getLowStockReport = async (req, res, next) => {
 
 module.exports = {
   getInventory,
+  getAreaInventory,
   getMaterialLotes,
   disposeLotes,
   getLoteDetails,

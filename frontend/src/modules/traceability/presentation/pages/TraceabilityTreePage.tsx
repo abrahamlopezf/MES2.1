@@ -130,6 +130,32 @@ export function TraceabilityTreePage() {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Final Terminal Node for End-of-Life Statuses */}
+                    {(qrInfo.qr?.status === 'CONSUMED' || qrInfo.status === 'CONSUMED' || qrInfo.qr?.status === 'SCRAP' || qrInfo.status === 'SCRAP') && (
+                      <div className="relative pt-2">
+                        <div className={`absolute -left-[33px] top-3 w-4 h-4 rounded-full ring-4 ring-background ${
+                          (qrInfo.qr?.status === 'CONSUMED' || qrInfo.status === 'CONSUMED') ? 'bg-amber-500' : 'bg-destructive'
+                        }`} />
+                        <div className={`flex items-center gap-2 p-3 rounded-lg border shadow-sm ${
+                          (qrInfo.qr?.status === 'CONSUMED' || qrInfo.status === 'CONSUMED') 
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                            : 'bg-destructive/10 border-destructive/30 text-destructive'
+                        }`}>
+                          {(qrInfo.qr?.status === 'CONSUMED' || qrInfo.status === 'CONSUMED') ? (
+                            <CheckCircle2 size={20} className="shrink-0" />
+                          ) : (
+                            <XCircle size={20} className="shrink-0" />
+                          )}
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm uppercase tracking-wide">
+                              FIN DE VIDA: {(qrInfo.qr?.status || qrInfo.status) === 'CONSUMED' ? 'LOTE CONSUMIDO TOTALMENTE' : 'LOTE DADO DE BAJA (SCRAP)'}
+                            </span>
+                            <span className="text-xs opacity-80 font-medium">Este código QR ya no es válido para operaciones.</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

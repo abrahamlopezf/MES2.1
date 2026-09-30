@@ -47,9 +47,10 @@ exports.createOrder = async (req, res) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, area_id } = req.query;
     const filters = {};
     if (status) filters.status = status;
+    if (area_id) filters.requesting_area_id = area_id;
 
     const orders = await consumptionOrderService.getOrders(filters);
     res.json(orders);
@@ -151,6 +152,29 @@ exports.cancelOrder = async (req, res) => {
     }
 
     const order = await consumptionOrderService.cancelOrder(uuid, reason, operatorId);
+    
+    // Notify ADMIN_ALM
+    try {
+      const { Notification, User, Role } = require('../../database/models');
+      const admins = await User.findAll({
+        include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' } }]
+      });
+      
+      const notifications = admins.map(admin => ({
+        recipient_id: admin.id,
+        title: 'Orden de Consumo Cancelada',
+        message: `La orden de consumo ${order.order_number} ha sido cancelada por el almacén. Motivo: ${reason}`,
+        type: 'SYSTEM',
+        is_read: false
+      }));
+      
+      if (notifications.length > 0) {
+        await Notification.bulkCreate(notifications);
+      }
+    } catch(err) {
+      console.error('Notification error on cancel', err);
+    }
+
     res.json(order);
   } catch (error) {
     console.error('[Cancel Order Error]', error);

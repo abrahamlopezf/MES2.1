@@ -20,6 +20,8 @@ import { AdminDashboard } from './AdminDashboard';
 import UsersPage from '../modules/users/pages/UsersPage';
 import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
 import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
+import { AreaInventoryPage } from '../modules/warehouse/presentation/pages/AreaInventoryPage';
+import { MaterialLotesPage } from '../modules/warehouse/presentation/pages/MaterialLotesPage';
 
 // Router Config Definitivo
 export const AppRouter = () => {
@@ -70,10 +72,16 @@ export const AppRouter = () => {
           <Route path="/warehouse">
             <Route path="receive" element={<ReceptionProvider />} />
             <Route path="inventory" element={<WarehouseInventoryPage />} />
+            <Route path="materials/:id/lotes" element={<MaterialLotesPage />} />
+            <Route path="area-inventory" element={<AreaInventoryPage />} />
             <Route path="traceability" element={<WarehouseProvider />} />
             <Route path="merma-scrap" element={<MermaScrapPage />} />
             <Route path="orders" element={<ConsumptionOrdersPage />} />
           </Route>
+          
+          {/* Missing Routes for Sidebar (Placeholders until implemented) */}
+          <Route path="/materials" element={<div className="p-8 text-center text-muted-foreground mt-20">Catálogo de Materiales en Construcción...</div>} />
+          <Route path="/roles" element={<div className="p-8 text-center text-muted-foreground mt-20">Gestión de Roles en Construcción...</div>} />
         </Route>
     </Routes>
   );

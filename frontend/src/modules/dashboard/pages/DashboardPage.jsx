@@ -13,6 +13,7 @@ import { TFSelect } from '../../../components/tf-ui';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../core/api/apiClient';
 import { WarehouseDashboard } from '../../warehouse/presentation/pages/WarehouseDashboard';
+import { ExtrusionDashboard } from '../../production/presentation/pages/ExtrusionDashboard';
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-MX', {
@@ -81,6 +82,9 @@ const DashboardPage = () => {
   });
 
   if (!isExecutive) {
+    if (roleCode === 'ADMIN_EXT') {
+      return <ExtrusionDashboard />;
+    }
     return <WarehouseDashboard />;
   }
 
@@ -194,7 +198,8 @@ const DashboardPage = () => {
                 <YAxis yAxisId="left" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000000).toFixed(1)}M`} />
                 <YAxis yAxisId="right" orientation="right" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000000).toFixed(1)}M`} />
                 <RechartsTooltip 
-                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
+                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
+                  itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}
                   formatter={(value) => formatCurrency(value)}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
@@ -229,7 +234,8 @@ const DashboardPage = () => {
                   ))}
                 </Pie>
                 <RechartsTooltip 
-                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
+                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
+                  itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}
                   formatter={(value) => formatCurrency(value)}
                 />
                 <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '11px' }} />

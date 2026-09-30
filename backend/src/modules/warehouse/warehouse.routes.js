@@ -49,6 +49,11 @@ router.get(
 );
 
 router.get(
+  '/area-inventory',
+  warehouseController.getAreaInventory
+);
+
+router.get(
   '/inventory/:material_id/lotes',
   authorizePermission('warehouse.read', 'inventory.view', 'lotes.view'),
   warehouseController.getMaterialLotes
@@ -110,52 +115,50 @@ router.post(
   warehouseController.changeLocation
 );
 
+const roleMiddleware = require('../../middlewares/role.middleware');
+
 router.post(
   '/inventory/manual-entry',
-  authorizePermission('warehouse.manual_entry'),
+  roleMiddleware('ADMIN_ALM'),
   warehouseController.manualEntry
 );
 
 // Consumption Orders
 router.post(
   '/consumption-orders',
-  authorizePermission('warehouse.orders.create'),
   consumptionOrderController.createOrder
 );
 
 router.get(
   '/consumption-orders',
-  authorizePermission('warehouse.orders.create'),
   consumptionOrderController.getOrders
 );
 
 router.get(
   '/consumption-orders/:uuid',
-  authorizePermission('warehouse.orders.create'),
   consumptionOrderController.getOrderDetails
 );
 
 router.get(
   '/consumption-orders/:uuid/print',
-  authorizePermission('warehouse.orders.create'),
   consumptionOrderController.printOrder
 );
 
 router.post(
   '/consumption-orders/:uuid/scan-item',
-  authorizePermission('warehouse.orders.fulfill'),
+  roleMiddleware('WAREHOUSEMAN', 'ADMIN_ALM'),
   consumptionOrderController.scanItem
 );
 
 router.put(
   '/consumption-orders/:uuid/status',
-  authorizePermission('warehouse.consume'),
+  roleMiddleware('WAREHOUSEMAN', 'ADMIN_ALM'),
   consumptionOrderController.updateOrderStatus
 );
 
 router.put(
   '/consumption-orders/:uuid/cancel',
-  authorizePermission('warehouse.orders.create'),
+  roleMiddleware('WAREHOUSEMAN', 'ADMIN_ALM'),
   consumptionOrderController.cancelOrder
 );
 

@@ -45,14 +45,24 @@ class ConsumptionOrderService {
       }
 
       const allocations = [];
-      // Create a single soft allocation row (lote_id is assigned to the oldest lot just as a placeholder)
-      allocations.push({
-        order_id: order.id,
-        material_id,
-        lote_id: availableLots[0].id,
-        requested_quantity: quantity,
-        unit_id: availableLots[0].unit_id || null,
-      });
+      let remainingQuantity = quantity;
+
+      for (const lot of availableLots) {
+        if (remainingQuantity <= 0) break;
+
+        const lotAvailable = Number(lot.available_amount);
+        const quantityToTake = Math.min(remainingQuantity, lotAvailable);
+
+        allocations.push({
+          order_id: order.id,
+          material_id,
+          lote_id: lot.id,
+          requested_quantity: quantityToTake,
+          unit_id: lot.unit_id || null,
+        });
+
+        remainingQuantity -= quantityToTake;
+      }
 
       await ConsumptionOrderItem.bulkCreate(allocations, { transaction });
     }
@@ -128,6 +138,86 @@ class ConsumptionOrderService {
     if (!order) return null;
     
     const plainOrder = order.toJSON();
+    
+    if (plainOrder.status === 'PENDIENTE' || plainOrder.status === 'PREPARANDO') {
+      const finalItems = [];
+      const materialPendingQty = {};
+      const materialMap = {};
+
+      for (const item of plainOrder.items) {
+        if (!materialMap[item.material_id]) {
+          materialMap[item.material_id] = item.material;
+          materialPendingQty[item.material_id] = 0;
+        }
+        
+        const fulfilled = Number(item.fulfilled_quantity || 0);
+        const req = Number(item.requested_quantity || 0);
+
+        if (fulfilled > 0) {
+          finalItems.push({
+            ...item,
+            requested_quantity: fulfilled,
+            fulfilled_quantity: fulfilled
+          });
+        }
+        
+        if (req > fulfilled) {
+          materialPendingQty[item.material_id] += (req - fulfilled);
+        }
+      }
+
+      for (const matId of Object.keys(materialPendingQty)) {
+        let pending = materialPendingQty[matId];
+        if (pending <= 0) continue;
+
+        const availableLots = await Lote.findAll({
+          where: {
+            material_id: matId,
+            is_active: true,
+            available_amount: { [Op.gt]: 0 }
+          },
+          include: [{ model: QrCode, as: 'qr_code', attributes: ['qr_code'] }],
+          order: [['created_at', 'ASC']]
+        });
+
+        for (const lot of availableLots) {
+          if (pending <= 0) break;
+          const lotAvailable = Number(lot.available_amount);
+          const qtyToTake = Math.min(pending, lotAvailable);
+          
+          finalItems.push({
+            id: 'virtual-' + lot.id,
+            order_id: plainOrder.id,
+            material_id: matId,
+            material: materialMap[matId],
+            lote_id: lot.id,
+            lote: lot.toJSON(),
+            requested_quantity: qtyToTake,
+            fulfilled_quantity: 0,
+            unit_id: lot.unit_id
+          });
+          
+          pending -= qtyToTake;
+        }
+
+        if (pending > 0) {
+          finalItems.push({
+            id: 'virtual-missing-' + matId,
+            order_id: plainOrder.id,
+            material_id: matId,
+            material: materialMap[matId],
+            lote_id: null,
+            lote: null,
+            requested_quantity: pending,
+            fulfilled_quantity: 0,
+            unit_id: null
+          });
+        }
+      }
+
+      plainOrder.items = finalItems;
+    }
+
     plainOrder.encrypted_qr = encryptQrData(`ORD-${plainOrder.uuid}`);
     return plainOrder;
   }
@@ -137,7 +227,7 @@ class ConsumptionOrderService {
     if (!order) throw new Error('Orden no encontrada');
 
     order.status = status;
-    if (status === 'SURTIDA' || status === 'CANCELADA') {
+    if (status === 'PREPARANDO' || status === 'SURTIDA' || status === 'CANCELADA') {
       order.resolved_by = resolved_by;
       order.resolved_at = new Date();
     }
@@ -147,7 +237,15 @@ class ConsumptionOrderService {
   }
 
   async scanFulfillmentItem(uuid, qrData, resolved_by, transaction = null) {
-    const order = await this.getOrderDetails(uuid);
+    const order = await ConsumptionOrder.findOne({
+      where: { uuid },
+      include: [
+        { model: ConsumptionOrderItem, as: 'items', include: [{ model: Lote, as: 'lote' }] },
+        { model: Area, as: 'requesting_area' }
+      ],
+      transaction
+    });
+
     if (!order) throw new Error('Orden no encontrada');
     
     if (order.status !== 'PREPARANDO') {
@@ -173,7 +271,7 @@ class ConsumptionOrderService {
 
     // Buscar items pendientes en la orden para ESTE material
     const itemsPending = order.items.filter(item => 
-      item.material_id === scannedLote.material_id &&
+      Number(item.material_id) === Number(scannedLote.material_id) &&
       Number(item.fulfilled_quantity) < Number(item.requested_quantity)
     );
 
@@ -244,41 +342,28 @@ class ConsumptionOrderService {
       const lote = await Lote.findByPk(itemToFulfill.lote_id, { transaction });
       const isTotal = lote && !lote.is_active;
       
-      const isExtrusion = order.requesting_area?.name?.toUpperCase().includes('EXTRUS');
+      const toStatus = 'IN_WIP';
+      const eventType = 'TRANSFERENCIA_AREA';
       
-      let toStatus = 'ACTIVE';
-      let eventType = 'CONSUMO';
+      await QrCode.update({ status: 'IN_WIP', is_active: true, assigned_area_id: order.requesting_area_id }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
       
-      if (isExtrusion) {
-        toStatus = 'IN_WIP';
-        eventType = 'TRANSFERENCIA_WIP';
-        
-        await QrCode.update({ status: 'IN_WIP', is_active: true, assigned_area_id: order.requesting_area_id }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
-        
-        const { WipInventory } = require('../../database/models');
-        const wipItem = await WipInventory.findOne({
-          where: { material_id: itemToFulfill.material_id, lote_id: itemToFulfill.lote_id, qr_code_id: itemToFulfill.lote.qr_id, area_id: order.requesting_area_id },
-          transaction
-        });
-        
-        if (wipItem) {
-          wipItem.amount = Number(wipItem.amount) + qtyToTake;
-          await wipItem.save({ transaction });
-        } else {
-          await WipInventory.create({
-            material_id: itemToFulfill.material_id,
-            lote_id: itemToFulfill.lote_id,
-            qr_code_id: itemToFulfill.lote.qr_id,
-            area_id: order.requesting_area_id,
-            amount: qtyToTake
-          }, { transaction });
-        }
-        
+      const { WipInventory } = require('../../database/models');
+      const wipItem = await WipInventory.findOne({
+        where: { material_id: itemToFulfill.material_id, lote_id: itemToFulfill.lote_id, qr_code_id: itemToFulfill.lote.qr_id, area_id: order.requesting_area_id },
+        transaction
+      });
+      
+      if (wipItem) {
+        wipItem.amount = Number(wipItem.amount) + qtyToTake;
+        await wipItem.save({ transaction });
       } else {
-        if (isTotal) {
-          toStatus = 'CONSUMED';
-          await QrCode.update({ status: 'CONSUMED', is_active: false }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
-        }
+        await WipInventory.create({
+          material_id: itemToFulfill.material_id,
+          lote_id: itemToFulfill.lote_id,
+          qr_code_id: itemToFulfill.lote.qr_id,
+          area_id: order.requesting_area_id,
+          amount: qtyToTake
+        }, { transaction });
       }
 
       await TraceabilityEvent.create({
@@ -289,8 +374,8 @@ class ConsumptionOrderService {
         from_status: 'ACTIVE',
         to_status: toStatus,
         performed_by: resolved_by,
-        notes: isExtrusion ? `Transferencia de ${qtyToTake} a WIP Extrusión. Orden: ${order.order_number}` : `Consumo de ${qtyToTake} unidades. Orden: ${order.order_number}`,
-        metadata: { order_number: order.order_number, quantity: qtyToTake, isTotal, isExtrusion }
+        notes: `Transferencia de ${qtyToTake} a Inventario de Área (${order.requesting_area?.name || 'N/A'}). Orden: ${order.order_number}`,
+        metadata: { order_number: order.order_number, quantity: qtyToTake, isTotal, area_id: order.requesting_area_id }
       }, { transaction });
     }
 

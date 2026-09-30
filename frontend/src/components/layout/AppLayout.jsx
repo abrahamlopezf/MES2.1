@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
 import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
+import { ExtruderSelectionModal } from '../../modules/production/presentation/components/ExtruderSelectionModal';
 import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
 import { Home, Grid, QrCode, ScanLine, Package } from 'lucide-react';
 import { PageContainer, BottomNavigation, FAB } from '../../design-system';
@@ -143,6 +144,9 @@ const AppLayout = () => {
 
       {/* Modal for forcing password change */}
       <ForceChangePasswordModal />
+      
+      {/* Modal for Extrusion Machine Selection */}
+      <ExtruderSelectionModal />
 
       {/* Notification Center Trigger and Workspace */}
       <NotificationCenter />

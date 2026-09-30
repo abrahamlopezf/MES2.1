@@ -27,12 +27,7 @@ export const useSmartScanner = () => {
         }
       } catch(e) {}
 
-      // 0. Intercept Consumption Order QRs
-      if (cleanQrCode.startsWith('ORD-')) {
-        const orderUuid = cleanQrCode.replace('ORD-', '');
-        navigate(`/warehouse/orders?order_id=${orderUuid}`);
-        return true;
-      }
+      let realQrCodeValue = cleanQrCode;
 
       // 1. Try real backend first (so we know if it was used/activated)
       try {
@@ -42,9 +37,19 @@ export const useSmartScanner = () => {
         const qrData = resultData.qr || resultData;
         if (qrData && qrData.status) {
           tokenStatus = qrData.status;
+          if (qrData.qr_code) {
+            realQrCodeValue = qrData.qr_code;
+          }
         }
       } catch (backendError) {
         // Ignorar error, caerá en el fallback
+      }
+
+      // 1.5 Intercept Consumption Order QRs (Now using the potentially decrypted value from DB)
+      if (realQrCodeValue.startsWith('ORD-')) {
+        const orderUuid = realQrCodeValue.replace('ORD-', '');
+        navigate(`/warehouse/orders?order_id=${orderUuid}`);
+        return true;
       }
 
       // 2. Fallback to Identity in-memory mock (for freshly generated virgin QRs not yet in DB)
@@ -84,21 +89,17 @@ export const useSmartScanner = () => {
             toast.warning("No hay una acción predeterminada para este QR virgen con tu rol actual.");
             return false;
         }
-      } else if (tokenStatus === 'ACTIVE') {
-        // En uso: Puede ser un lote de material, una mezcla, etc.
-        switch (user.role) {
-          case 'EXTRUSION_OPERATOR':
+      } else {
+        // En uso o consumido: Puede ser un lote de material, una mezcla, etc.
+        if (tokenStatus === 'ACTIVE' && user.role === 'EXTRUSION_OPERATOR') {
             // If they scan an active QR in extrusion, it's likely they are feeding a MixBatch
             navigate(`/production/extrusion?feedQr=${cleanQrCode}`);
             return true;
-          default:
-            // Just show custody details (Trazabilidad)
-            navigate(`/traceability/genealogy?tokenId=${cleanQrCode}`);
-            return true;
         }
-      } else {
-        toast.error(`QR escaneado en estado: ${tokenStatus}`);
-        return false;
+        
+        // Para cualquier otro estatus (ACTIVE, CONSUMED, IN_WIP, etc.) o rol, abrimos trazabilidad
+        navigate(`/traceability/genealogy?tokenId=${cleanQrCode}`);
+        return true;
       }
     } catch (e: any) {
       toast.error(`Error al escanear: ${e.message}`);
