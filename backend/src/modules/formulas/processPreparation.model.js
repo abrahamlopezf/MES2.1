@@ -31,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
 
       destination_qr_code_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
 
       destination_traceable_item_id: {

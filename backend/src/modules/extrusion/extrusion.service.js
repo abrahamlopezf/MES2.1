@@ -3,7 +3,7 @@ const { sequelize, ProcessFormula, ProcessFormulaItem, ProcessPreparation, Proce
 class ExtrusionService {
   async mixFormula(payload, userId) {
     return sequelize.transaction(async (transaction) => {
-      const { formula_id, destination_qr_code, inputs, area_id, notes } = payload;
+      const { formula_id, preparation_id, destination_qr_code, inputs, area_id, notes } = payload;
 
       // 1. Validar Fórmula
       const formula = await ProcessFormula.findByPk(formula_id, { transaction });
@@ -18,24 +18,38 @@ class ExtrusionService {
       }
 
       // 3. Generar Folio
-      const folio = `MIX-EXT-${Date.now()}`;
       let totalQuantity = 0;
+      let preparation;
 
-      const preparation = await ProcessPreparation.create({
-        folio,
-        formula_id,
-        from_area_id: area_id,
-        to_area_id: area_id,
-        destination_qr_code_id: destQr.id,
-        total_quantity: 0,
-        unit: 'KG',
-        status: 'PREPARADA',
-        notes,
-        prepared_by: userId,
-        prepared_at: new Date()
-      }, { transaction });
+      if (preparation_id) {
+        preparation = await ProcessPreparation.findByPk(preparation_id, { transaction });
+        if (!preparation) throw new Error('Ticket de preparación no encontrado');
+        
+        preparation.destination_qr_code_id = destQr.id;
+        preparation.status = 'PREPARADA';
+        preparation.prepared_by = userId;
+        preparation.prepared_at = new Date();
+        if (notes) preparation.notes = notes;
+        await preparation.save({ transaction });
+      } else {
+        const folio = `MIX-EXT-${Date.now()}`;
+        preparation = await ProcessPreparation.create({
+          folio,
+          formula_id,
+          from_area_id: area_id,
+          to_area_id: area_id, // Default
+          destination_qr_code_id: destQr.id,
+          total_quantity: 0,
+          unit: 'KG',
+          status: 'PREPARADA',
+          notes,
+          prepared_by: userId,
+          prepared_at: new Date()
+        }, { transaction });
+      }
 
       // 4. Procesar Entradas (WIP)
+      const folio = preparation.folio;
       for (const input of inputs) {
         const sourceQr = await QrCode.findOne({ where: { qr_code: input.qr_code }, transaction });
         if (!sourceQr) throw new Error(`QR ${input.qr_code} no encontrado.`);
@@ -98,7 +112,7 @@ class ExtrusionService {
       // 6. Actualizar QR Destino (La mezcla está en el piso de Extrusión, en un carrito o silo)
       await destQr.update({
         status: 'EN_USO', // Es un lote de mezcla activo
-        assigned_area_id: area_id,
+        assigned_area_id: preparation.to_area_id, // Asignado a la Extrusora destino
       }, { transaction });
 
       await TraceabilityEvent.create({
@@ -159,6 +173,58 @@ class ExtrusionService {
       ...formula.toJSON(),
       items: detailedItems
     };
+  }
+
+  async createMixRequest(payload, userId) {
+    const { formula_id, to_area_id, quantity, notes } = payload;
+    
+    // validate formula
+    const formula = await ProcessFormula.findByPk(formula_id);
+    if (!formula) throw new Error('Fórmula no encontrada');
+
+    // Create a ProcessPreparation record as a "Ticket" (Status: SOLICITADA)
+    const folio = `MIX-REQ-${Date.now().toString().slice(-6)}`;
+    
+    const preparation = await ProcessPreparation.create({
+      folio,
+      formula_id,
+      from_area_id: 1, // Central Mixing Area ID - Adjust according to seed
+      to_area_id,      // The extruder requesting it
+      destination_qr_code_id: null, // No QR yet
+      total_quantity: quantity || 500,
+      unit: formula.base_unit_id === 1 ? 'Kg' : 'Unidad',
+      status: 'SOLICITADA',
+      notes: notes || `Mezcla solicitada por Extrusora`,
+      prepared_by: userId,
+      prepared_at: new Date()
+    });
+
+    return preparation;
+  }
+
+  async getMixRequests(status = 'SOLICITADA') {
+    // We should ideally join with Area and ProcessFormula to return names
+    const preparations = await ProcessPreparation.findAll({
+      where: { status },
+      order: [['created_at', 'ASC']]
+    });
+
+    // Populate formula name manually if relationships aren't loaded in index.js
+    const { Area } = require('../../database/models');
+    
+    const detailed = [];
+    for (const prep of preparations) {
+      const form = await ProcessFormula.findByPk(prep.formula_id);
+      const area = await Area.findByPk(prep.to_area_id);
+      
+      detailed.push({
+        ...prep.toJSON(),
+        formula_name: form ? form.name : 'Unknown Formula',
+        extruder_name: area ? area.name : 'Unknown Extruder'
+      });
+    }
+
+    return detailed;
   }
 }
 

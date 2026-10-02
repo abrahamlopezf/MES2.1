@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Factory, QrCode, Loader2, Plus, Trash2, Scale } from 'lucide-react';
 import { useExtrusionMixing } from '../../../extrusion/hooks/useExtrusionMixing';
 
-export const MixingTerminalForm: React.FC = () => {
+export const MixingTerminalForm: React.FC<{ ticket?: any, onSuccess?: () => void }> = ({ ticket, onSuccess }) => {
   const { useFormulas, useMixFormula } = useExtrusionMixing();
   const { data: formulas, isLoading: loadingFormulas } = useFormulas();
   const mutation = useMixFormula();
@@ -15,6 +15,13 @@ export const MixingTerminalForm: React.FC = () => {
   const [inputs, setInputs] = useState<{qr_code: string; quantity: number}[]>([]);
   const [currentInputQr, setCurrentInputQr] = useState('');
   const [currentInputQty, setCurrentInputQty] = useState(0);
+
+  useEffect(() => {
+    if (ticket) {
+      setFormulaId(ticket.formula_id.toString());
+      setNotes(`Atendiendo solicitud: ${ticket.folio}`);
+    }
+  }, [ticket]);
 
   const handleAddInput = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +44,7 @@ export const MixingTerminalForm: React.FC = () => {
 
     mutation.mutate({
       formula_id: formulaId,
+      preparation_id: ticket?.id,
       destination_qr_code: outputIdentityTokenId.trim().toUpperCase(),
       inputs,
       notes
@@ -48,6 +56,7 @@ export const MixingTerminalForm: React.FC = () => {
         setNotes('');
         setCurrentInputQr('');
         setCurrentInputQty(0);
+        if (onSuccess) onSuccess();
       },
       onError: (err: any) => {
         alert("Error: " + (err.response?.data?.message || err.message));
@@ -77,7 +86,8 @@ export const MixingTerminalForm: React.FC = () => {
               required
               value={formulaId}
               onChange={(e) => setFormulaId(e.target.value)}
-              className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+              disabled={!!ticket}
+              className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
             >
               <option value="" disabled>-- Seleccione Fórmula --</option>
               {formulas?.map(f => (

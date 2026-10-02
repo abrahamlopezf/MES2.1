@@ -14,7 +14,8 @@ router.use(authenticate);
 router.get('/formulas', authorizePermission('extrusion.formulas.read'), extrusionController.getFormulas);
 router.get('/formulas/:id', authorizePermission('extrusion.formulas.read'), extrusionController.getFormulaDetails);
 
-// Mixing
-router.post('/mix', authorizePermission('extrusion.mix.create'), extrusionController.mixFormula);
+router.post('/mix', authorizePermission('extrusion.formulas.manage'), extrusionController.mixFormula);
+router.post('/mix-requests', authorizePermission('extrusion.formulas.manage'), extrusionController.createMixRequest);
+router.get('/mix-requests', authorizePermission('extrusion.formulas.read'), extrusionController.getMixRequests);
 
 module.exports = router;

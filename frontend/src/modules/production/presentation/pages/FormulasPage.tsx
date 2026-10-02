@@ -4,11 +4,13 @@ import { Search, Plus, Filter, Beaker, FileText, ChevronDown, PackageCheck } fro
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Input } from '../../../../design-system';
 import { apiClient } from '../../../../core/api/apiClient';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
+import { MixRequestModal } from '../components/MixRequestModal';
 
 export const FormulasPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMachine, setSelectedMachine] = useState('ALL');
   const [expandedFormulaId, setExpandedFormulaId] = useState<number | null>(null);
+  const [selectedMixFormula, setSelectedMixFormula] = useState<any | null>(null);
 
   const { data: formulasData, isLoading } = useQuery({
     queryKey: ['extrusion', 'formulas'],
@@ -192,7 +194,7 @@ export const FormulasPage = () => {
                     <PermissionGate permission="extrusion.wip.manage">
                       <Button variant="secondary" size="sm" className="gap-1.5" onClick={(e) => {
                         e.stopPropagation();
-                        // TODO: Implement Generar PTI
+                        setSelectedMixFormula(formula);
                       }}>
                         <PackageCheck size={16} />
                         Solicitar Mezcla
@@ -255,6 +257,12 @@ export const FormulasPage = () => {
           })}
         </div>
       )}
+
+      <MixRequestModal 
+        isOpen={!!selectedMixFormula} 
+        onClose={() => setSelectedMixFormula(null)} 
+        formula={selectedMixFormula} 
+      />
     </div>
   );
 };

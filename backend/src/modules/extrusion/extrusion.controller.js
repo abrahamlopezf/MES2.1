@@ -42,6 +42,32 @@ class ExtrusionController {
       next(error);
     }
   }
+
+  async createMixRequest(req, res, next) {
+    try {
+      const preparation = await extrusionService.createMixRequest(req.body, req.user.id);
+      return res.status(201).json({
+        success: true,
+        message: 'Solicitud de mezcla creada',
+        data: preparation
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMixRequests(req, res, next) {
+    try {
+      const status = req.query.status || 'SOLICITADA';
+      const requests = await extrusionService.getMixRequests(status);
+      return res.status(200).json({
+        success: true,
+        data: requests
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new ExtrusionController();

@@ -8,6 +8,7 @@ interface MixInput {
 
 interface MixPayload {
   formula_id: string;
+  preparation_id?: string;
   destination_qr_code: string;
   inputs: MixInput[];
   notes?: string;
