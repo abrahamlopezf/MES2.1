@@ -8,8 +8,8 @@ const listFormulas = async (req, res, next) => {
 
     return res.json({
       success: true,
-      message: result,
-      data: 'Fórmulas obtenidas correctamente.',
+      message: 'Fórmulas obtenidas correctamente.',
+      data: result,
     });
   } catch (error) {
     return next(error);

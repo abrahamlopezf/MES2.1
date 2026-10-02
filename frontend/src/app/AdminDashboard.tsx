@@ -47,6 +47,12 @@ export const AdminDashboard: React.FC = () => {
       icon: <Settings2 size={32} className="text-indigo-500" />
     },
     {
+      title: 'Dashboard de Extrusión',
+      description: 'Métricas de producción, OEE y rendimientos por máquina.',
+      path: '/production/dashboard',
+      icon: <Activity size={32} className="text-blue-500" />
+    },
+    {
       title: 'Andon Board (Piso)',
       description: 'Tablero de control de estados de máquinas en tiempo real.',
       path: '/production/machines',

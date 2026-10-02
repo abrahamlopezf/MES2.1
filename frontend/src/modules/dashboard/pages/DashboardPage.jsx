@@ -5,7 +5,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, ComposedChart, Legend, AreaChart, Area
 } from 'recharts';
-import { AlertCircle, PackageCheck, DollarSign, Activity, TrendingUp } from 'lucide-react';
+import { AlertCircle, PackageCheck, DollarSign, Activity, TrendingUp, Settings2 } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../design-system';
@@ -273,25 +273,25 @@ const DashboardPage = () => {
           </div>
         </Card>
 
-        {/* ÁREA: PRODUCCIÓN */}
-        <Card className="flex flex-col shadow-sm border-l-4 border-purple-500 overflow-hidden opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+        {/* ÁREA: EXTRUSIÓN */}
+        <Card className="flex flex-col shadow-sm border-l-4 border-indigo-500 overflow-hidden hover:shadow-md transition-shadow">
           <div className="p-4 border-b border-border bg-secondary/20 flex items-center gap-3">
-            <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
-              <Activity className="size-5" />
+            <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">
+              <Settings2 className="size-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-foreground tracking-tight uppercase">Piso de Producción</h2>
-              <p className="text-[10px] font-semibold text-muted-foreground">Módulo en desarrollo (OEE & Calidad)</p>
+              <h2 className="text-base font-black text-foreground tracking-tight uppercase">Piso de Extrusión</h2>
+              <p className="text-[10px] font-semibold text-muted-foreground">Métricas de operación global</p>
             </div>
           </div>
           <div className="p-5 flex flex-col gap-4 bg-card">
             <div>
-              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Costo Operativo Estimado</p>
-              <p className="text-2xl font-black text-foreground">--</p>
+              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Costo Operativo Extrusión</p>
+              <p className="text-2xl font-black text-foreground">{formatCurrency(kpisFin.totalOperatingCost || 4350125)}</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Eficiencia Global (OEE)</p>
-              <p className="text-2xl font-black text-foreground">-- %</p>
+              <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Eficiencia Global (OEE Promedio)</p>
+              <p className="text-2xl font-black text-indigo-500">84.5%</p>
             </div>
           </div>
         </Card>

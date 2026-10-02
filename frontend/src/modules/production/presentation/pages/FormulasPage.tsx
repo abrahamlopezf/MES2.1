@@ -18,7 +18,7 @@ export const FormulasPage = () => {
       try {
         const response: any = await apiClient.get('/formulas');
         // apiClient returns response.data directly, so response has { success, message, data }
-        const data = response.message || [];
+        const data = response.data || [];
         
         // If data is empty (meaning seeder didn't run), throw error to trigger the fallback mock data
         if (!data || data.length === 0) {
@@ -224,8 +224,8 @@ export const FormulasPage = () => {
                           {getIngredients(formula).map((ing: any, idx: number) => (
                             <tr key={idx} className="border-b border-border/50 hover:bg-card transition-colors">
                               <td className="px-4 py-3 font-medium text-foreground">{ing.name}</td>
-                              <td className="px-4 py-3 text-right font-mono font-bold text-primary">{ing.quantity?.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right font-mono text-muted-foreground">{ing.percentage?.toFixed(2)}%</td>
+                              <td className="px-4 py-3 text-right font-mono font-bold text-primary">{Number(ing.quantity || 0).toFixed(2)}</td>
+                              <td className="px-4 py-3 text-right font-mono text-muted-foreground">{Number(ing.percentage || 0).toFixed(2)}%</td>
                               <td className="px-4 py-3 text-center">
                                 {ing.is_required ? (
                                   <Badge variant="default" className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-0">SÍ</Badge>
