@@ -140,14 +140,20 @@ async function syncToProd() {
       });
 
       // Prepare data
-      const { id, fam_code, type_name, brand_name, code_val, loc_code, ...baseData } = m;
+      const { 
+        id, fam_code, type_name, brand_name, code_val, loc_code,
+        family_id, type_id, brand_id, material_code_id, default_location_id, location_id,
+        ...baseData 
+      } = m;
+      
       const dataToSave = {
         ...baseData,
         family_id: pFamId,
         type_id: pTypeId,
         brand_id: pBrandId,
         material_code_id: pCodeId,
-        default_location_id: pLocId
+        default_location_id: pLocId,
+        location_id: pLocId // Ensure both point to the correctly mapped Prod location
       };
 
       if (existing.length > 0) {
