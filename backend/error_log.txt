@@ -305,4 +305,34 @@ no existe la columna «type» en la relación «material_locations»2026-08-24T2
     at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
     at async ProcessFormula.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
     at async Object.listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.service.js:102:20)
-    at async listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.controller.js:5:20)\n\n
+    at async listFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\formulas\formulas.controller.js:5:20)\n\n2026-09-30T22:42:49.580Z\nMessage: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.\nStack: Error: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.
+    at decryptQrData (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\utils\crypto.utils.js:40:11)
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:238:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n2026-09-30T23:00:11.872Z\nMessage: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.\nStack: Error: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.
+    at decryptQrData (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\utils\crypto.utils.js:40:11)
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:238:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n2026-09-30T23:00:21.366Z\nMessage: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.\nStack: Error: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.
+    at decryptQrData (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\utils\crypto.utils.js:40:11)
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:238:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n
