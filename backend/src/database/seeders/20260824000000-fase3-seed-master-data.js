@@ -145,7 +145,9 @@ module.exports = {
             brand_id = :brandId,
             default_location_id = :locId,
             minimum_stock = :minStock,
-            updated_at = :now
+            updated_at = :now,
+            is_active = true,
+            status = 'ACTIVE'
           WHERE id = :id`,
           {
             replacements: {
