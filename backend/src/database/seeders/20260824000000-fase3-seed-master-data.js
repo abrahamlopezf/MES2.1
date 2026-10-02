@@ -184,6 +184,38 @@ module.exports = {
         );
       }
     }
+    
+    // --- 7. DEACTIVATE EXTRA RECORDS ---
+    const allInternalCodes = Array.from(new Set(materialsData.map(r => r['NOMENCLATURA DE   QR'] || r['NOMENCLATURA DE QR']).filter(Boolean)));
+    if (allInternalCodes.length > 0) {
+      await queryInterface.sequelize.query(`UPDATE materials SET is_active = false WHERE internal_code NOT IN (:codes)`, { replacements: { codes: allInternalCodes } });
+    }
+
+    const famList = Array.from(families).filter(Boolean);
+    if (famList.length > 0) {
+      await queryInterface.sequelize.query(`UPDATE material_families SET is_active = false WHERE code NOT IN (:codes)`, { replacements: { codes: famList } });
+    }
+
+    const typeList = Array.from(types).filter(Boolean);
+    if (typeList.length > 0) {
+      await queryInterface.sequelize.query(`UPDATE material_types SET is_active = false WHERE name NOT IN (:names)`, { replacements: { names: typeList } });
+    }
+
+    const brandList = Array.from(brands).filter(Boolean);
+    if (brandList.length > 0) {
+      await queryInterface.sequelize.query(`UPDATE material_brands SET is_active = false WHERE name NOT IN (:names)`, { replacements: { names: brandList } });
+    }
+
+    const locList = Array.from(localities).filter(Boolean);
+    if (locList.length > 0) {
+      await queryInterface.sequelize.query(`UPDATE material_locations SET is_active = false WHERE code NOT IN (:codes)`, { replacements: { codes: locList } });
+    }
+
+    const artList = Array.from(articles).filter(Boolean);
+    if (artList.length > 0) {
+      await queryInterface.sequelize.query(`UPDATE material_codes SET is_active = false WHERE code NOT IN (:codes)`, { replacements: { codes: artList } });
+    }
+
   },
 
   down: async (queryInterface, Sequelize) => {
