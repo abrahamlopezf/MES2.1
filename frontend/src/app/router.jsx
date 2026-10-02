@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import AppLayout from "../components/layout/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import { RouteErrorBoundary } from "./RouteErrorBoundary";
 
 import LoginPage from "../modules/auth/pages/LoginPage";
 import ForgotPasswordPage from "../modules/auth/pages/ForgotPasswordPage";
@@ -23,10 +24,6 @@ import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
 import { AreasPage } from "../modules/dashboard/pages/AreasPage";
 import ProfilePage from "../modules/users/pages/ProfilePage";
 
-
-
-
-
 // Identity Center
 import { GenerateBatchPage } from '../modules/identity/presentation/pages/GenerateBatchPage';
 import { IdentityRequestsPage } from '../modules/identity/presentation/pages/IdentityRequestsPage';
@@ -42,8 +39,6 @@ import { ExtrusionDashboard } from '../modules/production/presentation/pages/Ext
 import { FormulasPage } from '../modules/production/presentation/pages/FormulasPage';
 import { MachinesPage } from '../modules/production/presentation/pages/MachinesPage';
 
-
-
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
 
@@ -56,10 +51,12 @@ import { LoteDetailsPage } from '../modules/warehouse/presentation/pages/LoteDet
 import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
 import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
 import { AreaInventoryPage } from '../modules/warehouse/presentation/pages/AreaInventoryPage';
+
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Navigate to="/dashboard" replace />,
+    errorElement: <RouteErrorBoundary />
   },
   {
     path: "/login",
@@ -75,6 +72,7 @@ export const router = createBrowserRouter([
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         element: <AppLayout />,
