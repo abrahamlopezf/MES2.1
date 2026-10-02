@@ -86,6 +86,18 @@ export const router = createBrowserRouter([
             element: <UsersPage />,
           },
           {
+            path: '/admin',
+            element: <Navigate to="/users" replace />,
+          },
+          {
+            path: '/usuarios',
+            element: <Navigate to="/users" replace />,
+          },
+          {
+            path: '/gestor-usuarios',
+            element: <Navigate to="/users" replace />,
+          },
+          {
             path: '/roles',
             element: <RolesPage />,
           },

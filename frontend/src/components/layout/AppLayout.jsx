@@ -4,7 +4,7 @@ import { GlobalScannerModal } from '../../modules/identity/presentation/context/
 import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
 import { ExtruderSelectionModal } from '../../modules/production/presentation/components/ExtruderSelectionModal';
 import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
-import { Home, Grid, QrCode, ScanLine, Package } from 'lucide-react';
+import { Home, Grid, QrCode, ScanLine, Package, Menu, Users } from 'lucide-react';
 import { PageContainer, BottomNavigation, FAB } from '../../design-system';
 import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
@@ -80,6 +80,13 @@ const AppLayout = () => {
       show: true
     },
     {
+      icon: <Users size={24} />,
+      label: 'Usuarios',
+      onClick: () => handleNav('/users'),
+      isActive: location.pathname.startsWith('/users'),
+      show: useAuthStore().hasPermission('users.read')
+    },
+    {
       icon: <MiniAvatar user={user} size={26} />,
       label: 'Perfil',
       onClick: () => handleNav('/profile'),
@@ -90,12 +97,26 @@ const AppLayout = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    const handleOpenSidebar = () => setIsSidebarOpen(true);
+    window.addEventListener('open-sidebar', handleOpenSidebar);
+    return () => window.removeEventListener('open-sidebar', handleOpenSidebar);
+  }, []);
+
   return (
     <div className="flex h-[100dvh] bg-background text-foreground font-sans relative overflow-hidden">
       
-      {/* Sidebar for Desktop */}
-      <div className="hidden lg:block h-full shrink-0">
-        <Sidebar isOpen={true} setIsOpen={() => {}} />
+      {/* Sidebar Overlay for Mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 lg:hidden z-40 backdrop-blur-sm transition-opacity" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar for Desktop and Mobile */}
+      <div className="h-full shrink-0 z-50 pointer-events-auto">
+        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       </div>
 
       {/* Mobile-First Layout for ALL screens */}

@@ -89,7 +89,7 @@ const menuGroups = [
   }
 ];
 
-const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand }) => {
+const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileClick }) => {
   const { hasPermission, hasAnyPermission, user } = useAuthStore();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(
@@ -108,6 +108,11 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand }) => {
       <NavLink
         to={item.path}
         title={isCollapsed ? item.label : undefined}
+        onClick={() => {
+          if (window.innerWidth < 1024 && typeof onMobileClick === 'function') {
+            onMobileClick();
+          }
+        }}
         className={({ isActive }) =>
           `flex items-center ${isCollapsed ? 'justify-center w-12 h-12 p-0 mx-auto' : 'justify-between px-4 py-3'} rounded-lg transition-colors border-l-4 ${
             isActive
@@ -189,6 +194,11 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand }) => {
               <NavLink
                 key={child.path}
                 to={child.path}
+                onClick={() => {
+                  if (window.innerWidth < 1024 && typeof onMobileClick === 'function') {
+                    onMobileClick();
+                  }
+                }}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm ${
                     isActive
@@ -275,6 +285,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
               pendingUsersCount={pendingUsersCount} 
               isCollapsed={isCollapsed}
               onExpand={() => setIsCollapsed(false)}
+              onMobileClick={() => setMobileIsOpen(false)}
             />
           ))}
         </nav>
