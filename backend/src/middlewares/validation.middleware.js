@@ -13,6 +13,8 @@ const validate = (schema) => {
         message: detail.message,
       }));
 
+      require('fs').writeFileSync('validation_error.txt', JSON.stringify(errors, null, 2));
+
       return errorResponse(
         res,
         'Revisa la información capturada.',

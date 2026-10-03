@@ -229,8 +229,8 @@ const createUser = async (payload, currentUser) => {
       transaction,
     });
 
-    const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
-    const isActive = isGlobalAdmin ? (payload.is_active ?? true) : false;
+    // Ahora todos pueden crear usuarios activos (según payload o true por defecto)
+    const isActive = payload.is_active ?? true;
     
     const tempPassword = payload.password || Math.random().toString(36).slice(-8) + '1Aa@';
     const passwordHash = await bcrypt.hash(tempPassword, PASSWORD_SALT_ROUNDS);
@@ -251,6 +251,7 @@ const createUser = async (payload, currentUser) => {
       { transaction }
     );
 
+    const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
     if (!isGlobalAdmin) {
       const globalAdmins = await User.findAll({
         include: [{
@@ -265,9 +266,9 @@ const createUser = async (payload, currentUser) => {
       const notifications = globalAdmins.map(admin => ({
         recipient_id: admin.id,
         sender_id: currentUser.id,
-        type: 'USER_ACTIVATION_REQUEST',
-        title: 'Nueva solicitud de activación',
-        message: `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} y está pendiente de activación.`,
+        type: 'SYSTEM',
+        title: 'Nuevo usuario creado por Administrador de Área',
+        message: `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}.`,
       }));
 
       if (notifications.length > 0) {

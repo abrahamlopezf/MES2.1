@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit3, Archive, Layers } from 'lucide-react';
+import { Plus, Edit3, Archive, Layers, LayoutGrid, List } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { TFAlert, TFButton, TFCard, TFBadge } from '../../../components/tf-ui';
 import LoadingState from '../../../components/feedback/LoadingState';
@@ -27,6 +27,8 @@ const SubcatalogPageTemplate = ({
   const { hasPermission } = useAuthStore();
   const { user } = useAuthStore();
   const canManageCatalogs = user?.role?.name === 'SUPERADMIN' || user?.role?.name === 'ADMIN' || hasPermission('masterdata.manage') || hasPermission('materials.create');
+
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
 
   const [operationMessage, setOperationMessage] = useState(null);
   const [operationError, setOperationError] = useState(null);
@@ -148,6 +150,8 @@ const SubcatalogPageTemplate = ({
           onFilterChange={onFilterChange}
           onClearFilters={onClearFilters}
           entityName={entityName}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
         />
       )}
 
@@ -159,31 +163,70 @@ const SubcatalogPageTemplate = ({
           <p className="text-muted-foreground text-sm">Crea el primer registro para {title.toLowerCase()}.</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <TFCard key={item.id} className="p-5 flex flex-col gap-4 border-border shadow-sm hover:border-primary/50 transition-colors bg-card text-card-foreground">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-col">
-                  <span className="font-bold text-lg text-foreground">{item.name}</span>
-                  <span className="text-sm font-bold text-muted-foreground font-mono">{item.code}</span>
-                </div>
-                <TFBadge variant={item.is_active !== false ? 'success' : 'danger'}>
-                  {item.is_active !== false ? 'Activo' : 'Inactivo'}
-                </TFBadge>
-              </div>
-              {item.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2 m-0">{item.description}</p>
-              )}
-              {canManageCatalogs && (
-                <div className="mt-auto pt-4 border-t border-border flex justify-end">
-                  <TFButton size="sm" variant="secondary" icon={Edit3} onClick={() => handleOpenEdit(item)}>
-                    Editar
-                  </TFButton>
-                </div>
-              )}
-            </TFCard>
-          ))}
-        </div>
+        <>
+          {viewMode === 'grid' ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {items.map((item) => (
+                <TFCard key={item.id} className="p-5 flex flex-col gap-4 border-border shadow-sm hover:border-primary/50 transition-colors bg-card text-card-foreground">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-lg text-foreground">{item.name}</span>
+                      <span className="text-sm font-bold text-muted-foreground font-mono">{item.code}</span>
+                    </div>
+                    <TFBadge variant={item.is_active !== false ? 'success' : 'danger'}>
+                      {item.is_active !== false ? 'Activo' : 'Inactivo'}
+                    </TFBadge>
+                  </div>
+                  {item.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 m-0">{item.description}</p>
+                  )}
+                  {canManageCatalogs && (
+                    <div className="mt-auto pt-4 border-t border-border flex justify-end">
+                      <TFButton size="sm" variant="secondary" icon={Edit3} onClick={() => handleOpenEdit(item)}>
+                        Editar
+                      </TFButton>
+                    </div>
+                  )}
+                </TFCard>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card text-card-foreground border border-border shadow-sm rounded-xl overflow-x-auto">
+              <table className="w-full text-base text-left">
+                <thead className="bg-secondary text-secondary-foreground font-bold tracking-wider border-b border-border">
+                  <tr>
+                    <th className="px-6 py-4">Código</th>
+                    <th className="px-6 py-4">Nombre</th>
+                    <th className="px-6 py-4">Descripción</th>
+                    <th className="px-6 py-4 text-center">Estado</th>
+                    {canManageCatalogs && <th className="px-6 py-4 text-right">Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {items.map((item) => (
+                    <tr key={item.id} className="hover:bg-secondary/20 transition-colors">
+                      <td className="px-6 py-4 font-mono font-bold text-foreground">{item.code}</td>
+                      <td className="px-6 py-4 font-black text-foreground">{item.name}</td>
+                      <td className="px-6 py-4 text-foreground/90 max-w-[250px] truncate font-medium" title={item.description}>{item.description || '-'}</td>
+                      <td className="px-6 py-4 text-center">
+                        <TFBadge variant={item.is_active !== false ? 'success' : 'danger'} className="font-bold px-3 py-1 text-sm">
+                          {item.is_active !== false ? 'Activo' : 'Inactivo'}
+                        </TFBadge>
+                      </td>
+                      {canManageCatalogs && (
+                        <td className="px-6 py-4 text-right">
+                          <TFButton size="sm" variant="secondary" icon={Edit3} onClick={() => handleOpenEdit(item)}>
+                            Editar
+                          </TFButton>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {/* Pagination Controls */}

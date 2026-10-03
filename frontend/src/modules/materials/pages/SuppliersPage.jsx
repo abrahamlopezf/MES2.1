@@ -13,7 +13,7 @@ const SuppliersPage = () => {
     page: 1,
     limit: 20,
     search: '',
-    status: 'all'
+    status: 'active'
   });
 
   const query = useSuppliersQuery(filters);
@@ -21,11 +21,11 @@ const SuppliersPage = () => {
   const updateMut = useUpdateSupplierMutation();
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
   };
 
   const handleClearFilters = () => {
-    setFilters({ page: 1, limit: 20, search: '', status: 'all' });
+    setFilters({ page: 1, limit: 20, search: '', status: 'active' });
   };
 
   return (

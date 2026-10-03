@@ -30,65 +30,65 @@ const MaterialsTable = ({
       <table className="w-full min-w-[900px] table-fixed border-separate border-spacing-0">
         <thead>
           <tr>
-            <th className="w-[10%] rounded-l-xl bg-secondary/50 px-3 py-2.5 text-left text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[10%] rounded-l-xl bg-secondary px-3 py-3 text-left text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Familia
             </th>
-            <th className="w-[15%] bg-secondary/50 px-3 py-2.5 text-left text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[15%] bg-secondary px-3 py-3 text-left text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Artículo/Cons.
             </th>
-            <th className="w-[25%] bg-secondary/50 px-3 py-2.5 text-left text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[25%] bg-secondary px-3 py-3 text-left text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Descripción
             </th>
-            <th className="w-[12%] bg-secondary/50 px-3 py-2.5 text-left text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[12%] bg-secondary px-3 py-3 text-left text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Tipo
             </th>
-            <th className="w-[12%] bg-secondary/50 px-3 py-2.5 text-left text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[12%] bg-secondary px-3 py-3 text-left text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Marca
             </th>
-            <th className="w-[10%] bg-secondary/50 px-3 py-2.5 text-left text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[10%] bg-secondary px-3 py-3 text-left text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Localidad
             </th>
-            <th className="w-[100px] rounded-r-xl bg-secondary/50 px-3 py-2.5 text-right text-xs font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+            <th className="w-[100px] rounded-r-xl bg-secondary px-3 py-3 text-right text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap overflow-hidden text-ellipsis">
               Acciones
             </th>
           </tr>
         </thead>
 
-        <tbody>
+        <tbody className="mt-2">
           {materials.map((material) => (
-            <tr key={material.id} className="group hover:bg-muted/20 transition-colors">
-              <td className="border-b border-border/50 px-3 py-2.5 align-middle">
-                <span className="font-bold text-sm text-foreground">
+            <tr key={material.id} className="group hover:bg-secondary/20 transition-colors">
+              <td className="border-b border-border/50 px-3 py-3.5 align-middle">
+                <span className="font-bold text-base text-foreground">
                   {renderTextWithBr(material.family?.name)}
                 </span>
               </td>
 
-              <td className="border-b border-border/50 px-3 py-2.5 align-middle">
-                <strong className="font-black text-primary">
+              <td className="border-b border-border/50 px-3 py-3.5 align-middle">
+                <strong className="font-black text-base text-primary">
                   {material.internal_code ? material.internal_code.split('-').slice(1).join('-') : renderTextWithBr(material.code)}
                 </strong>
               </td>
 
-              <td className="border-b border-border/50 px-3 py-2.5 align-middle truncate">
-                <span className="font-bold text-sm text-foreground" title={stripBr(material.name)}>
+              <td className="border-b border-border/50 px-3 py-3.5 align-middle truncate">
+                <span className="font-bold text-base text-foreground/90" title={stripBr(material.name)}>
                   {stripBr(material.name)}
                 </span>
               </td>
 
-              <td className="border-b border-border/50 px-3 py-2.5 align-middle">
-                <span className="text-sm font-semibold text-muted-foreground">
+              <td className="border-b border-border/50 px-3 py-3.5 align-middle">
+                <span className="text-base font-semibold text-foreground/80">
                   {renderTextWithBr(material.type?.name)}
                 </span>
               </td>
 
-              <td className="border-b border-border/50 px-3 py-2.5 align-middle">
-                <span className="text-sm font-semibold text-muted-foreground">
+              <td className="border-b border-border/50 px-3 py-3.5 align-middle">
+                <span className="text-base font-semibold text-foreground/80">
                   {renderTextWithBr(material.brand?.name)}
                 </span>
               </td>
 
-              <td className="border-b border-border/50 px-3 py-2.5 align-middle">
-                <span className="text-sm font-bold text-foreground">
+              <td className="border-b border-border/50 px-3 py-3.5 align-middle">
+                <span className="text-base font-bold text-foreground">
                   {renderTextWithBr(material.default_location?.code || material.default_location?.name)}
                 </span>
               </td>

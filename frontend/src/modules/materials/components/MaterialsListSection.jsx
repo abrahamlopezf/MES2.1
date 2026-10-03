@@ -97,9 +97,9 @@ const MaterialsListSection = ({
             </div>
 
             {total > pageSize && (
-              <div className="flex flex-col sm:flex-row items-center justify-between border border-border px-5 py-4 gap-4 bg-secondary/20 rounded-xl mt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between border border-border px-5 py-4 gap-4 bg-card rounded-xl mt-4 shadow-sm">
                 <div className="hidden sm:block">
-                  <p className="text-sm font-semibold text-muted-foreground">
+                  <p className="text-sm font-semibold text-foreground/90">
                     Mostrando del <span className="font-bold text-foreground">{((page - 1) * pageSize) + 1}</span> al{' '}
                     <span className="font-bold text-foreground">{Math.min(page * pageSize, total)}</span> de{' '}
                     <span className="font-bold text-foreground">{total}</span> resultados

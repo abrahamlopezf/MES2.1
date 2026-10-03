@@ -12,7 +12,7 @@ const BrandsPage = () => {
     page: 1,
     limit: 20,
     search: '',
-    status: 'all'
+    status: 'active'
   });
 
   const query = useMaterialBrandsQuery(filters);
@@ -20,11 +20,11 @@ const BrandsPage = () => {
   const updateMut = useUpdateMaterialBrandMutation();
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
   };
 
   const handleClearFilters = () => {
-    setFilters({ page: 1, limit: 20, search: '', status: 'all' });
+    setFilters({ page: 1, limit: 20, search: '', status: 'active' });
   };
 
   return (

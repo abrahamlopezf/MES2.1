@@ -98,12 +98,15 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
       createMutation.mutate(
         finalValues, 
         { 
-          onSuccess: () => {
-            toast.success(isSupervisor ? 'Usuario registrado y en espera de aprobación' : 'Usuario registrado exitosamente');
+          onSuccess: (data) => {
+            const isPending = data?.data?.status === 'PENDING';
+            toast.success(isPending ? 'Usuario registrado y en espera de aprobación' : 'Usuario registrado exitosamente');
             onClose();
           },
           onError: (error: any) => {
-            toast.error(error.response?.data?.message || error.message || 'No se pudo registrar el usuario');
+            console.error('Create Error:', JSON.stringify(error.response?.data?.errors, null, 2));
+            const detailMsg = error.response?.data?.errors?.[0]?.message;
+            toast.error(detailMsg ? `Error: ${detailMsg}` : error.response?.data?.message || error.message || 'No se pudo registrar el usuario');
           }
         }
       );

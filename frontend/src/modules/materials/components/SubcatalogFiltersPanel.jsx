@@ -1,4 +1,4 @@
-import { FilterX, Search } from 'lucide-react';
+import { FilterX, Search, LayoutGrid, List } from 'lucide-react';
 import { Button } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
 
@@ -7,6 +7,8 @@ const SubcatalogFiltersPanel = ({
     onFilterChange,
     onClearFilters,
     entityName = "registros",
+    viewMode,
+    setViewMode
 }) => {
     const hasActiveFilters = Boolean(
         filters?.search ||
@@ -20,12 +22,34 @@ const SubcatalogFiltersPanel = ({
                     <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
                     <p className="text-sm text-muted-foreground font-semibold">Encuentra {entityName} por código o nombre.</p>
                 </div>
-                {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
-                        <FilterX className="w-4 h-4 mr-2 shrink-0" />
-                        <span>Limpiar Filtros</span>
-                    </Button>
-                )}
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
+                            <FilterX className="w-4 h-4 mr-2 shrink-0" />
+                            <span>Limpiar Filtros</span>
+                        </Button>
+                    )}
+                    {setViewMode && (
+                        <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0 ml-auto">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('list')}
+                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                title="Vista de lista"
+                            >
+                                <List size={18} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('grid')}
+                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                title="Vista de tarjetas"
+                            >
+                                <LayoutGrid size={18} />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">

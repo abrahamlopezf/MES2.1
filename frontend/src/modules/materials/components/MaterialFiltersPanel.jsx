@@ -102,8 +102,8 @@ const MaterialFiltersPanel = ({
                 )}
             </div>
 
-            <div className="mt-2 flex items-start sm:items-center gap-3 rounded-xl bg-primary/10 px-4 py-3 text-sm font-bold text-primary border border-primary/20 shadow-sm">
-                <div className="p-1.5 bg-primary/20 rounded-lg shrink-0">
+            <div className="mt-2 flex items-start sm:items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-sm font-bold text-foreground border border-border shadow-sm">
+                <div className="p-1.5 bg-primary/20 rounded-lg shrink-0 text-primary">
                     <Filter className="w-4 h-4" />
                 </div>
                 <span className="leading-tight">

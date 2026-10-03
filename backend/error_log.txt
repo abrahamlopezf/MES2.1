@@ -335,4 +335,10 @@ no existe la columna «type» en la relación «material_locations»2026-08-24T2
     at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
     at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
     at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
-    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n2026-10-03T01:17:00.250Z\nMessage: El correo ya está registrado.\nStack: Error: El correo ya está registrado.
+    at throwHttpError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\security\accessRules.js:17:17)
+    at validateUniqueUserFields (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\users\users.service.js:138:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\users\users.service.js:225:5
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async createUser (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\users\users.controller.js:26:18)\n\n

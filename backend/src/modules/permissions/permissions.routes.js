@@ -11,7 +11,7 @@ router.use(authMiddleware);
 
 router.get(
   '/',
-  permissionMiddleware('roles.read'),
+  permissionMiddleware('roles.read', 'users.read'),
   permissionsController.getPermissions
 );
 

@@ -172,15 +172,19 @@ const MaterialForm = ({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!formData.family_uuid || !formData.material_code_uuid || !formData.name.trim() || !formData.ranking_id) {
-      setFormError('Por favor complete todos los campos obligatorios (Familia, Artículo, Nombre y Ranking).');
+    const selectedFamilyObj = families.find(f => f.uuid === formData.family_uuid);
+    const matchedRanking = selectedFamilyObj ? rankings.find(r => r.nomenclature === selectedFamilyObj.code) : null;
+    const finalRankingId = matchedRanking ? matchedRanking.id : (formData.ranking_id || null);
+
+    if (!formData.family_uuid || !formData.material_code_uuid || !formData.name.trim() || !finalRankingId) {
+      setFormError('Por favor complete todos los campos obligatorios (Familia, Artículo y Nombre). Si la familia no tiene un ranking asignado, comuníquese con el administrador.');
       return;
     }
 
     setFormError(null);
 
     const payload = {
-      ranking_id: parseInt(formData.ranking_id, 10),
+      ranking_id: parseInt(finalRankingId, 10),
       family_uuid: formData.family_uuid,
       material_code_uuid: formData.material_code_uuid,
       type_uuid: formData.type_uuid || null,
@@ -232,18 +236,7 @@ const MaterialForm = ({
 
         <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 animate-form-field [&>*]:min-w-0" style={{ '--stagger': 2 }}>
             <TFSelect
-              label="Ranking *"
-              name="ranking_id"
-              placeholder="Selecciona el Ranking"
-              value={formData.ranking_id}
-              onChange={(e) => updateField('ranking_id', e.target.value)}
-              options={rankingOptions}
-              disabled={isSubmitting}
-              required
-            />
-
-            <TFSelect
-              label="Familia *"
+              label="Familia / Ranking *"
               name="family_uuid"
               placeholder="Selecciona la Familia"
               value={formData.family_uuid}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FilterX, Plus, RefreshCw, Search, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import { Card, CardContent, Button, Badge } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
@@ -41,6 +41,12 @@ const getApiErrorMessage = (error) => {
 
 const RolesPage = () => {
   const { hasPermission, user: currentUser } = useAuthStore();
+  const canReadRoles = hasPermission('roles.read');
+  
+  if (!canReadRoles) {
+    return <Navigate to="/users" replace />;
+  }
+
   const canCreate = hasPermission('roles.create');
   const canUpdate = hasPermission('roles.update');
   const canDelete = hasPermission('roles.delete');
