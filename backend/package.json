@@ -14,8 +14,7 @@
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "db:seed:catalog": "sequelize-cli db:seed --seed 20260826120000-production-catalog-data.js",
     "sync:master-data": "node scripts/sync-master-data.js",
-    "prepare": "husky",
-    "test": "echo \"Error: no test specified\" && exit 0"
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
