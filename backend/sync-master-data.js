@@ -1,17 +1,69 @@
 const xlsx = require('xlsx');
+const path = require('path');
 const db = require('./src/database/models');
+const { Op } = db.Sequelize; // Importante para usar operadores como 'notIn'
+
+function findDuplicates(data, columnName, sheetName) {
+  const seen = new Set();
+  const duplicates = new Set();
+  
+  for (const row of data) {
+    const value = row[columnName] ? String(row[columnName]).trim() : null;
+    if (!value) continue;
+    
+    if (seen.has(value)) {
+      duplicates.add(value);
+    } else {
+      seen.add(value);
+    }
+  }
+  
+  const duplicatesArray = Array.from(duplicates);
+  if (duplicatesArray.length > 0) {
+    console.error(`❌ ERROR: Duplicados en la hoja '${sheetName}' para la columna '${columnName}':`);
+    console.error(duplicatesArray.join(', '));
+    return true;
+  }
+  return false;
+}
 
 async function syncMasterData() {
-  const filePath = 'c:\\Users\\maicr\\OneDrive\\Desktop\\Demo\\docs\\Libro1_Corregido.xlsx';
+  const filePath = path.join(__dirname, 'docs', 'Libro1_Corregido.xlsx');
   const workbook = xlsx.readFile(filePath);
   
   try {
+    console.log("Iniciando validación del Excel...");
+    
+    const familiasData = xlsx.utils.sheet_to_json(workbook.Sheets['Familias']);
+    const tiposData = xlsx.utils.sheet_to_json(workbook.Sheets['Tipos']);
+    const marcasData = xlsx.utils.sheet_to_json(workbook.Sheets['Marcas']);
+    const locData = xlsx.utils.sheet_to_json(workbook.Sheets['Localidades']);
+    const matData = xlsx.utils.sheet_to_json(workbook.Sheets['Materiales']);
+
+    let hasErrors = false;
+    hasErrors = findDuplicates(familiasData, 'NOMENCLATURA', 'Familias') || hasErrors;
+    hasErrors = findDuplicates(tiposData, 'TIPO', 'Tipos') || hasErrors;
+    hasErrors = findDuplicates(marcasData, 'MARCA', 'Marcas') || hasErrors;
+    hasErrors = findDuplicates(locData, 'LOCALIDAD', 'Localidades') || hasErrors;
+    hasErrors = findDuplicates(matData, 'NOMENCLATURA DE QR (FAMILIA + ARTICULO/CONSECUTIVO)', 'Materiales') || hasErrors;
+
+    if (hasErrors) {
+      console.error("🛑 Proceso abortado por duplicados.");
+      process.exit(1);
+    }
+
     await db.sequelize.authenticate();
-    console.log("DB connected");
+    console.log("✅ DB conectada.");
+
+    // Arreglos para rastrear exactamente qué IDs procesamos
+    const processedFamilyIds = [];
+    const processedTypeIds = [];
+    const processedBrandIds = [];
+    const processedLocIds = [];
+    const processedMaterialIds = [];
+    const processedMaterialCodeIds = [];
 
     // 1. Sync Familias
-    const familiasSheet = workbook.Sheets['Familias'];
-    const familiasData = xlsx.utils.sheet_to_json(familiasSheet);
     const familyMap = {};
     for (const row of familiasData) {
       const nomenclatura = row['NOMENCLATURA'] ? String(row['NOMENCLATURA']).trim() : null;
@@ -25,13 +77,12 @@ async function syncMasterData() {
       fam.name = nombre;
       fam.is_active = true;
       await fam.save();
+      
       familyMap[nomenclatura] = fam.id;
+      processedFamilyIds.push(fam.id);
     }
-    console.log("Families synced.");
 
     // 2. Sync Tipos
-    const tiposSheet = workbook.Sheets['Tipos'];
-    const tiposData = xlsx.utils.sheet_to_json(tiposSheet);
     const typeMap = {};
     for (const row of tiposData) {
       const tipo = row['TIPO'] ? String(row['TIPO']).trim() : null;
@@ -44,13 +95,12 @@ async function syncMasterData() {
       t.name = tipo;
       t.is_active = true;
       await t.save();
+      
       typeMap[tipo] = t.id;
+      processedTypeIds.push(t.id);
     }
-    console.log("Types synced.");
 
     // 3. Sync Marcas
-    const marcasSheet = workbook.Sheets['Marcas'];
-    const marcasData = xlsx.utils.sheet_to_json(marcasSheet);
     const brandMap = {};
     for (const row of marcasData) {
       const marca = row['MARCA'] ? String(row['MARCA']).trim() : null;
@@ -63,13 +113,12 @@ async function syncMasterData() {
       b.name = marca;
       b.is_active = true;
       await b.save();
+      
       brandMap[marca] = b.id;
+      processedBrandIds.push(b.id);
     }
-    console.log("Brands synced.");
 
     // 4. Sync Localidades
-    const locSheet = workbook.Sheets['Localidades'];
-    const locData = xlsx.utils.sheet_to_json(locSheet);
     const locMap = {};
     for (const row of locData) {
       const loc = row['LOCALIDAD'] ? String(row['LOCALIDAD']).trim() : null;
@@ -82,16 +131,16 @@ async function syncMasterData() {
       l.name = loc;
       l.is_active = true;
       await l.save();
+      
       locMap[loc] = l.id;
+      processedLocIds.push(l.id);
     }
-    console.log("Locations synced.");
+
+    // Asegurar que la familia "OTROS" exista en el track para no borrarla accidentalmente
+    if (familyMap['OTR-']) processedFamilyIds.push(familyMap['OTR-']);
 
     // 5. Sync Materiales
-    const matSheet = workbook.Sheets['Materiales'];
-    const matData = xlsx.utils.sheet_to_json(matSheet);
-    
     let codesMap = {};
-    
     for (const row of matData) {
       const familia = row['FAMILIA'] ? String(row['FAMILIA']).trim() : 'OTR-';
       const artCon = row['ARTICULO/CONSECUTIVO'] ? String(row['ARTICULO/CONSECUTIVO']).trim() : null;
@@ -113,13 +162,16 @@ async function syncMasterData() {
       mCode.name = desc || artCon;
       mCode.is_active = true;
       await mCode.save();
+      
       codesMap[artCon] = mCode.id;
+      processedMaterialCodeIds.push(mCode.id);
       
       let famId = familyMap[familia] || familyMap['OTR-'];
       if (!famId) {
          const [fam] = await db.MaterialFamily.findOrCreate({ where: { code: 'OTR-' }, defaults: { name: 'OTROS', is_active: true } });
          familyMap['OTR-'] = fam.id;
          famId = fam.id;
+         processedFamilyIds.push(fam.id);
       }
       const typeId = typeMap[tipo] || null;
       const brandId = brandMap[marca] || null;
@@ -138,9 +190,9 @@ async function syncMasterData() {
       }
       
       if (!material) {
-        await db.Material.create({
+        material = await db.Material.create({
           family_id: famId,
-          material_code_id: codesMap[artCon],
+          material_code_id: mCode.id,
           internal_consecutive: consPart,
           internal_code: nomQr,
           name: desc || nomQr,
@@ -153,19 +205,59 @@ async function syncMasterData() {
       } else {
         material.name = desc || nomQr;
         material.description = tipo || null;
-        material.material_code_id = codesMap[artCon];
+        material.material_code_id = mCode.id;
         material.brand_id = brandId;
         material.type_id = typeId;
         material.default_location_id = locId;
         material.is_active = true;
         await material.save();
       }
+
+      processedMaterialIds.push(material.id);
     }
     
-    console.log("Materials synced.");
+    console.log("✅ Sincronización completada. Iniciando Purga de datos obsoletos...");
+
+    // ---------------------------------------------------------------------------
+    // FASE 6: PURGA (CLEANUP)
+    // Elimina de la BD todo lo que NO estaba en el Excel.
+    // El orden de borrado es vital para no romper las Foreign Keys (de hijos a padres)
+    // ---------------------------------------------------------------------------
+
+    const deletedMaterials = await db.Material.destroy({
+      where: { id: { [Op.notIn]: processedMaterialIds } }
+    });
+    console.log(`🗑️  Materiales eliminados: ${deletedMaterials}`);
+
+    const deletedMaterialCodes = await db.MaterialCode.destroy({
+      where: { id: { [Op.notIn]: processedMaterialCodeIds } }
+    });
+    console.log(`🗑️  Códigos de Material eliminados: ${deletedMaterialCodes}`);
+
+    const deletedFamilies = await db.MaterialFamily.destroy({
+      where: { id: { [Op.notIn]: processedFamilyIds } }
+    });
+    console.log(`🗑️  Familias eliminadas: ${deletedFamilies}`);
+
+    const deletedTypes = await db.MaterialType.destroy({
+      where: { id: { [Op.notIn]: processedTypeIds } }
+    });
+    console.log(`🗑️  Tipos eliminados: ${deletedTypes}`);
+
+    const deletedBrands = await db.MaterialBrand.destroy({
+      where: { id: { [Op.notIn]: processedBrandIds } }
+    });
+    console.log(`🗑️  Marcas eliminadas: ${deletedBrands}`);
+
+    const deletedLocs = await db.Location.destroy({
+      where: { id: { [Op.notIn]: processedLocIds } }
+    });
+    console.log(`🗑️  Localidades eliminadas: ${deletedLocs}`);
+
+    console.log("🚀 Proceso finalizado. La base de datos es ahora una copia exacta del Excel.");
     
   } catch (e) {
-    console.error("Error:", e);
+    console.error("Error crítico durante la ejecución:", e);
   } finally {
     process.exit(0);
   }
