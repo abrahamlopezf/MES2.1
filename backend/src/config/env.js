@@ -26,8 +26,7 @@ const env = {
     secret:
       process.env.JWT_SECRET || 'development_secret',
 
-    expiresIn:
-      process.env.JWT_EXPIRES_IN || '12h',
+    expiresIn: '12h',
   },
 };
 

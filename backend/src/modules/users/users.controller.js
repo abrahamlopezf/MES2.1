@@ -43,9 +43,12 @@ const updateUser = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
-    const user = await usersService.deleteUser(req.params.id, req.user);
+    const user = await usersService.deleteUser(req.params.id, req.user, {
+      action: req.body?.action,
+      reason: req.body?.reason,
+    });
 
-    return successResponse(res, 'Usuario desactivado correctamente.', user);
+    return successResponse(res, 'Acción ejecutada correctamente.', user);
   } catch (error) {
     return next(error);
   }

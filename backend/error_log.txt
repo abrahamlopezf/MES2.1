@@ -341,4 +341,324 @@ no existe la columna «type» en la relación «material_locations»2026-08-24T2
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\users\users.service.js:225:5
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
-    at async createUser (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\users\users.controller.js:26:18)\n\n
+    at async createUser (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\users\users.controller.js:26:18)\n\n2026-10-03T15:54:52.193Z\nMessage: inserción o actualización en la tabla «materials» viola la llave foránea «materials_ranking_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async Material.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async MaterialCrudService.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:87:12)
+    at async create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:16:18)\n\n2026-10-03T15:58:46.120Z\nMessage: notNull Violation: AuditLog.action cannot be null,
+notNull Violation: AuditLog.entity_type cannot be null,
+notNull Violation: AuditLog.module cannot be null,
+notNull Violation: AuditLog.description cannot be null\nStack: SequelizeValidationError: notNull Violation: AuditLog.action cannot be null,
+notNull Violation: AuditLog.entity_type cannot be null,
+notNull Violation: AuditLog.module cannot be null,
+notNull Violation: AuditLog.description cannot be null
+    at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
+    at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
+    at async AuditLog.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async MaterialCrudService.delete (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:160:7)
+    at async remove (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:26:18)\n\n2026-10-03T15:59:14.700Z\nMessage: notNull Violation: AuditLog.action cannot be null,
+notNull Violation: AuditLog.entity_type cannot be null,
+notNull Violation: AuditLog.module cannot be null,
+notNull Violation: AuditLog.description cannot be null\nStack: SequelizeValidationError: notNull Violation: AuditLog.action cannot be null,
+notNull Violation: AuditLog.entity_type cannot be null,
+notNull Violation: AuditLog.module cannot be null,
+notNull Violation: AuditLog.description cannot be null
+    at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
+    at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
+    at async AuditLog.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async MaterialCrudService.delete (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.crud.service.js:160:7)
+    at async remove (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:26:18)\n\n2026-10-06T02:46:00.804Z\nMessage: la sintaxis de entrada no es válida para tipo uuid: «8709»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async MaterialCode.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async MaterialCode.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async MaterialCodeService.findByUuid (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:75:20)
+    at async MaterialCodeService.delete (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\services\BaseCatalogService.js:104:20)
+    at async remove (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\materialCode\materialCode.controller.js:25:18)\n\n2026-10-08T04:11:53.485Z\nMessage: no existe la columna «description»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Tag.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Object.getAllTags (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:5:10)
+    at async getAllTags (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.controller.js:6:18)\n\n2026-10-08T04:11:54.548Z\nMessage: no existe la columna «description»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Tag.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Object.getAllTags (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:5:10)
+    at async getAllTags (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.controller.js:6:18)\n\n2026-10-08T04:11:56.601Z\nMessage: no existe la columna «description»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Tag.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Object.getAllTags (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:5:10)
+    at async getAllTags (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.controller.js:6:18)\n\n2026-10-08T04:13:51.749Z\nMessage: la sintaxis de entrada no es válida para tipo integer: «9d833fd3-1de9-4d71-b02f-106579dd24e2»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Tag.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Tag.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Tag.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async getTagById (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:13:15)
+    at async Object.updateTag (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:33:15)
+    at async updateTag (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.controller.js:42:18)\n\n2026-10-08T04:14:26.914Z\nMessage: la sintaxis de entrada no es válida para tipo integer: «9d833fd3-1de9-4d71-b02f-106579dd24e2»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Tag.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Tag.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async Tag.findByPk (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1221:12)
+    at async getTagById (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:13:15)
+    at async Object.updateTag (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.service.js:33:15)
+    at async updateTag (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\tag\tag.controller.js:42:18)\n\n2026-10-08T04:16:42.361Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:43.401Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:43.596Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:44.626Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:46.661Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:47.825Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:48.878Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:58.289Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:16:59.335Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:17:01.366Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:17:16.566Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:17:17.614Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T04:17:19.646Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:49:35.529Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:49:36.561Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:49:38.586Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:51:47.916Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:51:48.047Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:53:37.787Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:53:38.832Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:53:40.869Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:55:47.021Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:55:48.061Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:55:50.094Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:55:54.406Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-08T05:55:55.460Z\nMessage: falta una entrada para la tabla «material_code» en la cláusula FROM\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Material.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async Promise.all (index 1)
+    at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
+    at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n

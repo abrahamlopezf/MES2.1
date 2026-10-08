@@ -68,7 +68,8 @@ const generateConsumptionOrderPdf = async (order, res) => {
       doc.text('Código', colX[1], tableTop + 5, { width: colWidths[1], align: 'left' });
       doc.text('Material', colX[2], tableTop + 5, { width: colWidths[2], align: 'left' });
       doc.text('Lote', colX[3], tableTop + 5, { width: colWidths[3], align: 'center' });
-      doc.text('Cantidad', colX[4], tableTop + 5, { width: colWidths[4], align: 'right' });
+      // Restar 10 al width para agregar padding derecho
+      doc.text('Cantidad', colX[4], tableTop + 5, { width: colWidths[4] - 10, align: 'right' });
 
       let y = tableTop + 20;
       doc.font('Helvetica');
@@ -83,11 +84,20 @@ const generateConsumptionOrderPdf = async (order, res) => {
           doc.fillColor('black').text(index + 1, colX[0], y + 7, { width: colWidths[0], align: 'center' });
           doc.font('Courier').text(item.material?.material_code || '', colX[1], y + 7, { width: colWidths[1], align: 'left' });
           doc.font('Helvetica').text(item.material?.name || '', colX[2], y + 7, { width: colWidths[2], align: 'left', height: 15, ellipsis: true });
-          doc.font('Courier').text(item.lote?.folio || 'N/A', colX[3], y + 7, { width: colWidths[3], align: 'center' });
+          
+          let folio = item.lote?.folio || 'N/A';
+          // Si es entrada manual generada por el sistema (S/N-...), poner un código abreviado
+          if (folio.startsWith('S/N-')) {
+            const timestamp = folio.split('-')[1];
+            folio = timestamp ? `E-MNL-${timestamp.slice(-4)}` : 'E-MNL';
+          }
+          
+          doc.font('Courier').text(folio, colX[3], y + 7, { width: colWidths[3], align: 'center' });
           
           const qty = parseFloat(item.requested_quantity).toFixed(2);
           const unit = item.unit?.abbreviation || 'Unidades';
-          doc.font('Helvetica-Bold').text(`${qty} ${unit}`, colX[4], y + 7, { width: colWidths[4], align: 'right' });
+          // Restar 10 al width para agregar padding derecho
+          doc.font('Helvetica-Bold').text(`${qty} ${unit}`, colX[4], y + 7, { width: colWidths[4] - 10, align: 'right' });
           
           y += 25;
         });

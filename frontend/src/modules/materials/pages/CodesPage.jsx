@@ -4,7 +4,8 @@ import { Hash } from 'lucide-react';
 import { 
   useMaterialCodesQuery, 
   useCreateMaterialCodeMutation, 
-  useUpdateMaterialCodeMutation 
+  useUpdateMaterialCodeMutation,
+  useDeactivateMaterialCodeMutation 
 } from '../hooks/useMaterialsQueries';
 
 const CodesPage = () => {
@@ -18,6 +19,7 @@ const CodesPage = () => {
   const query = useMaterialCodesQuery(filters);
   const createMut = useCreateMaterialCodeMutation();
   const updateMut = useUpdateMaterialCodeMutation();
+  const deleteMut = useDeactivateMaterialCodeMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -41,6 +43,7 @@ const CodesPage = () => {
       dataQuery={query}
       createMutation={createMut}
       updateMutation={updateMut}
+      deleteMutation={deleteMut}
       labels={{
         codeLabel: 'Código Corto',
         codePlaceholder: 'Ej. 001',

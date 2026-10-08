@@ -340,9 +340,11 @@ const updateUser = async (userId, payload, currentUser) => {
   });
 };
 
-const deleteUser = async (userId, currentUser) => {
+const deleteUser = async (userId, currentUser, options = {}) => {
   return sequelize.transaction(async (transaction) => {
     const user = await findVisibleUserById(userId, transaction);
+    const { action = 'deactivate', reason = 'Sin justificación' } = options;
+    const { AuditLog } = require('../../database/models');
 
     if (!user) {
       throwHttpError('Usuario no encontrado.', 404);
@@ -373,7 +375,25 @@ const deleteUser = async (userId, currentUser) => {
       }
     }
 
-    await user.update({ is_active: false }, { transaction });
+    if (action === 'delete') {
+      if (typeof user.destroy === 'function') {
+        await user.destroy({ transaction });
+      } else {
+        await user.update({ is_active: false, deleted_at: new Date() }, { transaction });
+      }
+    } else {
+      await user.update({ is_active: false }, { transaction });
+    }
+
+    if (AuditLog) {
+      await AuditLog.create({
+        user_id: currentUser.id,
+        action_type: action === 'delete' ? 'SOFT_DELETE' : 'DEACTIVATE',
+        table_name: User.tableName || User.name,
+        record_id: user.id,
+        details: { reason, username: user.username, email: user.email }
+      }, { transaction });
+    }
 
     const updatedUser = await findVisibleUserById(user.id, transaction);
     return buildUserResponse(updatedUser);

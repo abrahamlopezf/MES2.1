@@ -23,7 +23,7 @@ const update = async (req, res) => {
 };
 
 const remove = async (req, res) => {
-  const result = await crudService.delete(req.params.uuid);
+  const result = await crudService.delete(req.params.uuid, { action: req.body?.action, reason: req.body?.reason, user: req.user });
   return sendSuccess(res, result);
 };
 

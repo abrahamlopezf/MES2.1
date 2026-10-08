@@ -28,13 +28,13 @@ const MobileBottomNav = () => {
       permission: 'qr.read',
       priority: 2,
     },
-    {
+    /* {
       label: 'Usuarios',
       path: '/users',
       icon: Users,
       permission: 'users.read',
       priority: 3,
-    },
+    }, */
     {
       label: 'Roles',
       path: '/roles',

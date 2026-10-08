@@ -84,7 +84,13 @@ class MaterialCrudService {
       base_unit_id: baseUnitId
     };
 
-    return await Material.create(materialData);
+    const material = await Material.create(materialData);
+
+    if (data.tags && Array.isArray(data.tags)) {
+      await material.setTags(data.tags);
+    }
+
+    return material;
   }
 
   async update(uuid, data) {
@@ -141,19 +147,53 @@ class MaterialCrudService {
       delete data.base_unit_uuid;
     }
     
-    return await material.update(data);
+    await material.update(data);
+
+    if (data.tags && Array.isArray(data.tags)) {
+      await material.setTags(data.tags);
+    }
+
+    return material;
   }
 
-  async delete(uuid) {
+  async delete(uuid, context = {}) {
     const material = await Material.findOne({ where: { uuid } });
     if (!material) {
       throw new NotFoundError('Material no encontrado.');
     }
 
-    // Soft Delete manual para tener control explícito
+    const { action, reason, user } = context;
+    const { AuditLog } = require('../../../database/models');
+
+    if (action === 'deactivate') {
+      material.is_active = false;
+      await material.save();
+      
+      await AuditLog.create({
+        entity_type: 'Material',
+        entity_id: material.id.toString(),
+        action: 'DEACTIVATE',
+        module: 'Materials',
+        user_id: user ? user.id : 1, // Fallback to superadmin if user missing
+        description: reason || 'Desactivación manual'
+      });
+      return { success: true, message: 'Material desactivado.' };
+    }
+
+    // Default: Soft Delete
     material.is_active = false;
     material.deleted_at = new Date();
     await material.save();
+    
+    await AuditLog.create({
+      entity_type: 'Material',
+      entity_id: material.id.toString(),
+      action: 'SOFT_DELETE',
+      module: 'Materials',
+      user_id: user ? user.id : 1,
+      description: reason || 'Eliminación lógica'
+    });
+
     return { success: true, message: 'Material eliminado lógicamente.' };
   }
 

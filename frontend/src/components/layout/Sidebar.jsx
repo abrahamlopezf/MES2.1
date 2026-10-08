@@ -69,7 +69,7 @@ const menuGroups = [
       { label: "Catálogo", path: "/materials", icon: Package, permission: "materials.read" },
       { label: "Recepción", onClick: () => window.dispatchEvent(new Event('open-scanner')), icon: PackagePlus, permission: "inventory.receive" },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
-      { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: Layers, permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
+      // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: Layers, permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
       { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" },
       { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "" }
     ]

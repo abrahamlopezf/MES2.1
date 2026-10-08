@@ -180,7 +180,7 @@ const updateCategory = async ({ id, payload, currentUser }) => {
   return category;
 };
 
-const deactivateCategory = async ({ id, currentUser }) => {
+const deactivateCategory = async ({ id, action = 'deactivate', reason = 'Sin justificación', currentUser }) => {
   const category = await MaterialCategory.findByPk(id);
 
   if (!category) {
@@ -201,10 +201,29 @@ const deactivateCategory = async ({ id, currentUser }) => {
     );
   }
 
-  category.is_active = false;
-  category.updated_by = currentUser?.id || null;
+  if (action === 'delete') {
+    if (typeof category.destroy === 'function') {
+      await category.destroy();
+    } else {
+      category.deleted_at = new Date();
+      category.is_active = false;
+      await category.save();
+    }
+  } else {
+    category.is_active = false;
+    category.updated_by = currentUser?.id || null;
+    await category.save();
+  }
 
-  await category.save();
+  if (db.AuditLog && currentUser) {
+    await db.AuditLog.create({
+      user_id: currentUser.id,
+      action_type: action === 'delete' ? 'SOFT_DELETE' : 'DEACTIVATE',
+      table_name: MaterialCategory.tableName || MaterialCategory.name,
+      record_id: category.id,
+      details: { reason, code: category.code, name: category.name }
+    });
+  }
 
   return category;
 };
@@ -426,17 +445,40 @@ const updateMaterial = async ({ id, payload, currentUser }) => {
   return getMaterialById({ id, currentUser });
 };
 
-const deactivateMaterial = async ({ id, currentUser }) => {
+const deactivateMaterial = async ({ id, action = 'deactivate', reason = 'Sin justificación', currentUser }) => {
   const material = await Material.findByPk(id);
 
   if (!material) {
     throwHttpError('Material no encontrado.', 404);
   }
 
-  material.is_active = false;
-  material.updated_by = currentUser?.id || null;
+  if (action === 'delete') {
+    if (typeof material.destroy === 'function') {
+      await material.destroy();
+    } else {
+      material.deleted_at = new Date();
+      material.is_active = false;
+      await material.save();
+    }
+  } else {
+    material.is_active = false;
+    material.updated_by = currentUser?.id || null;
+    await material.save();
+  }
 
-  await material.save();
+  if (db.AuditLog && currentUser) {
+    await db.AuditLog.create({
+      user_id: currentUser.id,
+      action_type: action === 'delete' ? 'SOFT_DELETE' : 'DEACTIVATE',
+      table_name: Material.tableName || Material.name,
+      record_id: material.id,
+      details: { reason, code: material.code, name: material.name }
+    });
+  }
+
+  if (action === 'delete') {
+    return { success: true, message: 'Material eliminado lógicamente.' };
+  }
 
   return getMaterialById({ id, currentUser });
 };

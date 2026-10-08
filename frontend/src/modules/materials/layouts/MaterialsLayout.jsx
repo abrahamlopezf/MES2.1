@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Boxes, Layers3, Hash, Tag, Award, Factory, MapPin, Scale, Truck } from "lucide-react";
+import { Boxes, Layers3, Hash, Tag, Tags, Award, Factory, MapPin, Scale, Truck } from "lucide-react";
 import { TFCard } from "../../../components/tf-ui";
 
 const MaterialsLayout = () => {
@@ -14,6 +14,7 @@ const MaterialsLayout = () => {
     { name: "Unidades", path: "/materials/units", icon: Scale, desc: "Unidades de medida para transacciones y reportes." },
     { name: "Localidades", path: "/materials/locations", icon: MapPin, desc: "Mapeo físico de pasillos, estantes y zonas." },
     { name: "Proveedores", path: "/materials/suppliers", icon: Truck, desc: "Directorio de abastecedores logísticos." },
+    { name: "Etiquetas", path: "/materials/tags", icon: Tags, desc: "Clasificadores visuales opcionales para materiales." },
   ];
 
   const currentTab = tabs.find(t => location.pathname.startsWith(t.path)) || { name: "Master Data", desc: "Administración centralizada de catálogos y parámetros operativos." };

@@ -93,6 +93,14 @@ module.exports = (sequelize, DataTypes) => {
       Material.belongsTo(models.MaterialUnit, { foreignKey: 'base_unit_id', as: 'base_unit' });
       Material.belongsTo(models.MaterialUnit, { foreignKey: 'stock_unit_id', as: 'stock_unit' });
     }
+    if (models.Tag) {
+      Material.belongsToMany(models.Tag, {
+        through: models.MaterialTag,
+        foreignKey: 'material_id',
+        otherKey: 'tag_id',
+        as: 'tags'
+      });
+    }
   };
 
   return Material;

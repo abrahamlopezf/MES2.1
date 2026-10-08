@@ -4,7 +4,8 @@ import { Factory } from 'lucide-react';
 import { 
   useMaterialFamiliesQuery, 
   useCreateMaterialFamilyMutation, 
-  useUpdateMaterialFamilyMutation 
+  useUpdateMaterialFamilyMutation,
+  useDeactivateMaterialFamilyMutation 
 } from '../hooks/useMaterialsQueries';
 
 const FamiliesPage = () => {
@@ -18,6 +19,7 @@ const FamiliesPage = () => {
   const query = useMaterialFamiliesQuery(filters);
   const createMut = useCreateMaterialFamilyMutation();
   const updateMut = useUpdateMaterialFamilyMutation();
+  const deleteMut = useDeactivateMaterialFamilyMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -41,6 +43,7 @@ const FamiliesPage = () => {
       dataQuery={query}
       createMutation={createMut}
       updateMutation={updateMut}
+      deleteMutation={deleteMut}
       labels={{
         codeLabel: 'Código de Familia',
         codePlaceholder: 'Ej. POL',

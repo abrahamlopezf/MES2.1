@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit3, Archive, Layers, LayoutGrid, List } from 'lucide-react';
+import { Plus, Edit3, Archive, Layers, LayoutGrid, List, ShieldAlert } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '../../../components/ui/dropdown-menu';
 import { useAuthStore } from '../../../store/authStore';
 import { TFAlert, TFButton, TFCard, TFBadge } from '../../../components/tf-ui';
 import LoadingState from '../../../components/feedback/LoadingState';
@@ -8,6 +9,7 @@ import MaterialActionSheet from '../components/MaterialActionSheet';
 import GenericCatalogForm from '../components/GenericCatalogForm';
 import MaterialModuleHeader from '../components/MaterialModuleHeader';
 import SubcatalogFiltersPanel from '../components/SubcatalogFiltersPanel';
+import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';
 
 const SubcatalogPageTemplate = ({
   title,
@@ -16,6 +18,7 @@ const SubcatalogPageTemplate = ({
   dataQuery,
   createMutation,
   updateMutation,
+  deleteMutation,
   labels,
   filters,
   onFilterChange,
@@ -24,9 +27,9 @@ const SubcatalogPageTemplate = ({
   CustomForm,
   ...props
 }) => {
-  const { hasPermission } = useAuthStore();
-  const { user } = useAuthStore();
-  const canManageCatalogs = user?.role?.name === 'SUPERADMIN' || user?.role?.name === 'ADMIN' || hasPermission('masterdata.manage') || hasPermission('materials.create');
+  const { hasPermission, user } = useAuthStore();
+  const canManageCatalogs = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(user?.role?.code) || hasPermission('masterdata.manage') || hasPermission('materials.create');
+  const canDelete = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN_ALM'].includes(user?.role?.code) || hasPermission('materials.delete');
 
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
 
@@ -35,6 +38,7 @@ const SubcatalogPageTemplate = ({
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [itemToDeactivate, setItemToDeactivate] = useState(null);
 
   const rawItems = Array.isArray(dataQuery.data?.items) ? dataQuery.data.items : (Array.isArray(dataQuery.data) ? dataQuery.data : []);
   
@@ -112,6 +116,22 @@ const SubcatalogPageTemplate = ({
     }
   };
 
+  const handleDeactivate = async (payload) => {
+    setOperationMessage(null);
+    setOperationError(null);
+    try {
+      if (deleteMutation && payload?.id) {
+        const targetId = payload.uuid || payload.id;
+        await deleteMutation.mutateAsync({ id: targetId, action: payload.action, reason: payload.reason });
+        setOperationMessage(payload.action === 'delete' ? 'Registro eliminado correctamente.' : 'Registro desactivado correctamente.');
+      }
+      setItemToDeactivate(null);
+      handleCloseSheet();
+    } catch (error) {
+      setOperationError(getApiErrorMessage(error));
+    }
+  };
+
   if (dataQuery.isLoading && !items.length) {
     return <LoadingState title={`Cargando ${title}`} message="Obteniendo información del servidor." />;
   }
@@ -171,7 +191,14 @@ const SubcatalogPageTemplate = ({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col">
                       <span className="font-bold text-lg text-foreground">{item.name}</span>
-                      <span className="text-sm font-bold text-muted-foreground font-mono">{item.code}</span>
+                      {item.code ? (
+                        <span className="text-sm font-bold text-muted-foreground font-mono">{item.code}</span>
+                      ) : item.color ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="w-4 h-4 rounded-full border border-border shadow-sm" style={{ backgroundColor: item.color }} />
+                          <span className="text-xs font-mono text-muted-foreground">{item.color}</span>
+                        </div>
+                      ) : null}
                     </div>
                     <TFBadge variant={item.is_active !== false ? 'success' : 'danger'}>
                       {item.is_active !== false ? 'Activo' : 'Inactivo'}
@@ -182,9 +209,25 @@ const SubcatalogPageTemplate = ({
                   )}
                   {canManageCatalogs && (
                     <div className="mt-auto pt-4 border-t border-border flex justify-end">
-                      <TFButton size="sm" variant="secondary" icon={Edit3} onClick={() => handleOpenEdit(item)}>
-                        Editar
-                      </TFButton>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
+                          <span className="sr-only">Abrir menú</span>
+                          <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40 font-medium">
+                          <DropdownMenuItem onClick={() => handleOpenEdit(item)} className="cursor-pointer py-2">
+                            <Edit3 className="mr-2 h-4 w-4 text-primary" />
+                            <span>Editar</span>
+                          </DropdownMenuItem>
+                          {canDelete && deleteMutation && <DropdownMenuSeparator />}
+                          {canDelete && deleteMutation && item.is_active !== false && (
+                            <DropdownMenuItem onClick={() => setItemToDeactivate(item)} className="cursor-pointer py-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
+                              <ShieldAlert className="mr-2 h-4 w-4" />
+                              <span>Eliminar</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   )}
                 </TFCard>
@@ -195,17 +238,24 @@ const SubcatalogPageTemplate = ({
               <table className="w-full text-base text-left">
                 <thead className="bg-secondary text-secondary-foreground font-bold tracking-wider border-b border-border">
                   <tr>
-                    <th className="px-6 py-4">Código</th>
-                    <th className="px-6 py-4">Nombre</th>
-                    <th className="px-6 py-4">Descripción</th>
-                    <th className="px-6 py-4 text-center">Estado</th>
+                    <th className="px-6 py-4 whitespace-nowrap">{labels?.codeLabel || 'Código'}</th>
+                    <th className="px-6 py-4 whitespace-nowrap">{labels?.nameLabel || 'Nombre'}</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Descripción</th>
+                    <th className="px-6 py-4 text-center whitespace-nowrap">Estado</th>
                     {canManageCatalogs && <th className="px-6 py-4 text-right">Acciones</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {items.map((item) => (
                     <tr key={item.id} className="hover:bg-secondary/20 transition-colors">
-                      <td className="px-6 py-4 font-mono font-bold text-foreground">{item.code}</td>
+                      <td className="px-6 py-4 font-mono font-bold text-foreground">
+                        {item.code ? item.code : item.color ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded border border-border/80 shadow-sm" style={{ backgroundColor: item.color }} />
+                            <span className="text-xs text-muted-foreground font-mono">({item.color})</span>
+                          </div>
+                        ) : '-'}
+                      </td>
                       <td className="px-6 py-4 font-black text-foreground">{item.name}</td>
                       <td className="px-6 py-4 text-foreground/90 max-w-[250px] truncate font-medium" title={item.description}>{item.description || '-'}</td>
                       <td className="px-6 py-4 text-center">
@@ -215,9 +265,25 @@ const SubcatalogPageTemplate = ({
                       </td>
                       {canManageCatalogs && (
                         <td className="px-6 py-4 text-right">
-                          <TFButton size="sm" variant="secondary" icon={Edit3} onClick={() => handleOpenEdit(item)}>
-                            Editar
-                          </TFButton>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
+                              <span className="sr-only">Abrir menú</span>
+                              <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40 font-medium">
+                              <DropdownMenuItem onClick={() => handleOpenEdit(item)} className="cursor-pointer py-2">
+                                <Edit3 className="mr-2 h-4 w-4 text-primary" />
+                                <span>Editar</span>
+                              </DropdownMenuItem>
+                              {canDelete && deleteMutation && <DropdownMenuSeparator />}
+                              {canDelete && deleteMutation && item.is_active !== false && (
+                                <DropdownMenuItem onClick={() => setItemToDeactivate(item)} className="cursor-pointer py-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
+                                  <ShieldAlert className="mr-2 h-4 w-4" />
+                                  <span>Eliminar</span>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       )}
                     </tr>
@@ -266,20 +332,35 @@ const SubcatalogPageTemplate = ({
         {CustomForm ? (
           <CustomForm
             initialData={selectedItem}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            isSubmitting={createMutation.isPending || updateMutation.isPending || deleteMutation?.isPending}
             onSubmit={handleSubmit}
             onCancel={handleCloseSheet}
+            onDeactivate={deleteMutation ? handleDeactivate : undefined}
           />
         ) : (
           <GenericCatalogForm
             initialData={selectedItem}
-            isSubmitting={createMutation.isPending || updateMutation.isPending}
+            isSubmitting={createMutation.isPending || updateMutation.isPending || deleteMutation?.isPending}
             onSubmit={handleSubmit}
             onCancel={handleCloseSheet}
+            onDeactivate={deleteMutation ? handleDeactivate : undefined}
             labels={labels}
+            isCodeOptional={props.isCodeOptional}
+            useColorForCode={props.useColorForCode}
           />
         )}
       </MaterialActionSheet>
+
+      {itemToDeactivate && (
+        <MasterDataActionDialog
+          open={Boolean(itemToDeactivate)}
+          title={`Gestionar Estado de Registro`}
+          item={itemToDeactivate}
+          isLoading={deleteMutation?.isPending}
+          onConfirm={({ action, reason }) => handleDeactivate({ id: itemToDeactivate.uuid || itemToDeactivate.id, action, reason })}
+          onClose={() => setItemToDeactivate(null)}
+        />
+      )}
     </div>
   );
 };

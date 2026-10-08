@@ -3,7 +3,8 @@ import SubcatalogPageTemplate from './SubcatalogPageTemplate';
 import { MapPin } from 'lucide-react';
 import { 
   useOperationalAreasQuery, 
-  useOperationalAreaMutation
+  useOperationalAreaMutation,
+  useDeactivateOperationalAreaMutation
 } from '../hooks/useMaterialsQueries';
 import LocationForm from '../components/LocationForm';
 
@@ -17,6 +18,7 @@ const LocationsPage = () => {
 
   const query = useOperationalAreasQuery(filters);
   const mutation = useOperationalAreaMutation();
+  const deleteMut = useDeactivateOperationalAreaMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -40,6 +42,7 @@ const LocationsPage = () => {
       dataQuery={query}
       createMutation={mutation}
       updateMutation={mutation}
+      deleteMutation={deleteMut}
       labels={{
         codeLabel: 'Código de Localidad',
         codePlaceholder: 'Ej. A1-01',

@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location, MaterialUnit } = require('../../../database/models');
+const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location, MaterialUnit, Tag } = require('../../../database/models');
 const { NotFoundError } = require('../../../services/BaseCatalogService'); // Importar el error custom
 
 class MaterialSearchService {
@@ -7,12 +7,13 @@ class MaterialSearchService {
   async search(query = {}) {
     const { 
       page = 1, 
-      pageSize = 20, 
-      search, 
+      pageSize = 20,
+      search,
       status, 
       family, 
       brand, 
-      type 
+      type,
+      tag
     } = query;
 
     const { MaterialType, Location } = require('../../../database/models');
@@ -35,6 +36,16 @@ class MaterialSearchService {
         { '$material_code.code$': { [Op.iLike]: `%${search}%` } },
         { '$family.code$': { [Op.iLike]: `%${search}%` } }
       ];
+    }
+
+    if (tag) {
+      const { Sequelize } = require('sequelize');
+      const tagsArray = tag.split(',').map(t => t.trim()).filter(Boolean);
+      if (tagsArray.length > 0) {
+        where.id = {
+          [Op.in]: Sequelize.literal(`(SELECT material_id FROM material_tags mt JOIN tags t ON mt.tag_id = t.id WHERE t.uuid IN (${tagsArray.map(t => `'${t}'`).join(',')}))`)
+        };
+      }
     }
 
     const include = [];
@@ -71,6 +82,25 @@ class MaterialSearchService {
       order: [['name', 'ASC']]
     });
 
+    // Fetch tags manually for the retrieved materials to avoid Sequelize subquery/pagination bugs
+    if (rows.length > 0) {
+      const materialIds = rows.map(r => r.id);
+      const materialsWithTags = await Material.findAll({
+        where: { id: materialIds },
+        include: [{ model: Tag, as: 'tags', required: false, attributes: ['id', 'uuid', 'name', 'color'] }],
+        order: [['name', 'ASC']]
+      });
+      
+      // Map tags back to original rows
+      const tagMap = {};
+      for (const m of materialsWithTags) {
+        tagMap[m.id] = m.tags || [];
+      }
+      for (const row of rows) {
+        row.dataValues.tags = tagMap[row.id] || [];
+      }
+    }
+
     return {
       data: rows,
       meta: {
@@ -91,7 +121,8 @@ class MaterialSearchService {
         { model: MaterialBrand, as: 'brand' },
         { model: MaterialType, as: 'type' },
         { model: Location, as: 'default_location', attributes: ['id', 'uuid', 'code', 'name'] },
-        { model: MaterialUnit, as: 'base_unit', required: false }
+        { model: MaterialUnit, as: 'base_unit', required: false },
+        { model: Tag, as: 'tags', required: false, attributes: ['id', 'uuid', 'name', 'color'] }
       ]
     });
 

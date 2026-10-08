@@ -4,7 +4,8 @@ import { Tag } from 'lucide-react';
 import { 
   useMaterialTypesQuery, 
   useCreateMaterialTypeMutation, 
-  useUpdateMaterialTypeMutation 
+  useUpdateMaterialTypeMutation,
+  useDeactivateMaterialTypeMutation 
 } from '../hooks/useMaterialsQueries';
 
 const TypesPage = () => {
@@ -18,6 +19,7 @@ const TypesPage = () => {
   const query = useMaterialTypesQuery(filters);
   const createMut = useCreateMaterialTypeMutation();
   const updateMut = useUpdateMaterialTypeMutation();
+  const deleteMut = useDeactivateMaterialTypeMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -41,6 +43,7 @@ const TypesPage = () => {
       dataQuery={query}
       createMutation={createMut}
       updateMutation={updateMut}
+      deleteMutation={deleteMut}
       labels={{
         codeLabel: 'Código Corto',
         codePlaceholder: 'Ej. LIQ',

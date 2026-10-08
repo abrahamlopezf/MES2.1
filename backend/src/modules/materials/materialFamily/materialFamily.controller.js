@@ -25,7 +25,7 @@ const update = async (req, res) => {
 
 const remove = async (req, res) => {
   const { uuid } = req.params;
-  const result = await materialFamilyService.delete(uuid);
+  const result = await materialFamilyService.delete(uuid, { action: req.body?.action, reason: req.body?.reason, user: req.user });
   return sendSuccess(res, result);
 };
 

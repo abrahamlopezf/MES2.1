@@ -17,16 +17,24 @@ export interface IdentityCommandRepository {
   saveRequest(request: IdentificationRequest): Promise<void>;
 }
 
+import { 
+  PendingRequestDTO, 
+  DashboardStatsDTO, 
+  IdentityTokenDTO, 
+  IdentityBatchDTO, 
+  IdentityBatchDetailsDTO 
+} from '../projections/IdentityReadDTOs';
+
 /**
  * Repositorio de Consultas.
  * Solo contiene métodos optimizados para lectura (Read Model).
  * Devuelve DTOs planos, NO instancias de clases de dominio.
  */
 export interface IdentityReadRepository {
-  listPendingRequests(): Promise<any[]>; // TODO: Tipar DTO
-  getDashboardStats(): Promise<any>; // TODO: Tipar DTO
-  searchTokens(query: string): Promise<any[]>; // TODO: Tipar DTO
-  getTokenById(tokenId: string): Promise<any | null>;
-  listBatches(): Promise<any[]>;
-  getBatchDetails(batchId: string): Promise<any | null>;
+  listPendingRequests(): Promise<PendingRequestDTO[]>;
+  getDashboardStats(): Promise<DashboardStatsDTO>;
+  searchTokens(query: string): Promise<IdentityTokenDTO[]>;
+  getTokenById(tokenId: string): Promise<IdentityTokenDTO | null>;
+  listBatches(): Promise<IdentityBatchDTO[]>;
+  getBatchDetails(batchId: string): Promise<IdentityBatchDetailsDTO | null>;
 }

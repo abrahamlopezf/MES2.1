@@ -3,6 +3,51 @@ const { sequelize, Inventory, Material, Lote, User, Ranking, MaterialUnit } = re
 const { throwHttpError } = require('../../shared/security/accessRules');
 const inventoryDomainService = require('./inventoryDomain.service');
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const parseUuidList = (raw) => String(raw || '')
+  .split(',')
+  .map(v => v.trim())
+  .filter(v => UUID_REGEX.test(v));
+
+const parseIntList = (raw) => String(raw || '')
+  .split(',')
+  .map(v => parseInt(v.trim(), 10))
+  .filter(v => Number.isInteger(v) && v > 0);
+
+/**
+ * Construye condiciones sobre material_id a partir de filtros de catálogo
+ * (etiquetas, familias, ranking). Los valores se sanitizan antes de usarse en subqueries.
+ */
+const applyMaterialCatalogFilters = (where, query = {}) => {
+  const conditions = [];
+
+  if (query.tag) {
+    const tags = parseUuidList(query.tag);
+    conditions.push(tags.length
+      ? { [Op.in]: sequelize.literal(`(SELECT mt.material_id FROM material_tags mt JOIN tags t ON mt.tag_id = t.id WHERE t.uuid IN (${tags.map(t => `'${t}'`).join(',')}))`) }
+      : { [Op.eq]: -1 });
+  }
+
+  if (query.family) {
+    const families = parseUuidList(query.family);
+    conditions.push(families.length
+      ? { [Op.in]: sequelize.literal(`(SELECT m.id FROM materials m JOIN material_families f ON m.family_id = f.id WHERE f.uuid IN (${families.map(f => `'${f}'`).join(',')}))`) }
+      : { [Op.eq]: -1 });
+  }
+
+  if (query.ranking) {
+    const rankings = parseIntList(query.ranking);
+    conditions.push(rankings.length
+      ? { [Op.in]: sequelize.literal(`(SELECT m.id FROM materials m WHERE m.ranking_id IN (${rankings.join(',')}))`) }
+      : { [Op.eq]: -1 });
+  }
+
+  if (!conditions.length) return;
+  if (where.material_id !== undefined) conditions.unshift({ [Op.eq]: where.material_id });
+  where.material_id = { [Op.and]: conditions };
+};
+
 const getInventory = async (query = {}) => {
   const { material_id } = query;
 
@@ -13,6 +58,8 @@ const getInventory = async (query = {}) => {
 
   const limit = Math.min(Number(query.limit) || 100, 300);
   const offset = Number(query.offset) || 0;
+
+  applyMaterialCatalogFilters(where, query);
 
   if (query.search) {
     const s = `%${query.search}%`;
@@ -77,6 +124,8 @@ const getAreaInventory = async (query = {}, currentUser) => {
 
   const limit = Math.min(Number(query.limit) || 100, 300);
   const offset = Number(query.offset) || 0;
+
+  applyMaterialCatalogFilters(where, query);
 
   const result = await WipInventory.findAndCountAll({
     where,

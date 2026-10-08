@@ -58,3 +58,17 @@ export const useRequestDeactivationMutation = () => {
     },
   });
 };
+
+export const useDeleteUserMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, action, reason }: { userId: string, action?: string, reason?: string }) => {
+      const response = await deleteUserRequest({ userId, action, reason });
+      return userAdapter.toDomain(response.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+};

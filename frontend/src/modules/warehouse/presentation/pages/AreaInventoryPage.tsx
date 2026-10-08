@@ -11,21 +11,38 @@ import { toast } from 'sonner';
 import axiosClient from '../../../../api/axiosClient';
 
 import { useAuthStore } from '../../../../store/authStore';
+import { useActiveTagsQuery, useMaterialFamiliesQuery, useRankingsQuery } from '../../../materials/hooks/useMaterialsQueries';
+import { TFSelect } from '../../../../components/tf-ui';
 
 export function AreaInventoryPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [search, setSearch] = useState('');
+  const [tag, setTag] = useState('');
+  const [family, setFamily] = useState('');
+  const [ranking, setRanking] = useState('');
   const [activeTab, setActiveTab] = useState<'existencias' | 'ordenes'>('existencias');
   const [selectedOrderUuid, setSelectedOrderUuid] = useState<string | null>(null);
   const [selectedAreaItem, setSelectedAreaItem] = useState<any>(null);
 
   const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_ALM'].includes(user?.role?.code);
 
+  const tagsQuery = useActiveTagsQuery();
+  const activeTags = tagsQuery.data || [];
+  const familiesQuery = useMaterialFamiliesQuery({ pageSize: 'all', status: 'active' });
+  const families = familiesQuery.data?.items || [];
+  const rankingsQuery = useRankingsQuery();
+  const rankings = rankingsQuery.data?.items || [];
+
+  const hasFilters = Boolean(search || tag || family || ranking);
+  const clearFilters = () => { setSearch(''); setTag(''); setFamily(''); setRanking(''); };
+
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['area-inventory'],
+    queryKey: ['area-inventory', search, tag, family, ranking],
     queryFn: async () => {
-      const response = await axiosClient.get('/warehouse/area-inventory');
+      const response = await axiosClient.get('/warehouse/area-inventory', {
+        params: { search, tag, family, ranking }
+      });
       return response.data;
     }
   });
@@ -108,27 +125,61 @@ export function AreaInventoryPage() {
         <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
             <div>
-              <h3 className="font-bold text-foreground text-lg">Búsqueda</h3>
-              <p className="text-sm text-muted-foreground font-semibold">Encuentra {activeTab === 'existencias' ? 'materiales por código o lote' : 'órdenes por folio o estado'}.</p>
+              <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
+              <p className="text-sm text-muted-foreground font-semibold">Encuentra {activeTab === 'existencias' ? 'materiales por código, lote, familia, ranking o etiquetas' : 'órdenes por folio o estado'}.</p>
             </div>
-            {search && (
-              <Button variant="ghost" size="sm" onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
                 <FilterX className="w-4 h-4 mr-2 shrink-0" />
                 <span>Limpiar Búsqueda</span>
               </Button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className={`grid gap-4 ${activeTab === 'existencias' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1'}`}>
             <div className="relative w-full">
               {activeTab === 'existencias' ? <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /> : <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
               <Input 
                 placeholder={activeTab === 'existencias' ? "Buscar por material, código o lote..." : "Buscar por folio de orden..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="!pl-10 font-medium w-full"
+                className="!pl-10 font-medium w-full h-14 rounded-xl"
               />
             </div>
+            {activeTab === 'existencias' && (
+              <>
+                <div className="relative w-full">
+                  <TFSelect
+                    placeholder="Filtrar por familia"
+                    value={family ? family.split(',') : []}
+                    onChange={(e: any) => setFamily(e.target.value.join(','))}
+                    options={families.map((f: any) => ({ value: String(f.uuid), label: f.code ? `${f.code} - ${f.name}` : f.name }))}
+                    isMulti={true}
+                    containerClassName="!gap-0 h-14"
+                  />
+                </div>
+                <div className="relative w-full">
+                  <TFSelect
+                    placeholder="Filtrar por ranking"
+                    value={ranking ? ranking.split(',') : []}
+                    onChange={(e: any) => setRanking(e.target.value.join(','))}
+                    options={rankings.map((r: any) => ({ value: String(r.id), label: `${r.nomenclature} - ${r.name}` }))}
+                    isMulti={true}
+                    containerClassName="!gap-0 h-14"
+                  />
+                </div>
+                <div className="relative w-full">
+                  <TFSelect
+                    placeholder="Filtrar por etiquetas"
+                    value={tag ? tag.split(',') : []}
+                    onChange={(e: any) => setTag(e.target.value.join(','))}
+                    options={activeTags.map((opt: any) => ({ value: String(opt.uuid || opt.id), label: opt.name }))}
+                    isMulti={true}
+                    containerClassName="!gap-0 h-14"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </section>
 

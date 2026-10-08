@@ -77,11 +77,43 @@ export function TraceabilityTreePage() {
                 <h3 className="text-primary font-bold flex items-center gap-2 mb-2">
                   <CheckCircle2 size={18} /> Historial de Lote QR
                 </h3>
-                <div className="grid grid-cols-2 gap-2 text-sm mt-2">
-                  <span className="font-semibold text-muted-foreground">Estado Actual:</span>
-                  <span className="font-bold text-foreground">{qrInfo.qr?.status || qrInfo.status}</span>
-                  <span className="font-semibold text-muted-foreground">Área Asignada:</span>
-                  <span className="font-bold text-foreground">{qrInfo.qr?.assigned_area?.name || qrInfo.area_name || 'N/A'}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm mt-4">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-muted-foreground">Estado Actual:</span>
+                    <span className="font-bold text-foreground">{qrInfo.qr?.status || qrInfo.status}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-muted-foreground">Área Asignada:</span>
+                    <span className="font-bold text-foreground">
+                      {qrInfo.qr?.assigned_area?.name || qrInfo.area_name || (qrInfo.inventory ? 'Almacén' : 'N/A')}
+                    </span>
+                  </div>
+                  
+                  {qrInfo.inventory && qrInfo.inventory.material && (
+                    <div className="flex flex-col sm:col-span-2">
+                      <span className="font-semibold text-muted-foreground">Material Asignado:</span>
+                      <span className="font-bold text-foreground">
+                        {qrInfo.inventory.material.material_code} - {qrInfo.inventory.material.name}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {qrInfo.inventory && (
+                    <>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-muted-foreground">Localidad (Ubicación):</span>
+                        <span className="font-bold text-foreground">
+                          {qrInfo.inventory.location_detail ? `${qrInfo.inventory.location_detail.name} ${qrInfo.inventory.location_detail.zone ? `(${qrInfo.inventory.location_detail.zone})` : ''}` : 'No asignada'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-muted-foreground">Cantidad Disponible:</span>
+                        <span className="font-bold text-foreground">
+                          {parseFloat(qrInfo.inventory.quantity).toFixed(2)} {qrInfo.inventory.material?.unit?.abbreviation || ''}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -118,6 +150,14 @@ export function TraceabilityTreePage() {
                                 <span className="px-1.5 py-0.5 bg-secondary/50 rounded text-foreground">{event.from_status}</span>
                                 <ArrowRight size={12} />
                                 <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded">{event.to_status}</span>
+                              </div>
+                            )}
+                            
+                            {event.metadata && (event.metadata.quantity || event.metadata.amount_to_reduce) && (
+                              <div className="flex items-center gap-1.5 font-mono text-xs ml-auto">
+                                <span className={`px-2 py-0.5 font-bold rounded border ${event.event_type === 'CONSUMO' || event.event_type === 'MATERIAL_CONSUMED' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
+                                  Q: {parseFloat(event.metadata.quantity || event.metadata.amount_to_reduce).toFixed(2)} {qrInfo.inventory?.material?.unit?.abbreviation || ''}
+                                </span>
                               </div>
                             )}
                           </div>

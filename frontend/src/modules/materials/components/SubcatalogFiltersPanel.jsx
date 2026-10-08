@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { FilterX, Search, LayoutGrid, List } from 'lucide-react';
 import { Button } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
@@ -10,6 +11,24 @@ const SubcatalogFiltersPanel = ({
     viewMode,
     setViewMode
 }) => {
+    const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+
+    useEffect(() => {
+        setSearchTerm(filters?.search || '');
+    }, [filters?.search]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchTerm !== (filters?.search || '')) {
+                onFilterChange('search', searchTerm);
+            }
+        }, 500);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchTerm, onFilterChange, filters?.search]);
+
     const hasActiveFilters = Boolean(
         filters?.search ||
         (filters?.status && filters?.status !== 'all')
@@ -57,8 +76,8 @@ const SubcatalogFiltersPanel = ({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Buscar por código o nombre..."
-                        value={filters?.search || ''}
-                        onChange={(e) => onFilterChange('search', e.target.value)}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         className="!pl-10 font-medium w-full"
                     />
                 </div>

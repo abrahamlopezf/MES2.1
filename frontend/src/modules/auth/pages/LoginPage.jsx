@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Lock, LogIn, User } from 'lucide-react';
+import { Lock, LogIn, User, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ const loginSchema = z.object({
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
   
   const searchParams = new URLSearchParams(window.location.search);
   const reason = searchParams.get('reason');
@@ -121,13 +122,20 @@ const LoginPage = () => {
                       <div className="relative">
                         <Lock className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
                         <Input
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           placeholder="Escribe tu contraseña"
                           autoComplete="current-password"
                           disabled={mutation.isPending}
-                          className="!pl-10"
+                          className="!pl-10 !pr-10"
                           {...field}
                         />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground focus:outline-none"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />

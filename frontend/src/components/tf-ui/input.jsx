@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 
@@ -12,10 +13,15 @@ const TFInput = React.forwardRef(
       icon: Icon,
       name,
       containerClassName,
+      type = 'text',
       ...props
     },
     ref
   ) => {
+    const [showPassword, setShowPassword] = React.useState(false);
+    const isPassword = type === 'password';
+    const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+
     return (
       <label className={cn('grid gap-2 overflow-hidden w-full', containerClassName)}>
         {label && (
@@ -39,6 +45,7 @@ const TFInput = React.forwardRef(
           <input
             ref={ref}
             name={name}
+            type={inputType}
             className={cn(
               "h-full w-full !bg-transparent text-base font-semibold text-foreground !border-0 !ring-0 !outline-none !p-0 placeholder:text-muted-foreground/60",
               className
@@ -47,6 +54,19 @@ const TFInput = React.forwardRef(
             aria-describedby={error ? `${name}-error` : undefined}
             {...props}
           />
+          
+          {isPassword && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowPassword(!showPassword);
+              }}
+              className="shrink-0 !p-1 flex items-center justify-center rounded-md hover:bg-secondary/50 text-muted-foreground hover:text-foreground !outline-none transition-colors !border-0 !bg-transparent !shadow-none !ring-0 cursor-pointer"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          )}
         </div>
 
         {error && (

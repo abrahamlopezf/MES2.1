@@ -79,13 +79,13 @@ const AppLayout = () => {
       isActive: location.pathname.startsWith('/areas'),
       show: true
     },
-    {
+    /* {
       icon: <Users size={24} />,
       label: 'Usuarios',
       onClick: () => handleNav('/users'),
       isActive: location.pathname.startsWith('/users'),
       show: useAuthStore().hasPermission('users.read')
-    },
+    }, */
     {
       icon: <MiniAvatar user={user} size={26} />,
       label: 'Perfil',

@@ -7,7 +7,7 @@ import ErrorState from '../../../components/feedback/ErrorState';
 import CategoriesListSection from '../components/CategoriesListSection';
 import CategoryActionSheet from '../components/MaterialActionSheet'; // Reusing action sheet
 import CategoryForm from '../components/CategoryForm';
-import CategoryDeactivateDialog from '../components/CategoryDeactivateDialog';
+import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';
 
 import {
   useMaterialCategoriesQuery,
@@ -21,10 +21,10 @@ const getApiErrorMessage = (error) => {
 };
 
 const CategoriesPage = () => {
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user } = useAuthStore();
   const canCreate = hasPermission('materials.create');
   const canUpdate = hasPermission('materials.update');
-  const canDelete = hasPermission('materials.delete');
+  const canDelete = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN_ALM'].includes(user?.role?.code) || hasPermission('materials.delete');
   const canViewInactive = canUpdate || canDelete;
 
   const [operationMessage, setOperationMessage] = useState(null);
@@ -93,13 +93,17 @@ const CategoriesPage = () => {
     }
   };
 
-  const handleDeactivateCategory = async () => {
+  const handleDeactivateCategory = async (payload) => {
     if (!categoryToDeactivate?.id) return;
     setOperationMessage(null);
     setOperationError(null);
 
     try {
-      await deactivateCategoryMutation.mutateAsync(categoryToDeactivate.id);
+      await deactivateCategoryMutation.mutateAsync({ 
+        id: categoryToDeactivate.id,
+        action: payload.action,
+        reason: payload.reason
+      });
       setOperationMessage(`Categoría "${categoryToDeactivate.code}" desactivada.`);
       setCategoryToDeactivate(null);
       categoriesQuery.refetch();
@@ -181,13 +185,16 @@ const CategoriesPage = () => {
         />
       </CategoryActionSheet>
 
-      <CategoryDeactivateDialog
-        open={Boolean(categoryToDeactivate)}
-        category={categoryToDeactivate}
-        isLoading={deactivateCategoryMutation.isPending}
-        onConfirm={handleDeactivateCategory}
-        onClose={() => setCategoryToDeactivate(null)}
-      />
+      {categoryToDeactivate && (
+        <MasterDataActionDialog
+          open={Boolean(categoryToDeactivate)}
+          title="Gestionar Estado de Categoría"
+          item={categoryToDeactivate}
+          isLoading={deactivateCategoryMutation.isPending}
+          onConfirm={handleDeactivateCategory}
+          onClose={() => setCategoryToDeactivate(null)}
+        />
+      )}
     </div>
   );
 };

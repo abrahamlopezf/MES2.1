@@ -17,9 +17,8 @@ export const updateUserRequest = async (userId: string, payload: Partial<UserDTO
   return response.data;
 };
 
-export const deleteUserRequest = async (userId: string): Promise<{ data: UserDTO }> => {
-  // Nota: Delete request para usuarios según reglas de negocio suele desactivar
-  const response = await axiosClient.delete(`${API_ENDPOINTS.users}/${userId}`);
+export const deleteUserRequest = async ({ userId, ...payload }: { userId: string, action?: string, reason?: string }): Promise<{ data: UserDTO }> => {
+  const response = await axiosClient.delete(`${API_ENDPOINTS.users}/${userId}`, { data: payload });
   return response.data;
 };
 

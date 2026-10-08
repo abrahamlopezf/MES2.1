@@ -204,9 +204,6 @@ export const MixingTerminalForm: React.FC<{ ticket?: any, onSuccess?: () => void
                 </tbody>
               </table>
             </div>
-            <div className="mt-2 text-right text-sm font-bold text-slate-700">
-              Total Mezcla: {inputs.reduce((acc, curr) => acc + curr.quantity, 0)} kg
-            </div>
           </div>
         </div>
       </div>

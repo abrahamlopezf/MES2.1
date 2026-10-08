@@ -4,6 +4,14 @@ import { IdentityToken } from '../../domain/entities/IdentityToken';
 import { IdentificationRequest } from '../../domain/entities/IdentificationRequest';
 import { IdentityTokenId, QrBatchId } from '@shared/ids/brandTypes';
 
+import { 
+  PendingRequestDTO, 
+  DashboardStatsDTO, 
+  IdentityTokenDTO, 
+  IdentityBatchDTO, 
+  IdentityBatchDetailsDTO 
+} from '../../domain/projections/IdentityReadDTOs';
+
 /**
  * Adapter HTTP/Fake para Pruebas.
  * Almacena en memoria simulando latencia.
@@ -45,20 +53,20 @@ export class InMemoryIdentityRepository implements IdentityCommandRepository, Id
 
   // ----- READ REPOSITORY -----
 
-  async listPendingRequests(): Promise<any[]> {
+  async listPendingRequests(): Promise<PendingRequestDTO[]> {
     return Array.from(this.requests.values())
       .filter(r => r.status === 'PENDING')
-      .map(r => ({ id: r.id, status: r.status })); // DTO plano
+      .map(r => ({ id: r.id, status: r.status }));
   }
   
-  async getDashboardStats(): Promise<any> {
+  async getDashboardStats(): Promise<DashboardStatsDTO> {
     return {
       totalBatches: this.batches.size,
       totalTokens: this.tokens.size
     };
   }
 
-  async listBatches(): Promise<any[]> {
+  async listBatches(): Promise<IdentityBatchDTO[]> {
     return Array.from(this.batches.values())
       .map(b => ({
         id: b.id as string,
@@ -72,7 +80,7 @@ export class InMemoryIdentityRepository implements IdentityCommandRepository, Id
       .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
   }
 
-  async getBatchDetails(batchId: string): Promise<any | null> {
+  async getBatchDetails(batchId: string): Promise<IdentityBatchDetailsDTO | null> {
     const batch = this.batches.get(batchId);
     if (!batch) return null;
     
@@ -92,13 +100,13 @@ export class InMemoryIdentityRepository implements IdentityCommandRepository, Id
     };
   }
   
-  async searchTokens(query: string): Promise<any[]> {
+  async searchTokens(query: string): Promise<IdentityTokenDTO[]> {
     return Array.from(this.tokens.values())
       .filter(t => t.industrialCode.value.includes(query))
-      .map(t => ({ id: t.id, code: t.industrialCode.value, status: t.status.value }));
+      .map(t => ({ id: t.id as string, code: t.industrialCode.value, status: t.status.value, batchId: t.batchId }));
   }
 
-  async getTokenById(tokenId: string): Promise<any | null> {
+  async getTokenById(tokenId: string): Promise<IdentityTokenDTO | null> {
     // Busca por id o por código industrial simulando la base de datos,
     // permitiendo coincidencias parciales (útil para pruebas manuales sin el prefijo del año)
     // Además, ignoramos los ceros a la izquierda para evitar errores de tipeo comunes (ej. ALM-0000140 vs ALM-000140)

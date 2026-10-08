@@ -13,12 +13,12 @@ const Header = ({ onMenuToggle }) => {
   return (
     <header className="h-20 shrink-0 bg-card border-b border-border flex items-center justify-between px-4 md:px-8 z-10">
       <div className="flex items-center gap-4">
-        <button 
+        {/* <button 
           onClick={onMenuToggle}
-          className="p-2 rounded-lg text-foreground hover:bg-border/50 transition-colors focus:outline-none lg:hidden"
+          className="p-2 rounded-lg text-foreground hover:bg-border/50 transition-colors focus:outline-none hidden"
         >
           <Menu size={24} />
-        </button>
+        </button> */}
         
         <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background text-foreground focus-within:border-primary transition-all shadow-sm">
           <Search size={18} className="text-muted-foreground" />

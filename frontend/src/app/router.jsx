@@ -19,6 +19,7 @@ import BrandsPage from "../modules/materials/pages/BrandsPage";
 import UnitsPage from "../modules/materials/pages/UnitsPage";
 import LocationsPage from "../modules/materials/pages/LocationsPage";
 import SuppliersPage from "../modules/materials/pages/SuppliersPage";
+import TagsPage from "../modules/materials/pages/TagsPage";
 import MaterialsLayout from "../modules/materials/layouts/MaterialsLayout";
 
 import { AreasPage } from "../modules/dashboard/pages/AreasPage";
@@ -152,6 +153,10 @@ export const router = createBrowserRouter([
               {
                 path: 'suppliers',
                 element: <SuppliersPage />
+              },
+              {
+                path: 'tags',
+                element: <TagsPage />
               }
             ]
           },
@@ -232,10 +237,10 @@ export const router = createBrowserRouter([
                 path: 'inventory',
                 element: <WarehouseInventoryPage />
               },
-              {
+              /* {
                 path: 'area-inventory',
                 element: <AreaInventoryPage />
-              },
+              }, */
               {
                 path: 'materials/:materialId/lotes',
                 element: <MaterialLotesPage />

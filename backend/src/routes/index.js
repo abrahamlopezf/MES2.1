@@ -20,6 +20,7 @@ const materialTypeRoutes = require('../modules/materials/materialType/materialTy
 const materialUnitRoutes = require('../modules/materials/materialUnit/materialUnit.routes');
 const operationalAreaRoutes = require('../modules/materials/operationalArea/operationalArea.routes');
 const locationRoutes = require('../modules/materials/location/location.routes');
+const tagRoutes = require('../modules/materials/tag/tag.routes');
 
 const traceabilityRoutes = require('../modules/traceability/traceability.routes');
 
@@ -53,6 +54,7 @@ router.use('/operational-areas', operationalAreaRoutes);
 router.use('/locations', locationRoutes);
 router.use('/traceability', traceabilityRoutes);
 router.use('/suppliers', supplierRoutes);
+router.use('/tags', tagRoutes);
 
 router.use('/reports', reportsRoutes);
 router.use('/dashboard', dashboardRoutes);

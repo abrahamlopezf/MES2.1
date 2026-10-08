@@ -56,8 +56,13 @@ const updateCategory = async (req, res, next) => {
 
 const deactivateCategory = async (req, res, next) => {
   try {
-    const result = await materialsService.deactivateCategory(req.params.id, req.user);
-    return successResponse(res, 'Categoría desactivada exitosamente', result);
+    const result = await materialsService.deactivateCategory({
+      id: req.params.id,
+      action: req.body?.action,
+      reason: req.body?.reason,
+      currentUser: req.user,
+    });
+    return successResponse(res, 'Categoría actualizada exitosamente', result);
   } catch (error) {
     next(error);
   }
@@ -156,10 +161,12 @@ const deactivateMaterial = async (req, res, next) => {
   try {
     const material = await materialsService.deactivateMaterial({
       id: req.params.id,
+      action: req.body?.action,
+      reason: req.body?.reason,
       currentUser: req.user,
     });
 
-    return successResponse(res, 'Material desactivado correctamente.', material);
+    return successResponse(res, 'Material actualizado correctamente.', material);
   } catch (error) {
     return next(error);
   }

@@ -1,3 +1,5 @@
+const { Op } = require('sequelize');
+
 class NotFoundError extends Error {
   constructor(message) {
     super(message);
@@ -33,6 +35,24 @@ class BaseCatalogService {
 
     const modelAttributes = this.model.getAttributes ? Object.keys(this.model.getAttributes()) : [];
     const defaultOrder = modelAttributes.includes('name') ? [['name', 'ASC']] : [['created_at', 'DESC']];
+
+    if (search && search.trim() !== '') {
+      const searchConditions = [];
+      const searchTerm = `%${search.trim()}%`;
+      if (modelAttributes.includes('code')) {
+        searchConditions.push({ code: { [Op.iLike]: searchTerm } });
+      }
+      if (modelAttributes.includes('name')) {
+        searchConditions.push({ name: { [Op.iLike]: searchTerm } });
+      }
+      if (modelAttributes.includes('description')) {
+        searchConditions.push({ description: { [Op.iLike]: searchTerm } });
+      }
+      
+      if (searchConditions.length > 0) {
+        where[Op.or] = searchConditions;
+      }
+    }
 
     const { count, rows } = await this.model.findAndCountAll({
       where,
@@ -80,14 +100,36 @@ class BaseCatalogService {
     return await record.update(data);
   }
 
-  // Soft Delete
-  async delete(uuid) {
+  async delete(uuid, options = {}) {
     const record = await this.findByUuid(uuid);
-    // Podríamos usar destroy() si el modelo tiene paranoia: true, pero controlaremos explícitamente is_active = false
-    record.is_active = false;
-    record.deleted_at = new Date();
-    await record.save();
-    return { success: true, message: `${this.resourceName} eliminado lógicamente.` };
+    const { action = 'deactivate', reason = 'Sin justificación', user } = options;
+
+    const db = require('../database/models'); // require here to avoid circular dep
+
+    if (action === 'delete') {
+      if (typeof record.destroy === 'function') {
+        await record.destroy();
+      } else {
+        record.deleted_at = new Date();
+        record.is_active = false;
+        await record.save();
+      }
+    } else {
+      record.is_active = false;
+      await record.save();
+    }
+
+    if (db.AuditLog && user) {
+      await db.AuditLog.create({
+        user_id: user.id,
+        action_type: action === 'delete' ? 'SOFT_DELETE' : 'DEACTIVATE',
+        table_name: this.model.tableName || this.model.name,
+        record_id: record.id,
+        details: { reason, uuid, code: record.code, name: record.name }
+      });
+    }
+
+    return { success: true, message: `${this.resourceName} ${action === 'delete' ? 'eliminado' : 'desactivado'} lógicamente.` };
   }
 
   // Restore

@@ -69,7 +69,7 @@ module.exports = {
       // ADMIN_ALM
       const adminAlmPerms = [
         'inventory.view', 'warehouse.consume', 'warehouse.dispose', 'warehouse.read', 
-        'lotes.view', 'lotes.detail', 'materials.create', 'materials.update', 'materials.read',
+        'lotes.view', 'lotes.detail', 'materials.create', 'materials.update', 'materials.read', 'materials.delete',
         'qr.create', 'qr.read', 'warehouse.dashboard.view', 'warehouse.reports.view',
         'users.read', 'users.update', 'inventory.receive'
       ];

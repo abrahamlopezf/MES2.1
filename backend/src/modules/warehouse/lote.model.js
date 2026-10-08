@@ -72,20 +72,20 @@ module.exports = (sequelize) => {
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
-    hooks: {
-      afterSave: (lote) => {
-        if (lote.material_id) syncInventoryAsync(sequelize, lote.material_id);
-      },
-      afterDestroy: (lote) => {
-        if (lote.material_id) syncInventoryAsync(sequelize, lote.material_id);
-      },
-      afterBulkCreate: (lotes) => {
-        const materialIds = [...new Set(lotes.map(l => l.material_id))];
-        materialIds.forEach(id => {
-          if (id) syncInventoryAsync(sequelize, id);
-        });
-      }
-    }
+    // hooks: {
+    //   afterSave: (lote) => {
+    //     if (lote.material_id) syncInventoryAsync(sequelize, lote.material_id);
+    //   },
+    //   afterDestroy: (lote) => {
+    //     if (lote.material_id) syncInventoryAsync(sequelize, lote.material_id);
+    //   },
+    //   afterBulkCreate: (lotes) => {
+    //     const materialIds = [...new Set(lotes.map(l => l.material_id))];
+    //     materialIds.forEach(id => {
+    //       if (id) syncInventoryAsync(sequelize, id);
+    //     });
+    //   }
+    // }
   });
 
   return Lote;

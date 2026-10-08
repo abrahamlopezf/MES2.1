@@ -1,4 +1,5 @@
 import { Edit3, Layers3, Plus, ShieldAlert } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '../../../components/ui/dropdown-menu';
 
 import {
   TFBadge,
@@ -87,28 +88,28 @@ const CategoriesListSection = ({
                 )}
 
                 {(canUpdate || canDelete) && (
-                  <div className="grid gap-2 sm:flex sm:justify-end">
-                    {canUpdate && (
-                      <TFButton
-                        size="sm"
-                        variant="secondary"
-                        icon={Edit3}
-                        onClick={() => onEdit?.(category)}
-                      >
-                        Editar
-                      </TFButton>
-                    )}
-
-                    {canDelete && category.is_active && (
-                      <TFButton
-                        size="sm"
-                        variant="danger"
-                        icon={ShieldAlert}
-                        onClick={() => onDeactivate?.(category)}
-                      >
-                        Desactivar
-                      </TFButton>
-                    )}
+                  <div className="grid gap-2 sm:flex sm:justify-end border-t border-border pt-4 mt-auto">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
+                        <span className="sr-only">Abrir menú</span>
+                        <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 font-medium">
+                        {canUpdate && (
+                          <DropdownMenuItem onClick={() => onEdit?.(category)} className="cursor-pointer py-2">
+                            <Edit3 className="mr-2 h-4 w-4 text-primary" />
+                            <span>Editar</span>
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && canDelete && <DropdownMenuSeparator />}
+                        {canDelete && category.is_active && (
+                          <DropdownMenuItem onClick={() => onDeactivate?.(category)} className="cursor-pointer py-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
+                            <ShieldAlert className="mr-2 h-4 w-4" />
+                            <span>Eliminar</span>
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
               </article>

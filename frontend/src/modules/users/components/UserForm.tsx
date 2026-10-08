@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 import { userSchema, UserFormValues } from '../schemas/userSchema';
 import { User, UserStatus } from '../types/user';
-import { useCreateUserMutation, useUpdateUserMutation, useRequestDeactivationMutation } from '../hooks/useUsers';
+import { useCreateUserMutation, useUpdateUserMutation, useRequestDeactivationMutation, useDeleteUserMutation } from '../hooks/useUsers';
 import { useAuthStore } from '@/store/authStore';
 import { useBottomSheetAnimation } from '@/hooks/useBottomSheetAnimation';
 
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { TFInput, TFSelect, TFButton } from '../../../components/tf-ui';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
+import MasterDataActionDialog from '@/components/shared/MasterDataActionDialog';
 
 interface UserFormProps {
   user?: User | null;
@@ -27,6 +28,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
   const requestDeactMutation = useRequestDeactivationMutation();
+  const deleteMutation = useDeleteUserMutation();
+  const [isActionDialogOpen, setIsActionDialogOpen] = React.useState(false);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -131,19 +134,10 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
   };
 
   const handleRequestDeactivation = () => {
-    if (!user) return;
-    requestDeactMutation.mutate(user.id, {
-      onSuccess: () => {
-        toast.success('Solicitud enviada a los administradores');
-        onClose();
-      },
-      onError: (error: any) => {
-        toast.error(error.response?.data?.message || 'No se pudo enviar la solicitud');
-      }
-    });
+    setIsActionDialogOpen(true);
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending || requestDeactMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending || requestDeactMutation.isPending || deleteMutation.isPending;
 
   const {
     isRendered,
@@ -370,6 +364,30 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
           </form>
         </div>
       </div>
+      
+      {isEdit && user && (
+        <MasterDataActionDialog
+          open={isActionDialogOpen}
+          item={user}
+          title="Gestionar Estado del Usuario"
+          itemLabel="Usuario seleccionado"
+          isLoading={deleteMutation.isPending}
+          onClose={() => setIsActionDialogOpen(false)}
+          onConfirm={({ action, reason }) => {
+            deleteMutation.mutate({ userId: user.id, action, reason }, {
+              onSuccess: () => {
+                toast.success(action === 'delete' ? 'Usuario eliminado correctamente' : 'Usuario desactivado correctamente');
+                setIsActionDialogOpen(false);
+                onClose();
+              },
+              onError: (error: any) => {
+                toast.error(error.response?.data?.message || 'No se pudo procesar la acción');
+                setIsActionDialogOpen(false);
+              }
+            });
+          }}
+        />
+      )}
     </div>,
     document.body
   );

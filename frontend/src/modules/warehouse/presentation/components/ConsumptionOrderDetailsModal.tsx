@@ -101,7 +101,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
     'PENDIENTE': 'text-warning bg-warning/10 border-warning/20',
     'PREPARANDO': 'text-info bg-info/10 border-info/20',
     'SURTIDA': 'text-success bg-success/10 border-success/20',
-    'CANCELADA': 'text-destructive bg-destructive/10 border-destructive/20',
+    'CANCELADA': 'text-danger bg-danger/10 border-danger/20',
   };
 
   return createPortal(
@@ -259,8 +259,23 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                                   <span className={`mr-2 text-[10px] px-1.5 py-0.5 rounded font-bold ${fifoOrder === 1 ? 'bg-primary/20 text-primary' : 'bg-muted-foreground/20 text-muted-foreground'}`}>
                                     #{fifoOrder}
                                   </span>
-                                  {item.lote?.folio || 'N/A'}
-                                  {item.lote?.qr_code?.qr_code && <span className="ml-2 opacity-70 text-xs hidden sm:inline">(QR: {item.lote.qr_code.qr_code})</span>}
+                                  {(() => {
+                                    let folio = item.lote?.folio || 'N/A';
+                                    if (folio.startsWith('S/N-')) {
+                                      const timestamp = folio.split('-')[1];
+                                      folio = timestamp ? `E-MNL-${timestamp.slice(-4)}` : 'E-MNL';
+                                    }
+                                    const hasQR = Boolean(item.lote?.qr_code?.qr_code);
+                                    const mainText = hasQR ? item.lote.qr_code.qr_code : folio;
+                                    const secondaryText = hasQR ? `(${folio})` : '';
+                                    
+                                    return (
+                                      <>
+                                        {mainText}
+                                        {secondaryText && <span className="ml-2 opacity-70 text-xs hidden sm:inline">{secondaryText}</span>}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-right">

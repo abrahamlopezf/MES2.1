@@ -4,7 +4,8 @@ import { Scale } from 'lucide-react';
 import { 
   useMaterialUnitsQuery, 
   useCreateMaterialUnitMutation, 
-  useUpdateMaterialUnitMutation 
+  useUpdateMaterialUnitMutation,
+  useDeactivateMaterialUnitMutation 
 } from '../hooks/useMaterialsQueries';
 
 const UnitsPage = () => {
@@ -18,6 +19,7 @@ const UnitsPage = () => {
   const query = useMaterialUnitsQuery(filters);
   const createMut = useCreateMaterialUnitMutation();
   const updateMut = useUpdateMaterialUnitMutation();
+  const deleteMut = useDeactivateMaterialUnitMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -41,6 +43,7 @@ const UnitsPage = () => {
       dataQuery={query}
       createMutation={createMut}
       updateMutation={updateMut}
+      deleteMutation={deleteMut}
       labels={{
         codeLabel: 'Abreviación (Código)',
         codePlaceholder: 'Ej. PZA, KG, LTS',

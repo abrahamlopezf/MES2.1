@@ -46,7 +46,7 @@ class WarehouseController {
 
   async delete(req, res, next) {
     try {
-      const result = await warehouseService.delete(req.params.uuid);
+      const result = await warehouseService.delete(req.params.uuid, { action: req.body?.action, reason: req.body?.reason, user: req.user });
       res.json(result);
     } catch (error) {
       next(error);

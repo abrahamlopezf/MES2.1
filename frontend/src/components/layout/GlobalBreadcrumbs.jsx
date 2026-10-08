@@ -60,13 +60,13 @@ export const GlobalBreadcrumbs = () => {
     <div className="w-full bg-background border-b border-border sticky top-0 z-40">
       <div className="max-w-full px-4 md:px-6 py-2.5 flex items-center overflow-x-auto custom-scrollbar whitespace-nowrap">
         {/* Hamburger Menu (Mobile Only) */}
-        <button 
+        {/* <button 
           onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
           className="lg:hidden text-muted-foreground hover:text-foreground transition-colors mr-3 shrink-0 flex items-center"
           aria-label="Abrir Menú"
         >
           <Menu size={22} />
-        </button>
+        </button> */}
 
         {/* Botón de volver genérico */}
         <button 

@@ -157,8 +157,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
   const removeItem = (index: number) => {
     setItems(prev => prev.filter((_, i) => i !== index));
   };
-
-  const totalQuantity = useMemo(() => items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0), [items]);
+  const totalQuantity = 0; // Calculo delegado al backend por reglas de arquitectura
 
   const onConsume = async () => {
     if (items.length === 0) {

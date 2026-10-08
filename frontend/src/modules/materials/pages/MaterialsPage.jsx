@@ -9,13 +9,14 @@ import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useAuthStore } from '../../../store/authStore';
 
 import MaterialActionSheet from '../components/MaterialActionSheet';
-import MaterialDeactivateDialog from '../components/MaterialDeactivateDialog';
 import MaterialFiltersPanel from '../components/MaterialFiltersPanel';
 import MaterialForm from '../components/MaterialForm';
 import MaterialModuleHeader from '../components/MaterialModuleHeader';
 import MaterialsListSection from '../components/MaterialsListSection';
+import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';
 
 import {
+  useActiveTagsQuery,
   useCreateMaterialMutation,
   useDeactivateMaterialMutation,
   useMaterialFamiliesQuery,
@@ -47,16 +48,15 @@ const getApiErrorMessage = (error) => {
 };
 
 const MaterialsPage = () => {
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user } = useAuthStore();
 
   const canCreate = hasPermission('materials.create');
   const canUpdate = hasPermission('materials.update');
-  const canDelete = hasPermission('materials.delete');
+  const canDelete = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN_ALM'].includes(user?.role?.code) || hasPermission('materials.delete');
   const canViewInactive = canUpdate || canDelete;
   
   // Asumimos que SUPERADMIN y ADMIN tienen permisos especiales o roles
-  const { user } = useAuthStore();
-  const canManageCatalogs = user?.role?.name === 'SUPERADMIN' || user?.role?.name === 'ADMIN' || hasPermission('masterdata.manage');
+  const canManageCatalogs = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(user?.role?.code) || hasPermission('masterdata.manage');
 
   const [operationMessage, setOperationMessage] = useState(null);
   const [operationError, setOperationError] = useState(null);
@@ -71,6 +71,7 @@ const MaterialsPage = () => {
     material_type: '',
     default_unit: '',
     status: 'active',
+    tag: '',
     page: 1,
   });
 
@@ -81,6 +82,8 @@ const MaterialsPage = () => {
   const familiesQuery = useMaterialFamiliesQuery({
     include_inactive: canViewInactive ? 'true' : undefined,
   });
+
+  const tagsQuery = useActiveTagsQuery();
 
   const createMaterialMutation = useCreateMaterialMutation();
   const updateMaterialMutation = useUpdateMaterialMutation();
@@ -97,9 +100,10 @@ const MaterialsPage = () => {
     : [];
 
   const isInitialLoading =
-    (materialsQuery.isLoading || familiesQuery.isLoading) &&
+    (materialsQuery.isLoading || familiesQuery.isLoading || tagsQuery.isLoading) &&
     !materialsQuery.data &&
-    !familiesQuery.data;
+    !familiesQuery.data &&
+    !tagsQuery.data;
 
   const loadError = materialsQuery.error || familiesQuery.error;
 
@@ -111,6 +115,7 @@ const MaterialsPage = () => {
     filters.family_uuid ||
     filters.material_type ||
     filters.default_unit ||
+    filters.tag ||
     filters.status === 'all'
   );
 
@@ -141,6 +146,7 @@ const MaterialsPage = () => {
       family_uuid: '',
       material_type: '',
       default_unit: '',
+      tag: '',
       status: 'active',
       page: 1,
     });
@@ -198,31 +204,32 @@ const MaterialsPage = () => {
 
 
 
-  const handleDeactivateMaterial = async () => {
-    if (!materialToDeactivate?.id) return;
-
-    const selectedMaterial = materialToDeactivate;
+  const handleDeactivateMaterial = async (payload) => {
+    if (!payload?.id) return;
 
     setOperationMessage(null);
     setOperationError(null);
 
     try {
-      await deactivateMaterialMutation.mutateAsync(selectedMaterial.uuid || selectedMaterial.id);
-
-      setMaterialToDeactivate(null);
+      await deactivateMaterialMutation.mutateAsync({
+        id: payload.uuid || payload.id,
+        action: payload.action,
+        reason: payload.reason,
+      });
 
       await materialsQuery.refetch();
       await familiesQuery.refetch();
 
       setOperationMessage(
-        `Material "${selectedMaterial.code} — ${selectedMaterial.name}" desactivado correctamente.`
+        payload.action === 'delete' 
+          ? `Material eliminado correctamente.`
+          : `Material desactivado correctamente.`
       );
+      closeMaterialSheet();
     } catch (error) {
-      setMaterialToDeactivate(null);
-
       setOperationError(
         getApiErrorMessage(error) ||
-        `No se pudo desactivar el material "${selectedMaterial.code}".`
+        `No se pudo completar la acción en el material.`
       );
     }
   };
@@ -292,6 +299,7 @@ const MaterialsPage = () => {
       <MaterialFiltersPanel
         filters={filters}
         families={families}
+        tags={tagsQuery.data || []}
         canViewInactive={canViewInactive}
         onFilterChange={updateFilter}
         onClearFilters={clearFilters}
@@ -342,24 +350,31 @@ const MaterialsPage = () => {
         <MaterialForm
           initialData={selectedMaterial}
           isSubmitting={
-            createMaterialMutation.isPending || updateMaterialMutation.isPending
+            createMaterialMutation.isPending || updateMaterialMutation.isPending || deactivateMaterialMutation.isPending
           }
           onSubmit={handleSubmitMaterial}
           onCancel={closeMaterialSheet}
-          onDeactivate={(material) => {
-            setMaterialToDeactivate(material);
-            closeMaterialSheet();
-          }}
+          onDeactivate={canDelete ? handleDeactivateMaterial : undefined}
         />
       </MaterialActionSheet>
 
-      <MaterialDeactivateDialog
-        open={Boolean(materialToDeactivate)}
-        material={materialToDeactivate}
-        isLoading={deactivateMaterialMutation.isPending}
-        onConfirm={handleDeactivateMaterial}
-        onClose={() => setMaterialToDeactivate(null)}
-      />
+      {materialToDeactivate && (
+        <MasterDataActionDialog
+          open={Boolean(materialToDeactivate)}
+          title="Gestionar Estado de Material"
+          item={materialToDeactivate}
+          isLoading={deactivateMaterialMutation.isPending}
+          onConfirm={({ action, reason }) => {
+            handleDeactivateMaterial({
+              id: materialToDeactivate.uuid || materialToDeactivate.id,
+              action,
+              reason,
+            });
+            setMaterialToDeactivate(null);
+          }}
+          onClose={() => setMaterialToDeactivate(null)}
+        />
+      )}
     </div>
   );
 };

@@ -29,6 +29,16 @@ const MaterialMobileCard = ({
               <Badge variant={material.is_active ? 'success' : 'destructive'} className="font-bold">
                 {material.is_active ? 'Activo' : 'Inactivo'}
               </Badge>
+
+              {material.tags && material.tags.length > 0 && material.tags.map(tag => (
+                <div
+                  key={tag.id}
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/60 bg-secondary/30 text-[11px] font-bold text-muted-foreground whitespace-nowrap shadow-sm"
+                >
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color || '#e2e8f0' }} />
+                  {tag.name}
+                </div>
+              ))}
             </div>
           </div>
 

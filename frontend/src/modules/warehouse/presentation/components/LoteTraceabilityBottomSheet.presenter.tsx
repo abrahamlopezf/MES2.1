@@ -42,11 +42,20 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
     return acc + Number(item.quantity || 0);
   }, 0);
 
-  let missing = initial - available - totalConsumed;
+  const transferEvents = events.filter((e: any) => e.event_type === 'TRANSFERENCIA_AREA');
+  const totalTransferred = transferEvents.reduce((acc: number, e: any) => {
+    return acc + Number(e.metadata?.quantity || 0);
+  }, 0);
+
+  const disposeEvents = events.filter((e: any) => e.event_type === 'DISPOSE');
+  const totalDisposed = disposeEvents.reduce((acc: number, e: any) => {
+    return acc + Number(e.metadata?.quantity || 0);
+  }, 0);
+
+  let missing = initial - available - totalConsumed - totalTransferred - totalDisposed;
   if (missing < 0.01) missing = 0;
 
   let remainingMissing = missing;
-  const disposeEvents = events.filter((e: any) => e.event_type === 'DISPOSE');
 
   const movements: any[] = [
     ...consumptions.map((c: any) => {
@@ -59,17 +68,26 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
         order: c.order_number || 'N/A'
       };
     }),
+    ...transferEvents.map((e: any) => ({
+      type: 'CONSUME',
+      date: new Date(e.created_at || e.createdAt || Date.now()).getTime(),
+      qty: Number(e.metadata?.quantity || 0),
+      user: e.user,
+      order: e.metadata?.order_number || 'N/A',
+      isTransfer: true
+    })),
     ...disposeEvents.map((e: any, idx: number) => {
-      let assignedQty = null;
-      // Asignar la cantidad faltante al último evento de baja explícito para cuadrar el balance
+      let qty = Number(e.metadata?.quantity || 0);
+      
+      // Asignar cantidad faltante inexplicada al último evento de baja explícito para cuadrar
       if (idx === disposeEvents.length - 1 && remainingMissing > 0) {
-        assignedQty = remainingMissing;
+        qty += remainingMissing;
         remainingMissing = 0;
       }
       return {
         type: 'DISPOSE_EVENT',
         date: new Date(e.created_at || e.createdAt || Date.now()).getTime(),
-        qty: assignedQty,
+        qty: qty,
         user: e.user,
         notes: e.notes
       };
@@ -219,7 +237,7 @@ export const LoteTraceabilityBottomSheetPresenter: React.FC<LoteTraceabilityBott
                           <div className="flex justify-between items-start mb-2">
                             <span className={`font-bold text-sm flex items-center gap-1.5 ${isConsume ? 'text-destructive' : 'text-amber-500'}`}>
                               <ArrowUpRight size={14} /> 
-                              {isConsume ? 'Consumo de Material' : 'Baja / Merma'}
+                              {isConsume ? (movement.isTransfer ? 'Consumo (Surtido de Área)' : 'Consumo de Material') : 'Baja / Merma'}
                             </span>
                             <span className="text-[10px] text-muted-foreground font-mono">
                               {new Date(movement.date).toLocaleString()}

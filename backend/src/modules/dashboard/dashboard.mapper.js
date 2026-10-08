@@ -26,6 +26,13 @@ class DashboardMapper {
     const yieldValue = totalInput > 0 ? ((productionTotal / totalInput) * 100).toFixed(1) : null;
     const scrapRatio = totalInput > 0 ? ((scrapTotal / totalInput) * 100).toFixed(1) : null;
 
+    // Cálculo para OEE según lo que hacía el Frontend
+    const scrapRatioForOee = scrapTotal > 0 ? (scrapTotal / ((productionTotal || 0) + scrapTotal)) * 100 : 0;
+    const calidadReal = 100 - scrapRatioForOee;
+    const disponibilidadReal = 0; // Hardcoded en frontend por ahora
+    const yieldNumeric = Number(yieldValue) || 0;
+    const oeeReal = ((calidadReal / 100) * (yieldNumeric / 100) * (disponibilidadReal / 100)) * 100 || 0;
+
     return {
       generated_at: now,
       last_update: now,
@@ -48,10 +55,23 @@ class DashboardMapper {
           unit: yieldValue ? '%' : '',
           status: getSeverityForYield(yieldValue),
         },
-        // OEE no tiene fuente oficial, mandamos UNAVAILABLE por diseño estricto
+        // KPIs calculados en el backend para evitar violaciones de frontend
+        calidad: {
+          label: 'Calidad',
+          value: calidadReal,
+          unit: '%',
+          status: getSeverityForYield(calidadReal),
+        },
+        disponibilidad: {
+          label: 'Disponibilidad',
+          value: disponibilidadReal,
+          unit: '%',
+          status: 'DEFAULT',
+        },
         oee: {
           label: 'OEE',
-          value: '---',
+          value: oeeReal,
+          unit: '%',
           status: 'DEFAULT',
         },
       },

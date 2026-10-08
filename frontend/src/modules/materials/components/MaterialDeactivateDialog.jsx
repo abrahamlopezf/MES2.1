@@ -1,6 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '../../../design-system';
+import { useBottomSheetAnimation } from '../../../hooks/useBottomSheetAnimation';
 
 const MaterialDeactivateDialog = ({
   open,
@@ -9,46 +11,19 @@ const MaterialDeactivateDialog = ({
   onConfirm,
   onClose,
 }) => {
-  const [isRendered, setIsRendered] = useState(open);
-  const sheetRef = useRef(null);
-  const [startY, setStartY] = useState(null);
-  const [currentY, setCurrentY] = useState(0);
-
-  useEffect(() => {
-    if (open) {
-      setIsRendered(true);
-    } else {
-      const timer = setTimeout(() => setIsRendered(false), 400); 
-      return () => clearTimeout(timer);
-    }
-  }, [open]);
-
-  const handleTouchStart = (e) => {
-    setStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e) => {
-    if (startY === null) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
-    if (deltaY > 0) {
-      setCurrentY(deltaY);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (currentY > 100) {
-      onClose();
-    }
-    setStartY(null);
-    setCurrentY(0);
-  };
+  const {
+    isRendered,
+    animateIn,
+    sheetRef,
+    currentY,
+    handlers
+  } = useBottomSheetAnimation(open, 400);
 
   if (!isRendered) return null;
 
-  return (
+  return createPortal(
     <div 
-      className={`fixed inset-0 z-[200] flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${open ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[200] flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
@@ -58,15 +33,15 @@ const MaterialDeactivateDialog = ({
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${open && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle Area */}
         <div 
           className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handlers.onTouchStart}
+          onTouchMove={handlers.onTouchMove}
+          onTouchEnd={() => handlers.onTouchEnd(onClose)}
         >
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
@@ -140,7 +115,8 @@ const MaterialDeactivateDialog = ({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

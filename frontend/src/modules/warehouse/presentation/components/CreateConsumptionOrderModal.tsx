@@ -74,6 +74,11 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const updateItemQty = (material_id: number, qty: number) => {
     setItems(items.map(i => {
       if (i.material_id === material_id) {
+        const maxAmount = Number(i.amount) || 0;
+        if (qty > maxAmount) {
+          toast.warning(`Stock insuficiente. Solo hay ${maxAmount} disponibles para ${i.material?.name}.`);
+          return { ...i, req_quantity: maxAmount };
+        }
         return { ...i, req_quantity: qty };
       }
       return i;
@@ -280,6 +285,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                               <input 
                                 type="number" 
                                 min="1" 
+                                max={Number(item.amount) || 0}
                                 step="1"
                                 value={item.req_quantity === 0 ? '' : item.req_quantity}
                                 onChange={(e) => {

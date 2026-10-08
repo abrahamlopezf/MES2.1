@@ -6,7 +6,7 @@ export const downloadConsumptionOrderPdf = async (order: any, filename?: string)
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', filename || `ORD-${order.order_number}.pdf`);
-  document.body.appendChild(link);
+  
+  // Do not append to document body to prevent React Router from intercepting the click
   link.click();
-  link.remove();
 };

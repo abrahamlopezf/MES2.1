@@ -25,12 +25,24 @@ import {
   getMaterialUnitsRequest,
   createMaterialUnitRequest,
   updateMaterialUnitRequest,
+  deactivateMaterialUnitRequest,
   getOperationalAreasRequest,
+  deactivateMaterialFamilyRequest,
+  deactivateMaterialCodeRequest,
+  deactivateMaterialTypeRequest,
+  deactivateMaterialBrandRequest,
+  deactivateOperationalAreaRequest,
   createOperationalAreaRequest,
   updateOperationalAreaRequest,
   getSuppliersRequest,
   createSupplierRequest,
   updateSupplierRequest,
+  deactivateSupplierRequest,
+  getTagsRequest,
+  getActiveTagsRequest,
+  createTagRequest,
+  updateTagRequest,
+  deactivateTagRequest,
 } from '../services/materialsApi';
 
 export const materialQueryKeys = {
@@ -46,6 +58,7 @@ export const materialQueryKeys = {
   locations: (filters) => [...materialQueryKeys.all, 'locations', filters],
   units: (filters) => [...materialQueryKeys.all, 'units', filters],
   suppliers: (filters) => [...materialQueryKeys.all, 'suppliers', filters],
+  tags: (filters) => [...materialQueryKeys.all, 'tags', filters],
 };
 
 const buildMaterialParams = (filters = {}) => {
@@ -436,5 +449,113 @@ export const useOperationalAreaMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: materialQueryKeys.all });
     },
+  });
+};
+
+export const useDeactivateMaterialFamilyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateMaterialFamilyRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useDeactivateMaterialCodeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateMaterialCodeRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useDeactivateMaterialTypeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateMaterialTypeRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useDeactivateMaterialBrandMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateMaterialBrandRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useDeactivateOperationalAreaMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateOperationalAreaRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useDeactivateSupplierMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateSupplierRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+export const useDeactivateMaterialUnitMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateMaterialUnitRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
+  });
+};
+
+// === TAGS ===
+
+export const useTagsQuery = (filters = {}) => {
+  return useQuery({
+    queryKey: materialQueryKeys.tags(filters),
+    queryFn: async () => {
+      const { data } = await getTagsRequest(filters);
+      return data?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useActiveTagsQuery = () => {
+  return useQuery({
+    queryKey: [...materialQueryKeys.all, 'tags', 'active'],
+    queryFn: async () => {
+      const { data } = await getActiveTagsRequest();
+      return data?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useCreateTagMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTagRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: materialQueryKeys.all });
+    },
+  });
+};
+
+export const useUpdateTagMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateTagRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: materialQueryKeys.all });
+    },
+  });
+};
+
+export const useDeactivateTagMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deactivateTagRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: materialQueryKeys.all }),
   });
 };

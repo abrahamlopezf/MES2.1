@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Save, X, QrCode, ShieldAlert } from 'lucide-react';
 import { useConfirmAction } from '../../../providers/ConfirmProvider';
 import { TFAlert, TFButton, TFCard, TFCardContent, TFInput, TFSelect, TFTextarea } from '../../../components/tf-ui';
+import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';
 
 import {
   useMaterialFamiliesQuery,
@@ -11,7 +12,8 @@ import {
   useOperationalAreasQuery,
   useRankingsQuery,
   useMaterialsQuery,
-  useMaterialUnitsQuery
+  useMaterialUnitsQuery,
+  useActiveTagsQuery
 } from '../hooks/useMaterialsQueries';
 
 const MaterialForm = ({
@@ -23,6 +25,7 @@ const MaterialForm = ({
 }) => {
   const { confirm } = useConfirmAction();
   const isEditing = Boolean(initialData?.id);
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
 
   const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });
   const { data: codesData } = useMaterialCodesQuery({ pageSize: 10000 });
@@ -31,6 +34,7 @@ const MaterialForm = ({
   const { data: locationsData } = useOperationalAreasQuery({ pageSize: 10000 });
   const { data: unitsData } = useMaterialUnitsQuery({ pageSize: 10000 });
   const { data: rankingsData } = useRankingsQuery();
+  const { data: tagsData } = useActiveTagsQuery();
 
   const families = familiesData?.items || [];
   const codes = codesData?.items || [];
@@ -39,6 +43,7 @@ const MaterialForm = ({
   const locations = locationsData?.items || [];
   const units = unitsData?.items || [];
   const rankings = rankingsData?.items || [];
+  const activeTags = tagsData || [];
 
   const [formData, setFormData] = useState({
     ranking_id: initialData?.ranking_id || '',
@@ -52,6 +57,7 @@ const MaterialForm = ({
     description: initialData?.description || '',
     minimum_stock: initialData?.minimum_stock ?? '',
     reorder_point: initialData?.reorder_point ?? '',
+    tags: initialData?.tags?.map(t => t.uuid || t.id) || [],
     is_active: initialData?.is_active ?? true,
   });
 
@@ -88,6 +94,7 @@ const MaterialForm = ({
         description: initialData.description || current.description,
         minimum_stock: initialData.minimum_stock ?? current.minimum_stock,
         reorder_point: initialData.reorder_point ?? current.reorder_point,
+        tags: initialData.tags?.map(t => t.uuid || String(t.id)) || current.tags,
         is_active: initialData.is_active ?? current.is_active,
       }));
     }
@@ -195,6 +202,7 @@ const MaterialForm = ({
       description: formData.description.trim() || null,
       minimum_stock: formData.minimum_stock !== '' ? Number(formData.minimum_stock) : undefined,
       reorder_point: formData.reorder_point !== '' ? Number(formData.reorder_point) : undefined,
+      tags: formData.tags,
     };
 
     if (isEditing) {
@@ -332,6 +340,45 @@ const MaterialForm = ({
             />
           </div>
 
+        {/* ETIQUETAS */}
+        <div className="animate-form-field" style={{ '--stagger': 4.5 }}>
+          <TFSelect
+            label="Etiquetas (Opcional)"
+            name="tags"
+            placeholder="Buscar etiquetas..."
+            value={formData.tags}
+            onChange={(e) => updateField('tags', e.target.value)}
+            options={activeTags.map(tag => ({
+              value: tag.uuid || String(tag.id),
+              label: tag.name
+            }))}
+            isMulti={true}
+            disabled={isSubmitting}
+          />
+          {formData.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {formData.tags.map(tagId => {
+                const tag = activeTags.find(t => (t.uuid || String(t.id)) === tagId);
+                if (!tag) return null;
+                return (
+                  <div key={tagId} className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold border" style={{ backgroundColor: `${tag.color}15`, borderColor: `${tag.color}30`, color: tag.color }}>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.name}
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => updateField('tags', formData.tags.filter(id => id !== tagId))}
+                      className="ml-1 hover:bg-black/10 dark:hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <TFTextarea
           label="Descripción"
           name="description"
@@ -349,11 +396,11 @@ const MaterialForm = ({
             variant="danger"
             icon={ShieldAlert}
             type="button"
-            onClick={() => onDeactivate(initialData)}
+            onClick={() => setIsActionDialogOpen(true)}
             disabled={isSubmitting}
             className="w-full sm:w-auto sm:mr-auto mb-3 sm:mb-0"
           >
-            Desactivar
+            Gestionar Estado
           </TFButton>
         )}
         <TFButton 
@@ -377,6 +424,21 @@ const MaterialForm = ({
       </div>
 
       </div>
+      
+      {isEditing && onDeactivate && (
+        <MasterDataActionDialog
+          open={isActionDialogOpen}
+          item={initialData}
+          title="Gestionar Estado del Material"
+          itemLabel="Material seleccionado"
+          isLoading={isSubmitting}
+          onClose={() => setIsActionDialogOpen(false)}
+          onConfirm={({ action, reason }) => {
+             setIsActionDialogOpen(false);
+             onDeactivate({ ...initialData, action, reason });
+          }}
+        />
+      )}
     </form>
   );
 };

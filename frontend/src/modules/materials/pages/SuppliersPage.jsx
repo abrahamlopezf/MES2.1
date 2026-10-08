@@ -4,7 +4,8 @@ import { Truck } from 'lucide-react';
 import { 
   useSuppliersQuery, 
   useCreateSupplierMutation, 
-  useUpdateSupplierMutation 
+  useUpdateSupplierMutation,
+  useDeactivateSupplierMutation 
 } from '../hooks/useMaterialsQueries';
 import SupplierCatalogForm from '../components/SupplierCatalogForm';
 
@@ -19,6 +20,7 @@ const SuppliersPage = () => {
   const query = useSuppliersQuery(filters);
   const createMut = useCreateSupplierMutation();
   const updateMut = useUpdateSupplierMutation();
+  const deleteMut = useDeactivateSupplierMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -42,6 +44,7 @@ const SuppliersPage = () => {
       dataQuery={query}
       createMutation={createMut}
       updateMutation={updateMut}
+      deleteMutation={deleteMut}
       CustomForm={SupplierCatalogForm}
       labels={{
         codeLabel: 'RFC / Código',

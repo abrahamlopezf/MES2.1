@@ -4,7 +4,8 @@ import { Award } from 'lucide-react';
 import { 
   useMaterialBrandsQuery, 
   useCreateMaterialBrandMutation, 
-  useUpdateMaterialBrandMutation 
+  useUpdateMaterialBrandMutation,
+  useDeactivateMaterialBrandMutation 
 } from '../hooks/useMaterialsQueries';
 
 const BrandsPage = () => {
@@ -18,6 +19,7 @@ const BrandsPage = () => {
   const query = useMaterialBrandsQuery(filters);
   const createMut = useCreateMaterialBrandMutation();
   const updateMut = useUpdateMaterialBrandMutation();
+  const deleteMut = useDeactivateMaterialBrandMutation();
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
@@ -41,6 +43,7 @@ const BrandsPage = () => {
       dataQuery={query}
       createMutation={createMut}
       updateMutation={updateMut}
+      deleteMutation={deleteMut}
       labels={{
         codeLabel: 'Código de Marca',
         codePlaceholder: 'Ej. 3M',

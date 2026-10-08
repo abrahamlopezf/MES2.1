@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { 
   BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip as RechartsTooltip, ResponsiveContainer, 
@@ -72,10 +72,9 @@ export const ProductionDashboard = () => {
   if (donutData.length === 0) donutData.push({ name: 'Sin Mermas', value: 100, fill: '#27272a' });
 
   const yieldReal = Number(kpisOp?.yield?.value) || 0;
-  const scrapRatio = totalScrapAmount > 0 ? (totalScrapAmount / ((kpisOp?.production?.value || 0) + totalScrapAmount)) * 100 : 0;
-  const calidadReal = 100 - (scrapRatio || 0);
-  const disponibilidadReal = 0;
-  const oeeReal = ((calidadReal / 100) * (yieldReal / 100) * (disponibilidadReal / 100)) * 100 || 0;
+  const calidadReal = Number(kpisOp?.calidad?.value) || 0;
+  const disponibilidadReal = Number(kpisOp?.disponibilidad?.value) || 0;
+  const oeeReal = Number(kpisOp?.oee?.value) || 0;
 
   return (
     <div className="flex flex-col gap-6 w-full">

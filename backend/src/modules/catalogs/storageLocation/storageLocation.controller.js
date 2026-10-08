@@ -45,7 +45,7 @@ class StorageLocationController {
 
   async delete(req, res, next) {
     try {
-      const result = await storageLocationService.delete(req.params.uuid);
+      const result = await storageLocationService.delete(req.params.uuid, { action: req.body?.action, reason: req.body?.reason, user: req.user });
       res.json(result);
     } catch (error) {
       next(error);
