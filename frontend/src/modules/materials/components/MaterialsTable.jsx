@@ -111,7 +111,12 @@ const MaterialsTable = ({
 
               <td className="border-b border-border/50 px-3 py-3.5 align-middle">
                 <span className="text-base font-bold text-foreground">
-                  {renderTextWithBr(material.default_location?.code || material.default_location?.name)}
+                  {renderTextWithBr(
+                    material.default_location?.code || 
+                    material.default_location?.name || 
+                    material.location?.code || 
+                    material.location?.name
+                  )}
                 </span>
               </td>
 
