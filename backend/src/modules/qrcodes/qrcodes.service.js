@@ -798,10 +798,31 @@ const cancelQrCode = async (qrCodeId, payload, currentUser) => {
 };
 
 const lookup = async (qr_code) => {
-  const qr = await QrCode.findOne({
-    where: { qr_code },
+  const { Op } = require('sequelize');
+
+  const whereClause = {
+    [Op.or]: [
+      { qr_code: qr_code },
+      { qr_code: { [Op.like]: `%-${qr_code}` } }
+    ]
+  };
+
+  if (!isNaN(qr_code)) {
+    const padded = String(qr_code).padStart(9, '0');
+    whereClause[Op.or].push({ qr_code: { [Op.like]: `%-${padded}` } });
+  }
+
+  let qr = await QrCode.findOne({
+    where: whereClause,
     include: qrInclude,
   });
+
+  // Fallback to ID search only if we didn't find it by string/serial
+  if (!qr && !isNaN(qr_code)) {
+    qr = await QrCode.findByPk(parseInt(qr_code, 10), {
+      include: qrInclude,
+    });
+  }
 
   if (!qr) {
     throwHttpError('Código QR no encontrado.', 404);

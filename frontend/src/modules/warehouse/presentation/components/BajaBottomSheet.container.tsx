@@ -285,8 +285,8 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
         folio: l.folio || 'N/A',
         material_id: material.id,
         materialName: material.name,
-        maxQuantity: Number(l.available_amount || l.amount),
-        quantity: Number(l.available_amount || l.amount) // Por defecto asume la cantidad total del lote
+        maxQuantity: Number(l.available_amount ?? l.amount),
+        quantity: Number(l.available_amount ?? l.amount) // Por defecto asume la cantidad total del lote
       }));
 
       setItems(prev => {

@@ -56,12 +56,19 @@ export const ConsumptionOrdersPage: React.FC = () => {
       }
       if (e.key === 'Enter') {
         if (barcode.length > 3) {
-          // El QR puede ser solo el UUID o 'ORD-uuid'
+          // El QR puede ser solo el UUID, 'ORD-uuid', o una URL completa
           const scannedStr = barcode.trim();
           let uuidToOpen = scannedStr;
-          if (scannedStr.startsWith('ORD-')) {
+          
+          if (scannedStr.includes('order_id=')) {
+            const match = scannedStr.match(/order_id=([^&]+)/);
+            if (match) {
+              uuidToOpen = match[1];
+            }
+          } else if (scannedStr.startsWith('ORD-')) {
             uuidToOpen = scannedStr.substring(4);
           }
+          
           setSelectedOrderUuid(uuidToOpen);
         }
         barcode = '';
