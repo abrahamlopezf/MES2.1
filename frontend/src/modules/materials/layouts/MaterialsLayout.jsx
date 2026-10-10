@@ -20,7 +20,7 @@ const MaterialsLayout = () => {
   const currentTab = tabs.find(t => location.pathname.startsWith(t.path)) || { name: "Master Data", desc: "Administración centralizada de catálogos y parámetros operativos." };
 
   return (
-    <div className="flex flex-col gap-5 w-full max-w-7xl mx-auto py-2 px-4 sm:px-6 lg:px-8">
+    <div className="flex flex-col gap-5 w-full min-w-0 max-w-7xl mx-auto py-2 px-4 sm:px-6 lg:px-8">
       {/* Header & Tabs Row */}
       {/* Módulo Master Data Header */}
       <div className="flex flex-col items-center text-center">
@@ -32,7 +32,7 @@ const MaterialsLayout = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="w-full overflow-x-auto pb-2 custom-scrollbar">
+      <div className="w-full min-w-0 overflow-x-auto pb-2 custom-scrollbar">
         <div className="p-1.5 border border-border/50 shadow-sm bg-secondary/30 rounded-xl w-max min-w-full lg:min-w-max lg:mx-auto flex items-center gap-1 justify-start">
             <nav className="flex items-center gap-1 w-full" aria-label="Tabs">
             {tabs.map((tab) => {
@@ -64,7 +64,7 @@ const MaterialsLayout = () => {
         </div>
 
       {/* Contenido Dinámico de la Pestaña Activa */}
-      <div className="flex-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <Outlet />
       </div>
     </div>

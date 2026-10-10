@@ -262,7 +262,7 @@ const MaterialsPage = () => {
   }
 
   return (
-    <div className="grid content-start gap-4 sm:gap-6 lg:gap-8 pb-32 sm:pb-12 overflow-x-hidden">
+    <div className="flex flex-col gap-4 sm:gap-6 lg:gap-8 pb-32 sm:pb-12 overflow-x-hidden w-full min-w-0">
       {operationMessage && (
         <TFAlert
           variant="success"

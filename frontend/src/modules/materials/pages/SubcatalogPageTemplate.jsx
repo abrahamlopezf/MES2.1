@@ -141,7 +141,7 @@ const SubcatalogPageTemplate = ({
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div className="flex flex-col gap-6 pb-12 w-full min-w-0 overflow-x-hidden">
       {operationMessage && (
         <TFAlert variant="success" title="Éxito" message={operationMessage} />
       )}

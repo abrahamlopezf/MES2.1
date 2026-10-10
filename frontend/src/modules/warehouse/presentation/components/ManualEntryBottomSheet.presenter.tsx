@@ -113,7 +113,10 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                 options={materials}
                 value={materialId}
                 onChange={onChangeMaterialId}
-                getLabel={(mat: any) => `${mat.internal_code} - ${mat.name}`}
+                getLabel={(mat: any) => {
+                  const loc = mat.default_location?.code || mat.default_location?.name || '';
+                  return loc ? `${mat.internal_code || mat.code} - ${mat.name} [Loc: ${loc}]` : `${mat.internal_code || mat.code} - ${mat.name}`;
+                }}
                 getValue={(mat: any) => mat.id.toString()}
                 placeholder="Seleccionar material..."
                 loading={loadingMaterials}

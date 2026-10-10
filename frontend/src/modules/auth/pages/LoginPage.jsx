@@ -97,7 +97,7 @@ const LoginPage = () => {
                     <FormLabel>Usuario o No. de Nómina</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
                           placeholder="Ingresa tu usuario o número de nómina"
                           autoComplete="username"
@@ -120,7 +120,7 @@ const LoginPage = () => {
                     <FormLabel>Contraseña</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Escribe tu contraseña"
@@ -131,7 +131,7 @@ const LoginPage = () => {
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground focus:outline-none"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none flex items-center justify-center"
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

@@ -64,18 +64,18 @@ const MaterialFiltersPanel = ({
                     <p className="text-sm text-muted-foreground font-semibold">Encuentra materiales por código o ranking.</p>
                 </div>
                 <div className="flex w-full md:w-auto gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="font-bold w-full sm:w-auto justify-center sm:justify-start md:hidden">
+                    <Button variant="secondary" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="font-bold flex-1 sm:flex-none justify-center md:hidden">
                         {isExpanded ? <ChevronUp className="w-4 h-4 mr-2 shrink-0" /> : <ChevronDown className="w-4 h-4 mr-2 shrink-0" />}
                         <span>{isExpanded ? 'Ocultar Filtros' : 'Filtros Avanzados'}</span>
                     </Button>
                     {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
+                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold flex-1 sm:flex-none justify-center">
                             <FilterX className="w-4 h-4 mr-2 shrink-0" />
                             <span>Limpiar Filtros</span>
                         </Button>
                     )}
                     {setViewMode && (
-                        <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0 ml-auto md:ml-2">
+                        <div className="hidden md:flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0 ml-auto md:ml-2">
                             <button
                                 type="button"
                                 onClick={() => setViewMode('list')}
@@ -109,6 +109,30 @@ const MaterialFiltersPanel = ({
                 </div>
 
                 <div className={`${isExpanded ? 'grid' : 'hidden'} md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`}>
+
+                    {setViewMode && (
+                        <div className="md:hidden col-span-1 sm:col-span-2 flex items-center justify-between bg-secondary/30 p-2 rounded-xl border border-input">
+                            <span className="text-sm font-bold text-muted-foreground ml-2">Vista de resultados:</span>
+                            <div className="flex items-center gap-1 bg-background p-1 rounded-lg border border-border shadow-sm">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-secondary text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    title="Vista de lista"
+                                >
+                                    <List size={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-secondary text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    title="Vista de tarjetas"
+                                >
+                                    <LayoutGrid size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                 <select
                     className="flex h-14 w-full min-w-0 rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"

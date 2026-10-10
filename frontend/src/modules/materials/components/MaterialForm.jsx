@@ -3,6 +3,7 @@ import { Save, X, QrCode, ShieldAlert } from 'lucide-react';
 import { useConfirmAction } from '../../../providers/ConfirmProvider';
 import { TFAlert, TFButton, TFCard, TFCardContent, TFInput, TFSelect, TFTextarea } from '../../../components/tf-ui';
 import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';
+import { useAuthStore } from '../../../store/authStore';
 
 import {
   useMaterialFamiliesQuery,
@@ -26,6 +27,8 @@ const MaterialForm = ({
   const { confirm } = useConfirmAction();
   const isEditing = Boolean(initialData?.id);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
+  const { user } = useAuthStore();
+  const canEditRestrictedFields = ['SUPERADMIN', 'ADMIN_ALM'].includes(user?.role?.code);
 
   const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });
   const { data: codesData } = useMaterialCodesQuery({ pageSize: 10000 });
@@ -250,7 +253,7 @@ const MaterialForm = ({
               value={formData.family_uuid}
               onChange={(e) => updateField('family_uuid', e.target.value)}
               options={familyOptions}
-              disabled={isEditing || isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               required
             />
             
@@ -261,7 +264,7 @@ const MaterialForm = ({
               value={formData.material_code_uuid}
               onChange={(e) => updateField('material_code_uuid', e.target.value)}
               options={codeOptions}
-              disabled={isEditing || isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               required
             />
 
