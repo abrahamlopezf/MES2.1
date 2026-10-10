@@ -17,6 +17,7 @@ const MaterialsListSection = ({
   total = 0,
   pageSize = 20,
   onPageChange,
+  viewMode = 'list',
 }) => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -73,28 +74,30 @@ const MaterialsListSection = ({
           </div>
         ) : (
           <>
-            <div className="grid gap-4 md:hidden p-5">
-              {materials.map((material) => (
-                <MaterialMobileCard
-                  key={material.id}
-                  material={material}
+            {viewMode === 'grid' ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-5">
+                {materials.map((material) => (
+                  <MaterialMobileCard
+                    key={material.id}
+                    material={material}
+                    canUpdate={canUpdate}
+                    canDelete={canDelete}
+                    onEdit={onEdit}
+                    onDeactivate={onDeactivate}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <MaterialsTable
+                  materials={materials}
                   canUpdate={canUpdate}
                   canDelete={canDelete}
                   onEdit={onEdit}
                   onDeactivate={onDeactivate}
                 />
-              ))}
-            </div>
-
-            <div className="hidden md:block">
-              <MaterialsTable
-                materials={materials}
-                canUpdate={canUpdate}
-                canDelete={canDelete}
-                onEdit={onEdit}
-                onDeactivate={onDeactivate}
-              />
-            </div>
+              </div>
+            )}
 
             {total > pageSize && (
               <div className="flex flex-col sm:flex-row items-center justify-between border border-border px-5 py-4 gap-4 bg-card rounded-xl mt-4 shadow-sm">

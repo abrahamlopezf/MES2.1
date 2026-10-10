@@ -75,6 +75,8 @@ const MaterialsPage = () => {
     page: 1,
   });
 
+  const [viewMode, setViewMode] = useState('list');
+
   const debouncedFilters = useDebouncedValue(filters, 300);
 
   const materialsQuery = useMaterialsQuery(debouncedFilters);
@@ -303,6 +305,8 @@ const MaterialsPage = () => {
         canViewInactive={canViewInactive}
         onFilterChange={updateFilter}
         onClearFilters={clearFilters}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
       />
 
       {hasActiveFilters && (
@@ -335,6 +339,7 @@ const MaterialsPage = () => {
         total={total}
         pageSize={20}
         onPageChange={handlePageChange}
+        viewMode={viewMode}
       />
 
       <MaterialActionSheet

@@ -113,10 +113,20 @@ export function GenerateBatchPage() {
       tokenType: 'QR' as any,
       requestedBy: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'admin'
     }, {
-      onSuccess: () => {
+      onSuccess: async (responseData: any) => {
         handleCloseModal();
         reset();
         toast.success('✨ Lote generado exitosamente');
+        
+        try {
+          if (responseData && responseData.batch) {
+            toast.info('Generando PDF del lote, por favor espera...');
+            await downloadBatchPdf(String(responseData.batch.id), responseData.batch.batch_code);
+          }
+        } catch (err) {
+          console.error('Error auto-downloading PDF:', err);
+          toast.error('Ocurrió un error al auto-descargar el PDF del lote.');
+        }
       },
       onError: (error: any) => {
         toast.error('Error al generar el lote: ' + (error?.message || 'Desconocido'));

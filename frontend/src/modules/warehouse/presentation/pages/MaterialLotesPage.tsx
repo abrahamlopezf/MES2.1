@@ -169,9 +169,12 @@ const MaterialLotesPageContent = () => {
       
       const dateStr = new Date().toISOString().split('T')[0];
       link.setAttribute('download', `lotes-seleccionados-${dateStr}.pdf`);
+      link.target = '_blank';
       
-      // Do not append to document body to prevent React Router from intercepting the click
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
     } catch (error) {
       console.error('Error al descargar QRs:', error);

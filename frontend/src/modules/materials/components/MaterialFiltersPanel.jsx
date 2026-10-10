@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FilterX, Search, Filter } from 'lucide-react';
+import { FilterX, Search, Filter, ChevronDown, ChevronUp, LayoutGrid, List } from 'lucide-react';
 import { Button } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
 import { TFSelect } from '../../../components/tf-ui';
@@ -17,6 +17,8 @@ const MaterialFiltersPanel = ({
     canViewInactive,
     onFilterChange,
     onClearFilters,
+    viewMode,
+    setViewMode
 }) => {
     const safeFamilies = Array.isArray(families) ? families : [];
 
@@ -26,6 +28,8 @@ const MaterialFiltersPanel = ({
     }));
 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
+
+    const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
         setSearchTerm(filters.search || '');
@@ -54,21 +58,47 @@ const MaterialFiltersPanel = ({
 
     return (
         <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-border pb-3">
                 <div>
                     <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
                     <p className="text-sm text-muted-foreground font-semibold">Encuentra materiales por código o ranking.</p>
                 </div>
-                {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
-                        <FilterX className="w-4 h-4 mr-2 shrink-0" />
-                        <span>Limpiar Filtros</span>
+                <div className="flex w-full md:w-auto gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="font-bold w-full sm:w-auto justify-center sm:justify-start md:hidden">
+                        {isExpanded ? <ChevronUp className="w-4 h-4 mr-2 shrink-0" /> : <ChevronDown className="w-4 h-4 mr-2 shrink-0" />}
+                        <span>{isExpanded ? 'Ocultar Filtros' : 'Filtros Avanzados'}</span>
                     </Button>
-                )}
+                    {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
+                            <FilterX className="w-4 h-4 mr-2 shrink-0" />
+                            <span>Limpiar Filtros</span>
+                        </Button>
+                    )}
+                    {setViewMode && (
+                        <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0 ml-auto md:ml-2">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('list')}
+                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                title="Vista de lista"
+                            >
+                                <List size={18} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('grid')}
+                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                title="Vista de tarjetas"
+                            >
+                                <LayoutGrid size={18} />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                <div className="relative sm:col-span-2 md:col-span-1">
+            <div className="flex flex-col gap-4">
+                <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Buscar por código o nombre..."
@@ -77,6 +107,8 @@ const MaterialFiltersPanel = ({
                         className="!pl-10 font-medium w-full"
                     />
                 </div>
+
+                <div className={`${isExpanded ? 'grid' : 'hidden'} md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`}>
 
                 <select
                     className="flex h-14 w-full min-w-0 rounded-xl border border-input bg-background px-4 py-3 text-base font-medium ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -126,9 +158,10 @@ const MaterialFiltersPanel = ({
                         ))}
                     </select>
                 )}
+                </div>
             </div>
 
-            <div className="mt-2 flex items-start sm:items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-sm font-bold text-foreground border border-border shadow-sm">
+            <div className={`${isExpanded ? 'flex' : 'hidden'} md:flex mt-2 items-start sm:items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-sm font-bold text-foreground border border-border shadow-sm`}>
                 <div className="p-1.5 bg-primary/20 rounded-lg shrink-0 text-primary">
                     <Filter className="w-4 h-4" />
                 </div>

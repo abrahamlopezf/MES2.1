@@ -289,7 +289,11 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
         quantity: Number(l.available_amount || l.amount) // Por defecto asume la cantidad total del lote
       }));
 
-      setItems(prev => [...prev, ...newItems]);
+      setItems(prev => {
+        const existingLoteIds = new Set(prev.map(p => p.lote_id));
+        const filteredNewItems = newItems.filter(n => !existingLoteIds.has(n.lote_id));
+        return [...prev, ...filteredNewItems];
+      });
       if (!isMaterialLocked) {
         setSelectedMaterialId('');
       }

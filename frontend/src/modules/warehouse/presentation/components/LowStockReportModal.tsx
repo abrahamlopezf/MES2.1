@@ -58,9 +58,11 @@ export const LowStockReportModal: React.FC<LowStockReportModalProps> = ({ isOpen
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', `Reporte_Stocks_Bajos_${new Date().toISOString().split('T')[0]}.csv`);
+    link.target = '_blank';
     
-    // Do not append to document body to prevent React Router from intercepting the click
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   return (

@@ -62,10 +62,12 @@ const getInventory = async (query = {}) => {
   applyMaterialCatalogFilters(where, query);
 
   if (query.search) {
-    const s = `%${query.search}%`;
+    const sSafe = String(query.search).replace(/'/g, "''");
+    const s = `%${sSafe}%`;
     where[Op.or] = [
       { '$material.name$': { [Op.iLike]: s } },
-      { '$material.internal_code$': { [Op.iLike]: s } }
+      { '$material.internal_code$': { [Op.iLike]: s } },
+      { material_id: { [Op.in]: sequelize.literal(`(SELECT material_id FROM lotes LEFT JOIN qr_codes ON lotes.qr_id = qr_codes.id WHERE lotes.folio ILIKE '${s}' OR qr_codes.qr_code ILIKE '${s}')`) } }
     ];
   }
 

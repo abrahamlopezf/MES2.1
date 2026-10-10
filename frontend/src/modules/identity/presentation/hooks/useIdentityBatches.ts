@@ -75,9 +75,12 @@ export const downloadBatchPdf = async (batchId: string, batchNumber: string) => 
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', `batch-${batchNumber}.pdf`);
+  link.target = '_blank';
   
-  // Do not append to document body to prevent React Router from intercepting the click
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };
 
 export const downloadQrPdf = async (uuid: string, qrCode: string) => {
@@ -86,7 +89,10 @@ export const downloadQrPdf = async (uuid: string, qrCode: string) => {
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', `qr-${uuid}.pdf`);
+  link.target = '_blank';
   
-  // Do not append to document body to prevent React Router from intercepting the click
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };

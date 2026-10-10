@@ -44,6 +44,47 @@ export const ConsumptionOrdersPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [selectedStatus]);
 
+  // Manejo del escaner físico (teclado)
+  useEffect(() => {
+    let barcode = '';
+    let reading = false;
+    let timeout: NodeJS.Timeout;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (e.key === 'Enter') {
+        if (barcode.length > 3) {
+          // El QR puede ser solo el UUID o 'ORD-uuid'
+          const scannedStr = barcode.trim();
+          let uuidToOpen = scannedStr;
+          if (scannedStr.startsWith('ORD-')) {
+            uuidToOpen = scannedStr.substring(4);
+          }
+          setSelectedOrderUuid(uuidToOpen);
+        }
+        barcode = '';
+        reading = false;
+        return;
+      }
+      if (!reading) reading = true;
+      if (e.key.length === 1) barcode += e.key;
+
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        barcode = '';
+        reading = false;
+      }, 100); 
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(timeout);
+    };
+  }, []);
+
   const fetchOrders = async (isSilent = false) => {
     try {
       if (!isSilent) setLoading(true);

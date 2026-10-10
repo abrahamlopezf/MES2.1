@@ -47,15 +47,6 @@ export const AreasPage: React.FC = () => {
       permission: 'users.read',
       gradient: 'from-emerald-500/20 to-teal-500/20 text-emerald-500',
     },
-    ...(isWarehouseUser ? [{ 
-      id: 'area_inventory', 
-      title: 'Inventario de Área', 
-      description: 'Tu almacén interno (WIP)', 
-      icon: Layers, 
-      path: '/warehouse/area-inventory',
-      permission: '',
-      gradient: 'from-amber-500/20 to-orange-500/20 text-amber-500',
-    }] : []),
   ];
 
   // Filtrar áreas y sus hijos por permisos
