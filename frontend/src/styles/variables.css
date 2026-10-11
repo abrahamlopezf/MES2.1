@@ -20,6 +20,9 @@
     --muted: #F1F5F9;
     --muted-foreground: #64748B;
 
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+
     --border: #E2E8F0;
     --input: #E2E8F0;
     --ring: #4338CA;
@@ -64,6 +67,9 @@
 
     --muted: #334155; /* Slate 700 */
     --muted-foreground: #94A3B8;
+
+    --destructive: #F87171; /* Rojo luminoso de alto contraste para Dark Mode */
+    --destructive-foreground: #FFFFFF;
 
     --border: #334155;
     --input: #334155;

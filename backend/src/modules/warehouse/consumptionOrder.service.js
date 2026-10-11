@@ -414,33 +414,9 @@ class ConsumptionOrderService {
       if (order.status === 'CANCELADA') throw new Error('La orden ya está cancelada');
       if (order.status === 'SURTIDA') throw new Error('No se puede cancelar una orden completamente surtida');
 
-      // Restaurar inventario para cada item
-      for (const item of order.items) {
-        // Solo restauramos lo que NO se haya surtido aún.
-        // Si order estaba PENDIENTE o PREPARANDO, la cantidad "reservada" en el lote fue requested_quantity
-        // pero la cantidad real descontada globalmente o localmente debe volver a sumarse.
-        // Espera, en createOrder restamos 'requested_quantity' directamente del 'lote.available_amount'.
-        // Así que debemos sumar (requested_quantity - fulfilled_quantity) de vuelta al lote.
-        const amountToRestore = Number(item.requested_quantity) - Number(item.fulfilled_quantity || 0);
-
-        if (amountToRestore > 0) {
-          const newAmount = Number(item.lote.available_amount) + amountToRestore;
-          await item.lote.update({
-            available_amount: newAmount,
-            is_active: true // reactivar si había llegado a 0
-          }, { transaction });
-
-          // Si el QR del lote estaba DISPOSED o CONSUMED, reactivarlo (ya que le devolvimos inventario)
-          if (item.lote.qr_code) {
-            if (item.lote.qr_code.status === 'CONSUMED' || item.lote.qr_code.status === 'DISPOSED' || !item.lote.qr_code.is_active) {
-              await item.lote.qr_code.update({
-                status: 'ACTIVE',
-                is_active: true
-              }, { transaction });
-            }
-          }
-        }
-      }
+      // NOTA: createOrder NO descuenta de lote.available_amount (los descuentos ocurren en scanFulfillmentItem
+      // al escanear y surtir físicamente el material). Por ende, al cancelar una orden pendiente o en preparación,
+      // la cantidad pendiente (requested - fulfilled) nunca fue descontada del lote y no debe sumarse, evitando inventario fantasma.
 
       // Actualizar estado y notas de la orden
       const appendedNotes = order.notes ? `${order.notes}\n\nCANCELADA - Motivo: ${reason}` : `CANCELADA - Motivo: ${reason}`;

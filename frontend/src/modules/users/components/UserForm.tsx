@@ -207,6 +207,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
               <TFInput
                 label="Apellidos"
                 placeholder="Ej. Pérez"
+                autoComplete="off"
                 error={form.formState.errors.apellidos?.message}
                 containerClassName="animate-form-field"
                 style={{ '--stagger': 2 } as React.CSSProperties}
@@ -224,6 +225,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
               <TFInput
                 label={`Contraseña ${isEdit ? '(Opcional)' : ''}`}
                 type="password"
+                autoComplete="new-password"
                 placeholder="Ej. Password123!"
                 error={form.formState.errors.password?.message}
                 containerClassName="animate-form-field"
