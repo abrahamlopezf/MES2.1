@@ -5,7 +5,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, 
   AreaChart, Area, Legend, PieChart, Pie, Cell
 } from 'recharts';
-import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle } from 'lucide-react';
+import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle, DollarSign, PackagePlus, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../../../store/authStore';
 import { useThemeStore } from '../../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../design-system';
@@ -23,17 +23,141 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
-// KPI Card para la cabecera
-const ExecutiveKpiCard = ({ title, value, unit = '', isCurrency, colorClass, onClick, cursor = 'default' }) => {
+// KPI Card para la cabecera - Diseño homologado premium
+const ExecutiveKpiCard = ({ 
+  title, 
+  value, 
+  unit = '', 
+  isCurrency, 
+  colorClass, 
+  icon,
+  contextText,
+  subtitle,
+  onClick, 
+  cursor = 'default' 
+}) => {
   return (
     <Card 
       onClick={onClick}
-      className={`flex flex-col justify-center px-6 py-4 shadow-sm border-b-4 ${colorClass} ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+      className={`flex flex-col justify-between p-5 shadow-sm border-b-4 ${colorClass} ${onClick ? 'cursor-pointer hover:opacity-95 transition-opacity' : ''} min-h-[160px] overflow-hidden`}
       style={{ cursor }}
     >
-      <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
-      <p className="text-3xl font-black text-foreground tracking-tight">
-        {isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)} {unit && !isCurrency && <span className="text-xl opacity-60 font-medium">{unit}</span>}
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider truncate">
+            {title}
+          </p>
+          {icon && (
+            <div className="text-muted-foreground opacity-80 shrink-0">
+              {icon}
+            </div>
+          )}
+        </div>
+
+        {/* Slot superior con idéntica altura y ritmo visual que el switch */}
+        <div className="flex items-center gap-2 bg-muted/80 p-1 rounded-lg border border-border/50 h-8 px-2.5">
+          <span className="text-[11px] font-semibold text-muted-foreground truncate flex items-center gap-1.5">
+            {contextText}
+          </span>
+        </div>
+      </div>
+
+      <div className="my-1">
+        <p className="text-3xl font-black text-foreground tracking-tight">
+          {isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}{' '}
+          {unit && !isCurrency && <span className="text-xl opacity-60 font-medium">{unit}</span>}
+        </p>
+      </div>
+
+      <p className="text-[11px] font-medium text-muted-foreground truncate">
+        {subtitle}
+      </p>
+    </Card>
+  );
+};
+
+// KPI Card Dinámico para Pérdidas (Total / Merma / Scrap)
+const DynamicLossKpiCard = ({ kpis, activeTab, onTabChange }) => {
+  let title = 'COSTO TOTAL PÉRDIDAS';
+  let value = kpis.lossValue;
+  let subtitle = `${new Intl.NumberFormat('en-US').format(kpis.totalLossQty)} uds en total (Merma, Scrap y Bajas)`;
+  let colorClass = 'border-red-500 bg-red-500/5';
+
+  if (activeTab === 'MERMA') {
+    title = 'COSTO TOTAL MERMA';
+    value = kpis.mermaLoss;
+    subtitle = `${new Intl.NumberFormat('en-US').format(kpis.mermaQty)} uds registradas en merma`;
+    colorClass = 'border-amber-500 bg-amber-500/5';
+  } else if (activeTab === 'SCRAP') {
+    title = 'COSTO TOTAL SCRAP';
+    value = kpis.scrapLoss;
+    subtitle = `${new Intl.NumberFormat('en-US').format(kpis.scrapQty)} uds en scrap · ${formatCurrency(kpis.bajaLoss)} en bajas`;
+    colorClass = 'border-rose-600 bg-rose-600/5';
+  }
+
+  const btnBaseStyle = { minHeight: 'unset', padding: '2px 4px' };
+
+  return (
+    <Card className={`flex flex-col justify-between p-5 shadow-sm border-b-4 ${colorClass} transition-colors min-h-[160px] overflow-hidden`}>
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider truncate">
+            {title}
+          </p>
+          <div className="text-muted-foreground opacity-80 shrink-0">
+            <TrendingDown className="w-4 h-4 text-rose-500" />
+          </div>
+        </div>
+
+        {/* Switch adaptativo de 3 pestañas con espacio suficiente para que ningún texto se corte */}
+        <div className="grid grid-cols-3 gap-1 bg-muted/80 p-1 rounded-lg border border-border/50 w-full items-center h-8">
+          <button
+            type="button"
+            style={btnBaseStyle}
+            onClick={() => onTabChange('ALL')}
+            className={`!min-h-0 !py-1 !px-1 text-[11px] font-bold rounded-md text-center transition-all truncate cursor-pointer ${
+              activeTab === 'ALL'
+                ? 'bg-card text-foreground shadow-xs font-black'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Total
+          </button>
+          <button
+            type="button"
+            style={btnBaseStyle}
+            onClick={() => onTabChange('MERMA')}
+            className={`!min-h-0 !py-1 !px-1 text-[11px] font-bold rounded-md text-center transition-all truncate cursor-pointer ${
+              activeTab === 'MERMA'
+                ? 'bg-amber-500 text-white shadow-xs font-black'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Merma
+          </button>
+          <button
+            type="button"
+            style={btnBaseStyle}
+            onClick={() => onTabChange('SCRAP')}
+            className={`!min-h-0 !py-1 !px-1 text-[11px] font-bold rounded-md text-center transition-all truncate cursor-pointer ${
+              activeTab === 'SCRAP'
+                ? 'bg-rose-600 text-white shadow-xs font-black'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Scrap
+          </button>
+        </div>
+      </div>
+
+      <div className="my-1">
+        <p className="text-3xl font-black text-foreground tracking-tight">
+          {formatCurrency(value)}
+        </p>
+      </div>
+
+      <p className="text-[11px] font-medium text-muted-foreground truncate">
+        {subtitle}
       </p>
     </Card>
   );
@@ -43,6 +167,7 @@ export const WarehouseDashboard = () => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const [isLowStockModalOpen, setIsLowStockModalOpen] = useState(false);
+  const [lossTab, setLossTab] = useState<'ALL' | 'MERMA' | 'SCRAP'>('ALL');
   
   const isDark = theme === 'dark';
   const axisColor = isDark ? '#e4e4e7' : '#18181b'; 
@@ -79,6 +204,13 @@ export const WarehouseDashboard = () => {
     merma: metrics?.mermaRegistrada || 0,
     inventoryValue: metrics?.financial?.inventoryValue || 0,
     lossValue: metrics?.financial?.lossValue || 0,
+    mermaLoss: metrics?.financial?.mermaLoss || 0,
+    scrapLoss: metrics?.financial?.scrapLoss || 0,
+    bajaLoss: metrics?.financial?.bajaLoss || 0,
+    mermaQty: metrics?.financial?.mermaQty || 0,
+    scrapQty: metrics?.financial?.scrapQty || 0,
+    bajaQty: metrics?.financial?.bajaQty || 0,
+    totalLossQty: metrics?.financial?.totalLossQty || 0,
   };
 
   const chartData = metrics?.chartData || [];
@@ -148,25 +280,33 @@ export const WarehouseDashboard = () => {
           value={kpis.inventoryValue}
           isCurrency={true}
           colorClass="border-blue-500 bg-blue-500/5"
+          icon={<DollarSign className="w-4 h-4 text-blue-500" />}
+          contextText={<><ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Inventario activo valorado</>}
+          subtitle="Valorización de existencias en almacén"
         />
-        <ExecutiveKpiCard 
-          title="COSTO TOTAL SCRAP/MERMA"
-          value={kpis.lossValue}
-          isCurrency={true}
-          colorClass="border-red-500 bg-red-500/5"
+        <DynamicLossKpiCard 
+          kpis={kpis}
+          activeTab={lossTab}
+          onTabChange={setLossTab}
         />
         <ExecutiveKpiCard 
           title="TOTAL INGRESOS (LOTES)"
           value={kpis.entradas}
           isCurrency={false}
           colorClass="border-emerald-500 bg-emerald-500/5"
+          icon={<PackagePlus className="w-4 h-4 text-emerald-500" />}
+          contextText={<><Boxes className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> Recepciones registradas</>}
+          subtitle="Total de lotes dados de alta"
         />
         <ExecutiveKpiCard 
-          title="STOCKS BAJOS (CRÍTICO/ALERTA)"
+          title="STOCKS BAJOS"
           value={kpis.stockBajo}
           unit="items"
           isCurrency={false}
           colorClass="border-amber-500 bg-amber-500/5"
+          icon={<AlertTriangle className="w-4 h-4 text-amber-500" />}
+          contextText={<><AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" /> Mínimos y puntos de reorden</>}
+          subtitle="Click para ver reporte de compras"
           onClick={() => setIsLowStockModalOpen(true)}
           cursor="pointer"
         />

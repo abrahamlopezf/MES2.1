@@ -113,18 +113,29 @@ export const MermaScrapDetallesBottomSheetPresenter: React.FC<MermaScrapDetalles
               {details.map((movement: any) => (
                 <div key={movement.id} className="relative">
                   <div className={`absolute -left-[31px] w-4 h-4 rounded-full border-4 border-card shadow-sm ${
-                    movement.type === 'MERMA' ? 'bg-warning' : 'bg-destructive'
+                    movement.type === 'MERMA' ? 'bg-warning' : movement.type === 'SCRAP' ? 'bg-destructive' : 'bg-info'
                   }`} />
                   
                   <div className="bg-card shadow-sm rounded-xl p-4 border border-border">
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`font-bold ${movement.type === 'MERMA' ? 'text-warning border-warning/30 bg-warning/10' : 'text-destructive border-destructive/30 bg-destructive/10'}`}>
-                          {movement.type}
+                        <Badge variant="outline" className={`font-bold ${
+                          movement.type === 'MERMA'
+                            ? 'text-warning border-warning/30 bg-warning/10'
+                            : movement.type === 'SCRAP'
+                            ? 'text-destructive border-destructive/30 bg-destructive/10'
+                            : 'text-info border-info/30 bg-info/10'
+                        }`}>
+                          {movement.type === 'DISPOSE' ? 'OTRA BAJA' : movement.type}
                         </Badge>
                         <span className="text-sm font-bold text-foreground">
-                          {Math.abs(Number(movement.quantity_change)).toFixed(2)}
+                          {Math.abs(Number(movement.quantity_change)).toFixed(2)} uds
                         </span>
+                        {Number(movement.calculated_cost || 0) > 0 && (
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-secondary/60 px-2 py-0.5 rounded font-mono">
+                            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(movement.calculated_cost))}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded-md">
                         <Calendar size={12} />

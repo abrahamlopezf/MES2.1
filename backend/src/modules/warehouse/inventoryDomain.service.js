@@ -80,6 +80,7 @@ class InventoryDomainService {
 
     let totalCostDisposed = 0;
     const materialDiscounts = {};
+    const materialCosts = {};
     const processedLotesResult = [];
     const disposedQuantities = {};
 
@@ -99,7 +100,9 @@ class InventoryDomainService {
         throw new Error(`Cantidad a dar de baja inválida para el lote ${item.lote_id}.`);
       }
 
-      totalCostDisposed += qtyToDispose * (Number(lote.unit_cost) || 0);
+      const itemCost = qtyToDispose * (Number(lote.unit_cost) || 0);
+      totalCostDisposed += itemCost;
+      materialCosts[item.material_id] = (materialCosts[item.material_id] || 0) + itemCost;
       
       lote.available_amount = Number(lote.available_amount) - qtyToDispose;
       if (lote.available_amount <= 0) {
@@ -127,6 +130,7 @@ class InventoryDomainService {
       lotes: processedLotesResult, 
       totalCostDisposed, 
       materialDiscounts,
+      materialCosts,
       disposedQuantities
     };
   }

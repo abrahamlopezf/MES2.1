@@ -216,8 +216,18 @@ const disposeLotes = async (payload, currentUser) => {
       const lowerName = motivoName.toLowerCase();
       if (lowerName.includes('merma')) {
         movementType = 'MERMA';
-      } else if (lowerName.includes('scrap')) {
+      } else if (
+        lowerName.includes('scrap') ||
+        lowerName.includes('dañ') ||
+        lowerName.includes('caduc') ||
+        lowerName.includes('contamin') ||
+        tipoBaja.id === 1 || // Material dañado
+        tipoBaja.id === 3 || // Caducidad
+        tipoBaja.id === 4    // Contaminación
+      ) {
         movementType = 'SCRAP';
+      } else {
+        movementType = 'DISPOSE';
       }
     }
     
@@ -227,11 +237,14 @@ const disposeLotes = async (payload, currentUser) => {
     for (const [matId, qty] of Object.entries(result.materialDiscounts || {})) {
       const inventory = await Inventory.findOne({ where: { material_id: matId }, transaction: t });
       if (inventory) {
+        const matCost = Number(result.materialCosts?.[matId] || 0);
+        const unitCostAvg = qty > 0 ? (matCost / qty) : 0;
         await InventoryMovement.create({
           inventory_id: inventory.id,
           type: movementType,
           quantity_change: -qty,
-          total_cost: 0, // Nota: el costo global ahora está en result.totalCostDisposed pero para el histórico requeriríamos costo por material
+          unit_cost: unitCostAvg,
+          total_cost: matCost,
           performed_by: currentUser.id,
           notes: `Baja Global. Facturas afectadas: ${foliosAfectados}. Motivo: ${motivoName}. Notas: ${payload.notes || ''}`
         }, { transaction: t });
@@ -515,12 +528,26 @@ const getDashboardMetrics = async (user) => {
   `);
   const inventoryValue = parseFloat(invValueResult[0]?.total_value || 0);
 
-  const [lossValueResult] = await sequelize.query(`
-    SELECT SUM(ABS(quantity_change) * COALESCE(unit_cost, 0)) as total_loss 
+  const [lossBreakdownResult] = await sequelize.query(`
+    SELECT 
+      SUM(CASE WHEN type = 'MERMA' THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as merma_loss,
+      SUM(CASE WHEN type = 'SCRAP' THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as scrap_loss,
+      SUM(CASE WHEN type IN ('BAJA', 'DISPOSE') THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as baja_loss,
+      SUM(CASE WHEN type = 'MERMA' THEN ABS(quantity_change) ELSE 0 END) as merma_qty,
+      SUM(CASE WHEN type = 'SCRAP' THEN ABS(quantity_change) ELSE 0 END) as scrap_qty,
+      SUM(CASE WHEN type IN ('BAJA', 'DISPOSE') THEN ABS(quantity_change) ELSE 0 END) as baja_qty
     FROM inventory_movements 
     WHERE type IN ('MERMA', 'SCRAP', 'BAJA', 'DISPOSE')
   `);
-  const lossValue = parseFloat(lossValueResult[0]?.total_loss || 0);
+  const mermaLoss = parseFloat(lossBreakdownResult[0]?.merma_loss || 0);
+  const scrapLoss = parseFloat(lossBreakdownResult[0]?.scrap_loss || 0);
+  const bajaLoss = parseFloat(lossBreakdownResult[0]?.baja_loss || 0);
+  const lossValue = mermaLoss + scrapLoss + bajaLoss;
+
+  const mermaQty = parseFloat(lossBreakdownResult[0]?.merma_qty || 0);
+  const scrapQty = parseFloat(lossBreakdownResult[0]?.scrap_qty || 0);
+  const bajaQty = parseFloat(lossBreakdownResult[0]?.baja_qty || 0);
+  const totalLossQty = mermaQty + scrapQty + bajaQty;
 
   // 1. Total Entradas (Número de lotes recibidos reales)
   const entradasCount = await Lote.count();
@@ -662,7 +689,14 @@ const getDashboardMetrics = async (user) => {
     mermaRegistrada: Math.abs(mermaKg || 0),
     financial: {
       inventoryValue,
-      lossValue
+      lossValue,
+      mermaLoss,
+      scrapLoss,
+      bajaLoss,
+      mermaQty,
+      scrapQty,
+      bajaQty,
+      totalLossQty
     },
     chartData,
     mermaData,
@@ -835,34 +869,22 @@ const manualEntry = async (payload, currentUser) => {
   });
 };
 const getMermaScrapReport = async () => {
-  const { sequelize, InventoryMovement, Inventory, Material } = require('../../database/models');
-  const { Op } = require('sequelize');
+  const { sequelize } = require('../../database/models');
 
-  // Obtener sumatorias por material y tipo (MERMA / SCRAP)
-  const movements = await InventoryMovement.findAll({
-    attributes: [
-      'type',
-      [sequelize.col('inventory.material_id'), 'material_id'],
-      [sequelize.col('inventory.material.internal_code'), 'internal_code'],
-      [sequelize.col('inventory.material.name'), 'material_name'],
-      [sequelize.fn('SUM', sequelize.col('quantity_change')), 'total_quantity']
-    ],
-    where: {
-      type: { [Op.in]: ['MERMA', 'SCRAP', 'DISPOSE'] }
-    },
-    include: [{
-      model: Inventory,
-      as: 'inventory',
-      attributes: [],
-      include: [{
-        model: Material,
-        as: 'material',
-        attributes: []
-      }]
-    }],
-    group: ['type', 'inventory.material_id', 'inventory.material.internal_code', 'inventory.material.name'],
-    raw: true
-  });
+  const [movements] = await sequelize.query(`
+    SELECT 
+      im.type,
+      i.material_id,
+      m.internal_code,
+      m.name as material_name,
+      SUM(ABS(im.quantity_change)) as total_quantity,
+      SUM(COALESCE(NULLIF(im.total_cost, 0), ABS(im.quantity_change) * COALESCE(im.unit_cost, 0))) as total_cost
+    FROM inventory_movements im
+    JOIN inventories i ON im.inventory_id = i.id
+    JOIN materials m ON i.material_id = m.id
+    WHERE im.type IN ('MERMA', 'SCRAP', 'DISPOSE', 'BAJA')
+    GROUP BY im.type, i.material_id, m.internal_code, m.name
+  `);
 
   const materialsMap = {};
   
@@ -874,14 +896,30 @@ const getMermaScrapReport = async () => {
         internal_code: row.internal_code,
         name: row.material_name,
         merma: 0,
+        merma_cost: 0,
         scrap: 0,
+        scrap_cost: 0,
         baja: 0,
+        baja_cost: 0,
+        total_loss_qty: 0,
+        total_loss_cost: 0
       };
     }
-    // quantity_change es negativo, tomamos Math.abs
-    if (row.type === 'MERMA') materialsMap[matId].merma += Math.abs(Number(row.total_quantity));
-    if (row.type === 'SCRAP') materialsMap[matId].scrap += Math.abs(Number(row.total_quantity));
-    if (row.type === 'DISPOSE') materialsMap[matId].baja += Math.abs(Number(row.total_quantity));
+    const qty = parseFloat(row.total_quantity || 0);
+    const cost = parseFloat(row.total_cost || 0);
+
+    if (row.type === 'MERMA') {
+      materialsMap[matId].merma += qty;
+      materialsMap[matId].merma_cost += cost;
+    } else if (row.type === 'SCRAP') {
+      materialsMap[matId].scrap += qty;
+      materialsMap[matId].scrap_cost += cost;
+    } else {
+      materialsMap[matId].baja += qty;
+      materialsMap[matId].baja_cost += cost;
+    }
+    materialsMap[matId].total_loss_qty += qty;
+    materialsMap[matId].total_loss_cost += cost;
   });
 
   const materialsList = Object.values(materialsMap);
@@ -903,7 +941,7 @@ const getMermaScrapDetails = async (material_id) => {
   const movements = await InventoryMovement.findAll({
     where: {
       inventory_id: inventory.id,
-      type: { [Op.in]: ['MERMA', 'SCRAP', 'DISPOSE'] }
+      type: { [Op.in]: ['MERMA', 'SCRAP', 'DISPOSE', 'BAJA'] }
     },
     order: [['created_at', 'DESC']],
     raw: true
@@ -919,10 +957,16 @@ const getMermaScrapDetails = async (material_id) => {
   const userMap = {};
   users.forEach(u => userMap[u.id] = u);
 
-  const result = movements.map(m => ({
-    ...m,
-    user: userMap[m.performed_by] || null
-  }));
+  const result = movements.map(m => {
+    const qty = Math.abs(Number(m.quantity_change || 0));
+    const unitCost = Number(m.unit_cost || 0);
+    const totalCost = Number(m.total_cost || (qty * unitCost));
+    return {
+      ...m,
+      calculated_cost: totalCost,
+      user: userMap[m.performed_by] || null
+    };
+  });
 
   return result;
 };

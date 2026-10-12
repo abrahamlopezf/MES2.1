@@ -20,9 +20,28 @@ export const MermaScrapPage: React.FC = () => {
     refetchInterval: 5000 // Actualización en tiempo real cada 5 segundos
   });
 
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(val || 0);
+  };
+
   const topMerma = [...report].sort((a, b) => b.merma - a.merma).slice(0, 5);
   const topScrap = [...report].sort((a, b) => b.scrap - a.scrap).slice(0, 5);
   const topBaja = [...report].sort((a, b) => (b.baja || 0) - (a.baja || 0)).slice(0, 5);
+
+  const totalMermaCost = report.reduce((acc: number, item: any) => acc + (Number(item.merma_cost) || 0), 0);
+  const totalScrapCost = report.reduce((acc: number, item: any) => acc + (Number(item.scrap_cost) || 0), 0);
+  const totalBajaCost = report.reduce((acc: number, item: any) => acc + (Number(item.baja_cost) || 0), 0);
+  const totalLossCost = report.reduce((acc: number, item: any) => acc + (Number(item.total_loss_cost) || 0), 0);
+
+  const totalMermaQty = report.reduce((acc: number, item: any) => acc + (Number(item.merma) || 0), 0);
+  const totalScrapQty = report.reduce((acc: number, item: any) => acc + (Number(item.scrap) || 0), 0);
+  const totalBajaQty = report.reduce((acc: number, item: any) => acc + (Number(item.baja) || 0), 0);
+  const totalLossQty = report.reduce((acc: number, item: any) => acc + (Number(item.total_loss_qty) || 0), 0);
 
   return (
     <div className="flex flex-col h-full bg-background overflow-x-hidden">
@@ -46,6 +65,41 @@ export const MermaScrapPage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {/* Tarjetas de Resumen Financiero y Operativo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-red-500 shadow-sm flex flex-col justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO TOTAL PÉRDIDAS</span>
+            <div className="my-2">
+              <span className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">{formatCurrency(totalLossCost)}</span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">{totalLossQty.toFixed(2)} uds registradas en total</span>
+          </div>
+
+          <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-amber-500 shadow-sm flex flex-col justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO TOTAL MERMA</span>
+            <div className="my-2">
+              <span className="text-2xl sm:text-3xl font-black text-warning tracking-tight">{formatCurrency(totalMermaCost)}</span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">{totalMermaQty.toFixed(2)} uds en merma de proceso</span>
+          </div>
+
+          <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-rose-600 shadow-sm flex flex-col justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO TOTAL SCRAP</span>
+            <div className="my-2">
+              <span className="text-2xl sm:text-3xl font-black text-destructive tracking-tight">{formatCurrency(totalScrapCost)}</span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">{totalScrapQty.toFixed(2)} uds en material dañado</span>
+          </div>
+
+          <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-blue-500 shadow-sm flex flex-col justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO OTRAS BAJAS</span>
+            <div className="my-2">
+              <span className="text-2xl sm:text-3xl font-black text-info tracking-tight">{formatCurrency(totalBajaCost)}</span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">{totalBajaQty.toFixed(2)} uds en bajas no operativas</span>
+          </div>
+        </div>
 
         {/* Gráficas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -179,6 +233,7 @@ export const MermaScrapPage: React.FC = () => {
                       <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Merma</th>
                       <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Scrap</th>
                       <th className="px-5 py-3.5 font-bold tracking-tight text-right">Otras Bajas</th>
+                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Costo Total</th>
                       <th className="px-5 py-3.5 font-bold tracking-tight text-center">Acciones</th>
                     </tr>
                   </thead>
@@ -197,13 +252,20 @@ export const MermaScrapPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <span className="font-mono font-bold text-warning">{Number(item.merma).toFixed(2)}</span>
+                        <div className="font-mono font-bold text-warning">{Number(item.merma).toFixed(2)}</div>
+                        <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.merma_cost)}</div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <span className="font-mono font-bold text-destructive">{Number(item.scrap).toFixed(2)}</span>
+                        <div className="font-mono font-bold text-destructive">{Number(item.scrap).toFixed(2)}</div>
+                        <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.scrap_cost)}</div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <span className="font-mono font-bold text-info">{Number(item.baja || 0).toFixed(2)}</span>
+                        <div className="font-mono font-bold text-info">{Number(item.baja || 0).toFixed(2)}</div>
+                        <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.baja_cost)}</div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="font-mono font-black text-foreground">{formatCurrency(item.total_loss_cost)}</div>
+                        <div className="text-[11px] font-semibold text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
                       </td>
                       <td className="px-5 py-4 text-center">
                         <Button variant="outline" size="sm" className="font-bold bg-background" onClick={() => setSelectedMaterialId(item.material_id)}>
@@ -212,8 +274,8 @@ export const MermaScrapPage: React.FC = () => {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
             </div>
             )}
           </div>
