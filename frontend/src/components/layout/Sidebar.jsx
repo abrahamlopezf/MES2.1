@@ -81,6 +81,8 @@ const menuGroups = [
     hiddenRoles: ["ADMIN_ALM"],
     isGroup: true,
     children: [
+      { label: "Tablero de Colas", path: "/extrusion/board", icon: MonitorPlay, permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
+      { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: Boxes, permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
       { label: "Fórmulas y PTI", path: "/production/formulas", icon: ClipboardList, permission: "extrusion.formulas.view" },
       { label: "Máquinas Extrusoras", path: "/production/machines", icon: Factory, permission: "extrusion.view" },
       { label: "Centro de Mezclado", path: "/production/mixing", icon: Beaker, permission: "extrusion.wip.manage" },
@@ -101,7 +103,8 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
     : hasPermission(item.permission);
 
   const isHiddenForRole = item.hiddenRoles?.includes(user?.role?.code);
-  if (!hasAccess || isHiddenForRole) return null;
+  const isAllowedRole = !item.allowedRoles || item.allowedRoles.includes(user?.role?.code);
+  if (!hasAccess || isHiddenForRole || !isAllowedRole) return null;
 
   if (!item.isGroup) {
     return (
@@ -176,7 +179,8 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
               ? hasAnyPermission(child.permission)
               : hasPermission(child.permission);
             const isHiddenForRole = child.hiddenRoles?.includes(user?.role?.code);
-            if (!hasChildAccess || isHiddenForRole) return null;
+            const isAllowedRole = !child.allowedRoles || child.allowedRoles.includes(user?.role?.code);
+            if (!hasChildAccess || isHiddenForRole || !isAllowedRole) return null;
             if (child.onClick) {
               return (
                 <button

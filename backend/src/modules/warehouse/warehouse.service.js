@@ -108,7 +108,7 @@ const getInventory = async (query = {}) => {
 };
 
 const getAreaInventory = async (query = {}, currentUser) => {
-  const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_ALM'].includes(currentUser.role?.code);
+  const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN', 'ADMIN_ALM'].includes(currentUser.role?.code);
 
   if (!currentUser.area_id && !isGlobalAdmin) {
     throwHttpError('El usuario no tiene un área asignada para ver el inventario de área.', 400);

@@ -19,44 +19,56 @@ class DashboardService {
       const scrapTotal = scrapSum ? Math.abs(scrapSum) : 0;
 
       // 2. Production Total (quantity_secondary assumed to be KG)
-      const prodSum = await ProcessRunOutput.sum('quantity_secondary') || 0;
-      const productionTotal = Number(prodSum);
+      let productionTotal = 0;
+      if (ProcessRunOutput && typeof ProcessRunOutput.sum === 'function') {
+        const prodSum = await ProcessRunOutput.sum('quantity_secondary') || 0;
+        productionTotal = Number(prodSum);
+      }
 
       // 3. Total Input (quantity_used)
-      const inputSum = await ProcessRunInput.sum('quantity_used') || 0;
-      const totalInput = Number(inputSum);
+      let totalInput = 0;
+      if (ProcessRunInput && typeof ProcessRunInput.sum === 'function') {
+        const inputSum = await ProcessRunInput.sum('quantity_used') || 0;
+        totalInput = Number(inputSum);
+      }
 
       // 4. Active Runs
-      const dbActiveRuns = await ProcessRun.findAll({
-        where: { status: 'RUNNING' },
-        limit: 5,
-        attributes: ['id', 'folio', 'target_quantity']
-      });
-      const activeRuns = dbActiveRuns.map(r => ({
-        id: r.id,
-        code: r.folio,
-        total_output: Number(r.target_quantity || 0)
-      }));
+      let activeRuns = [];
+      if (ProcessRun && typeof ProcessRun.findAll === 'function') {
+        const dbActiveRuns = await ProcessRun.findAll({
+          where: { status: 'RUNNING' },
+          limit: 5,
+          attributes: ['id', 'folio', 'target_quantity']
+        });
+        activeRuns = dbActiveRuns.map(r => ({
+          id: r.id,
+          code: r.folio,
+          total_output: Number(r.target_quantity || 0)
+        }));
+      }
       const lowStockAlerts = [];
       
       // 5. Yield Data (Ultimos 7 dias de producción real)
-      const outputsByDate = await ProcessRunOutput.findAll({
-        attributes: [
-          [sequelize.fn('DATE', sequelize.col('produced_at')), 'dateStr'],
-          [sequelize.fn('SUM', sequelize.col('quantity_secondary')), 'salidas']
-        ],
-        group: [sequelize.fn('DATE', sequelize.col('produced_at'))],
-        order: [[sequelize.fn('DATE', sequelize.col('produced_at')), 'DESC']],
-        limit: 7,
-        raw: true
-      });
-      
-      const yieldData = outputsByDate.reverse().map(o => ({
-         name: o.dateStr,
-         dateStr: o.dateStr,
-         entradas: 0, // Podriamos sumar inputs por fecha tambien
-         salidas: Number(o.salidas || 0)
-      }));
+      let yieldData = [];
+      if (ProcessRunOutput && typeof ProcessRunOutput.findAll === 'function') {
+        const outputsByDate = await ProcessRunOutput.findAll({
+          attributes: [
+            [sequelize.fn('DATE', sequelize.col('produced_at')), 'dateStr'],
+            [sequelize.fn('SUM', sequelize.col('quantity_secondary')), 'salidas']
+          ],
+          group: [sequelize.fn('DATE', sequelize.col('produced_at'))],
+          order: [[sequelize.fn('DATE', sequelize.col('produced_at')), 'DESC']],
+          limit: 7,
+          raw: true
+        });
+        
+        yieldData = outputsByDate.reverse().map(o => ({
+           name: o.dateStr,
+           dateStr: o.dateStr,
+           entradas: 0,
+           salidas: Number(o.salidas || 0)
+        }));
+      }
       
       // 6. Scrap Data (Ultimos 7 dias)
       const scrapByArea = await InventoryMovement.findAll({
@@ -86,7 +98,7 @@ class DashboardService {
 
       return DashboardMapper.toPayload(rawData);
     } catch (error) {
-      console.error('Error in DashboardService:', error);
+      console.error('Error in DashboardService.getOperationsDashboard:', error);
       throw error;
     }
   }
@@ -116,17 +128,19 @@ class DashboardService {
       });
       const currentInventoryValue = Number(currentInventoryResult?.get('currentValue') || 0);
 
-      // 3. Total Perdido por Scrap
-      const totalScrapResult = await InventoryMovement.sum('total_cost', {
-        where: { type: 'SCRAP' }
-      });
-      const totalLostScrap = Number(totalScrapResult || 0);
-
-      // 4. Total Perdido por Merma
-      const totalMermaResult = await InventoryMovement.sum('total_cost', {
-        where: { type: 'MERMA' }
-      });
-      const totalLostMerma = Number(totalMermaResult || 0);
+      // 3. Pérdidas desglosadas por Merma, Scrap y Bajas (Cálculo exacto alineado con Almacén)
+      const [lossBreakdownResult] = await sequelize.query(`
+        SELECT 
+          SUM(CASE WHEN type = 'MERMA' THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as merma_loss,
+          SUM(CASE WHEN type = 'SCRAP' THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as scrap_loss,
+          SUM(CASE WHEN type IN ('BAJA', 'DISPOSE') THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as baja_loss
+        FROM inventory_movements 
+        WHERE type IN ('MERMA', 'SCRAP', 'BAJA', 'DISPOSE')
+      `);
+      const totalLostMerma = Number(lossBreakdownResult[0]?.merma_loss || 0);
+      const totalLostScrap = Number(lossBreakdownResult[0]?.scrap_loss || 0);
+      const totalLostBaja = Number(lossBreakdownResult[0]?.baja_loss || 0);
+      const totalLoss = totalLostMerma + totalLostScrap + totalLostBaja;
 
       // 5. Inventario por Área
       const inventoryByAreaQuery = await Lote.findAll({
@@ -187,18 +201,40 @@ class DashboardService {
         investmentVsLossGraph.push({ name: 'Sin Pérdidas', value: 0, color: '#f59e0b' });
       }
 
+      // Obtener métricas detalladas del almacén para sincronización ejecutiva
+      let warehouseMetrics = null;
+      try {
+        const warehouseService = require('../warehouse/warehouse.service');
+        warehouseMetrics = await warehouseService.getDashboardMetrics();
+      } catch (wErr) {
+        console.warn('Advertencia al consultar warehouse metrics:', wErr.message);
+      }
+
       return {
         success: true,
         data: {
           kpis: {
             totalInvested,
             currentInventoryValue,
+            totalLoss,
             totalLostScrap,
-            totalLostMerma
+            totalLostMerma,
+            totalLostBaja,
+            totalEntradas: warehouseMetrics?.totalEntradas ?? 0,
+            bajasRegistradas: warehouseMetrics?.bajasRegistradas ?? 0,
+            materialesStockBajo: warehouseMetrics?.materialesStockBajo ?? 0,
+            mermaRegistrada: warehouseMetrics?.mermaRegistrada ?? 0,
+            mermaQty: warehouseMetrics?.financial?.mermaQty ?? 0,
+            scrapQty: warehouseMetrics?.financial?.scrapQty ?? 0,
+            bajaQty: warehouseMetrics?.financial?.bajaQty ?? 0,
+            totalLossQty: warehouseMetrics?.financial?.totalLossQty ?? 0,
           },
           charts: {
             inventoryByArea: inventoryByAreaGraph,
-            investmentVsLoss: investmentVsLossGraph
+            investmentVsLoss: investmentVsLossGraph,
+            warehouseChartData: warehouseMetrics?.chartData || [],
+            warehouseMermaData: warehouseMetrics?.mermaData || [],
+            warehousePieData: warehouseMetrics?.pieData || []
           }
         }
       };

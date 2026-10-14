@@ -19,7 +19,7 @@ interface Order {
 export const ConsumptionOrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore() as any;
-  const isWarehouseUser = ['ADMIN_ALM', 'OPERATOR_ALM', 'SUPERADMIN'].includes(user?.role?.code);
+  const isWarehouseUser = ['ADMIN_ALM', 'OPERATOR_ALM', 'SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(user?.role?.code);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>(''); // empty means all

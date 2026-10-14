@@ -218,7 +218,7 @@ const RolesPage = () => {
       </div>
 
       <div className="space-y-4">
-        {currentUser?.role?.code !== 'SUPERADMIN' && (
+        {!['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(currentUser?.role?.code) && (
           <Alert variant="info" title="Modo solo consulta" message="Tu usuario puede consultar roles, pero la administración completa está reservada para Superadmin." />
         )}
         {successMessage && <Alert variant="success" title="Operación correcta" message={successMessage} />}

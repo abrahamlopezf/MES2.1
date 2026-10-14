@@ -18,4 +18,26 @@ router.post('/mix', authorizePermission('extrusion.formulas.manage'), extrusionC
 router.post('/mix-requests', authorizePermission('extrusion.formulas.manage'), extrusionController.createMixRequest);
 router.get('/mix-requests', authorizePermission('extrusion.formulas.read'), extrusionController.getMixRequests);
 
+// Middleware temporal: Acceso exclusivo a Superadmin para piso de extrusión
+const requireSuperAdmin = (req, res, next) => {
+  const roleCode = req.user?.role?.code;
+  if (roleCode !== 'SUPERADMIN') {
+    return res.status(403).json({
+      success: false,
+      message: 'Acceso restringido: Esta funcionalidad de piso de extrusión está disponible únicamente para SUPERADMIN por el momento.'
+    });
+  }
+  return next();
+};
+
+// ==========================================
+// PISO DE EXTRUSIÓN & CONTROL DE COLAS (FASE 2) - EXCLUSIVO SUPERADMIN
+// ==========================================
+router.post('/queue/switch', requireSuperAdmin, extrusionController.switchQueue);
+router.post('/rack/scan', requireSuperAdmin, extrusionController.scanRack);
+router.get('/queue', requireSuperAdmin, extrusionController.getQueues);
+router.post('/queue/enqueue', requireSuperAdmin, extrusionController.enqueueMix);
+router.get('/racks', requireSuperAdmin, extrusionController.getRacks);
+router.get('/floor-formulas', requireSuperAdmin, extrusionController.getExtrusionFormulas);
+
 module.exports = router;

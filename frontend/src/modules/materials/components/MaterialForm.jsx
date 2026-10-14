@@ -28,7 +28,7 @@ const MaterialForm = ({
   const isEditing = Boolean(initialData?.id);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
   const { user } = useAuthStore();
-  const canEditRestrictedFields = ['SUPERADMIN', 'ADMIN_ALM'].includes(user?.role?.code);
+  const canEditRestrictedFields = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN', 'ADMIN_ALM'].includes(user?.role?.code);
 
   const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });
   const { data: codesData } = useMaterialCodesQuery({ pageSize: 10000 });

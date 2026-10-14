@@ -7,7 +7,7 @@ const { MaterialCategory, MaterialSubcategory, MaterialUnit, Material, User } = 
 
 const isAdminLike = (user) => {
   const roleCode = user?.role?.code;
-  return roleCode === 'SUPERADMIN' || roleCode === 'ADMIN';
+  return ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(roleCode);
 };
 
 const normalizeCode = (value = '') => {

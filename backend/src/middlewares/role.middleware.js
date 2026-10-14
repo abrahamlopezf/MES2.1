@@ -4,7 +4,7 @@ const roleMiddleware = (...allowedRoles) => {
   return (req, res, next) => {
     const userRole = req.user?.role?.code;
 
-    const isSuperAdmin = userRole === 'SUPERADMIN' || userRole === 'ADMIN_GRAL';
+    const isSuperAdmin = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
     const hasRole = isSuperAdmin || allowedRoles.includes(userRole);
 
     if (!hasRole) {

@@ -11,6 +11,6 @@ const authorizePermission = permissionMiddleware.authorizePermission || permissi
 router.get('/operations', authenticate, authorizePermission('dashboard.read'), DashboardController.getOperationsDashboard);
 
 // Require 'dashboard.financial' (which only SUPERADMIN/ADMIN_GENERAL have via bypass or explicit grant)
-router.get('/financial', authenticate, authorizePermission('dashboard.financial'), DashboardController.getFinancialDashboard);
+router.get('/financial', authenticate, authorizePermission('dashboard.financial', 'dashboard.read'), DashboardController.getFinancialDashboard);
 
 module.exports = router;

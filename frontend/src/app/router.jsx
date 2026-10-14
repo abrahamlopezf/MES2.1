@@ -42,6 +42,9 @@ import { MachinesPage } from '../modules/production/presentation/pages/MachinesP
 
 import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/ExtrusionTerminalPage';
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
+import ExtrusionBoardContainer from '../modules/extrusion/presentation/containers/ExtrusionBoardContainer';
+import PtiIngressContainer from '../modules/extrusion/presentation/containers/PtiIngressContainer';
+import SuperAdminRoute from './SuperAdminRoute';
 
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
@@ -187,7 +190,23 @@ export const router = createBrowserRouter([
             path: '/qrcodes',
             element: <QrHistoryPage />,
           },
-          // Rutas de Producción
+          // Rutas de Extrusión (Exclusivo SuperAdmin de momento)
+          {
+            path: '/extrusion/board',
+            element: (
+              <SuperAdminRoute>
+                <ExtrusionBoardContainer />
+              </SuperAdminRoute>
+            )
+          },
+          {
+            path: '/extrusion/rack-ingress',
+            element: (
+              <SuperAdminRoute>
+                <PtiIngressContainer />
+              </SuperAdminRoute>
+            )
+          },
           {
             path: '/extrusion/dashboard',
             element: <ExtrusionDashboard />

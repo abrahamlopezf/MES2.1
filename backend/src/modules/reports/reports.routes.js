@@ -13,7 +13,7 @@ router.use(authMiddleware);
 // Middleware para verificar que sea SUPERADMIN, ADMIN o FINANZAS
 const requireRole = (req, res, next) => {
   const userRole = req.user?.role?.code || '';
-  if (['SUPERADMIN', 'ADMIN', 'FINANZAS'].includes(userRole)) {
+  if (['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN', 'FINANZAS'].includes(userRole)) {
     return next();
   }
   return res.status(403).json({ success: false, message: 'Acceso denegado. Se requiere rol gerencial.' });

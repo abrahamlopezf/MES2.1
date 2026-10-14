@@ -68,13 +68,15 @@ export const useSmartScanner = () => {
       // Routing logic based on Token Status & User Role
       if (tokenStatus === 'GENERATED' || tokenStatus === 'AVAILABLE' || tokenStatus === 'UNASSIGNED') {
         // Virgin QR logic
-        switch (user.role) {
+        const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
+        switch (roleCode) {
           case 'WAREHOUSE_OPERATOR':
           case 'WAREHOUSEMAN':
           case 'ADMIN_ALM':
           case 'ADMIN':
-          case 'SUPERADMIN':
+          case 'ADMIN_GENERAL':
           case 'ADMIN_GRAL':
+          case 'SUPERADMIN':
             // Route admins and warehouse operators to the reception screen
             navigate(`/warehouse/receive?qr=${cleanQrCode}`);
             return true;

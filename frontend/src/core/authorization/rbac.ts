@@ -28,8 +28,9 @@ export interface AuthUser {
  */
 export const can = (user: AuthUser | null, permission: AppPermission): boolean => {
   if (!user) return false;
-  // Bypass para SuperAdmin y Administrador General
-  if (user.roles.includes('superadmin') || user.roles.includes('admin_general')) return true;
+  // Bypass para SuperAdmin y Administrador General / Admin
+  const lowerRoles = user.roles.map(r => r.toLowerCase());
+  if (['superadmin', 'admin_general', 'admin_gral', 'admin'].some(r => lowerRoles.includes(r))) return true;
   
   return user.permissions.includes(permission);
 };

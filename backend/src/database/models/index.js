@@ -616,4 +616,60 @@ db.ProcessFormula.belongsTo(db.Area, {
   as: 'target_area',
 });
 
+/* =========================
+   EXTRUSION MODULE
+========================= */
+const initFormulaModel = require('../../modules/extrusion/models/formula.model');
+const initFormulaIngredientModel = require('../../modules/extrusion/models/formulaIngredient.model');
+const initPtiRackModel = require('../../modules/extrusion/models/ptiRack.model');
+const initExtruderQueueModel = require('../../modules/extrusion/models/extruderQueue.model');
+const initExtrusionScrapLogModel = require('../../modules/extrusion/models/extrusionScrapLog.model');
+
+db.Formula = initFormulaModel(sequelize, DataTypes);
+db.FormulaIngredient = initFormulaIngredientModel(sequelize, DataTypes);
+db.Formula_Ingredients = db.FormulaIngredient; // Alias for requirement compatibility
+db.PtiRack = initPtiRackModel(sequelize, DataTypes);
+db.ExtruderQueue = initExtruderQueueModel(sequelize, DataTypes);
+db.ExtrusionScrapLog = initExtrusionScrapLogModel(sequelize, DataTypes);
+
+// Formula -> Ingredients
+db.Formula.hasMany(db.FormulaIngredient, {
+  foreignKey: 'formula_id',
+  as: 'ingredients',
+});
+db.FormulaIngredient.belongsTo(db.Formula, {
+  foreignKey: 'formula_id',
+  as: 'formula',
+});
+
+// FormulaIngredient -> Material
+db.FormulaIngredient.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+// PtiRack -> Material (PTI Type)
+db.PtiRack.belongsTo(db.Material, {
+  foreignKey: 'current_pti_type_id',
+  as: 'currentPtiType',
+});
+
+// ExtruderQueue -> Formula
+db.ExtruderQueue.belongsTo(db.Formula, {
+  foreignKey: 'formula_id',
+  as: 'formula',
+});
+
+// ExtruderQueue -> ConsumptionOrder
+db.ExtruderQueue.belongsTo(db.ConsumptionOrder, {
+  foreignKey: 'consumption_order_id',
+  as: 'consumptionOrder',
+});
+
+// ExtrusionScrapLog -> User
+db.ExtrusionScrapLog.belongsTo(db.User, {
+  foreignKey: 'logged_by',
+  as: 'operator',
+});
+
 module.exports = db;

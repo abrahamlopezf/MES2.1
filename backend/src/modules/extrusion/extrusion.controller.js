@@ -68,6 +68,93 @@ class ExtrusionController {
       next(error);
     }
   }
+
+  // ==========================================
+  // PISO DE EXTRUSIÓN & CONTROL DE COLAS (FASE 2)
+  // ==========================================
+
+  async switchQueue(req, res, next) {
+    try {
+      const result = await extrusionService.switchQueuePriority({
+        ...req.body,
+        userId: req.user?.id || 1
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async scanRack(req, res, next) {
+    try {
+      const result = await extrusionService.scanRackPti({
+        ...req.body,
+        userId: req.user?.id || 1
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getQueues(req, res, next) {
+    try {
+      const queues = await extrusionService.getExtruderQueues();
+      return res.status(200).json({
+        success: true,
+        data: queues
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async enqueueMix(req, res, next) {
+    try {
+      const result = await extrusionService.enqueueMix(req.body);
+      return res.status(201).json({
+        success: true,
+        message: 'Mezcla agregada a la cola exitosamente.',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRacks(req, res, next) {
+    try {
+      const racks = await extrusionService.getPtiRacks();
+      return res.status(200).json({
+        success: true,
+        data: racks
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getExtrusionFormulas(req, res, next) {
+    try {
+      const formulas = await extrusionService.getExtrusionFormulas();
+      return res.status(200).json({
+        success: true,
+        data: formulas
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new ExtrusionController();

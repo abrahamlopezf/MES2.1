@@ -25,7 +25,7 @@ export function AreaInventoryPage() {
   const [selectedOrderUuid, setSelectedOrderUuid] = useState<string | null>(null);
   const [selectedAreaItem, setSelectedAreaItem] = useState<any>(null);
 
-  const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_ALM'].includes(user?.role?.code);
+  const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN', 'ADMIN_ALM'].includes(user?.role?.code);
 
   const tagsQuery = useActiveTagsQuery();
   const activeTags = tagsQuery.data || [];
