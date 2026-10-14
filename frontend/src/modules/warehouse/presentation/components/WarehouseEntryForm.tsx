@@ -208,9 +208,14 @@ export const WarehouseEntryForm: React.FC = () => {
           </div>
 
           <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 5 } as React.CSSProperties}>
-            <label className="block text-xl font-bold text-foreground mb-3 uppercase tracking-wide">
-              4. Proveedor (Opcional)
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-xl font-bold text-foreground uppercase tracking-wide">
+                4. Proveedor (Opcional)
+              </label>
+              <span className="text-sm font-semibold text-muted-foreground">
+                Razón Social Oficial
+              </span>
+            </div>
             {loadingSuppliers ? (
               <div className="h-20 flex items-center justify-center gap-3 text-muted-foreground font-bold text-lg">
                 <Loader2 className="animate-spin" size={24} /> Cargando catálogo...
@@ -221,7 +226,7 @@ export const WarehouseEntryForm: React.FC = () => {
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="w-full min-h-[48px] border border-border rounded-2xl px-4 py-3 text-xl font-bold text-foreground focus:ring-0 focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 outline-none bg-card transition-all cursor-pointer"
               >
-                <option value="">-- SELECCIONE PROVEEDOR --</option>
+                <option value="">-- SELECCIONE RAZÓN SOCIAL (Ej. DISTRIBUIDORA INDUSTRIAL S.A. DE C.V.) --</option>
                 {suppliers?.map((s: any) => (
                   <option key={s.id} value={s.id}>
                     {s.code} - {s.name}

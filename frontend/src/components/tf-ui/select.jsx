@@ -9,10 +9,12 @@ const TFSelect = React.forwardRef(
     {
       className,
       label,
+      hint,
       helperText,
       error,
       options = [],
       placeholder = 'Selecciona una opción',
+      searchPlaceholder,
       name,
       value,
       onChange,
@@ -114,9 +116,16 @@ const TFSelect = React.forwardRef(
     return (
       <label className={cn('grid gap-2 w-full', containerClassName)} ref={containerRef}>
         {label && (
-          <span className="text-sm font-bold text-foreground ml-1">
-            {label}
-          </span>
+          <div className="flex items-center justify-between ml-1">
+            <span className="text-sm font-bold text-foreground">
+              {label}
+            </span>
+            {hint && (
+              <span className="text-[11px] font-semibold text-muted-foreground/80">
+                {hint}
+              </span>
+            )}
+          </div>
         )}
 
         <div className="relative w-full">
@@ -172,7 +181,7 @@ const TFSelect = React.forwardRef(
                 <input
                   type="text"
                   className="flex w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground"
-                  placeholder="Buscar..."
+                  placeholder={searchPlaceholder || "Buscar..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
@@ -275,7 +284,7 @@ const TFSelect = React.forwardRef(
         )}
 
         {!error && helperText && (
-          <span className="text-sm font-bold text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground ml-1">
             {helperText}
           </span>
         )}

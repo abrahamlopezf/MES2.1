@@ -710,7 +710,11 @@ const manualEntry = async (payload, currentUser) => {
   }
 
   return await sequelize.transaction(async (t) => {
-    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area } = require('../../database/models');
+    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier } = require('../../database/models');
+    
+    // 0. Cache for auto-created suppliers during this transaction
+    const createdCatalogs = [];
+    const supplierCache = new Map();
     
     // 1. Generate QR Batch and Codes
     const now = new Date();
@@ -788,6 +792,72 @@ const manualEntry = async (payload, currentUser) => {
       const q = Number(entry.quantity);
       totalQuantity += q;
 
+      // Resolver o crear proveedor al vuelo
+      let finalSupplierId = null;
+      const rawSup = String(entry.supplier_id || '').trim();
+      const isNewSup = rawSup.startsWith('NEW:') || Boolean(entry.new_supplier_name);
+      const supName = isNewSup
+        ? (entry.new_supplier_name || rawSup.replace('NEW:', '')).trim().toUpperCase()
+        : null;
+
+      if (isNewSup && supName) {
+        if (supplierCache.has(supName)) {
+          finalSupplierId = supplierCache.get(supName);
+        } else {
+          let supplier = await Supplier.findOne({
+            where: { name: supName },
+            paranoid: false,
+            transaction: t
+          });
+
+          if (supplier) {
+            if (supplier.deleted_at) {
+              await supplier.restore({ transaction: t });
+              await supplier.update({ is_active: true }, { transaction: t });
+            }
+          } else {
+            const sanitize = (str) => (str || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const rz = sanitize(supName).substring(0, 3).padEnd(3, 'X');
+            const baseCode = `PROV-${rz}-XX`;
+            let finalCode = baseCode;
+            let counter = 1;
+            while (await Supplier.findOne({ where: { code: finalCode }, paranoid: false, transaction: t })) {
+              counter++;
+              finalCode = `${baseCode}-${counter}`;
+            }
+
+            supplier = await Supplier.create({
+              code: finalCode,
+              name: supName,
+              is_active: true,
+              created_by: currentUser.id
+            }, { transaction: t });
+
+            createdCatalogs.push({
+              type: 'supplier',
+              catalog: 'Proveedores',
+              entity: 'Proveedores',
+              name: supplier.name,
+              code: supplier.code,
+              uuid: supplier.uuid,
+              path: '/materials/suppliers'
+            });
+          }
+          finalSupplierId = supplier.id;
+          supplierCache.set(supName, supplier.id);
+        }
+      } else if (entry.supplier_id) {
+        if (/^\d+$/.test(String(entry.supplier_id))) {
+          finalSupplierId = parseInt(String(entry.supplier_id), 10);
+        } else {
+          const supplier = await Supplier.findOne({
+            where: { uuid: entry.supplier_id },
+            transaction: t
+          });
+          if (supplier) finalSupplierId = supplier.id;
+        }
+      }
+
       loteData.push({
         material_id: payload.material_id,
         user_id: currentUser.id,
@@ -798,7 +868,7 @@ const manualEntry = async (payload, currentUser) => {
         available_amount: q,
         notes: payload.notes || 'Ingreso manual',
         is_active: true,
-        supplier_id: entry.supplier_id || null,
+        supplier_id: finalSupplierId,
         unit_cost: entry.unit_cost || null,
         total_cost: entry.unit_cost ? Number(entry.unit_cost) * q : null
       });
@@ -865,7 +935,7 @@ const manualEntry = async (payload, currentUser) => {
       t
     );
 
-    return { results, qrBatchId: qrBatch.id };
+    return { results, qrBatchId: qrBatch.id, created_catalogs: createdCatalogs };
   });
 };
 const getMermaScrapReport = async () => {

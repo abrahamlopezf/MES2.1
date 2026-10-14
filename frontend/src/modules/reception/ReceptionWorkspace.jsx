@@ -3,11 +3,11 @@ import { CameraScanner } from '../../design-system/components/scanner-overlay/Ca
 import { SubmitReceptionCommand } from './commands';
 import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
 import { useOperationalAreasQuery, useSuppliersQuery } from '../materials/hooks/useMaterialsQueries';
-import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
-import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode } from 'lucide-react';
+import { TFCard, TFButton, TFInput, TFBadge, TFSelect } from '../../components/tf-ui';
+import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode, Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
 import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
 import { tokens } from '../../design-system/foundation/tokens';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export const ReceptionWorkspace = ({
   workflowState, // 'INITIAL' | 'SCANNING' | 'FORM_READY' | 'SUBMITTING' | 'SUCCESS'
@@ -28,13 +28,14 @@ export const ReceptionWorkspace = ({
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (workflowState === 'SUCCESS') {
+    if (workflowState === 'SUCCESS' && (!data?.created_catalogs || data.created_catalogs.length === 0)) {
       // Breve delay para que el usuario pueda ver el estado de éxito si es muy rápido
-      setTimeout(() => {
+      const t = setTimeout(() => {
         navigate('/warehouse/inventory');
       }, 1500);
+      return () => clearTimeout(t);
     }
-  }, [workflowState, navigate]);
+  }, [workflowState, navigate, data?.created_catalogs]);
 
   // Fetch materials catalogue via TanStack query
   const { data: materials = [], isLoading: isLoadingMaterials } = useMaterialListQuery();
@@ -101,13 +102,65 @@ export const ReceptionWorkspace = ({
 
   // Pantalla de Éxito
   if (workflowState === 'SUCCESS') {
+    const createdCatalogs = data?.created_catalogs || [];
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-background p-6 text-center">
-        <div className="w-24 h-24 bg-success/20 text-success rounded-full flex items-center justify-center mb-6">
-          <PackageOpen className="w-12 h-12" />
+      <div className="flex flex-col items-center justify-center min-h-[500px] h-full bg-background p-6 text-center max-w-lg mx-auto">
+        <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
+          <PackageOpen className="w-10 h-10" />
         </div>
-        <h1 className="text-3xl font-bold text-success m-0 mb-4">¡Recepción Exitosa!</h1>
-        <p className="text-lg text-muted-foreground mb-8">Redirigiendo al Inventario...</p>
+        <h1 className="text-2xl font-bold text-foreground m-0 mb-2">¡Recepción Exitosa!</h1>
+        <p className="text-sm text-muted-foreground mb-6">El material y su lote se registraron correctamente en el inventario.</p>
+
+        {createdCatalogs.length > 0 ? (
+          <div className="w-full text-left space-y-3 mb-6 bg-card border border-border rounded-2xl p-4 shadow-lg animate-in fade-in">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Sparkles size={16} className="text-amber-500 shrink-0" />
+              <span>Nuevo registro maestro generado:</span>
+            </div>
+            
+            {createdCatalogs.map((cat, idx) => (
+              <div key={idx} className="bg-background border border-border rounded-xl p-3 flex items-center justify-between gap-3 text-xs hover:border-primary/40 transition-colors">
+                <div className="min-w-0">
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                    {cat.catalog || cat.entity || 'Proveedores'}
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-bold text-foreground truncate">{cat.name}</span>
+                    {cat.code && (
+                      <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
+                        {cat.code}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  to={cat.path || '/materials/suppliers'}
+                  className="px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold shrink-0 flex items-center gap-1 transition-colors"
+                >
+                  <span>Completar</span>
+                  <ExternalLink size={12} />
+                </Link>
+              </div>
+            ))}
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+              <AlertCircle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="leading-snug m-0">
+                <strong>Recordatorio Operativo:</strong> Por favor pasa al subcatálogo correspondiente para completar los datos faltantes (RFC, contacto, teléfono, etc.).
+              </p>
+            </div>
+
+            <TFButton
+              variant="primary"
+              onClick={() => navigate('/warehouse/inventory')}
+              className="w-full h-11 text-sm font-bold mt-2"
+            >
+              Continuar al Inventario
+            </TFButton>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Redirigiendo al Inventario...</p>
+        )}
       </div>
     );
   }
@@ -121,7 +174,7 @@ export const ReceptionWorkspace = ({
       quantity: Number(quantity),
       folio,
       rack,
-      supplierId: supplierId ? Number(supplierId) : undefined,
+      supplierId: supplierId ? (String(supplierId).startsWith('NEW:') ? supplierId : Number(supplierId)) : undefined,
       observations: notes,
       unitCost: unitCost ? Number(unitCost) : undefined,
       totalCost: totalCost ? Number(totalCost) : undefined
@@ -263,19 +316,29 @@ export const ReceptionWorkspace = ({
               </div>
 
               <div className="z-[35] relative">
-                <label className="block text-sm font-medium text-foreground mb-1.5">Proveedor (Opcional)</label>
-                <SearchSelect
-                  options={suppliers}
+                <TFSelect
+                  label="Proveedor (Opcional)"
+                  hint="Razón Social del Proveedor"
+                  name="supplier"
+                  placeholder="Ej. DISTRIBUIDORA INDUSTRIAL S.A. DE C.V."
+                  searchPlaceholder="Buscar o escribir Razón Social (ej. ACME S.A. DE C.V.)..."
                   value={supplierId}
-                  onChange={setSupplierId}
-                  getLabel={(a) => `${a.code} - ${a.name}`}
-                  getValue={(a) => a.id}
-                  searchable={true}
-                  placeholder="Seleccionar proveedor..."
-                  loading={isLoadingSuppliers}
-                  emptyMessage="Sin proveedores disponibles"
+                  onChange={e => setSupplierId(e.target.value)}
+                  options={suppliers.map(s => ({
+                    value: String(s.id),
+                    label: `${s.code} - ${s.name}`
+                  }))}
+                  allowCreate={true}
+                  createLabel="Registrar Razón Social"
                   disabled={workflowState === 'SUBMITTING'}
+                  helperText={!supplierId?.startsWith('NEW:') ? "Ingresa la Razón Social completa de la empresa según factura" : undefined}
                 />
+                {supplierId?.startsWith('NEW:') && (
+                  <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                    <Sparkles size={11} className="text-amber-500 shrink-0" />
+                    <span className="truncate">Nueva Razón Social: <strong>{supplierId.replace('NEW:', '')}</strong></span>
+                  </span>
+                )}
               </div>
 
               <div className="z-[30] relative">
@@ -352,6 +415,21 @@ export const ReceptionWorkspace = ({
             </div>
           </div>
         )}
+        {/* AVISO PREVIO SI HAY PROVEEDOR NUEVO */}
+        {supplierId?.startsWith('NEW:') && (
+          <div className="mx-4 sm:mx-6 mb-2 rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2.5">
+            <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <span className="font-bold block text-foreground">
+                Se creará un nuevo proveedor automáticamente
+              </span>
+              <span className="text-[11px] text-muted-foreground block mt-0.5 leading-snug">
+                Al guardar esta recepción, el proveedor <strong>"{supplierId.replace('NEW:', '')}"</strong> se registrará en el catálogo maestro. Recuerda ingresar al subcatálogo de Proveedores para completar la información restante.
+              </span>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Action Bar */}

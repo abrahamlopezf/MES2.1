@@ -92,18 +92,25 @@ export const ReceptionProvider = () => {
       const { qrCode, materialId, quantity, rack, observations, folio, supplierId, unitCost, totalCost } = command.payload;
       const start = performance.now();
       try {
-        await apiClient.post('/reception', {
+        const response = await apiClient.post('/reception', {
           qr_code_value: qrCode,
           material_id: materialId,
           location_id: rack,
           unit_id: 1, // TODO: Debería venir del unit_id base del material, pero por ahora se asume 1 (Ej. KG)
           quantity: Number(quantity),
-          supplier_id: supplierId ? Number(supplierId) : null,
+          supplier_id: supplierId ? (String(supplierId).startsWith('NEW:') ? supplierId : Number(supplierId)) : null,
           notes: observations,
           folio: folio,
           unit_cost: unitCost,
           total_cost: totalCost
         });
+
+        const resData = response.data || response;
+        const createdCatalogs = resData.data?.created_catalogs || resData.created_catalogs || [];
+        setReceptionData(prev => ({
+          ...prev,
+          created_catalogs: createdCatalogs
+        }));
 
         const duration = performance.now() - start;
         if (duration < 150) {

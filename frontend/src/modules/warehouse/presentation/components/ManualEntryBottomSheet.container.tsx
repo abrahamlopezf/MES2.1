@@ -5,6 +5,17 @@ import { toast } from 'sonner';
 import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { ManualEntryBottomSheetPresenter } from './ManualEntryBottomSheet.presenter';
 import { downloadBatchPdf } from '../../../identity/presentation/hooks/useIdentityBatches';
+import { Link } from 'react-router-dom';
+import { Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
+import { 
+  TFDialog, 
+  TFDialogContent, 
+  TFDialogHeader, 
+  TFDialogTitle, 
+  TFDialogDescription, 
+  TFDialogFooter, 
+  TFButton 
+} from '../../../../components/tf-ui';
 
 export interface ManualEntryBottomSheetContainerProps {
   isOpen: boolean;
@@ -23,6 +34,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const [locationId, setLocationId] = useState<string>('');
   const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
   const [notes, setNotes] = useState('');
+  const [catalogReminder, setCatalogReminder] = useState<any>(null);
 
   // Clear state when opened
   useEffect(() => {
@@ -88,7 +100,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         entries: entries.map(e => ({ 
           folio: e.folio, 
           quantity: Number(e.quantity),
-          supplier_id: e.supplier_id ? Number(e.supplier_id) : null,
+          supplier_id: e.supplier_id ? (String(e.supplier_id).startsWith('NEW:') ? e.supplier_id : Number(e.supplier_id)) : null,
           unit_cost: e.unit_cost ? Number(e.unit_cost) : null
         })),
         notes
@@ -98,8 +110,12 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     onSuccess: async (data) => {
       toast.success('Ingreso manual registrado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['materials', 'suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       
-      const qrBatchId = data?.data?.qrBatchId;
+      const resPayload = data?.data || data;
+      const createdCatalogs = resPayload?.created_catalogs || [];
+      const qrBatchId = resPayload?.qrBatchId;
       if (qrBatchId) {
         toast.info('Generando y descargando códigos QR...');
         try {
@@ -109,8 +125,18 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         }
       }
 
-      if (onSuccess) onSuccess();
-      onClose();
+      if (createdCatalogs.length > 0) {
+        const selectedMat = materials.find((m: any) => m.id.toString() === materialId);
+        setCatalogReminder({
+          materialName: selectedMat ? `${selectedMat.internal_code} - ${selectedMat.name}` : 'Material',
+          catalogs: createdCatalogs
+        });
+        if (onSuccess) onSuccess();
+        onClose();
+      } else {
+        if (onSuccess) onSuccess();
+        onClose();
+      }
     },
     onError: (error: any) => {
       console.error("FRONTEND MUTATION ERROR:", error);
@@ -159,27 +185,110 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   };
 
   return (
-    <ManualEntryBottomSheetPresenter
-      isOpen={isOpen}
-      onClose={onClose}
-      materialId={materialId}
-      locationId={locationId}
-      entries={entries}
-      notes={notes}
-      materials={materials}
-      loadingMaterials={loadingMaterials}
-      locations={locations}
-      loadingLocations={loadingLocations}
-      suppliers={suppliers}
-      loadingSuppliers={loadingSuppliers}
-      isSubmitting={isSubmitting}
-      onChangeMaterialId={handleMaterialChange}
-      onChangeLocationId={setLocationId}
-      onChangeNotes={setNotes}
-      onAddEntry={handleAddEntry}
-      onUpdateEntry={handleUpdateEntry}
-      onRemoveEntry={handleRemoveEntry}
-      onConfirmEntry={onConfirmEntry}
-    />
+    <>
+      <ManualEntryBottomSheetPresenter
+        isOpen={isOpen}
+        onClose={onClose}
+        materialId={materialId}
+        locationId={locationId}
+        entries={entries}
+        notes={notes}
+        materials={materials}
+        loadingMaterials={loadingMaterials}
+        locations={locations}
+        loadingLocations={loadingLocations}
+        suppliers={suppliers}
+        loadingSuppliers={loadingSuppliers}
+        isSubmitting={isSubmitting}
+        onChangeMaterialId={handleMaterialChange}
+        onChangeLocationId={setLocationId}
+        onChangeNotes={setNotes}
+        onAddEntry={handleAddEntry}
+        onUpdateEntry={handleUpdateEntry}
+        onRemoveEntry={handleRemoveEntry}
+        onConfirmEntry={onConfirmEntry}
+      />
+
+      {/* DIÁLOGO RECORDATORIO DE PROVEEDOR CREADO AL VUELO */}
+      {catalogReminder && (
+        <TFDialog open={Boolean(catalogReminder)} onOpenChange={() => setCatalogReminder(null)}>
+          <TFDialogContent className="max-w-lg p-6 bg-card border-border rounded-2xl shadow-2xl z-[999999]">
+            <TFDialogHeader className="pr-8">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mb-2">
+                <Sparkles size={24} />
+              </div>
+              <TFDialogTitle className="text-xl sm:text-2xl font-black text-foreground">
+                ¡Ingreso Registrado con Éxito!
+              </TFDialogTitle>
+              <TFDialogDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Se detectaron y crearon nuevos registros en el catálogo de Proveedores.
+              </TFDialogDescription>
+            </TFDialogHeader>
+
+            <div className="space-y-3 py-2">
+              <div className="bg-muted/50 border border-border rounded-xl p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Material Ingresado</span>
+                  <span className="text-sm font-bold text-foreground">{catalogReminder.materialName}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Nuevo proveedor registrado:
+                </span>
+                <div className="grid gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                  {catalogReminder.catalogs.map((cat: any, idx: number) => (
+                    <div 
+                      key={idx}
+                      className="bg-background border border-border rounded-xl p-2.5 flex items-center justify-between gap-3 text-xs hover:border-primary/40 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                          {cat.catalog || cat.entity || 'Proveedores'}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="font-bold text-foreground truncate">{cat.name}</span>
+                          {cat.code && (
+                            <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
+                              {cat.code}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        to={cat.path || '/materials/suppliers'}
+                        onClick={() => setCatalogReminder(null)}
+                        className="px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold shrink-0 flex items-center gap-1 transition-colors"
+                      >
+                        <span>Completar</span>
+                        <ExternalLink size={12} />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="leading-snug m-0">
+                  <strong>Recordatorio Operativo:</strong> Por favor ingresa al subcatálogo de Proveedores para completar la información restante (RFC, teléfono, correo y razón social) para asegurar la integridad de la base de datos.
+                </p>
+              </div>
+            </div>
+
+            <TFDialogFooter className="mt-2">
+              <TFButton
+                variant="primary"
+                onClick={() => setCatalogReminder(null)}
+                className="w-full sm:w-auto h-10 text-sm font-bold"
+              >
+                Entendido, continuar
+              </TFButton>
+            </TFDialogFooter>
+          </TFDialogContent>
+        </TFDialog>
+      )}
+    </>
   );
 };

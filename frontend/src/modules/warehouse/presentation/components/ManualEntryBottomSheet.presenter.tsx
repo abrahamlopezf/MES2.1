@@ -1,9 +1,10 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, PackagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
+import { X, PackagePlus, Loader2, Plus, Trash2, Sparkles } from 'lucide-react';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
+import { TFSelect } from '../../../../components/tf-ui';
 
 export interface ManualEntryBottomSheetPresenterProps {
   isOpen: boolean;
@@ -104,7 +105,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
         </div>
 
         {/* Content */}
-        <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-6 bg-background">
+        <div className="p-5 pb-12 overflow-y-auto flex-1 flex flex-col gap-6 bg-background">
           <div className="flex flex-col gap-5">
             
             <div className="flex flex-col gap-2">
@@ -218,25 +219,49 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                       </div>
 
                       <div className="flex-1 flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Proveedor (Opcional)</label>
-                        <div className="h-10">
-                          <SearchSelect
-                            options={suppliers}
-                            value={entry.supplier_id}
-                            onChange={(val) => onUpdateEntry(index, 'supplier_id', val)}
-                            getLabel={(sup: any) => `${sup.code} - ${sup.name}`}
-                            getValue={(sup: any) => sup.id.toString()}
-                            placeholder="Buscar proveedor..."
-                            loading={loadingSuppliers}
-                            searchable={true}
-                          />
-                        </div>
+                        <TFSelect
+                          label="Proveedor (Opcional)"
+                          hint="Razón Social"
+                          name={`supplier_${index}`}
+                          placeholder="Ej. DISTRIBUIDORA INDUSTRIAL S.A. DE C.V."
+                          searchPlaceholder="Buscar o escribir Razón Social (ej. ACME S.A. DE C.V.)..."
+                          value={entry.supplier_id}
+                          onChange={(e: any) => onUpdateEntry(index, 'supplier_id', e.target.value)}
+                          options={suppliers.map((s: any) => ({
+                            value: String(s.id),
+                            label: `${s.code} - ${s.name}`
+                          }))}
+                          allowCreate={true}
+                          createLabel="Registrar Razón Social"
+                          helperText={!entry.supplier_id?.startsWith('NEW:') ? "Indica la Razón Social según factura" : undefined}
+                        />
+                        {entry.supplier_id?.startsWith('NEW:') && (
+                          <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+                            <Sparkles size={11} className="text-amber-500 shrink-0" />
+                            <span className="truncate">Nueva Razón Social: <strong>{entry.supplier_id.replace('NEW:', '')}</strong></span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* AVISO PREVIO SI HAY PROVEEDORES NUEVOS */}
+            {entries.some(e => e.supplier_id?.startsWith('NEW:')) && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2.5">
+                <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <span className="font-bold block text-foreground">
+                    Se creará un nuevo proveedor automáticamente
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block mt-0.5 leading-snug">
+                    Al registrar este ingreso, los proveedores marcados como nuevos se crearán en la base de datos. Recuerda ingresar al subcatálogo de Proveedores para completar la información técnica y fiscal.
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
               <label className="text-sm font-bold text-foreground ml-1">Notas (Opcional)</label>

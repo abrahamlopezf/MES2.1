@@ -1,4 +1,4 @@
-const { sequelize, QrCode, Material, Location, MaterialUnit } = require('../../../database/models');
+const { sequelize, QrCode, Material, Location, MaterialUnit, Supplier } = require('../../../database/models');
 const qrDomainService = require('../../qrcodes/qrDomain.service');
 const inventoryDomainService = require('../../warehouse/inventoryDomain.service');
 const traceabilityDomainService = require('../../traceability/traceabilityDomain.service');
@@ -17,6 +17,8 @@ class ReceiveMaterialUseCase {
       unit_id,
       quantity,
       folio,
+      supplier_id = null,
+      new_supplier_name = null,
       notes = null,
       unit_cost = null,
       total_cost = null
@@ -27,6 +29,70 @@ class ReceiveMaterialUseCase {
     }
 
     return await sequelize.transaction(async (t) => {
+      // 0. Resolver o Crear Proveedor al vuelo
+      const createdCatalogs = [];
+      let finalSupplierId = null;
+
+      const rawSupplier = String(supplier_id || '').trim();
+      const isNewSupplier = rawSupplier.startsWith('NEW:') || Boolean(new_supplier_name);
+      const supplierName = isNewSupplier
+        ? (new_supplier_name || rawSupplier.replace('NEW:', '')).trim().toUpperCase()
+        : null;
+
+      if (isNewSupplier && supplierName) {
+        let supplier = await Supplier.findOne({
+          where: { name: supplierName },
+          paranoid: false,
+          transaction: t
+        });
+
+        if (supplier) {
+          if (supplier.deleted_at) {
+            await supplier.restore({ transaction: t });
+            await supplier.update({ is_active: true }, { transaction: t });
+          }
+        } else {
+          // Generar código único PROV-XXX-XX
+          const sanitize = (str) => (str || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const rz = sanitize(supplierName).substring(0, 3).padEnd(3, 'X');
+          const baseCode = `PROV-${rz}-XX`;
+          let finalCode = baseCode;
+          let counter = 1;
+          while (await Supplier.findOne({ where: { code: finalCode }, paranoid: false, transaction: t })) {
+            counter++;
+            finalCode = `${baseCode}-${counter}`;
+          }
+
+          supplier = await Supplier.create({
+            code: finalCode,
+            name: supplierName,
+            is_active: true,
+            created_by: userId
+          }, { transaction: t });
+
+          createdCatalogs.push({
+            type: 'supplier',
+            catalog: 'Proveedores',
+            entity: 'Proveedores',
+            name: supplier.name,
+            code: supplier.code,
+            uuid: supplier.uuid,
+            path: '/materials/suppliers'
+          });
+        }
+        finalSupplierId = supplier.id;
+      } else if (supplier_id) {
+        if (/^\d+$/.test(String(supplier_id))) {
+          finalSupplierId = parseInt(String(supplier_id), 10);
+        } else {
+          const supplier = await Supplier.findOne({
+            where: { uuid: supplier_id },
+            transaction: t
+          });
+          if (supplier) finalSupplierId = supplier.id;
+        }
+      }
+
       // 1. Bloqueo pesimista del QR para evitar concurrencia (SELECT ... FOR UPDATE)
       const qrCode = await QrCode.findOne({
         where: { qr_code: qr_code_value },
@@ -74,6 +140,7 @@ class ReceiveMaterialUseCase {
         user_id: userId,
         qr_id: qrCode.id,
         location_id: finalLocationId,
+        supplier_id: finalSupplierId,
         quantity,
         folio,
         notes,
@@ -109,7 +176,9 @@ class ReceiveMaterialUseCase {
           lote_id: lote.id,
           inventory_uuid: inventory.uuid,
           qr_code: qrCode.qr_code,
-          material: material.description
+          material: material.description || material.name,
+          supplier_id: finalSupplierId,
+          created_catalogs: createdCatalogs
         }
       };
     });
