@@ -321,7 +321,7 @@ export const ReceptionWorkspace = ({
                   hint="Razón Social del Proveedor"
                   name="supplier"
                   placeholder="Ej. DISTRIBUIDORA INDUSTRIAL S.A. DE C.V."
-                  searchPlaceholder="Buscar o escribir Razón Social (ej. ACME S.A. DE C.V.)..."
+                  searchPlaceholder="Buscar o registrar Razón Social..."
                   value={supplierId}
                   onChange={e => setSupplierId(e.target.value)}
                   options={suppliers.map(s => ({
@@ -331,6 +331,7 @@ export const ReceptionWorkspace = ({
                   allowCreate={true}
                   createLabel="Registrar Razón Social"
                   disabled={workflowState === 'SUBMITTING'}
+                  containerClassName="w-full min-w-0"
                   helperText={!supplierId?.startsWith('NEW:') ? "Ingresa la Razón Social completa de la empresa según factura" : undefined}
                 />
                 {supplierId?.startsWith('NEW:') && (

@@ -37,11 +37,35 @@ const TFSelect = React.forwardRef(
     const updatePosition = () => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const padding = 12;
+
+        let targetWidth = rect.width;
+        if (targetWidth > viewportWidth - (padding * 2)) {
+          targetWidth = viewportWidth - (padding * 2);
+        }
+
+        let left = rect.left;
+        if (left + targetWidth > viewportWidth - padding) {
+          left = Math.max(padding, viewportWidth - targetWidth - padding);
+        }
+        if (left < padding) {
+          left = padding;
+        }
+
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const estimatedHeight = 260;
+        const openUpward = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+
         setDropdownStyle({
           position: 'fixed',
-          top: rect.bottom + 8,
-          left: rect.left,
-          width: rect.width,
+          top: openUpward ? undefined : rect.bottom + 6,
+          bottom: openUpward ? (viewportHeight - rect.top) + 6 : undefined,
+          left,
+          width: targetWidth,
+          maxWidth: `calc(100vw - ${padding * 2}px)`,
           zIndex: 999999,
         });
       }
@@ -114,21 +138,21 @@ const TFSelect = React.forwardRef(
     const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
     return (
-      <label className={cn('grid gap-2 w-full', containerClassName)} ref={containerRef}>
+      <label className={cn('flex flex-col gap-1.5 w-full min-w-0 max-w-full', containerClassName)} ref={containerRef}>
         {label && (
-          <div className="flex items-center justify-between ml-1">
-            <span className="text-sm font-bold text-foreground">
+          <div className="flex items-center justify-between gap-2 min-w-0 max-w-full ml-1">
+            <span className="text-sm font-bold text-foreground truncate min-w-0">
               {label}
             </span>
             {hint && (
-              <span className="text-[11px] font-semibold text-muted-foreground/80">
+              <span className="text-[11px] font-semibold text-muted-foreground/80 shrink-0">
                 {hint}
               </span>
             )}
           </div>
         )}
 
-        <div className="relative w-full">
+        <div className="relative w-full min-w-0 max-w-full">
           {/* Native select for form libraries that might rely on it */}
           <select
             ref={ref}
@@ -152,7 +176,7 @@ const TFSelect = React.forwardRef(
             ref={triggerRef}
             onClick={() => !disabled && setIsOpen(!isOpen)}
             className={cn(
-              "flex min-h-[48px] w-full items-center justify-between rounded-2xl border bg-background px-4 text-base font-bold text-foreground transition-all duration-200 ease-out focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 cursor-pointer",
+              "flex min-h-[48px] w-full min-w-0 max-w-full items-center justify-between rounded-2xl border bg-background px-3.5 sm:px-4 text-sm sm:text-base font-bold text-foreground transition-all duration-200 ease-out focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px] focus:shadow-primary/20 cursor-pointer overflow-hidden box-border",
               error ? "border-destructive focus:border-destructive focus:shadow-destructive/20 animate-shake" : "border-border hover:border-primary",
               disabled && "opacity-50 cursor-not-allowed",
               className
@@ -161,7 +185,10 @@ const TFSelect = React.forwardRef(
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${name}-error` : undefined}
           >
-            <span className={(isMulti ? (Array.isArray(value) && value.length > 0) : (selectedOption || isNewValue)) ? "text-foreground truncate" : "text-muted-foreground truncate"}>
+            <span className={cn(
+              "truncate min-w-0 flex-1 text-left",
+              (isMulti ? (Array.isArray(value) && value.length > 0) : (selectedOption || isNewValue)) ? "text-foreground" : "text-muted-foreground"
+            )}>
               {isMulti 
                 ? (Array.isArray(value) && value.length > 0 ? `${value.length} seleccionad${value.length === 1 ? 'a' : 'as'}` : placeholder)
                 : (isNewValue ? newDisplayLabel : (selectedOption ? selectedOption.label : placeholder))}
@@ -180,7 +207,7 @@ const TFSelect = React.forwardRef(
                 <Search className="size-4 text-muted-foreground mr-2 shrink-0" />
                 <input
                   type="text"
-                  className="flex w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground"
+                  className="flex-1 min-w-0 bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground"
                   placeholder={searchPlaceholder || "Buscar..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -205,7 +232,7 @@ const TFSelect = React.forwardRef(
                 </div>
               )}
               
-              <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+              <div className="max-h-60 overflow-y-auto custom-scrollbar p-1 overflow-x-hidden">
                 {isNewValue && (
                   <div
                     className="px-3 py-2 text-sm rounded-md cursor-pointer bg-primary/10 text-primary font-bold flex items-center justify-between gap-2 my-0.5 border border-primary/20"
@@ -284,7 +311,7 @@ const TFSelect = React.forwardRef(
         )}
 
         {!error && helperText && (
-          <span className="text-xs font-medium text-muted-foreground ml-1">
+          <span className="text-xs font-medium text-muted-foreground ml-1 break-words leading-tight max-w-full">
             {helperText}
           </span>
         )}
