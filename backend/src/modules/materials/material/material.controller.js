@@ -14,7 +14,8 @@ const getByUuid = async (req, res) => {
 
 const create = async (req, res) => {
   const record = await crudService.create(req.body);
-  return sendSuccess(res, record, {}, 201);
+  const createdCatalogs = record.created_catalogs || [];
+  return sendSuccess(res, record, { created_catalogs: createdCatalogs }, 201);
 };
 
 const update = async (req, res) => {

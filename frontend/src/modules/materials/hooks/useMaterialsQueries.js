@@ -200,6 +200,14 @@ export const useCreateMaterialMutation = () => {
     mutationFn: createMaterialRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: materialQueryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: materialQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['families'] });
+      queryClient.invalidateQueries({ queryKey: ['material-types'] });
+      queryClient.invalidateQueries({ queryKey: ['material-brands'] });
+      queryClient.invalidateQueries({ queryKey: ['material-units'] });
+      queryClient.invalidateQueries({ queryKey: ['material-codes'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['active-tags'] });
     },
   });
 };

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
-import { Search, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Search, ChevronDown, AlertTriangle, Plus, Sparkles } from 'lucide-react';
 
 const TFSelect = React.forwardRef(
   (
@@ -19,6 +19,8 @@ const TFSelect = React.forwardRef(
       disabled,
       isMulti = false,
       containerClassName,
+      allowCreate = false,
+      createLabel = 'Crear nuevo',
       ...props
     },
     ref
@@ -73,6 +75,9 @@ const TFSelect = React.forwardRef(
       option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const isNewValue = typeof value === 'string' && value.startsWith('NEW:');
+    const newDisplayLabel = isNewValue ? `✨ ${value.replace('NEW:', '')} (Nuevo)` : null;
+
     const selectedOption = isMulti 
       ? options.filter(opt => Array.isArray(value) && value.includes(String(opt.value)))
       : options.find(opt => String(opt.value) === String(value));
@@ -94,6 +99,7 @@ const TFSelect = React.forwardRef(
         if (onChange) {
           onChange({ target: { name, value: newValues } });
         }
+        setSearchTerm('');
       } else {
         if (onChange) {
           onChange({ target: { name, value: optionValue } });
@@ -126,6 +132,7 @@ const TFSelect = React.forwardRef(
             {...props}
           >
             {!isMulti && <option value="">{placeholder}</option>}
+            {isNewValue && <option value={value}>{newDisplayLabel}</option>}
             {options.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -145,10 +152,10 @@ const TFSelect = React.forwardRef(
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${name}-error` : undefined}
           >
-            <span className={(isMulti ? selectedOption.length > 0 : selectedOption) ? "text-foreground truncate" : "text-muted-foreground truncate"}>
+            <span className={(isMulti ? (Array.isArray(value) && value.length > 0) : (selectedOption || isNewValue)) ? "text-foreground truncate" : "text-muted-foreground truncate"}>
               {isMulti 
-                ? (selectedOption.length > 0 ? `${selectedOption.length} seleccionad${selectedOption.length === 1 ? 'a' : 'as'}` : placeholder)
-                : (selectedOption ? selectedOption.label : placeholder)}
+                ? (Array.isArray(value) && value.length > 0 ? `${value.length} seleccionad${value.length === 1 ? 'a' : 'as'}` : placeholder)
+                : (isNewValue ? newDisplayLabel : (selectedOption ? selectedOption.label : placeholder))}
             </span>
             <ChevronDown className="size-4 text-muted-foreground shrink-0 ml-2" />
           </div>
@@ -172,8 +179,47 @@ const TFSelect = React.forwardRef(
                   autoFocus
                 />
               </div>
+
+              {/* Create new option button */}
+              {allowCreate && searchTerm.trim().length > 0 && !options.some(opt => opt.label.toLowerCase() === searchTerm.trim().toLowerCase()) && (
+                <div 
+                  className="mx-1.5 my-1.5 px-3 py-2 text-xs rounded-lg cursor-pointer bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-bold flex items-center justify-between gap-2 transition-colors group"
+                  onClick={() => handleSelect(`NEW:${searchTerm.trim()}`)}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Plus size={14} className="shrink-0 text-primary group-hover:scale-110 transition-transform" />
+                    <span className="truncate">{createLabel}: <strong className="underline underline-offset-2">"{searchTerm.trim()}"</strong></span>
+                  </div>
+                  <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-black uppercase tracking-wider shrink-0">
+                    Nuevo
+                  </span>
+                </div>
+              )}
               
               <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                {isNewValue && (
+                  <div
+                    className="px-3 py-2 text-sm rounded-md cursor-pointer bg-primary/10 text-primary font-bold flex items-center justify-between gap-2 my-0.5 border border-primary/20"
+                    onClick={() => handleSelect(value)}
+                  >
+                    <span className="truncate">✨ {value.replace('NEW:', '')} (Nuevo registro)</span>
+                    <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">
+                      Seleccionado
+                    </span>
+                  </div>
+                )}
+                {isMulti && Array.isArray(value) && value.filter(v => typeof v === 'string' && v.startsWith('NEW:')).map(newVal => (
+                  <div
+                    key={newVal}
+                    className="px-3 py-2 text-sm rounded-md cursor-pointer bg-primary/10 text-primary font-bold flex items-center justify-between gap-2 my-0.5 border border-primary/20"
+                    onClick={() => handleSelect(newVal)}
+                  >
+                    <span className="truncate">✨ {newVal.replace('NEW:', '')} (Nuevo)</span>
+                    <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">
+                      Seleccionado
+                    </span>
+                  </div>
+                ))}
                 {!isMulti && (
                   <div 
                     className={cn(
@@ -186,9 +232,11 @@ const TFSelect = React.forwardRef(
                   </div>
                 )}
                 {filteredOptions.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    No se encontraron resultados
-                  </div>
+                  allowCreate && searchTerm.trim() ? null : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No se encontraron resultados
+                    </div>
+                  )
                 ) : (
                   filteredOptions.map((option) => {
                     const isSelected = isMulti 

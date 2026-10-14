@@ -45,13 +45,13 @@ const MaterialActionSheet = ({
           <div className="w-12 h-1.5 bg-muted rounded-full" />
         </div>
 
-        <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
-          <div className="flex flex-col">
-            <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+        <div className="px-4 sm:px-5 py-3 border-b border-border flex justify-between items-center bg-card">
+          <div className="flex flex-col min-w-0 pr-2">
+            <h3 className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2 truncate">
               {title}
             </h3>
             {description && (
-              <p className="italic text-sm text-muted-foreground mt-1">
+              <p className="italic text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
                 {description}
               </p>
             )}
@@ -59,13 +59,13 @@ const MaterialActionSheet = ({
           <button 
             onClick={onClose}
             type="button"
-            className="p-2 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0 ml-4"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="p-0 sm:p-2 overflow-hidden flex-1 flex flex-col bg-background">
+        <div className="p-0 overflow-hidden flex-1 flex flex-col bg-background">
           {children}
         </div>
       </div>

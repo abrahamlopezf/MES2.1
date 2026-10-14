@@ -1,7 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Boxes, Layers3, PackageCheck, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Boxes, Layers3, PackageCheck, RefreshCw, Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
 
-import { TFAlert, TFButton } from '../../../components/tf-ui';
+import { 
+  TFAlert, 
+  TFButton,
+  TFDialog,
+  TFDialogContent,
+  TFDialogHeader,
+  TFDialogFooter,
+  TFDialogTitle,
+  TFDialogDescription
+} from '../../../components/tf-ui';
 import ErrorState from '../../../components/feedback/ErrorState';
 import LoadingState from '../../../components/feedback/LoadingState';
 
@@ -64,6 +74,7 @@ const MaterialsPage = () => {
   const [isMaterialSheetOpen, setIsMaterialSheetOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [materialToDeactivate, setMaterialToDeactivate] = useState(null);
+  const [catalogReminder, setCatalogReminder] = useState(null);
 
   const [filters, setFilters] = useState({
     search: '',
@@ -194,8 +205,22 @@ const MaterialsPage = () => {
 
         setOperationMessage('Material actualizado correctamente.');
       } else {
-        await createMaterialMutation.mutateAsync(payload);
-        setOperationMessage('Material creado correctamente.');
+        const response = await createMaterialMutation.mutateAsync(payload);
+        const createdCatalogs = 
+          response?.data?.meta?.created_catalogs || 
+          response?.data?.data?.created_catalogs || 
+          response?.meta?.created_catalogs || 
+          response?.created_catalogs || [];
+
+        if (createdCatalogs.length > 0) {
+          setCatalogReminder({
+            materialName: payload.name,
+            materialCode: response?.data?.data?.internal_code || response?.data?.internal_code,
+            catalogs: createdCatalogs,
+          });
+        } else {
+          setOperationMessage('Material creado correctamente.');
+        }
       }
 
       closeMaterialSheet();
@@ -379,6 +404,92 @@ const MaterialsPage = () => {
           }}
           onClose={() => setMaterialToDeactivate(null)}
         />
+      )}
+
+      {/* DIÁLOGO RECORDATORIO DE SUBCATÁLOGOS GENERADOS ASINCRÓNICAMENTE */}
+      {catalogReminder && (
+        <TFDialog open={Boolean(catalogReminder)} onOpenChange={() => setCatalogReminder(null)}>
+          <TFDialogContent className="max-w-lg p-6 bg-card border-border rounded-2xl shadow-2xl">
+            <TFDialogHeader className="pr-8">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mb-2">
+                <Sparkles size={24} />
+              </div>
+              <TFDialogTitle className="text-xl sm:text-2xl font-black text-foreground">
+                ¡Material Registrado con Éxito!
+              </TFDialogTitle>
+              <TFDialogDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Se detectaron y crearon nuevos registros en catálogos maestros asociados a este material.
+              </TFDialogDescription>
+            </TFDialogHeader>
+
+            <div className="space-y-3 py-2">
+              <div className="bg-muted/50 border border-border rounded-xl p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Material Creado</span>
+                  <span className="text-sm font-bold text-foreground">{catalogReminder.materialName}</span>
+                </div>
+                {catalogReminder.materialCode && (
+                  <span className="font-mono font-bold text-xs text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-lg">
+                    {catalogReminder.materialCode}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Nuevos subcatálogos generados:
+                </span>
+                <div className="grid gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                  {catalogReminder.catalogs.map((cat, idx) => (
+                    <div 
+                      key={idx}
+                      className="bg-background border border-border rounded-xl p-2.5 flex items-center justify-between gap-3 text-xs hover:border-primary/40 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                          {cat.catalog || cat.entity || 'Subcatálogo'}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="font-bold text-foreground truncate">{cat.name}</span>
+                          {cat.code && (
+                            <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
+                              {cat.code}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        to={cat.path}
+                        onClick={() => setCatalogReminder(null)}
+                        className="px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold shrink-0 flex items-center gap-1 transition-colors"
+                      >
+                        <span>Completar</span>
+                        <ExternalLink size={12} />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="leading-snug">
+                  <strong>Recordatorio Operativo:</strong> Por favor ingresa al subcatálogo correspondiente para completar la información técnica restante (descripciones detalladas, equivalencias y clasificaciones) para asegurar la integridad de la base de datos.
+                </p>
+              </div>
+            </div>
+
+            <TFDialogFooter className="mt-2">
+              <TFButton
+                variant="primary"
+                onClick={() => setCatalogReminder(null)}
+                className="w-full sm:w-auto h-10 text-sm font-bold"
+              >
+                Entendido, continuar
+              </TFButton>
+            </TFDialogFooter>
+          </TFDialogContent>
+        </TFDialog>
       )}
     </div>
   );
