@@ -20,38 +20,83 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
   const { confirm } = useConfirmAction();
   const [orderNumber, setOrderNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<{ id?: string; qrCode?: string; lote_id?: number; folio?: string; material_id: number; maxQuantity: number; quantity: number; materialName: string }[]>([]);
+  const [items, setItems] = useState<{ 
+    id?: string; 
+    qrCode?: string; 
+    lote_id?: number; 
+    folio?: string; 
+    material_id: number; 
+    maxQuantity: number; 
+    quantity: number; 
+    materialName: string;
+    materialDescription?: string;
+    internalCode?: string;
+    unitCode?: string;
+  }[]>([]);
   const [scanInput, setScanInput] = useState('');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
 
-  // Clear state when opened
+  // Auto-generate manual voucher number and clear state when opened
   useEffect(() => {
     if (isOpen) {
-      setOrderNumber('');
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = String(now.getMonth() + 1).padStart(2, '0');
+      // Temporary immediate fallback while fetching sequential from server
+      setOrderNumber(`VAL-MNL-${yr}${mo}-...`);
       setNotes('');
       setItems([]);
       setScanInput('');
       setSelectedMaterialId('');
       setIsScanning(false);
+
+      axiosClient.get('/warehouse/inventory/next-consumption-order-number')
+        .then(res => {
+          if (res.data?.order_number) {
+            setOrderNumber(res.data.order_number);
+          }
+        })
+        .catch(err => {
+          console.warn('Could not fetch next order number from backend:', err);
+          const rnd = Math.floor(100 + Math.random() * 900);
+          setOrderNumber(`VAL-MNL-${yr}${mo}-${rnd}`);
+        });
     }
   }, [isOpen]);
 
-  const { data: materialsData } = useQuery({
-    queryKey: ['materials', 'all'],
+  // Consulta únicamente materiales con existencia en inventario
+  const { data: inventoryData } = useQuery({
+    queryKey: ['warehouse', 'inventory', 'consumption-dropdown'],
     queryFn: async () => {
-      const response = await axiosClient.get(`/materials?pageSize=10000`);
+      const response = await axiosClient.get(`/warehouse/inventory?limit=1000`);
       return response.data;
     },
     enabled: isOpen
   });
 
-  const materialsList = materialsData?.data?.items || (Array.isArray(materialsData?.data) ? materialsData.data : []);
-  const materials = [...materialsList].sort((a: any, b: any) => {
-    const textA = `${a.internal_code} - ${a.name}`.toLowerCase();
-    const textB = `${b.internal_code} - ${b.name}`.toLowerCase();
-    return textA.localeCompare(textB);
-  });
+  const rawInventory = inventoryData?.data?.items || inventoryData?.items || (Array.isArray(inventoryData?.data) ? inventoryData.data : []);
+
+  const materials = useMemo(() => {
+    return rawInventory
+      .filter((inv: any) => Number(inv.amount) > 0 && inv.material)
+      .map((inv: any) => {
+        const mat = inv.material;
+        const unitCode = mat.base_unit?.code || mat.stock_unit?.code || mat.unit?.code || mat.unit?.abbreviation || '';
+        const internalCode = mat.internal_code || mat.material_code || 'S/C';
+        const stock = Number(inv.amount);
+        return {
+          id: mat.id,
+          internal_code: internalCode,
+          name: mat.name,
+          description: mat.description || '',
+          stock,
+          unitCode,
+          label: `${internalCode} - ${mat.name} (Disp: ${stock} ${unitCode})`.trim()
+        };
+      })
+      .sort((a: any, b: any) => a.label.localeCompare(b.label));
+  }, [rawInventory]);
 
   const { mutate: handleConsume, isPending: isSubmitting } = useMutation({
     mutationFn: async () => {
@@ -93,6 +138,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
          }
 
          const parsedQty = Number(inventory.quantity) || 0;
+         const unitCode = inventory.material?.base_unit?.code || inventory.material?.unit?.code || '';
          setItems(prev => [...prev, {
            id: qr.id,
            qrCode: code,
@@ -100,6 +146,9 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
            folio: inventory.folio || 'N/A',
            material_id: inventory.material?.id,
            materialName: inventory.material?.name || 'Material',
+           materialDescription: inventory.material?.description || '',
+           internalCode: inventory.material?.internal_code || '',
+           unitCode,
            maxQuantity: parsedQty,
            quantity: parsedQty 
          }]);
@@ -112,7 +161,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
     }
   };
 
-  const handleAddMaterial = async () => {
+  const handleAddMaterial = () => {
     if (!selectedMaterialId) return;
     const material = materials.find((m: any) => m.id === Number(selectedMaterialId));
     if (!material) return;
@@ -122,28 +171,21 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
       return;
     }
 
-    try {
-      const response = await axiosClient.get(`/warehouse/inventory?material_id=${material.id}`);
-      const inventoryItems = response.data?.data?.items || response.data?.items || [];
-      const inventory = inventoryItems.find((i: any) => Number(i.material_id) === material.id);
-      
-      const maxQuantity = inventory ? Number(inventory.amount) : 0;
-
-      if (maxQuantity <= 0) {
-        toast.error('No hay inventario disponible para este material.');
-        return;
-      }
-
-      setItems(prev => [...prev, {
-        material_id: material.id,
-        materialName: material.name,
-        maxQuantity,
-        quantity: 1
-      }]);
-      setSelectedMaterialId('');
-    } catch (e) {
-      toast.error('Error al obtener inventario del material.');
+    if (material.stock <= 0) {
+      toast.error('No hay inventario disponible para este material.');
+      return;
     }
+
+    setItems(prev => [...prev, {
+      material_id: material.id,
+      materialName: material.name,
+      materialDescription: material.description,
+      internalCode: material.internal_code,
+      unitCode: material.unitCode,
+      maxQuantity: material.stock,
+      quantity: 1
+    }]);
+    setSelectedMaterialId('');
   };
 
   const updateItemQuantity = (index: number, val: number) => {
@@ -157,7 +199,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
   const removeItem = (index: number) => {
     setItems(prev => prev.filter((_, i) => i !== index));
   };
-  const totalQuantity = 0; // Calculo delegado al backend por reglas de arquitectura
+  const totalQuantity = useMemo(() => items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0), [items]);
 
   const onConsume = async () => {
     if (items.length === 0) {

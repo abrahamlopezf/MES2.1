@@ -268,6 +268,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                             value={selectedMaterialId}
                             onChange={onChangeSelectedMaterial}
                             getLabel={(m: any) => `${m.internal_code} - ${m.name}`}
+                            getDescription={(m: any) => m.description || undefined}
                             getValue={(m: any) => m.id.toString()}
                             placeholder="Buscar material..."
                             emptyMessage="No se encontraron materiales"

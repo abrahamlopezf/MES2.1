@@ -56,7 +56,7 @@ const getInventory = async (query = {}) => {
   };
   if (material_id) where.material_id = material_id;
 
-  const limit = Math.min(Number(query.limit) || 100, 300);
+  const limit = Math.min(Number(query.limit) || 100, 1000);
   const offset = Number(query.offset) || 0;
 
   applyMaterialCatalogFilters(where, query);
@@ -67,6 +67,7 @@ const getInventory = async (query = {}) => {
     where[Op.or] = [
       { '$material.name$': { [Op.iLike]: s } },
       { '$material.internal_code$': { [Op.iLike]: s } },
+      { '$material.description$': { [Op.iLike]: s } },
       { material_id: { [Op.in]: sequelize.literal(`(SELECT material_id FROM lotes LEFT JOIN qr_codes ON lotes.qr_id = qr_codes.id WHERE lotes.folio ILIKE '${s}' OR qr_codes.qr_code ILIKE '${s}')`) } }
     ];
   }
@@ -83,14 +84,14 @@ const getInventory = async (query = {}) => {
       {
         model: Material,
         as: 'material',
-        attributes: ['id', 'internal_code', 'name'],
+        attributes: ['id', 'internal_code', 'name', 'description'],
         include: [
           { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
           { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }
         ]
       }
     ],
-    group: ['material_id', 'material.id', 'material->ranking.id', 'material->base_unit.id'],
+    group: ['material_id', 'material.id', 'material.description', 'material->ranking.id', 'material->base_unit.id'],
     order: [[sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'DESC']],
     limit,
     offset,
@@ -135,7 +136,7 @@ const getAreaInventory = async (query = {}, currentUser) => {
       {
         model: Material,
         as: 'material',
-        attributes: ['id', 'internal_code', 'name'],
+        attributes: ['id', 'internal_code', 'name', 'description'],
         include: [
           { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
           { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }

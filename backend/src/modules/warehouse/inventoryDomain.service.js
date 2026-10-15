@@ -139,8 +139,21 @@ class InventoryDomainService {
    * Consumir materiales contra una orden o solicitud
    */
   async consumeMaterials(payload, transaction = null) {
-    const { order_number, user_id, items, notes } = payload;
+    let { order_number, user_id, items, notes } = payload;
     const { MaterialConsumption, MaterialConsumptionItem } = require('../../database/models');
+    const { Op } = require('sequelize');
+
+    if (!order_number || !order_number.trim()) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const prefix = `VAL-MNL-${year}${month}-`;
+      const count = await MaterialConsumption.count({
+        where: { order_number: { [Op.like]: `${prefix}%` } },
+        transaction
+      });
+      order_number = `${prefix}${String(count + 1).padStart(3, '0')}`;
+    }
 
     // Validar y agrupar por material para descontar del inventario
     const materialDiscounts = {};

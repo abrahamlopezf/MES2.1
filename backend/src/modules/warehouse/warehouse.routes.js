@@ -103,6 +103,12 @@ router.get(
   }
 );
 
+router.get(
+  '/inventory/next-consumption-order-number',
+  authorizePermission('warehouse.consume', 'warehouse.read', 'inventory.view'),
+  warehouseController.getNextConsumptionOrderNumber
+);
+
 router.post(
   '/inventory/consume',
   authorizePermission('warehouse.consume'), // Assuming this new permission

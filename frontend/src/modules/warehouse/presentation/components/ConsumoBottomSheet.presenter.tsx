@@ -101,10 +101,15 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
 
         {/* Header */}
         <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
-          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-            <Package size={20} />
-            Consumo de Material
-          </h3>
+          <div>
+            <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+              <Package size={20} className="text-primary" />
+              Consumo de Material (Vale de Almacén)
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Registro para vales físicos o salidas manuales de almacén
+            </p>
+          </div>
           <button 
             onClick={onClose}
             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
@@ -117,23 +122,38 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
         <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-6 bg-background">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">Número de Orden/Solicitud <span className="text-destructive">*</span></label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-foreground">
+                  Número de Vale / Folio <span className="text-destructive">*</span>
+                </label>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  Auto-generado
+                </span>
+              </div>
               <Input 
-                placeholder="Ej. ORD-2023-001" 
+                placeholder="VAL-MNL-202610-001" 
                 value={orderNumber}
                 onChange={e => onChangeOrderNumber(e.target.value)}
-                className="h-12 rounded-xl bg-card shadow-sm"
+                className="h-12 rounded-xl bg-card shadow-sm font-mono font-bold text-primary"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Folio manual para control y trazabilidad del vale físico.
+              </p>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">Notas (Opcional)</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-foreground">
+                SE REQUIERE PARA <span className="text-muted-foreground font-normal text-xs">(Opcional)</span>
+              </label>
               <Input 
-                placeholder="Motivo del consumo o detalles..." 
+                placeholder="Indica para qué proceso, máquina o motivo se requiere..." 
                 value={notes}
                 onChange={e => onChangeNotes(e.target.value)}
                 className="h-12 rounded-xl bg-card shadow-sm"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Destino o justificación indicada en el vale de papel.
+              </p>
             </div>
           </div>
 
@@ -146,10 +166,11 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                     options={materials}
                     value={selectedMaterialId}
                     onChange={onChangeSelectedMaterialId}
-                    getLabel={(m: any) => `${m.internal_code} - ${m.name}`}
+                    getLabel={(m: any) => m.label || `${m.internal_code} - ${m.name}`}
+                    getDescription={(m: any) => m.description || undefined}
                     getValue={(m: any) => m.id.toString()}
-                    placeholder="Buscar material..."
-                    emptyMessage="No se encontraron materiales"
+                    placeholder="Buscar material con existencia en almacén..."
+                    emptyMessage="No hay materiales con existencia en inventario"
                   />
                 </div>
                 <Button variant="secondary" onClick={() => onSetIsScanning(true)} className="shrink-0 group rounded-xl px-4" title="Escanear QR">
@@ -167,18 +188,25 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
               <div className="bg-secondary/10 border border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center mt-2">
                 <QrCode size={40} className="text-muted-foreground mb-3 opacity-50" />
                 <p className="font-bold text-foreground mb-1">No hay materiales agregados</p>
-                <p className="text-sm text-muted-foreground">Escanee o ingrese un código QR para comenzar el consumo.</p>
+                <p className="text-sm text-muted-foreground">Selecciona un material con existencia o escanea un código QR.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3 mt-2">
-                {items.map((item, idx) => (
+                {items.map((item: any, idx) => (
                   <div key={idx} className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card shadow-sm relative">
                     <div className="flex justify-between items-start">
                       <div className="pr-8">
                         <p className="font-bold text-foreground text-sm">{item.materialName}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{item.qrCode || 'Asignación FIFO'} • {item.folio || 'N/A'}</p>
+                        {item.materialDescription && (
+                          <p className="text-xs text-muted-foreground/85 line-clamp-2 mt-0.5">{item.materialDescription}</p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          {item.internalCode && <span className="font-semibold text-primary">{item.internalCode} •</span>}
+                          <span>{item.qrCode ? `QR: ${item.qrCode}` : 'Asignación FIFO'}</span>
+                          {item.folio && item.folio !== 'N/A' && <span>• Lote/Fac: {item.folio}</span>}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Disp: <span className="font-semibold text-foreground">{item.maxQuantity}</span>
+                          Disp: <span className="font-bold text-foreground">{item.maxQuantity} {item.unitCode}</span>
                         </p>
                       </div>
                       <button 
@@ -191,15 +219,26 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                     
                     <div className="flex items-center gap-3 bg-background p-2 rounded-lg border border-border/50">
                       <span className="text-xs font-bold text-foreground uppercase tracking-wider ml-1">Consumir:</span>
-                      <Input 
-                        type="number" 
-                        min="0.1" 
-                        max={item.maxQuantity}
-                        step="0.1"
-                        value={item.quantity}
-                        onChange={e => onUpdateItemQuantity(idx, Number(e.target.value))}
-                        className="h-10 text-right font-bold text-foreground flex-1"
-                      />
+                      <div className="flex items-center flex-1 justify-end gap-1.5">
+                        <Input 
+                          type="number" 
+                          min="0.1" 
+                          max={item.maxQuantity}
+                          step="any"
+                          value={item.quantity === 0 ? '' : item.quantity}
+                          onChange={e => {
+                            let val = parseFloat(e.target.value);
+                            if (isNaN(val)) val = 0;
+                            onUpdateItemQuantity(idx, val);
+                          }}
+                          className="h-10 text-right font-bold text-foreground max-w-[130px]"
+                        />
+                        {item.unitCode && (
+                          <span className="text-xs font-bold text-muted-foreground uppercase px-2 py-1 rounded bg-muted border border-border/50">
+                            {item.unitCode}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

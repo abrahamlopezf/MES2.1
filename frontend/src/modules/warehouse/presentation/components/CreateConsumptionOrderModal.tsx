@@ -35,7 +35,8 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const filteredInventory = inventory.filter(inv => 
     inv.material?.name?.toLowerCase().includes(search.toLowerCase()) || 
     inv.material?.internal_code?.toLowerCase().includes(search.toLowerCase()) ||
-    inv.material?.material_code?.toLowerCase().includes(search.toLowerCase())
+    inv.material?.material_code?.toLowerCase().includes(search.toLowerCase()) ||
+    inv.material?.description?.toLowerCase().includes(search.toLowerCase())
   );
   
   const [submitting, setSubmitting] = useState(false);
@@ -252,10 +253,15 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                               setShowDropdown(false);
                             }}
                           >
-                            <div>
+                            <div className="flex-1 min-w-0 pr-2">
                               <div className="font-bold text-foreground text-sm">{inv.material?.name}</div>
-                              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                                <span>{inv.material?.internal_code || inv.material?.material_code}</span>
+                              {inv.material?.description && (
+                                <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                  {inv.material?.description}
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <span className="font-semibold text-primary">{inv.material?.internal_code || inv.material?.material_code}</span>
                                 {inv.material?.ranking?.name && (
                                   <>
                                     <span>-</span>
@@ -267,6 +273,9 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                                     {unitCode}
                                   </span>
                                 )}
+                                <span className="text-[11px] font-medium text-foreground/70">
+                                  (Disp: {Number(inv.amount)} {unitCode})
+                                </span>
                               </div>
                             </div>
                             <div className="text-right flex items-center gap-2">
@@ -304,6 +313,9 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                       <div key={item.material_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/5 relative">
                         <div className="flex-1 min-w-0 pr-2">
                           <div className="font-bold text-foreground text-sm truncate">{item.material?.name}</div>
+                          {item.material?.description && (
+                            <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{item.material?.description}</div>
+                          )}
                           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                             <span>{item.material?.internal_code || item.material?.material_code || 'S/C'}</span>
                             {item.material?.ranking?.name && (

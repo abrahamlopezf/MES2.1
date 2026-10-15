@@ -55,6 +55,28 @@ const consumeMaterials = async (req, res, next) => {
   }
 };
 
+const getNextConsumptionOrderNumber = async (req, res, next) => {
+  try {
+    const { MaterialConsumption } = require('../../database/models');
+    const { Op } = require('sequelize');
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = `VAL-MNL-${year}${month}-`;
+
+    const count = await MaterialConsumption.count({
+      where: {
+        order_number: { [Op.like]: `${prefix}%` }
+      }
+    });
+
+    const orderNumber = `${prefix}${String(count + 1).padStart(3, '0')}`;
+    return res.status(200).json({ success: true, order_number: orderNumber });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const changeLocation = async (req, res, next) => {
   try {
     const result = await warehouseService.changeLocation(req.body, req.user);
@@ -151,6 +173,7 @@ module.exports = {
   disposeLotes,
   getLoteDetails,
   consumeMaterials,
+  getNextConsumptionOrderNumber,
   changeLocation,
   getDashboardMetrics,
   manualEntry,

@@ -8,6 +8,7 @@ export interface SearchSelectProps<T> {
   onChange: (value: any) => void;
   getLabel: (option: T) => string;
   getValue: (option: T) => any;
+  getDescription?: (option: T) => string | undefined;
   searchable?: boolean;
   placeholder?: string;
   loading?: boolean;
@@ -21,6 +22,7 @@ export function SearchSelect<T>({
   onChange,
   getLabel,
   getValue,
+  getDescription,
   searchable = true,
   placeholder = 'Seleccionar...',
   loading = false,
@@ -44,8 +46,12 @@ export function SearchSelect<T>({
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
     const lowerTerm = searchTerm.toLowerCase();
-    return options.filter(opt => getLabel(opt)?.toLowerCase().includes(lowerTerm));
-  }, [options, searchable, searchTerm, getLabel]);
+    return options.filter(opt => {
+      const label = getLabel(opt)?.toLowerCase() || '';
+      const desc = getDescription ? (getDescription(opt)?.toLowerCase() || '') : '';
+      return label.includes(lowerTerm) || desc.includes(lowerTerm);
+    });
+  }, [options, searchable, searchTerm, getLabel, getDescription]);
 
   const selectedOption = useMemo(() => {
     return options.find(opt => getValue(opt) === value);
@@ -69,9 +75,16 @@ export function SearchSelect<T>({
           ${isOpen ? 'border-primary shadow-[0_0_0_4px] shadow-ring/20' : 'border-border'}
         `}
       >
-        <span className={`text-base font-semibold leading-tight line-clamp-2 pr-2 ${selectedOption ? 'text-foreground' : 'text-muted-foreground'}`}>
-          {selectedOption ? getLabel(selectedOption) : placeholder}
-        </span>
+        <div className="flex flex-col min-w-0 pr-2 text-left flex-1">
+          <span className={`text-sm sm:text-base font-semibold leading-tight line-clamp-1 ${selectedOption ? 'text-foreground' : 'text-muted-foreground'}`}>
+            {selectedOption ? getLabel(selectedOption) : placeholder}
+          </span>
+          {selectedOption && getDescription && getDescription(selectedOption) && (
+            <span className="text-xs text-muted-foreground line-clamp-1 mt-0.5 font-normal">
+              {getDescription(selectedOption)}
+            </span>
+          )}
+        </div>
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground shrink-0" />
         ) : (
@@ -89,7 +102,7 @@ export function SearchSelect<T>({
               <input
                 autoFocus
                 type="text"
-                placeholder="Buscar..."
+                placeholder="Buscar por código, nombre o descripción..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-transparent border-none outline-none text-foreground text-sm font-medium placeholder:text-muted-foreground placeholder:font-normal"
@@ -114,7 +127,12 @@ export function SearchSelect<T>({
                       ${isSelected ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}
                     `}
                   >
-                    {getLabel(opt)}
+                    <div className="font-semibold text-sm leading-snug">{getLabel(opt)}</div>
+                    {getDescription && getDescription(opt) && (
+                      <div className={`text-xs mt-0.5 line-clamp-2 ${isSelected ? 'text-primary-foreground/90 font-normal' : 'text-muted-foreground font-normal'}`}>
+                        {getDescription(opt)}
+                      </div>
+                    )}
                   </div>
                 );
               })
