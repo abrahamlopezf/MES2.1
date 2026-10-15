@@ -69,7 +69,7 @@ export const ConsumptionOrderPrintTemplate: React.FC<{ order: Order }> = ({ orde
       {/* Notes */}
       {order.notes && (
         <div className="mb-8 p-4 border-l-4 border-black bg-gray-100">
-          <h3 className="text-sm font-bold uppercase mb-1">Notas / Justificación</h3>
+          <h3 className="text-sm font-bold uppercase mb-1">SE REQUIERE PARA</h3>
           <p className="text-sm">{order.notes}</p>
         </div>
       )}
@@ -82,7 +82,7 @@ export const ConsumptionOrderPrintTemplate: React.FC<{ order: Order }> = ({ orde
             <th className="border border-black p-3 text-left font-bold w-16">No.</th>
             <th className="border border-black p-3 text-left font-bold">Código</th>
             <th className="border border-black p-3 text-left font-bold">Material</th>
-            <th className="border border-black p-3 text-center font-bold">Lote Asignado (FIFO)</th>
+            <th className="border border-black p-3 text-center font-bold">Lote / Factura</th>
             <th className="border border-black p-3 text-right font-bold w-32">Cantidad</th>
           </tr>
         </thead>
@@ -90,12 +90,14 @@ export const ConsumptionOrderPrintTemplate: React.FC<{ order: Order }> = ({ orde
           {order.items?.map((item, index) => (
             <tr key={index}>
               <td className="border border-black p-3 text-center">{index + 1}</td>
-              <td className="border border-black p-3 font-mono text-sm">{item.material?.material_code}</td>
+              <td className="border border-black p-3 text-sm">{item.material?.material_code || item.material?.internal_code}</td>
               <td className="border border-black p-3 font-medium">{item.material?.name}</td>
-              <td className="border border-black p-3 text-center font-mono text-sm">{item.lote?.folio || 'N/A'}</td>
+              <td className="border border-black p-3 text-center text-sm">{item.lote?.folio || 'N/A'}</td>
               <td className="border border-black p-3 text-right">
                 <span className="font-bold text-lg">{parseFloat(item.requested_quantity).toFixed(2)}</span>
-                <span className="text-xs ml-1 text-gray-600">{item.unit?.abbreviation || 'Unidades'}</span>
+                <span className="text-xs ml-1 font-bold text-gray-700 uppercase">
+                  {item.material?.base_unit?.code || item.unit?.code || item.unit?.abbreviation || 'U'}
+                </span>
               </td>
             </tr>
           ))}
@@ -110,16 +112,25 @@ export const ConsumptionOrderPrintTemplate: React.FC<{ order: Order }> = ({ orde
       </table>
 
       {/* Signatures */}
-      <div className="flex justify-between mt-16 pt-8 border-t border-gray-300">
-        <div className="w-64 text-center">
+      <div className="grid grid-cols-3 gap-6 mt-16 pt-8 border-t border-gray-300">
+        <div className="text-center">
           <div className="border-b border-black mb-2 h-10"></div>
-          <p className="font-bold text-sm">Firma de Entrega (Almacén)</p>
+          <p className="font-bold text-sm">Autoriza</p>
           <p className="text-xs text-gray-500">Nombre y Firma</p>
         </div>
-        <div className="w-64 text-center">
+        <div className="text-center">
           <div className="border-b border-black mb-2 h-10"></div>
-          <p className="font-bold text-sm">Firma de Recibido (Producción)</p>
-          <p className="text-xs text-gray-500">Nombre y Firma</p>
+          <p className="font-bold text-sm">Solicita</p>
+          <p className="text-xs text-gray-800 font-semibold">
+            {order.requester ? `${order.requester.name || order.requester.first_name || ''} ${order.requester.last_name || ''}`.trim() : 'Nombre y Firma'}
+          </p>
+        </div>
+        <div className="text-center">
+          <div className="border-b border-black mb-2 h-10"></div>
+          <p className="font-bold text-sm">Autoriza/almacen</p>
+          <p className="text-xs text-gray-800 font-semibold">
+            {(order as any).admin_alm?.name || ((order as any).resolver ? `${(order as any).resolver.first_name || ''} ${(order as any).resolver.last_name || ''}`.trim() : 'Administrador ALM')}
+          </p>
         </div>
       </div>
       

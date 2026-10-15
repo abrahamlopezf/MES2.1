@@ -20,8 +20,21 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   
+  const getUnitCode = (item: any) => {
+    return (
+      item.material?.base_unit?.code ||
+      item.material?.stock_unit?.code ||
+      item.material?.unit?.code ||
+      item.material?.unit?.abbreviation ||
+      item.unit?.code ||
+      item.unit?.abbreviation ||
+      ''
+    );
+  };
+
   const filteredInventory = inventory.filter(inv => 
     inv.material?.name?.toLowerCase().includes(search.toLowerCase()) || 
+    inv.material?.internal_code?.toLowerCase().includes(search.toLowerCase()) ||
     inv.material?.material_code?.toLowerCase().includes(search.toLowerCase())
   );
   
@@ -227,27 +240,43 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                     ) : filteredInventory.length === 0 ? (
                       <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron materiales.</div>
                     ) : (
-                      filteredInventory.map(inv => (
-                        <div 
-                          key={inv.material_id} 
-                          className="p-3 border-b border-border hover:bg-muted/30 cursor-pointer flex justify-between items-center transition-colors"
-                          onClick={() => {
-                            addItem(inv);
-                            setSearch('');
-                            setShowDropdown(false);
-                          }}
-                        >
-                          <div>
-                            <div className="font-bold text-foreground text-sm">{inv.material?.name}</div>
-                            <div className="text-xs text-muted-foreground">{inv.material?.material_code} - {inv.material?.ranking?.name}</div>
+                      filteredInventory.map(inv => {
+                        const unitCode = getUnitCode(inv);
+                        return (
+                          <div 
+                            key={inv.material_id} 
+                            className="p-3 border-b border-border hover:bg-muted/30 cursor-pointer flex justify-between items-center transition-colors"
+                            onClick={() => {
+                              addItem(inv);
+                              setSearch('');
+                              setShowDropdown(false);
+                            }}
+                          >
+                            <div>
+                              <div className="font-bold text-foreground text-sm">{inv.material?.name}</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                                <span>{inv.material?.internal_code || inv.material?.material_code}</span>
+                                {inv.material?.ranking?.name && (
+                                  <>
+                                    <span>-</span>
+                                    <span>{inv.material?.ranking?.name}</span>
+                                  </>
+                                )}
+                                {unitCode && (
+                                  <span className="px-1.5 py-0.2 rounded bg-muted text-[10px] font-bold text-foreground/80 border border-border/50 uppercase">
+                                    {unitCode}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right flex items-center gap-2">
+                              {items.some(i => i.material_id === inv.material_id) && (
+                                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">AGREGADO</span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right flex items-center gap-2">
-                            {items.some(i => i.material_id === inv.material_id) && (
-                              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">AGREGADO</span>
-                            )}
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -269,89 +298,117 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                 </div>
               ) : (
                 <div className="space-y-4 mb-6">
-                  {items.map(item => (
-                    <div key={item.material_id} className="flex gap-4 items-start p-4 rounded-xl border border-border bg-muted/5 relative">
-                      <div className="flex-1">
-                        <div className="font-bold text-foreground text-sm">{item.material?.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {item.material?.material_code} - {item.material?.ranking?.name}
+                  {items.map(item => {
+                    const unitCode = getUnitCode(item);
+                    return (
+                      <div key={item.material_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/5 relative">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="font-bold text-foreground text-sm truncate">{item.material?.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                            <span>{item.material?.internal_code || item.material?.material_code || 'S/C'}</span>
+                            {item.material?.ranking?.name && (
+                              <>
+                                <span>-</span>
+                                <span>{item.material?.ranking?.name}</span>
+                              </>
+                            )}
+                            {unitCode && (
+                              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wider border border-primary/20">
+                                {unitCode}
+                              </span>
+                            )}
+                          </div>
+                          {Number(item.amount) > 0 && (
+                            <div className="text-xs text-muted-foreground/80 mt-1">
+                              Disponible: <strong className="text-foreground">{Number(item.amount)} {unitCode}</strong>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-3 shrink-0">
+                          {!item.isConfirmed ? (
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center bg-background border border-border rounded-lg focus-within:border-primary overflow-hidden shadow-sm transition-colors">
+                                <input 
+                                  type="number" 
+                                  min="1" 
+                                  max={Number(item.amount) || 0}
+                                  step="any"
+                                  value={item.req_quantity === 0 ? '' : item.req_quantity}
+                                  onChange={(e) => {
+                                    let val = parseFloat(e.target.value);
+                                    if (isNaN(val)) val = 0;
+                                    if (val < 0) val = Math.abs(val);
+                                    updateItemQty(item.material_id, val);
+                                  }}
+                                  className="w-16 sm:w-20 px-2.5 py-1.5 bg-transparent text-sm outline-none font-bold text-center text-primary"
+                                />
+                                {unitCode && (
+                                  <span className="px-2 py-1 bg-muted/40 border-l border-border text-xs text-muted-foreground font-bold uppercase select-none pointer-events-none">
+                                    {unitCode}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleConfirmItem(item.material_id)}
+                                className="p-1.5 bg-success text-success-foreground rounded-lg hover:bg-success/90 transition-colors shadow-sm"
+                                title="Confirmar cantidad"
+                              >
+                                <Check size={16} />
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => removeItem(item.material_id)}
+                                className="p-1.5 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-colors shadow-sm"
+                                title="Eliminar material"
+                              >
+                                <Trash size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                              <div className="text-sm font-black text-primary flex items-center gap-1.5">
+                                <span>{item.req_quantity}</span>
+                                {unitCode && (
+                                  <span className="text-xs text-muted-foreground font-bold uppercase px-1.5 py-0.5 rounded bg-muted border border-border/40">
+                                    {unitCode}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="w-px h-4 bg-border"></div>
+                              <button
+                                type="button"
+                                onClick={() => toggleConfirmItem(item.material_id)}
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                                title="Editar cantidad"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <div className="w-px h-4 bg-border"></div>
+                              <button 
+                                type="button"
+                                onClick={() => removeItem(item.material_id)}
+                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                title="Eliminar material"
+                              >
+                                <Trash size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-3">
-                        {!item.isConfirmed ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-28 relative flex items-center">
-                              <input 
-                                type="number" 
-                                min="1" 
-                                max={Number(item.amount) || 0}
-                                step="1"
-                                value={item.req_quantity === 0 ? '' : item.req_quantity}
-                                onChange={(e) => {
-                                  let val = parseFloat(e.target.value);
-                                  if (isNaN(val)) val = 0;
-                                  if (val < 0) val = Math.abs(val);
-                                  updateItemQty(item.material_id, val);
-                                }}
-                                className="w-full px-3 py-1.5 pr-8 bg-background border border-border rounded-lg text-sm focus:border-primary outline-none font-bold text-center text-primary"
-                              />
-                              <span className="absolute right-3 text-xs text-muted-foreground font-medium pointer-events-none">{item.material?.unit?.abbreviation}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => toggleConfirmItem(item.material_id)}
-                              className="p-1.5 bg-success text-success-foreground rounded-lg hover:bg-success/90 transition-colors shadow-sm"
-                              title="Confirmar cantidad"
-                            >
-                              <Check size={16} />
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => removeItem(item.material_id)}
-                              className="p-1.5 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-colors shadow-sm"
-                              title="Eliminar material"
-                            >
-                              <Trash size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
-                            <div className="text-sm font-black text-primary">
-                              {item.req_quantity} <span className="text-xs text-muted-foreground font-medium">{item.material?.unit?.abbreviation}</span>
-                            </div>
-                            <div className="w-px h-4 bg-border"></div>
-                            <button
-                              type="button"
-                              onClick={() => toggleConfirmItem(item.material_id)}
-                              className="text-muted-foreground hover:text-primary transition-colors"
-                              title="Editar cantidad"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <div className="w-px h-4 bg-border"></div>
-                            <button 
-                              type="button"
-                              onClick={() => removeItem(item.material_id)}
-                              className="text-muted-foreground hover:text-destructive transition-colors"
-                              title="Eliminar material"
-                            >
-                              <Trash size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
               <div className="mt-8 border-t border-border pt-6">
-                <label className="block text-sm font-semibold text-foreground mb-2">Notas / Justificación</label>
+                <label className="block text-sm font-semibold text-foreground mb-2">SE REQUIERE PARA</label>
                 <textarea 
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Instrucciones para almacén o motivo del consumo..."
+                  placeholder="Especifica el motivo, máquina, proceso o justificación del consumo..."
                   className="w-full px-4 py-3 bg-muted/10 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary outline-none resize-none h-24"
                 />
               </div>

@@ -14,16 +14,35 @@ app.use(helmet());
 
 const allowedOrigins = (
   process.env.CLIENT_URL || "http://localhost:5173"
-).split(",");
+)
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""));
 
 app.use(
   cors({
     origin(origin, callback) {
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      const normalizedOrigin = origin.trim().replace(/\/$/, "");
 
-      return callback(new Error("CORS no permitido"));
+      // 1. Orígenes configurados explícitamente en CLIENT_URL o localhost
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        normalizedOrigin.includes("localhost") ||
+        normalizedOrigin.includes("127.0.0.1")
+      ) {
+        return callback(null, true);
+      }
+
+      // 2. Permitir cualquier despliegue en Vercel (*.vercel.app)
+      if (
+        normalizedOrigin.endsWith(".vercel.app") ||
+        normalizedOrigin.includes("vercel.app")
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
     },
 
     credentials: true,

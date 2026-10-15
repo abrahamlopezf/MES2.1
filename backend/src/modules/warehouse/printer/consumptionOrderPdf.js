@@ -48,7 +48,7 @@ const generateConsumptionOrderPdf = async (order, res) => {
 
       // Notes
       if (order.notes) {
-        doc.fontSize(10).font('Helvetica-Bold').fillColor('black').text('Notas / Justificación:');
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('black').text('SE REQUIERE PARA:');
         doc.font('Helvetica').text(order.notes);
         doc.moveDown(2);
       }
@@ -58,20 +58,19 @@ const generateConsumptionOrderPdf = async (order, res) => {
       doc.moveDown(1);
 
       const tableTop = doc.y;
-      const colWidths = [30, 80, 200, 100, 100];
-      const colX = [50, 80, 160, 360, 460];
+      const colWidths = [30, 95, 170, 95, 95];
+      const colX = [50, 88, 192, 368, 465];
       
       // Table Header
-      doc.rect(50, tableTop, 510, 20).fillAndStroke('#eeeeee', '#000000');
-      doc.fillColor('black').fontSize(10).font('Helvetica-Bold');
-      doc.text('No.', colX[0], tableTop + 5, { width: colWidths[0], align: 'center' });
-      doc.text('Código', colX[1], tableTop + 5, { width: colWidths[1], align: 'left' });
-      doc.text('Material', colX[2], tableTop + 5, { width: colWidths[2], align: 'left' });
-      doc.text('Lote', colX[3], tableTop + 5, { width: colWidths[3], align: 'center' });
-      // Restar 10 al width para agregar padding derecho
-      doc.text('Cantidad', colX[4], tableTop + 5, { width: colWidths[4] - 10, align: 'right' });
+      doc.rect(50, tableTop, 510, 22).fillAndStroke('#eeeeee', '#000000');
+      doc.fillColor('black').fontSize(9.5).font('Helvetica-Bold');
+      doc.text('No.', colX[0], tableTop + 6, { width: colWidths[0], align: 'center' });
+      doc.text('Código', colX[1], tableTop + 6, { width: colWidths[1], align: 'left' });
+      doc.text('Material', colX[2], tableTop + 6, { width: colWidths[2], align: 'left' });
+      doc.text('Lote / Factura', colX[3], tableTop + 6, { width: colWidths[3], align: 'center' });
+      doc.text('Cantidad', colX[4], tableTop + 6, { width: colWidths[4] - 5, align: 'right' });
 
-      let y = tableTop + 20;
+      let y = tableTop + 22;
       doc.font('Helvetica');
 
       if (!order.items || order.items.length === 0) {
@@ -81,8 +80,9 @@ const generateConsumptionOrderPdf = async (order, res) => {
       } else {
         order.items.forEach((item, index) => {
           doc.rect(50, y, 510, 25).stroke();
-          doc.fillColor('black').text(index + 1, colX[0], y + 7, { width: colWidths[0], align: 'center' });
-          doc.font('Courier').text(item.material?.material_code || '', colX[1], y + 7, { width: colWidths[1], align: 'left' });
+          doc.fillColor('black').fontSize(9);
+          doc.font('Helvetica').text(index + 1, colX[0], y + 7, { width: colWidths[0], align: 'center' });
+          doc.font('Helvetica').text(item.material?.material_code || item.material?.internal_code || '', colX[1], y + 7, { width: colWidths[1], align: 'left' });
           doc.font('Helvetica').text(item.material?.name || '', colX[2], y + 7, { width: colWidths[2], align: 'left', height: 15, ellipsis: true });
           
           let folio = item.lote?.folio || 'N/A';
@@ -92,26 +92,63 @@ const generateConsumptionOrderPdf = async (order, res) => {
             folio = timestamp ? `E-MNL-${timestamp.slice(-4)}` : 'E-MNL';
           }
           
-          doc.font('Courier').text(folio, colX[3], y + 7, { width: colWidths[3], align: 'center' });
+          doc.font('Helvetica').text(folio, colX[3], y + 7, { width: colWidths[3], align: 'center' });
           
           const qty = parseFloat(item.requested_quantity).toFixed(2);
-          const unit = item.unit?.abbreviation || 'Unidades';
-          // Restar 10 al width para agregar padding derecho
-          doc.font('Helvetica-Bold').text(`${qty} ${unit}`, colX[4], y + 7, { width: colWidths[4] - 10, align: 'right' });
+          const unit = item.material?.base_unit?.code || item.unit?.code || item.unit?.abbreviation || 'U';
+          doc.font('Helvetica-Bold').text(`${qty} ${unit}`, colX[4], y + 7, { width: colWidths[4] - 5, align: 'right' });
           
           y += 25;
         });
       }
 
       // Signatures
-      doc.moveDown(5);
-      const signatureY = doc.y;
-      
-      doc.moveTo(100, signatureY).lineTo(250, signatureY).stroke();
-      doc.fontSize(10).font('Helvetica-Bold').text('Firma de Entrega (Almacén)', 100, signatureY + 5, { width: 150, align: 'center' });
-      
-      doc.moveTo(350, signatureY).lineTo(500, signatureY).stroke();
-      doc.text('Firma de Recibido (Producción)', 350, signatureY + 5, { width: 150, align: 'center' });
+      const requesterName = order.requester?.name 
+        ? order.requester.name 
+        : [order.requester?.first_name || '', order.requester?.last_name || ''].filter(Boolean).join(' ').trim();
+
+      let adminAlmName = order.admin_alm?.name;
+      if (!adminAlmName) {
+        if (order.resolver?.first_name) {
+          adminAlmName = `${order.resolver.first_name} ${order.resolver.last_name || ''}`.trim();
+        } else {
+          try {
+            const { User, Role } = require('../../../database/models');
+            const adminUser = await User.findOne({
+              include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' } }]
+            });
+            if (adminUser) {
+              adminAlmName = `${adminUser.first_name || ''} ${adminUser.last_name || ''}`.trim() || adminUser.username;
+            }
+          } catch (e) {
+            console.error('Error fetching admin_alm for pdf:', e);
+          }
+        }
+      }
+      if (!adminAlmName) adminAlmName = 'Administrador ALM';
+
+      if (doc.y > 620) {
+        doc.addPage();
+        doc.y = 50;
+      } else {
+        doc.moveDown(4);
+      }
+      const signatureY = doc.y + 10;
+
+      // 1. Autoriza
+      doc.moveTo(50, signatureY).lineTo(195, signatureY).stroke();
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('black').text('Autoriza', 45, signatureY + 6, { width: 155, align: 'center' });
+      doc.fontSize(8).font('Helvetica').fillColor('#666666').text('Nombre y Firma', 45, signatureY + 20, { width: 155, align: 'center' });
+
+      // 2. Solicita
+      doc.moveTo(233, signatureY).lineTo(378, signatureY).stroke();
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('black').text('Solicita', 228, signatureY + 6, { width: 155, align: 'center' });
+      doc.fontSize(8).font('Helvetica').fillColor('black').text(requesterName || 'Nombre y Firma', 228, signatureY + 20, { width: 155, align: 'center' });
+
+      // 3. Autoriza/almacen
+      doc.moveTo(416, signatureY).lineTo(561, signatureY).stroke();
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('black').text('Autoriza/almacen', 411, signatureY + 6, { width: 155, align: 'center' });
+      doc.fontSize(8).font('Helvetica').fillColor('black').text(adminAlmName, 411, signatureY + 20, { width: 155, align: 'center' });
 
       doc.end();
       resolve();

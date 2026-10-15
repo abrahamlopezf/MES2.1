@@ -193,7 +193,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
 
               {order.notes && (
                 <div className="bg-info/5 border border-info/20 p-4 rounded-xl">
-                  <strong className="text-sm text-info block mb-1">Notas / Instrucciones:</strong>
+                  <strong className="text-sm text-info block mb-1">SE REQUIERE PARA:</strong>
                   <p className="text-sm text-foreground m-0">{order.notes}</p>
                 </div>
               )}
@@ -208,7 +208,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                       <tr>
                         <th className="px-4 py-3 text-sm font-semibold text-muted-foreground w-10">Status</th>
                         <th className="px-4 py-3 text-sm font-semibold text-muted-foreground">Material</th>
-                        <th className="px-4 py-3 text-sm font-semibold text-muted-foreground">Lote Esperado</th>
+                        <th className="px-4 py-3 text-sm font-semibold text-muted-foreground">Lote / Factura</th>
                         <th className="px-4 py-3 text-sm font-semibold text-muted-foreground text-right">Cantidad Surtida</th>
                       </tr>
                     </thead>
@@ -286,7 +286,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                                   <span className="text-muted-foreground mx-1">/</span>
                                   <span className="text-foreground">{parseFloat(item.requested_quantity).toFixed(2)}</span>
                                 </div>
-                                <div className="text-xs text-muted-foreground">{item.unit?.abbreviation || 'Unidades'}</div>
+                                <div className="text-xs font-bold text-muted-foreground uppercase">{item.material?.base_unit?.code || item.unit?.code || item.unit?.abbreviation || 'U'}</div>
                               </td>
                             </tr>
                           );

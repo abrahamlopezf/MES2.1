@@ -44,6 +44,9 @@ class ConsumptionOrderService {
         throw new Error(`Inventario insuficiente para el material ID ${material_id}. Solicitado: ${quantity}, Disponible: ${totalAvailable}.`);
       }
 
+      // Get material to have fallback base_unit_id
+      const materialRecord = await Material.findByPk(material_id, { attributes: ['id', 'base_unit_id'], transaction });
+
       const allocations = [];
       let remainingQuantity = quantity;
 
@@ -58,7 +61,7 @@ class ConsumptionOrderService {
           material_id,
           lote_id: lot.id,
           requested_quantity: quantityToTake,
-          unit_id: lot.unit_id || null,
+          unit_id: lot.unit_id || materialRecord?.base_unit_id || null,
         });
 
         remainingQuantity -= quantityToTake;
@@ -124,7 +127,14 @@ class ConsumptionOrderService {
           model: ConsumptionOrderItem, 
           as: 'items',
           include: [
-            { model: Material, as: 'material' },
+            { 
+              model: Material, 
+              as: 'material',
+              include: [
+                { model: MaterialUnit, as: 'base_unit', attributes: ['id', 'name', 'code'] }
+              ]
+            },
+            { model: MaterialUnit, as: 'unit', attributes: ['id', 'name', 'code'] },
             { 
               model: Lote, 
               as: 'lote',
@@ -194,7 +204,8 @@ class ConsumptionOrderService {
             lote: lot.toJSON(),
             requested_quantity: qtyToTake,
             fulfilled_quantity: 0,
-            unit_id: lot.unit_id
+            unit_id: lot.unit_id || materialMap[matId]?.base_unit_id || materialMap[matId]?.base_unit?.id,
+            unit: materialMap[matId]?.base_unit
           });
           
           pending -= qtyToTake;
@@ -210,12 +221,29 @@ class ConsumptionOrderService {
             lote: null,
             requested_quantity: pending,
             fulfilled_quantity: 0,
-            unit_id: null
+            unit_id: materialMap[matId]?.base_unit_id || materialMap[matId]?.base_unit?.id,
+            unit: materialMap[matId]?.base_unit
           });
         }
       }
 
       plainOrder.items = finalItems;
+    }
+
+    try {
+      const { Role } = require('../../database/models');
+      const adminAlmUser = await User.findOne({
+        include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' }, attributes: ['code', 'name'] }],
+        attributes: ['id', 'first_name', 'last_name', 'email', 'username']
+      });
+      if (adminAlmUser) {
+        plainOrder.admin_alm = {
+          id: adminAlmUser.id,
+          name: `${adminAlmUser.first_name || ''} ${adminAlmUser.last_name || ''}`.trim() || adminAlmUser.username
+        };
+      }
+    } catch (err) {
+      console.error('Error fetching admin_alm user:', err);
     }
 
     plainOrder.encrypted_qr = encryptQrData(`ORD-${plainOrder.uuid}`);
