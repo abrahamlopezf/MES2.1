@@ -68,38 +68,33 @@ export const useSmartScanner = () => {
       // Routing logic based on Token Status & User Role
       if (tokenStatus === 'GENERATED' || tokenStatus === 'AVAILABLE' || tokenStatus === 'UNASSIGNED') {
         // Virgin QR logic
-        const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
+        const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || ''))?.toUpperCase();
         switch (roleCode) {
-          case 'WAREHOUSE_OPERATOR':
-          case 'WAREHOUSEMAN':
           case 'ADMIN_ALM':
           case 'ADMIN':
           case 'ADMIN_GENERAL':
           case 'ADMIN_GRAL':
           case 'SUPERADMIN':
-            // Route admins and warehouse operators to the reception screen
+            // Route warehouse admins to the reception screen
             navigate(`/warehouse/receive?qr=${cleanQrCode}`);
             return true;
+          case 'WAREHOUSE_OPERATOR':
+          case 'WAREHOUSEMAN':
+            toast.warning("El registro de ingresos en almacén solo puede ser realizado por el Administrador de Almacén (ADMIN_ALM).");
+            return false;
           case 'MIXING_OPERATOR':
             navigate(`/production/mixing?qr=${cleanQrCode}`);
             return true;
           case 'EXTRUSION_OPERATOR':
-            // Racks init usually uses virgin QRs
-            navigate(`/production/extrusion/rack/new?qr=${cleanQrCode}`);
-            return true;
+            toast.warning("El módulo de extrusión está restringido temporalmente a Superadmin.");
+            return false;
           default:
             toast.warning("No hay una acción predeterminada para este QR virgen con tu rol actual.");
             return false;
         }
       } else {
         // En uso o consumido: Puede ser un lote de material, una mezcla, etc.
-        if (tokenStatus === 'ACTIVE' && user.role === 'EXTRUSION_OPERATOR') {
-            // If they scan an active QR in extrusion, it's likely they are feeding a MixBatch
-            navigate(`/production/extrusion?feedQr=${cleanQrCode}`);
-            return true;
-        }
-        
-        // Para cualquier otro estatus (ACTIVE, CONSUMED, IN_WIP, etc.) o rol, abrimos trazabilidad
+        // Para cualquier estatus en uso (ACTIVE, CONSUMED, IN_WIP, etc.) abrimos trazabilidad
         navigate(`/traceability/genealogy?tokenId=${cleanQrCode}`);
         return true;
       }

@@ -38,7 +38,15 @@ export const AreasPage: React.FC = () => {
       hiddenRoles: ['ADMIN_EXT'],
       children: [
         { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y clasificaciones', icon: Package, path: '/materials', permission: 'materials.read' },
-        { id: 'recepcion', title: 'Recepción de Material', description: 'Escanear QR de ingreso', icon: PackagePlus, onClick: () => window.dispatchEvent(new Event('open-scanner')), permission: 'inventory.receive' },
+        { 
+          id: 'recepcion', 
+          title: 'Recepción de Material', 
+          description: 'Escanear QR de ingreso', 
+          icon: PackagePlus, 
+          onClick: () => window.dispatchEvent(new Event('open-scanner')), 
+          permission: 'inventory.receive',
+          allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM']
+        },
         { id: 'inventario', title: 'Inventario Físico', description: 'Stock valorado y ubicaciones', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
         { id: 'merma_scrap', title: 'Control Merma y Scrap', description: 'Registro y análisis de bajas', icon: AlertTriangle, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
         { id: 'ordenes_consumo', title: 'Órdenes de Consumo', description: 'Solicitudes y surtido', icon: Boxes, path: '/warehouse/orders', permission: '' },
@@ -58,8 +66,7 @@ export const AreasPage: React.FC = () => {
       description: 'Líneas, Racks y Mezclado', 
       icon: Factory,
       gradient: 'from-amber-500/20 to-orange-500/20 text-amber-500',
-      permission: 'extrusion.view',
-      hiddenRoles: ['ADMIN_ALM'],
+      allowedRoles: ['SUPERADMIN'],
       children: [
         { id: 'tablero_colas', title: 'Tablero de Colas', description: 'Monitoreo de producción', icon: MonitorPlay, path: '/extrusion/board', allowedRoles: ['SUPERADMIN'], permission: 'extrusion.view' },
         { id: 'rack_ingress', title: 'Ingreso PTI a Racks', description: 'Asignación de racks en piso', icon: Boxes, path: '/extrusion/rack-ingress', allowedRoles: ['SUPERADMIN'], permission: 'extrusion.view' },

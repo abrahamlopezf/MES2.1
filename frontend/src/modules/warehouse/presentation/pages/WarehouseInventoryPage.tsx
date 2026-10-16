@@ -16,7 +16,9 @@ import { TFSelect } from '../../../../components/tf-ui';
 export const WarehouseInventoryPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user } = useAuthStore();
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isAdminAlm = ['ADMIN_ALM', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
   const [family, setFamily] = useState('');
@@ -93,42 +95,38 @@ export const WarehouseInventoryPage: React.FC = () => {
                 <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
                 <span className="truncate">Actualizar</span>
               </Button>
-              {(hasPermission('warehouse.consume') || hasPermission('warehouse.manual_entry') || hasPermission('warehouse.waste') || hasPermission('warehouse.dispose')) && (
-                <>
-                  {(hasPermission('warehouse.waste') || hasPermission('warehouse.dispose')) && (
-                    <Button
-                      variant="destructive"
-                      size="lg"
-                      onClick={() => setIsBajaModalOpen(true)}
-                      className="font-bold shadow-sm w-full justify-center bg-red-600 hover:bg-red-700 text-white h-12 text-xs sm:text-sm"
-                    >
-                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
-                      <span className="truncate">Baja</span>
-                    </Button>
-                  )}
-                  {hasPermission('warehouse.consume') && (
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onClick={() => setIsConsumoModalOpen(true)}
-                      className="font-bold shadow-sm w-full justify-center bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-12 text-xs sm:text-sm"
-                    >
-                      <QrCode className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
-                      <span className="truncate">Consumo</span>
-                    </Button>
-                  )}
-                  {hasPermission('warehouse.manual_entry') && (
-                    <Button
-                      variant="secondary"
-                      size="lg"
-                      onClick={() => setIsManualEntryModalOpen(true)}
-                      className="font-bold shadow-sm w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 h-12 text-xs sm:text-sm"
-                    >
-                      <Layers className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
-                      <span className="truncate">Ingreso</span>
-                    </Button>
-                  )}
-                </>
+              {isAdminAlm && (
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  onClick={() => setIsBajaModalOpen(true)}
+                  className="font-bold shadow-sm w-full justify-center bg-red-600 hover:bg-red-700 text-white h-12 text-xs sm:text-sm"
+                >
+                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
+                  <span className="truncate">Baja</span>
+                </Button>
+              )}
+              {hasPermission('warehouse.consume') && (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => setIsConsumoModalOpen(true)}
+                  className="font-bold shadow-sm w-full justify-center bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-12 text-xs sm:text-sm"
+                >
+                  <QrCode className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
+                  <span className="truncate">Consumo</span>
+                </Button>
+              )}
+              {isAdminAlm && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => setIsManualEntryModalOpen(true)}
+                  className="font-bold shadow-sm w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 h-12 text-xs sm:text-sm"
+                >
+                  <Layers className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
+                  <span className="truncate">Ingreso</span>
+                </Button>
               )}
             </div>
           </div>
@@ -329,9 +327,11 @@ export const WarehouseInventoryPage: React.FC = () => {
                         <Button variant="secondary" size="sm" className="w-full justify-start h-10" onClick={() => setSelectedInfoItem(item)}>
                           <Info size={16} className="mr-2 text-muted-foreground" /> Detalles
                         </Button>
-                        <Button variant="destructive" size="sm" className="w-full justify-start h-10 bg-red-600 hover:bg-red-700 text-white" onClick={() => setSelectedBajaItem(item)}>
-                          <ShieldAlert size={16} className="mr-2" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
-                        </Button>
+                        {isAdminAlm && (
+                          <Button variant="destructive" size="sm" className="w-full justify-start h-10 bg-red-600 hover:bg-red-700 text-white" onClick={() => setSelectedBajaItem(item)}>
+                            <ShieldAlert size={16} className="mr-2" /> Dar de baja
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

@@ -22,11 +22,14 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
   onSuccess 
 }) => {
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user } = useAuthStore();
   const { confirm } = useConfirmAction();
   
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isAdminAlm = ['ADMIN_ALM', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
+
   const isResolutionMode = !!resolutionRequestId;
-  const canDirectDispose = hasPermission('warehouse.waste') || hasPermission('warehouse.dispose');
+  const canDirectDispose = isAdminAlm && (hasPermission('warehouse.waste') || hasPermission('warehouse.dispose'));
   const isRequestMode = !isResolutionMode && !canDirectDispose;
   const isMaterialLocked = !!item?.material_id;
 

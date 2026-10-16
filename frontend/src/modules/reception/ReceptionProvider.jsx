@@ -6,6 +6,8 @@ import { ReceptionWorkflow as ReceptionFSM } from './ReceptionWorkflow';
 import { EventBus } from '../../core/platform/EventBus/EventBus';
 import { MES_EVENTS } from '../../core/platform/EventBus/DomainEvents';
 import { apiClient } from '../../core/api/apiClient';
+import { useAuthStore } from '../../store/authStore';
+import { ShieldAlert } from 'lucide-react';
 
 /**
  * ReceptionProvider (Runtime Integration)
@@ -14,11 +16,36 @@ import { apiClient } from '../../core/api/apiClient';
  */
 export const ReceptionProvider = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isAdminAlm = ['ADMIN_ALM', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode);
+
   // 1. Instanciar la Máquina de Estados (aislada de React)
   const workflow = useMemo(() => createWorkflow(ReceptionFSM), []);
   
   const [workflowState, setWorkflowState] = useState(workflow.getState());
   const [receptionData, setReceptionData] = useState(null);
+
+  // Guard de acceso por rol
+  if (!isAdminAlm) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4 text-destructive">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">Acceso Restringido</h2>
+        <p className="text-muted-foreground mt-2 max-w-md text-sm">
+          Los ingresos de material en almacén solo pueden ser realizados por el Administrador de Almacén (ADMIN_ALM).
+        </p>
+        <button
+          onClick={() => navigate('/warehouse/inventory')}
+          className="mt-6 px-4 py-2 bg-primary text-primary-foreground font-bold rounded-lg shadow hover:opacity-90 transition-opacity text-sm"
+        >
+          Ir al Inventario
+        </button>
+      </div>
+    );
+  }
 
   // 2. Suscribirse a cambios de estado de la FSM
   useEffect(() => {

@@ -106,7 +106,7 @@ router.get(
 
 router.post(
   '/inventory/dispose',
-  authorizePermission('warehouse.dispose', 'warehouse.waste', 'inventory.dispose'),
+  roleMiddleware('ADMIN_ALM'),
   warehouseController.disposeLotes
 );
 
@@ -124,7 +124,7 @@ router.get(
 
 router.post(
   '/inventory/dispose-resolve/:id',
-  authorizePermission('warehouse.dispose', 'warehouse.waste', 'inventory.dispose'),
+  roleMiddleware('ADMIN_ALM'),
   warehouseController.resolveWasteRequest
 );
 

@@ -45,6 +45,7 @@ import { TraceabilityTreePage } from '../modules/traceability/presentation/pages
 import ExtrusionBoardContainer from '../modules/extrusion/presentation/containers/ExtrusionBoardContainer';
 import PtiIngressContainer from '../modules/extrusion/presentation/containers/PtiIngressContainer';
 import SuperAdminRoute from './SuperAdminRoute';
+import AdminAlmRoute from './AdminAlmRoute';
 
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
@@ -210,10 +211,15 @@ export const router = createBrowserRouter([
           },
           {
             path: '/extrusion/dashboard',
-            element: <ExtrusionDashboard />
+            element: (
+              <SuperAdminRoute>
+                <ExtrusionDashboard />
+              </SuperAdminRoute>
+            )
           },
           {
             path: '/production',
+            element: <SuperAdminRoute />,
             children: [
               {
                 path: 'machines',
@@ -251,7 +257,11 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: 'receive',
-                element: <ReceptionProvider />
+                element: (
+                  <AdminAlmRoute>
+                    <ReceptionProvider />
+                  </AdminAlmRoute>
+                )
               },
               {
                 path: 'inventory',

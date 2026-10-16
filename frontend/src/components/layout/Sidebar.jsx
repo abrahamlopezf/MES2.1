@@ -68,7 +68,13 @@ const menuGroups = [
     isGroup: true,
     children: [
       { label: "Catálogo", path: "/materials", icon: Package, permission: "materials.read" },
-      { label: "Recepción", onClick: () => window.dispatchEvent(new Event('open-scanner')), icon: PackagePlus, permission: "inventory.receive" },
+      { 
+        label: "Recepción", 
+        onClick: () => window.dispatchEvent(new Event('open-scanner')), 
+        icon: PackagePlus, 
+        permission: "inventory.receive",
+        allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM"]
+      },
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
       // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: Layers, permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
       { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" },
@@ -86,7 +92,7 @@ const menuGroups = [
     label: "Extrusión",
     icon: Factory,
     permission: "extrusion.view",
-    hiddenRoles: ["ADMIN_ALM"],
+    allowedRoles: ["SUPERADMIN"],
     isGroup: true,
     children: [
       { label: "Tablero de Colas", path: "/extrusion/board", icon: MonitorPlay, permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
@@ -110,8 +116,9 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
     ? hasAnyPermission(item.permission)
     : hasPermission(item.permission);
 
-  const isHiddenForRole = item.hiddenRoles?.includes(user?.role?.code);
-  const isAllowedRole = !item.allowedRoles || item.allowedRoles.includes(user?.role?.code);
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isHiddenForRole = item.hiddenRoles?.some(r => r.toUpperCase() === userRole);
+  const isAllowedRole = !item.allowedRoles || item.allowedRoles.some(r => r.toUpperCase() === userRole);
   if (!hasAccess || isHiddenForRole || !isAllowedRole) return null;
 
   if (!item.isGroup) {
@@ -186,8 +193,8 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
             const hasChildAccess = Array.isArray(child.permission)
               ? hasAnyPermission(child.permission)
               : hasPermission(child.permission);
-            const isHiddenForRole = child.hiddenRoles?.includes(user?.role?.code);
-            const isAllowedRole = !child.allowedRoles || child.allowedRoles.includes(user?.role?.code);
+            const isHiddenForRole = child.hiddenRoles?.some(r => r.toUpperCase() === userRole);
+            const isAllowedRole = !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
             if (!hasChildAccess || isHiddenForRole || !isAllowedRole) return null;
             if (child.onClick) {
               return (
