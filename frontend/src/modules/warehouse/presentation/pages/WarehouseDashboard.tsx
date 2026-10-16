@@ -5,7 +5,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, 
   AreaChart, Area, Legend, PieChart, Pie, Cell
 } from 'recharts';
-import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle, DollarSign, PackagePlus, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle, DollarSign, PackagePlus, ShieldCheck, AlertCircle, Menu } from 'lucide-react';
 import { useAuthStore } from '../../../../store/authStore';
 import { useThemeStore } from '../../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../design-system';
@@ -22,6 +22,11 @@ const formatCurrency = (value) => {
     maximumFractionDigits: 0
   }).format(value);
 };
+
+interface WarehouseDashboardProps {
+  activeTab?: string;
+  onSwitchTab?: (tab: 'EXECUTIVE' | 'WAREHOUSE') => void;
+}
 
 // KPI Card para la cabecera - Diseño homologado premium
 const ExecutiveKpiCard = ({ 
@@ -163,7 +168,7 @@ const DynamicLossKpiCard = ({ kpis, activeTab, onTabChange }) => {
   );
 };
 
-export const WarehouseDashboard = () => {
+export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTab = 'WAREHOUSE', onSwitchTab }) => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const [isLowStockModalOpen, setIsLowStockModalOpen] = useState(false);
@@ -191,7 +196,7 @@ export const WarehouseDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="h-full flex items-center justify-center p-8">
         <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Dashboard de Almacén...</p>
       </div>
     );
@@ -220,16 +225,46 @@ export const WarehouseDashboard = () => {
   const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
   return (
-    <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background overflow-x-hidden">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 pb-32 sm:pb-16 bg-background overflow-x-hidden w-full">
       
-      {/* HEADER GREETING */}
-      <div className="flex flex-col gap-0.5 w-full pr-12 sm:pr-0">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Monitor de Almacén
-        </h1>
-        <p className="text-primary opacity-80 text-sm sm:text-xl font-normal">
-          Hola, {userName}
-        </p>
+      {/* HEADER GREETING & VIEW TOGGLE */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
+            className="lg:hidden p-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:text-primary transition-colors shrink-0 flex items-center justify-center h-10 w-10 cursor-pointer"
+            aria-label="Abrir Menú Principal"
+            title="Menú"
+          >
+            <Menu size={20} />
+          </button>
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
+              Monitor de Almacén <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Operaciones y Stock</span>
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
+              Hola, <span className="text-foreground font-bold">{userName}</span>
+            </p>
+          </div>
+        </div>
+
+        {onSwitchTab && (
+          <div className="flex items-center gap-2 bg-secondary/60 p-1.5 rounded-xl border border-border shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => onSwitchTab('EXECUTIVE')}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              Visión Global Ejecutiva
+            </button>
+            <button
+              onClick={() => onSwitchTab('WAREHOUSE')}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-background text-foreground shadow-xs cursor-pointer"
+            >
+              <Boxes className="size-3.5" />
+              Monitor de Almacén
+            </button>
+          </div>
+        )}
       </div>
 
       {/* FILTER BAR SECTION */}

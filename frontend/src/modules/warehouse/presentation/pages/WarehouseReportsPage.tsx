@@ -176,30 +176,28 @@ export const WarehouseReportsPage: React.FC = () => {
   const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-x-hidden">
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
-        
-        {/* Header Ejecutivo */}
-        {/* Header Ejecutivo */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
-                <BarChart3 size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground tracking-tight">Reportes Ejecutivos de Almacén</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                  Análisis estratégico de compras de materia prima, balance mensual, tendencias y control de bajas/devoluciones.
-                </p>
-              </div>
+    <div className="flex flex-col w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-32 sm:pb-16 bg-background overflow-x-hidden">
+      
+      {/* Header Ejecutivo */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+              <BarChart3 size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Reportes Ejecutivos de Almacén</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Análisis estratégico de compras de materia prima, balance mensual, tendencias y control de bajas/devoluciones.
+              </p>
             </div>
           </div>
+        </div>
 
-          {/* Barra de Herramientas y Filtro de Período */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
-            {/* Cápsula de Selección de Período */}
-            <div className="flex items-center gap-1.5 p-1 bg-card border border-border rounded-xl shadow-xs">
+        {/* Barra de Herramientas y Filtro de Período */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto shrink-0">
+          {/* Cápsula de Selección de Período */}
+          <div className="flex items-center gap-1.5 p-1 bg-card border border-border rounded-xl shadow-xs w-full sm:w-auto justify-between sm:justify-start">
               <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-muted-foreground bg-muted/40 rounded-lg">
                 <Calendar size={14} className="text-primary shrink-0" />
                 <span>Período:</span>
@@ -1030,9 +1028,7 @@ export const WarehouseReportsPage: React.FC = () => {
 
           </div>
         )}
-
       </div>
-    </div>
   );
 };
 

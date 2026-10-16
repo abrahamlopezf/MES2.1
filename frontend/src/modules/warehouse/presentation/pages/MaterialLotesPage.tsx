@@ -186,7 +186,7 @@ const MaterialLotesPageContent = () => {
 
   return (
     <div className="flex flex-col h-full bg-background overflow-x-hidden">
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-5">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-32 sm:pb-16 space-y-5">
         
         {/* Header */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">

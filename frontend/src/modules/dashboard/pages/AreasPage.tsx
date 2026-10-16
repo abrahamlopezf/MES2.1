@@ -1,65 +1,125 @@
-import React, { useState } from 'react';
-import { Package, Layers, QrCode, Factory, Users, ChevronLeft, ArrowRight } from 'lucide-react';
+import React from 'react';
+import { 
+  Package, 
+  Layers, 
+  QrCode, 
+  Factory, 
+  Users, 
+  ChevronLeft, 
+  ArrowRight,
+  BarChart3,
+  AlertTriangle,
+  MonitorPlay,
+  Boxes,
+  ClipboardList,
+  Beaker,
+  ShieldCheck,
+  Printer,
+  List,
+  PackagePlus
+} from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 
 export const AreasPage: React.FC = () => {
   const navigate = useNavigate();
   const { group } = useParams();
-  const { hasPermission, user } = useAuthStore() as any;
+  const { hasPermission, hasAnyPermission, user } = useAuthStore() as any;
 
-  // Determinar si es de almacén
-  const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
-  const isWarehouseUser = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN_ALM', 'WAREHOUSEMAN'].includes(roleCode) || user?.area?.code === 'ALM';
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
 
   const allAreas = [
     { 
       id: 'almacen', 
-      title: 'Almacén', 
-      description: 'Recepción e Inventario', 
+      title: 'Almacén General', 
+      description: 'Inventario, Movimientos y Reportes', 
       icon: Package,
       gradient: 'from-blue-500/20 to-indigo-500/20 text-blue-500',
+      hiddenRoles: ['ADMIN_EXT'],
       children: [
-        { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y Fórmulas', icon: Package, path: '/materials', permission: 'materials.read' },
-        { id: 'recepcion', title: 'Recepción', description: 'Materia Prima', icon: Package, onClick: () => window.dispatchEvent(new Event('open-scanner')), permission: 'inventory.receive' },
-        { id: 'inventario', title: 'Inventario', description: 'Almacén (MES 3.0)', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
-        { id: 'merma_scrap', title: 'Control Merma/Scrap', description: 'Registro de Bajas', icon: Package, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
-        { id: 'ordenes_consumo', title: 'Órdenes de Consumo', description: 'Solicitudes y Surtido', icon: Package, path: '/warehouse/orders', permission: '' },
+        { id: 'catalogo', title: 'Catálogo de Materiales', description: 'Materiales y clasificaciones', icon: Package, path: '/materials', permission: 'materials.read' },
+        { id: 'recepcion', title: 'Recepción de Material', description: 'Escanear QR de ingreso', icon: PackagePlus, onClick: () => window.dispatchEvent(new Event('open-scanner')), permission: 'inventory.receive' },
+        { id: 'inventario', title: 'Inventario Físico', description: 'Stock valorado y ubicaciones', icon: Layers, path: '/warehouse/inventory', permission: 'inventory.view' },
+        { id: 'merma_scrap', title: 'Control Merma y Scrap', description: 'Registro y análisis de bajas', icon: AlertTriangle, path: '/warehouse/merma-scrap', permission: 'warehouse.merma_scrap.view' },
+        { id: 'ordenes_consumo', title: 'Órdenes de Consumo', description: 'Solicitudes y surtido', icon: Boxes, path: '/warehouse/orders', permission: '' },
+        { 
+          id: 'reportes_almacen', 
+          title: 'Reportes Ejecutivos', 
+          description: 'Balances, compras y tendencias', 
+          icon: BarChart3, 
+          path: '/warehouse/reports', 
+          allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM'] 
+        },
+      ]
+    },
+    { 
+      id: 'extrusion', 
+      title: 'Piso de Extrusión', 
+      description: 'Líneas, Racks y Mezclado', 
+      icon: Factory,
+      gradient: 'from-amber-500/20 to-orange-500/20 text-amber-500',
+      permission: 'extrusion.view',
+      hiddenRoles: ['ADMIN_ALM'],
+      children: [
+        { id: 'tablero_colas', title: 'Tablero de Colas', description: 'Monitoreo de producción', icon: MonitorPlay, path: '/extrusion/board', allowedRoles: ['SUPERADMIN'], permission: 'extrusion.view' },
+        { id: 'rack_ingress', title: 'Ingreso PTI a Racks', description: 'Asignación de racks en piso', icon: Boxes, path: '/extrusion/rack-ingress', allowedRoles: ['SUPERADMIN'], permission: 'extrusion.view' },
+        { id: 'formulas', title: 'Fórmulas y Recetas', description: 'Catálogo y especificaciones', icon: ClipboardList, path: '/production/formulas', permission: 'extrusion.formulas.view' },
+        { id: 'maquinas', title: 'Máquinas Extrusoras', description: 'Monitoreo de líneas', icon: Factory, path: '/production/machines', permission: 'extrusion.view' },
+        { id: 'mezclado', title: 'Centro de Mezclado', description: 'Tinas y preparación WIP', icon: Beaker, path: '/production/mixing', permission: 'extrusion.wip.manage' },
+        { id: 'andon', title: 'Tablero Andon', description: 'Alertas y eventos de paro', icon: AlertTriangle, path: '/production/andon', permission: 'extrusion.view' },
       ]
     },
     { 
       id: 'identity', 
       title: 'Centro de Identidad', 
-      description: 'Gestión de QRs', 
+      description: 'Gestión y Trazabilidad de QRs', 
       icon: QrCode,
       gradient: 'from-purple-500/20 to-fuchsia-500/20 text-purple-500',
+      permission: ['qr.create', 'qr.history.read', 'qr.events.read'],
       children: [
-        { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión de QRs', icon: QrCode, path: '/identity/generate', permission: 'qr.create' },
-        { id: 'identity_hist', title: 'Historial QRs', description: 'Trazabilidad', icon: QrCode, path: '/qrcodes', permission: 'qr.history.read' },
+        { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión y serialización', icon: Printer, path: '/identity/generate', permission: 'qr.create' },
+        { id: 'identity_hist', title: 'Historial de QRs', description: 'Trazabilidad y estados', icon: List, path: '/qrcodes', permission: ['qr.history.read', 'qr.events.read'] },
       ]
     },
     { 
       id: 'admin', 
       title: 'Gestor de Usuarios', 
-      description: 'Cuentas, Roles y Permisos', 
+      description: 'Cuentas, Roles y Seguridad', 
       icon: Users, 
-      path: '/usuarios',
-      permission: 'users.read',
       gradient: 'from-emerald-500/20 to-teal-500/20 text-emerald-500',
+      permission: ['users.read', 'roles.read'],
+      children: [
+        { id: 'users_list', title: 'Usuarios del Sistema', description: 'Cuentas y perfiles activos', icon: Users, path: '/users', permission: 'users.read' },
+        { id: 'roles_list', title: 'Roles y Permisos', description: 'Matriz de autorización', icon: ShieldCheck, path: '/roles', permission: 'roles.read' },
+      ]
     },
   ];
 
-  // Filtrar áreas y sus hijos por permisos
-  const areas = allAreas.map(area => {
-    if (area.children) {
-      const filteredChildren = area.children.filter(child => hasPermission(child.permission));
-      return { ...area, children: filteredChildren };
+  // Helper de comprobación de permisos y roles
+  const checkAccess = (item: any) => {
+    if (item.hiddenRoles && item.hiddenRoles.includes(userRole)) return false;
+    if (item.allowedRoles && !item.allowedRoles.includes(userRole)) return false;
+    if (!item.permission || item.permission === '') return true;
+    if (Array.isArray(item.permission)) {
+      return hasAnyPermission ? hasAnyPermission(item.permission) : item.permission.some((p: string) => hasPermission(p));
     }
-    return area;
-  }).filter(area => {
-    if (area.children) return area.children.length > 0;
-    return area.permission ? hasPermission(area.permission) : true;
-  });
+    return hasPermission(item.permission);
+  };
+
+  // Filtrar áreas y sus hijos por permisos y roles
+  const areas = allAreas
+    .filter(checkAccess)
+    .map(area => {
+      if (area.children) {
+        const filteredChildren = area.children.filter(checkAccess);
+        return { ...area, children: filteredChildren };
+      }
+      return area;
+    })
+    .filter(area => {
+      if (area.children) return area.children.length > 0;
+      return true;
+    });
 
   const handleCardClick = (item: any) => {
     if (item.onClick) {
@@ -75,52 +135,60 @@ export const AreasPage: React.FC = () => {
   const currentList = selectedGroup ? selectedGroup.children : areas;
 
   return (
-    <div className="space-y-6 px-4 sm:px-6 md:px-8 pt-6 pb-32 sm:pb-12 overflow-x-hidden min-h-screen bg-background">
+    <div className="space-y-6 px-4 sm:px-6 md:px-8 pt-4 pb-32 sm:pb-16 overflow-x-hidden min-h-screen bg-background">
       
-      {/* Header Premium */}
-      <div className="relative mb-8">
-        <div className="flex items-center gap-4 relative z-10">
-
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        {selectedGroup && (
+          <button
+            onClick={() => navigate('/areas')}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors w-fit p-1 -ml-1 rounded-md"
+          >
+            <ChevronLeft size={16} /> Volver a Todas las Áreas
+          </button>
+        )}
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-              {selectedGroup ? selectedGroup.title : "Áreas Operativas"}
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+              {selectedGroup ? selectedGroup.title : "Áreas y Módulos Operativos"}
             </h1>
-            <p className="text-sm font-medium text-muted-foreground mt-1">
-              {selectedGroup ? "Selecciona un módulo para continuar" : "Acceso rápido a los módulos del sistema"}
+            <p className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">
+              {selectedGroup 
+                ? "Selecciona una opción para acceder a la estación o función." 
+                : "Acceso optimizado tanto para terminales móviles como de monitor."}
             </p>
           </div>
         </div>
-        {/* Subtle background glow */}
-        <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
       </div>
 
-      {/* Grid de Cards Premium */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 relative z-10">
-        {currentList.map((area: any, idx: number) => {
+      {/* Grid de Cards Optimizadas para Móvil y Monitor */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        {currentList?.map((area: any) => {
           const itemGradient = area.gradient || 'from-primary/20 to-primary/10 text-primary';
           
           return (
             <div 
               key={area.id} 
-              className="group cursor-pointer rounded-[2rem] bg-card/60 backdrop-blur-xl border border-border/50 shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 overflow-hidden relative"
+              className="group cursor-pointer rounded-2xl bg-card border border-border shadow-xs hover:border-primary/50 hover:shadow-md transition-all duration-200 active:scale-[0.98] overflow-hidden"
               onClick={() => handleCardClick(area)}
-              style={{ animationDelay: `${idx * 100}ms` }}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400" />
-              
-              <div className="p-6 relative z-10 flex items-center justify-between">
-                <div className="flex items-center gap-5">
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${itemGradient} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-400 ease-out`}>
-                    <area.icon size={30} strokeWidth={2.5} />
+              <div className="p-4 sm:p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br ${itemGradient} flex items-center justify-center shrink-0 border border-border/50 group-hover:scale-105 transition-transform`}>
+                    <area.icon size={24} className="sm:size-7" strokeWidth={2.5} />
                   </div>
-                  <div className="flex flex-col">
-                    <h3 className="font-bold text-xl text-foreground tracking-tight">{area.title}</h3>
-                    <p className="text-sm font-medium text-muted-foreground/80 mt-0.5">{area.description}</p>
+                  <div className="flex flex-col min-w-0">
+                    <h3 className="font-bold text-base sm:text-lg text-foreground tracking-tight truncate">
+                      {area.title}
+                    </h3>
+                    <p className="text-xs font-medium text-muted-foreground truncate mt-0.5">
+                      {area.description}
+                    </p>
                   </div>
                 </div>
                 
-                <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-400 ease-out">
-                  <ArrowRight size={20} />
+                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <ArrowRight size={16} />
                 </div>
               </div>
             </div>
@@ -131,3 +199,4 @@ export const AreasPage: React.FC = () => {
   );
 };
 
+export default AreasPage;

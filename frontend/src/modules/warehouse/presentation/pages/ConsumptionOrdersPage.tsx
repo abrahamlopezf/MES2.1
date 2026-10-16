@@ -117,7 +117,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
-      <div className="p-4 sm:p-6 lg:p-8 space-y-4 flex flex-col h-full">
+      <div className="p-4 sm:p-6 lg:p-8 pb-32 sm:pb-16 space-y-4 flex flex-col h-full">
         {/* Header */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full shrink-0">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-0">
@@ -170,57 +170,107 @@ export const ConsumptionOrdersPage: React.FC = () => {
               <p className="text-muted-foreground text-sm max-w-sm mt-2">No se encontraron órdenes de consumo con los filtros seleccionados.</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead className="bg-muted/30 sticky top-0 z-10 backdrop-blur-sm border-b border-border">
-                <tr>
-                  <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Orden</th>
-                  <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Estatus</th>
-                  <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Solicitante</th>
-                  <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">{isWarehouseUser ? 'Área Origen' : 'Área Destino'}</th>
-                  <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Creación</th>
-                  <th className="px-5 py-4 text-sm font-semibold text-muted-foreground text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+            <>
+              {/* VISTA MOBILE: Tarjetas táctiles legibles */}
+              <div className="md:hidden divide-y divide-border">
                 {orders.map(order => {
                   const conf = getStatusConfig(order.status);
                   return (
-                    <tr key={order.uuid} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="font-mono font-bold text-primary">{order.order_number}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${conf.bg} ${conf.color} ${conf.border}`}>
+                    <div 
+                      key={order.uuid} 
+                      onClick={() => setSelectedOrderUuid(order.uuid)}
+                      className="p-4 flex flex-col gap-3 bg-card hover:bg-muted/20 active:bg-muted/40 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="font-mono font-bold text-base text-primary">
+                            {order.order_number}
+                          </span>
+                          <div className="text-xs font-semibold text-foreground/90 mt-0.5">
+                            {order.requester?.first_name} {order.requester?.last_name}
+                          </div>
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 ${conf.bg} ${conf.color} ${conf.border}`}>
                           {conf.label}
                         </span>
-                      </td>
-                      <td className="px-5 py-4 max-w-[200px]">
-                        <div className="font-medium text-foreground truncate" title={`${order.requester?.first_name || ''} ${order.requester?.last_name || ''}`.trim()}>
-                          {order.requester?.first_name} {order.requester?.last_name}
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
+                        <span className="truncate">
+                          {isWarehouseUser ? (order.requesting_area?.name || 'N/A') : 'Almacén'}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Clock size={12} />
+                          <span>{new Date(order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="text-muted-foreground text-sm">{isWarehouseUser ? (order.requesting_area?.name || 'N/A') : 'Almacén'}</div>
-                      </td>
-                      <td className="px-5 py-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <Clock size={14} />
-                          {new Date(order.created_at).toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        <button 
-                          onClick={() => setSelectedOrderUuid(order.uuid)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium hover:border-primary/50 hover:text-primary transition-all"
-                        >
-                          <Eye size={16} /> Detalles
-                        </button>
-                      </td>
-                    </tr>
+                      </div>
+
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedOrderUuid(order.uuid); }}
+                        className="w-full py-2 bg-secondary/80 border border-border rounded-xl text-xs font-bold hover:border-primary/50 hover:text-primary transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye size={15} /> Ver Detalles de la Orden
+                      </button>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* VISTA DESKTOP: Tabla completa */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead className="bg-muted/30 sticky top-0 z-10 backdrop-blur-sm border-b border-border">
+                    <tr>
+                      <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Orden</th>
+                      <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Estatus</th>
+                      <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Solicitante</th>
+                      <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">{isWarehouseUser ? 'Área Origen' : 'Área Destino'}</th>
+                      <th className="px-5 py-4 text-sm font-semibold text-muted-foreground">Creación</th>
+                      <th className="px-5 py-4 text-sm font-semibold text-muted-foreground text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {orders.map(order => {
+                      const conf = getStatusConfig(order.status);
+                      return (
+                        <tr key={order.uuid} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-5 py-4">
+                            <div className="font-mono font-bold text-primary">{order.order_number}</div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${conf.bg} ${conf.color} ${conf.border}`}>
+                              {conf.label}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 max-w-[200px]">
+                            <div className="font-medium text-foreground truncate" title={`${order.requester?.first_name || ''} ${order.requester?.last_name || ''}`.trim()}>
+                              {order.requester?.first_name} {order.requester?.last_name}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="text-muted-foreground text-sm">{isWarehouseUser ? (order.requesting_area?.name || 'N/A') : 'Almacén'}</div>
+                          </td>
+                          <td className="px-5 py-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <Clock size={14} />
+                              {new Date(order.created_at).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <button 
+                              onClick={() => setSelectedOrderUuid(order.uuid)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium hover:border-primary/50 hover:text-primary transition-all cursor-pointer"
+                            >
+                              <Eye size={16} /> Detalles
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

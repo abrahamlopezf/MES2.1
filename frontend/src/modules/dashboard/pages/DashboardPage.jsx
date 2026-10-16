@@ -8,7 +8,7 @@ import {
 import { 
   AlertCircle, PackageCheck, DollarSign, Activity, 
   TrendingUp, Settings2, Boxes, ArrowRight, ShieldCheck, 
-  Layers, Package, AlertTriangle
+  Layers, Package, AlertTriangle, Menu
 } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -183,25 +183,39 @@ const DashboardPage = () => {
       ? 'Superadministrador' 
       : 'Administrador';
 
+  if (activeTab === 'WAREHOUSE') {
+    return <WarehouseDashboard activeTab={activeTab} onSwitchTab={setActiveTab} />;
+  }
+
   return (
-    <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background overflow-x-hidden">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 pb-32 sm:pb-16 bg-background overflow-x-hidden w-full">
       
       {/* HEADER GREETING & VIEW TOGGLE */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full pr-14 md:pr-0">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
-            Visión Global <span className="text-primary opacity-80 text-xl font-normal">| Estado del Sistema</span>
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
-            Hola, <span className="text-foreground font-bold">{user?.first_name || user?.username || 'Usuario'}</span> · <span className="text-primary font-semibold">{roleLabel}</span>
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
+            className="lg:hidden p-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:text-primary transition-colors shrink-0 flex items-center justify-center h-10 w-10 cursor-pointer"
+            aria-label="Abrir Menú Principal"
+            title="Menú"
+          >
+            <Menu size={20} />
+          </button>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
+              Visión Global <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Estado del Sistema</span>
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
+              Hola, <span className="text-foreground font-bold">{user?.first_name || user?.username || 'Usuario'}</span> · <span className="text-primary font-semibold">{roleLabel}</span>
+            </p>
+          </div>
         </div>
 
         {/* SELECTOR DE VISTA EJECUTIVA / MONITOR ALMACÉN */}
-        <div className="flex items-center gap-2 bg-secondary/60 p-1.5 rounded-xl border border-border shrink-0">
+        <div className="flex items-center gap-2 bg-secondary/60 p-1.5 rounded-xl border border-border shrink-0 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('EXECUTIVE')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'EXECUTIVE'
                 ? 'bg-background text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
@@ -211,7 +225,7 @@ const DashboardPage = () => {
           </button>
           <button
             onClick={() => setActiveTab('WAREHOUSE')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'WAREHOUSE'
                 ? 'bg-background text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'

@@ -44,8 +44,7 @@ export const MermaScrapPage: React.FC = () => {
   const totalLossQty = report.reduce((acc: number, item: any) => acc + (Number(item.total_loss_qty) || 0), 0);
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-x-hidden">
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="flex flex-col w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-32 sm:pb-16 bg-background overflow-x-hidden">
         
         {/* Header */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
@@ -225,63 +224,118 @@ export const MermaScrapPage: React.FC = () => {
                 No hay registros de Merma o Scrap.
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-x-auto mt-4">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-primary text-primary-foreground border-b border-border">
-                    <tr>
-                      <th className="px-5 py-3.5 font-bold tracking-tight">Material</th>
-                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Merma</th>
-                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Scrap</th>
-                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Otras Bajas</th>
-                      <th className="px-5 py-3.5 font-bold tracking-tight text-right">Costo Total</th>
-                      <th className="px-5 py-3.5 font-bold tracking-tight text-center">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+              <div className="rounded-xl border border-border overflow-hidden mt-4">
+                {/* VISTA MOBILE: Tarjetas táctiles legibles */}
+                <div className="md:hidden divide-y divide-border">
                   {report.map((item: any) => (
-                    <tr key={item.material_id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-4">
+                    <div 
+                      key={item.material_id} 
+                      onClick={() => setSelectedMaterialId(item.material_id)}
+                      className="p-4 flex flex-col gap-3 bg-card hover:bg-muted/20 active:bg-muted/40 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                             <Package className="text-primary" size={18} />
                           </div>
                           <div>
-                            <div className="font-bold text-foreground">{item.name}</div>
+                            <div className="font-bold text-foreground text-sm">{item.name}</div>
                             <div className="text-xs text-muted-foreground">{item.internal_code}</div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="font-mono font-bold text-warning">{Number(item.merma).toFixed(2)}</div>
-                        <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.merma_cost)}</div>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="font-mono font-bold text-destructive">{Number(item.scrap).toFixed(2)}</div>
-                        <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.scrap_cost)}</div>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="font-mono font-bold text-info">{Number(item.baja || 0).toFixed(2)}</div>
-                        <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.baja_cost)}</div>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="font-mono font-black text-foreground">{formatCurrency(item.total_loss_cost)}</div>
-                        <div className="text-[11px] font-semibold text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        <Button variant="outline" size="sm" className="font-bold bg-background" onClick={() => setSelectedMaterialId(item.material_id)}>
-                          Detalles
-                        </Button>
-                      </td>
-                    </tr>
+                        <div className="text-right shrink-0">
+                          <div className="font-mono font-black text-foreground text-sm">{formatCurrency(item.total_loss_cost)}</div>
+                          <div className="text-[10px] text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/40 text-center">
+                        <div>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Merma</span>
+                          <p className="text-xs font-bold text-warning font-mono">{Number(item.merma).toFixed(1)}</p>
+                          <span className="text-[10px] text-muted-foreground">{formatCurrency(item.merma_cost)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Scrap</span>
+                          <p className="text-xs font-bold text-destructive font-mono">{Number(item.scrap).toFixed(1)}</p>
+                          <span className="text-[10px] text-muted-foreground">{formatCurrency(item.scrap_cost)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">Otras Bajas</span>
+                          <p className="text-xs font-bold text-info font-mono">{Number(item.baja || 0).toFixed(1)}</p>
+                          <span className="text-[10px] text-muted-foreground">{formatCurrency(item.baja_cost)}</span>
+                        </div>
+                      </div>
+
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full font-bold bg-background h-9 cursor-pointer" 
+                        onClick={(e) => { e.stopPropagation(); setSelectedMaterialId(item.material_id); }}
+                      >
+                        Ver Historial de Bajas
+                      </Button>
+                    </div>
                   ))}
-                  </tbody>
-                </table>
-            </div>
+                </div>
+
+                {/* VISTA DESKTOP: Tabla completa */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-primary text-primary-foreground border-b border-border">
+                      <tr>
+                        <th className="px-5 py-3.5 font-bold tracking-tight">Material</th>
+                        <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Merma</th>
+                        <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Scrap</th>
+                        <th className="px-5 py-3.5 font-bold tracking-tight text-right">Otras Bajas</th>
+                        <th className="px-5 py-3.5 font-bold tracking-tight text-right">Costo Total</th>
+                        <th className="px-5 py-3.5 font-bold tracking-tight text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                    {report.map((item: any) => (
+                      <tr key={item.material_id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                              <Package className="text-primary" size={18} />
+                            </div>
+                            <div>
+                              <div className="font-bold text-foreground">{item.name}</div>
+                              <div className="text-xs text-muted-foreground">{item.internal_code}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="font-mono font-bold text-warning">{Number(item.merma).toFixed(2)}</div>
+                          <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.merma_cost)}</div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="font-mono font-bold text-destructive">{Number(item.scrap).toFixed(2)}</div>
+                          <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.scrap_cost)}</div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="font-mono font-bold text-info">{Number(item.baja || 0).toFixed(2)}</div>
+                          <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.baja_cost)}</div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="font-mono font-black text-foreground">{formatCurrency(item.total_loss_cost)}</div>
+                          <div className="text-[11px] font-semibold text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <Button variant="outline" size="sm" className="font-bold bg-background cursor-pointer" onClick={() => setSelectedMaterialId(item.material_id)}>
+                            Detalles
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
           </div>
         </div>
-
-      </div>
 
       {selectedMaterialId && (
         <MermaScrapDetallesBottomSheet

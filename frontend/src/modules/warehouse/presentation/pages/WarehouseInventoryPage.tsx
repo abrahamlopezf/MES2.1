@@ -67,7 +67,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
 
-      <div className="p-4 sm:p-6 lg:p-8 space-y-4">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 pb-32 sm:pb-16">
         {/* Header (Mismo diseño que MaterialModuleHeader) */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-0 w-full">
