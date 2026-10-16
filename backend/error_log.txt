@@ -661,4 +661,31 @@ notNull Violation: AuditLog.description cannot be null
     at async Promise.all (index 1)
     at async Material.findAndCountAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1322:27)
     at async MaterialSearchService.search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.search.service.js:67:29)
-    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n
+    at async search (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\materials\material\material.controller.js:6:18)\n\n2026-10-16T02:50:59.226Z\nMessage: undefined\nStack: SequelizeUniqueConstraintError: Validation Error
+    at Query.formatError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:274:16)
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:84:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:16
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async TipoBaja.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async TipoBaja.findOrCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1422:25)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.routes.js:118:7\n\n2026-10-16T02:51:00.945Z\nMessage: undefined\nStack: SequelizeUniqueConstraintError: Validation Error
+    at Query.formatError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:274:16)
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:84:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:16
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async TipoBaja.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async TipoBaja.findOrCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1422:25)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.routes.js:118:7\n\n2026-10-16T02:51:04.141Z\nMessage: undefined\nStack: SequelizeUniqueConstraintError: Validation Error
+    at Query.formatError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:274:16)
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:84:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:16
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async TipoBaja.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async TipoBaja.findOrCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1422:25)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.routes.js:118:7\n\n

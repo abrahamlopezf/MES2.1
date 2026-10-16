@@ -55,6 +55,7 @@ import { LoteDetailsPage } from '../modules/warehouse/presentation/pages/LoteDet
 import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScrapPage';
 import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
 import { AreaInventoryPage } from '../modules/warehouse/presentation/pages/AreaInventoryPage';
+import { WarehouseReportsPage } from '../modules/warehouse/presentation/pages/WarehouseReportsPage';
 
 export const router = createBrowserRouter([
   {
@@ -279,6 +280,10 @@ export const router = createBrowserRouter([
               {
                 path: 'orders',
                 element: <ConsumptionOrdersPage />
+              },
+              {
+                path: 'reports',
+                element: <WarehouseReportsPage />
               }
             ]
           }

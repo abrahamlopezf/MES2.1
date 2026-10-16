@@ -1,4 +1,6 @@
 const warehouseService = require('./warehouse.service');
+const warehouseReportService = require('./warehouseReport.service');
+const warehouseReportsPdf = require('./printer/warehouseReportsPdf');
 const { successResponse } = require('../../shared/responses/apiResponse');
 
 const getInventory = async (req, res, next) => {
@@ -166,6 +168,69 @@ const getLowStockReport = async (req, res, next) => {
   }
 };
 
+const getMonthlyReport = async (req, res, next) => {
+  try {
+    const result = await warehouseReportService.getMonthlyReport(req.query);
+    return successResponse(res, 'Reporte mensual de almacén obtenido exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getSuppliersReport = async (req, res, next) => {
+  try {
+    const result = await warehouseReportService.getSuppliersReport(req.query);
+    return successResponse(res, 'Reporte de proveedores de MP obtenido exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getMermaScrapDevolucionesReport = async (req, res, next) => {
+  try {
+    const result = await warehouseReportService.getMermaScrapDevolucionesReport(req.query);
+    return successResponse(res, 'Reporte de bajas, merma, scrap y devoluciones obtenido exitosamente.', result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getMonthlyReportPdf = async (req, res, next) => {
+  try {
+    const data = await warehouseReportService.getMonthlyReport(req.query);
+    const filename = `Reporte-Mensual-Almacen-${req.query.year || new Date().getFullYear()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await warehouseReportsPdf.generateMonthlyReportPdf(data, req.query, req.user, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getSuppliersReportPdf = async (req, res, next) => {
+  try {
+    const data = await warehouseReportService.getSuppliersReport(req.query);
+    const filename = `Reporte-Proveedores-MP-${req.query.year || new Date().getFullYear()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await warehouseReportsPdf.generateSuppliersReportPdf(data, req.query, req.user, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getMermaScrapDevolucionesPdf = async (req, res, next) => {
+  try {
+    const data = await warehouseReportService.getMermaScrapDevolucionesReport(req.query);
+    const filename = `Reporte-Bajas-Merma-Scrap-Devoluciones-${req.query.year || new Date().getFullYear()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await warehouseReportsPdf.generateMermaScrapPdf(data, req.query, req.user, res);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getInventory,
   getAreaInventory,
@@ -182,5 +247,11 @@ module.exports = {
   requestDisposeLotes,
   getWasteRequest,
   resolveWasteRequest,
-  getLowStockReport
+  getLowStockReport,
+  getMonthlyReport,
+  getSuppliersReport,
+  getMermaScrapDevolucionesReport,
+  getMonthlyReportPdf,
+  getSuppliersReportPdf,
+  getMermaScrapDevolucionesPdf
 };

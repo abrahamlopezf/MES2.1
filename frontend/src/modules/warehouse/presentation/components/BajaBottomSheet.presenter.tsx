@@ -225,6 +225,12 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
+                  {tiposBaja.find(t => String(t.id) === String(tipoBajaId))?.name?.toLowerCase().includes('devoluci') && (
+                    <p className="text-xs text-primary font-medium mt-1 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Se descontará del inventario físico y se clasificará como Devolución en los reportes.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-bold text-foreground">Notas (Opcional)</label>

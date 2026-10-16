@@ -25,7 +25,8 @@ import {
   Activity,
   Beaker,
   ClipboardList,
-  MonitorPlay
+  MonitorPlay,
+  BarChart3
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useUsersQuery } from "../../modules/users/hooks/useUsers";
@@ -71,7 +72,14 @@ const menuGroups = [
       { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
       // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: Layers, permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
       { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" },
-      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "" }
+      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "" },
+      { 
+        label: "Reportes de Almacén", 
+        path: "/warehouse/reports", 
+        icon: BarChart3, 
+        permission: "", 
+        allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM"] 
+      }
     ]
   },
   {

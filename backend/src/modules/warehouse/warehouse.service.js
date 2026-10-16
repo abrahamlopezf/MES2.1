@@ -215,7 +215,9 @@ const disposeLotes = async (payload, currentUser) => {
     if (tipoBaja) {
       motivoName = tipoBaja.name;
       const lowerName = motivoName.toLowerCase();
-      if (lowerName.includes('merma')) {
+      if (lowerName.includes('devoluci')) {
+        movementType = 'DEVOLUCION';
+      } else if (lowerName.includes('merma')) {
         movementType = 'MERMA';
       } else if (
         lowerName.includes('scrap') ||

@@ -7,12 +7,14 @@ const { receiveMaterialSchema } = require('./warehouse.validator');
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
 const validationMiddleware = require('../../middlewares/validation.middleware');
+const roleMiddleware = require('../../middlewares/role.middleware');
 
 const router = express.Router();
 
 const authenticate = authMiddleware.authenticate || authMiddleware.authMiddleware || authMiddleware;
 const authorizePermission = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
 const validateRequest = validationMiddleware.validateRequest || validationMiddleware;
+const authorizeWarehouseReports = roleMiddleware('ADMIN_ALM');
 
 router.use(authenticate);
 
@@ -40,6 +42,43 @@ router.get(
   '/reports/merma-scrap/:material_id',
   authorizePermission('warehouse.read', 'inventory.view'),
   warehouseController.getMermaScrapDetails
+);
+
+router.get(
+  '/reports/monthly',
+  authorizeWarehouseReports,
+  warehouseController.getMonthlyReport
+);
+
+router.get(
+  '/reports/suppliers',
+  authorizeWarehouseReports,
+  warehouseController.getSuppliersReport
+);
+
+router.get(
+  '/reports/merma-scrap-devoluciones',
+  authorizeWarehouseReports,
+  warehouseController.getMermaScrapDevolucionesReport
+);
+
+// Formatted PDF Endpoints
+router.get(
+  '/reports/monthly/pdf',
+  authorizeWarehouseReports,
+  warehouseController.getMonthlyReportPdf
+);
+
+router.get(
+  '/reports/suppliers/pdf',
+  authorizeWarehouseReports,
+  warehouseController.getSuppliersReportPdf
+);
+
+router.get(
+  '/reports/merma-scrap-devoluciones/pdf',
+  authorizeWarehouseReports,
+  warehouseController.getMermaScrapDevolucionesPdf
 );
 
 router.get(
@@ -95,7 +134,14 @@ router.get(
   async (req, res, next) => {
     try {
       const { TipoBaja } = require('../../database/models');
-      const tipos = await TipoBaja.findAll({ where: { is_active: true } });
+      await TipoBaja.findOrCreate({
+        where: { name: 'Devolución' },
+        defaults: {
+          description: 'Devolución a proveedor o salida por rechazo tras ingreso',
+          is_active: true
+        }
+      });
+      const tipos = await TipoBaja.findAll({ where: { is_active: true }, order: [['id', 'ASC']] });
       res.status(200).json({ success: true, data: tipos });
     } catch (e) {
       next(e);
@@ -120,8 +166,6 @@ router.post(
   authorizePermission('warehouse.read', 'inventory.view', 'warehouse.consume'), 
   warehouseController.changeLocation
 );
-
-const roleMiddleware = require('../../middlewares/role.middleware');
 
 router.post(
   '/inventory/manual-entry',
