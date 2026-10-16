@@ -32,4 +32,9 @@ Thumbs.db
 
 # Generated catalog dump (local DB export - do NOT commit)
 backend/catalog_dump.json
-backend/seed_check.txt
+backend/seed_check.txt
+*.sql
+backend/*_cleanup*.js
+backend/*_status*.js
+backend/verify_*.js
+backend/clean_*.js

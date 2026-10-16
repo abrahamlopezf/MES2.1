@@ -210,6 +210,22 @@ class DashboardService {
         console.warn('Advertencia al consultar warehouse metrics:', wErr.message);
       }
 
+      // Obtener tendencias mensuales financieras reales de almacén y operaciones
+      let monthlyFinancialTrends = [];
+      try {
+        const warehouseReportService = require('../warehouse/warehouseReport.service');
+        const currentYear = new Date().getFullYear();
+        const reportData = await warehouseReportService.getMonthlyReport({ year: currentYear, month: 'all' });
+        monthlyFinancialTrends = (reportData.monthlyTrends || []).map(t => ({
+          mes: t.monthName,
+          inventario: t.entriesCost,
+          operativo: t.consumptionsCost,
+          merma: t.wasteCost
+        }));
+      } catch (trendErr) {
+        console.warn('Advertencia al consultar tendencias mensuales:', trendErr.message);
+      }
+
       return {
         success: true,
         data: {
@@ -232,6 +248,7 @@ class DashboardService {
           charts: {
             inventoryByArea: inventoryByAreaGraph,
             investmentVsLoss: investmentVsLossGraph,
+            monthlyFinancial: monthlyFinancialTrends,
             warehouseChartData: warehouseMetrics?.chartData || [],
             warehouseMermaData: warehouseMetrics?.mermaData || [],
             warehousePieData: warehouseMetrics?.pieData || []

@@ -156,15 +156,14 @@ const DashboardPage = () => {
   const bajasRegistradas = kpisFin.bajasRegistradas ?? 0;
   const materialesStockBajo = kpisFin.materialesStockBajo ?? 0;
 
-  // Evolución Financiera de Inventario y Pérdidas
-  const globalFinancialData = [
-    { mes: 'Ene', inventario: Math.round(totalInvested * 0.85), merma: Math.round(totalLoss * 0.7), operativo: 5000000 },
-    { mes: 'Feb', inventario: Math.round(totalInvested * 0.9), merma: Math.round(totalLoss * 0.8), operativo: 5200000 },
-    { mes: 'Mar', inventario: Math.round(totalInvested * 0.95), merma: Math.round(totalLoss * 0.85), operativo: 5100000 },
-    { mes: 'Abr', inventario: Math.round(totalInvested * 0.92), merma: Math.round(totalLoss * 0.9), operativo: 5400000 },
-    { mes: 'May', inventario: Math.round(totalInvested * 0.98), merma: Math.round(totalLoss * 0.95), operativo: 5600000 },
-    { mes: 'Jun', inventario: currentInventoryValue, merma: totalLoss, operativo: 5800000 },
-  ];
+  // Evolución Financiera de Inventario y Pérdidas (Totalmente conectada a datos reales del backend)
+  const monthlyFinancialFromBackend = finData?.charts?.monthlyFinancial;
+  const currentMonthIdx = new Date().getMonth(); // 0-indexed (Octubre = 9)
+  const defaultMonths = ['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct'];
+  
+  const globalFinancialData = Array.isArray(monthlyFinancialFromBackend) && monthlyFinancialFromBackend.length > 0
+    ? monthlyFinancialFromBackend.slice(Math.max(0, currentMonthIdx - 5), currentMonthIdx + 1)
+    : defaultMonths.map(mes => ({ mes, inventario: 0, merma: 0, operativo: 0 }));
 
   // Distribución del Capital basada en datos reales de almacén y pérdidas
   const remainingInvested = Math.max(0, totalInvested - currentInventoryValue - totalLoss);
@@ -175,6 +174,7 @@ const DashboardPage = () => {
     { name: 'Bajas / Desechos', value: kpisFin.totalLostBaja ?? 0, fill: '#dc2626' },
     { name: 'Capital Invertido Restante', value: remainingInvested, fill: '#10b981' },
   ].filter(d => d.value > 0);
+  const hasDistributionData = distributionData.length > 0;
 
   // Nombre y rol del usuario
   const roleLabel = ['ADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL'].includes(roleCode) 
@@ -325,30 +325,40 @@ const DashboardPage = () => {
             <p className="text-[11px] text-muted-foreground text-center mb-4">Desglose real de activos y pérdidas</p>
           </div>
           <div className="h-[240px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={distributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="45%"
-                  outerRadius="75%"
-                  dataKey="value"
-                  stroke={tooltipBg}
-                  strokeWidth={2}
-                >
-                  {distributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
-                  itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}
-                  formatter={(value) => formatCurrency(value)}
-                />
-                <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-              </PieChart>
-            </ResponsiveContainer>
+            {hasDistributionData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={distributionData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="45%"
+                    outerRadius="75%"
+                    dataKey="value"
+                    stroke={tooltipBg}
+                    strokeWidth={2}
+                  >
+                    {distributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip 
+                    contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
+                    itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}
+                    formatter={(value) => formatCurrency(value)}
+                  />
+                  <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
+                <div className="size-12 rounded-full bg-secondary/60 flex items-center justify-center mb-2">
+                  <Package className="size-6 opacity-40 text-muted-foreground" />
+                </div>
+                <p className="text-xs font-bold text-foreground opacity-75">Sin distribución de capital activa</p>
+                <p className="text-[11px] opacity-60 max-w-[220px] mt-1">El gráfico se activará al registrar las primeras recepciones de material.</p>
+              </div>
+            )}
           </div>
         </Card>
 
