@@ -1,6 +1,0 @@
-[
-  {
-    "field": "identifier",
-    "message": "El usuario o correo es obligatorio."
-  }
-]
