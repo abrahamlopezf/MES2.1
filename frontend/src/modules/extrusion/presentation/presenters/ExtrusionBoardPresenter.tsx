@@ -12,7 +12,8 @@ import {
   RefreshCw,
   CheckCircle2,
   XCircle,
-  ShieldAlert
+  ShieldAlert,
+  QrCode
 } from 'lucide-react';
 import {
   MachineQueueGroup,
@@ -29,6 +30,7 @@ export interface ExtrusionBoardPresenterProps {
   isLoading: boolean;
   isError: boolean;
   onRefresh: () => void;
+  onOpenContainerQr?: (qrCodeOrFolio: string) => void;
   // Modal Switch Priority
   isSwitchModalOpen: boolean;
   targetQueue: ExtruderQueue | null;
@@ -80,9 +82,10 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   onConfirmEnqueue,
   isEnqueuing,
   isFormulaRestrictedForMachine,
+  onOpenContainerQr,
 }) => {
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 pb-32 lg:pr-24">
       {/* Header Industrial */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border-2 border-border p-5 rounded-xl shadow-sm">
         <div className="space-y-1">
@@ -144,19 +147,40 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                     : 'bg-muted/40 border-border'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
                       Línea de Producción
                     </span>
-                    <h2 className="text-xl font-black text-foreground">{machine.name}</h2>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge
+                        variant={machine.type === 'FIXED' ? 'secondary' : 'default'}
+                        className="font-black text-[10px] uppercase px-1.5 py-0"
+                      >
+                        {machine.type === 'FIXED' ? 'Fija' : 'Dinámica'}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] font-bold font-mono px-1.5 py-0 ${
+                          machine.modo_silo 
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                            : 'bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {machine.modo_silo ? 'Silo' : 'Costales'}
+                      </Badge>
+                    </div>
                   </div>
-                  <Badge
-                    variant={machine.type === 'FIXED' ? 'secondary' : 'default'}
-                    className="font-black text-xs uppercase"
-                  >
-                    {machine.type === 'FIXED' ? 'Receta Fija' : 'Dinámica'}
-                  </Badge>
+
+                  <h2 className="text-xl font-black text-foreground tracking-tight whitespace-nowrap">
+                    {machine.name}
+                  </h2>
+
+                  {machine.modo_silo && machine.silo && (
+                    <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 block truncate">
+                      Silo: {machine.silo.name} ({Number(machine.silo.current_stock_kg || 0).toLocaleString()} kg)
+                    </span>
+                  )}
                 </div>
 
                 {/* Banner de Restricción Estricta para Extrusora 4 */}
@@ -169,17 +193,11 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                   </div>
                 )}
 
-                <div className="mt-3 flex items-center justify-between text-xs font-bold text-muted-foreground">
+                <div className="mt-3 flex items-center justify-between text-xs font-bold text-muted-foreground pt-2 border-t border-border/40">
                   <span>En Cola: {waiting.length + paused.length + (active ? 1 : 0)} mezclas</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onOpenEnqueueModal(machine.id)}
-                    className="h-7 text-xs font-black text-primary hover:text-primary hover:bg-primary/10 px-2"
-                  >
-                    <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                    Encolar
-                  </Button>
+                  <Badge variant="secondary" className="text-[10px] font-mono font-bold">
+                    {waiting.length} en espera
+                  </Badge>
                 </div>
               </div>
 
@@ -197,13 +215,36 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
 
                     {active ? (
                       <div className="p-3.5 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl space-y-2.5 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-black px-2 py-0.5 bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 rounded border border-emerald-500/30">
-                            {active.consumption_order_qr_id}
-                          </span>
-                          <Badge className="bg-emerald-600 text-white font-black text-[10px] uppercase">
-                            ACTIVA
-                          </Badge>
+                        {/* Fila Superior: Badges y Botón de QR */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge className="bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider shrink-0">
+                              ACTIVA
+                            </Badge>
+                            {(active.is_silo_kit || active.consumption_order_qr_id?.startsWith('KIT-ADITIVOS')) && (
+                              <Badge variant="outline" className="bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40 font-black text-[9px] px-1.5 py-0.5 shrink-0">
+                                KIT SILO
+                              </Badge>
+                            )}
+                          </div>
+                          {onOpenContainerQr && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onOpenContainerQr(active.consumption_order_qr_id)}
+                              className="h-6 px-2 text-[10px] font-bold border-emerald-500/50 text-emerald-700 dark:text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/30 gap-1 shrink-0"
+                              title="Ver / Reimprimir QR de este contenedor"
+                            >
+                              <QrCode className="h-3 w-3" />
+                              <span>Ver QR</span>
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Código QR del Contenedor con ancho completo y alto contraste */}
+                        <div className="font-mono text-xs font-black px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 border border-emerald-500/30 truncate" title={active.consumption_order_qr_id}>
+                          {active.consumption_order_qr_id}
                         </div>
 
                         <div>
@@ -268,15 +309,30 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                               {item.formula?.name}
                             </p>
 
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onOpenSwitchModal(item, active)}
-                              className="w-full h-8 text-xs font-black border-amber-500/50 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300"
-                            >
-                              <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
-                              Reanudar (Purga)
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onOpenSwitchModal(item, active)}
+                                className="flex-1 h-8 text-xs font-black border-amber-500/50 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                              >
+                                <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
+                                Reanudar (Purga)
+                              </Button>
+                              {onOpenContainerQr && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onOpenContainerQr(item.consumption_order_qr_id)}
+                                  className="h-8 px-2.5 text-xs font-bold border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 gap-1 shrink-0"
+                                  title="Ver / Reimprimir QR de este contenedor"
+                                >
+                                  <QrCode className="h-3.5 w-3.5" />
+                                  <span>QR</span>
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -302,9 +358,16 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                             className="p-3 bg-card border-2 border-border rounded-xl space-y-2 hover:border-primary/40 transition-colors"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-black font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                                #{idx + 1} Prioridad {item.priority}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-black font-mono text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 shrink-0 whitespace-nowrap">
+                                  #{idx + 1} Turno (P{item.priority})
+                                </span>
+                                {(item.is_silo_kit || item.consumption_order_qr_id?.startsWith('KIT-ADITIVOS')) && (
+                                  <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-black text-[9px] px-1.5 py-0.5">
+                                    KIT SILO
+                                  </Badge>
+                                )}
+                              </div>
                               <span className="font-mono text-xs font-bold text-muted-foreground">
                                 {item.consumption_order_qr_id}
                               </span>
@@ -314,15 +377,30 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                               {item.formula?.name}
                             </p>
 
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => onOpenSwitchModal(item, active)}
-                              className="w-full h-8 text-xs font-black bg-secondary hover:bg-secondary/80 text-foreground"
-                            >
-                              <ArrowUpCircle className="h-3.5 w-3.5 mr-1 text-primary" />
-                              Priorizar / Activar
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => onOpenSwitchModal(item, active)}
+                                className="flex-1 h-8 text-xs font-black bg-secondary hover:bg-secondary/80 text-foreground"
+                              >
+                                <ArrowUpCircle className="h-3.5 w-3.5 mr-1 text-primary" />
+                                Priorizar / Activar
+                              </Button>
+                              {onOpenContainerQr && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onOpenContainerQr(item.consumption_order_qr_id)}
+                                  className="h-8 px-2.5 text-xs font-bold border-border hover:border-primary/50 text-foreground gap-1 shrink-0"
+                                  title="Ver / Reimprimir QR de este contenedor"
+                                >
+                                  <QrCode className="h-3.5 w-3.5 text-primary" />
+                                  <span>QR</span>
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

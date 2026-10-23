@@ -1,4 +1,4 @@
-import { LogOut, UserRound } from 'lucide-react';
+import { Icon } from '../../design-system';
 import { useAuthStore } from '../../store/authStore';
 
 const UserSessionBox = () => {
@@ -9,7 +9,7 @@ const UserSessionBox = () => {
   return (
     <section className="user-session-box">
       <div className="user-session-avatar">
-        <UserRound size={28} />
+        <Icon name="person" size={28} />
       </div>
 
       <div className="user-session-info">
@@ -24,7 +24,7 @@ const UserSessionBox = () => {
         onClick={logout}
         aria-label="Cerrar sesión"
       >
-        <LogOut size={24} />
+        <Icon name="logout" size={24} />
       </button>
     </section>
   );

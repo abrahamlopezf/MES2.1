@@ -19,8 +19,8 @@ module.exports = (sequelize, DataTypes) => {
       },
       to_mixture_qr_id: {
         type: DataTypes.STRING(120),
-        allowNull: false,
-        comment: 'QR de la nueva mezcla que entra con mayor prioridad',
+        allowNull: true,
+        comment: 'QR de la nueva mezcla que entra (si es transición) o null si es merma operativa',
       },
       scrap_weight_kg: {
         type: DataTypes.DECIMAL(10, 2),
@@ -31,6 +31,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: false,
         defaultValue: 'PURGA_TRANSICION',
+      },
+      notes: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Detalles u observaciones de la merma/scrap',
       },
       logged_by: {
         type: DataTypes.INTEGER,

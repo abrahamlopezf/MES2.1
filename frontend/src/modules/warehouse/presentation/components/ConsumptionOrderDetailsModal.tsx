@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Package, Hash, User, Clock, CheckCircle2, Search, QrCode, Download, ChevronUp, ChevronDown } from 'lucide-react';
+import { Icon } from '@/design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { downloadConsumptionOrderPdf } from '../../utils/pdfUtils';
 import { toast } from 'sonner';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
+import { ChildQrPrintModal } from './ChildQrPrintModal';
 
 interface ConsumptionOrderDetailsModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
   const [cancelReason, setCancelReason] = useState('');
   const [showActionsMobile, setShowActionsMobile] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showChildQrModal, setShowChildQrModal] = useState(false);
 
   useEffect(() => {
     if (isOpen && orderUuid) {
@@ -112,8 +114,8 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
         <div className="flex items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-muted/20">
           <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-2">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center shadow-inner shrink-0 mt-0.5 sm:mt-0">
-              <Package size={20} className="sm:hidden" />
-              <Package size={24} className="hidden sm:block" />
+              <Icon name="inventory_2" size={20} className="sm:hidden" />
+              <Icon name="inventory_2" size={24} className="hidden sm:block" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-1 sm:mb-0">
@@ -127,8 +129,8 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                 )}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0.5">
-                <Clock size={12} className="sm:hidden shrink-0" />
-                <Clock size={14} className="hidden sm:block shrink-0" /> 
+                <Icon name="schedule" size={12} className="sm:hidden shrink-0" />
+                <Icon name="schedule" size={14} className="hidden sm:block shrink-0" /> 
                 <span className="truncate">Solicitado: {order ? new Date(order.created_at).toLocaleString() : ''}</span>
               </p>
             </div>
@@ -137,7 +139,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
             onClick={onClose}
             className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground shrink-0 mt-0.5 sm:mt-0 bg-background/50 sm:bg-transparent"
           >
-            <X size={20} />
+            <Icon name="close" size={20} />
           </button>
         </div>
 
@@ -155,7 +157,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                 <div className="bg-muted/30 p-4 rounded-xl border border-border">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Solicitante</span>
                   <div className="font-medium flex items-center gap-2 text-foreground">
-                    <User size={16} className="text-primary" />
+                    <Icon name="person" size={16} className="text-primary" />
                     {order.requester?.name || order.requester?.first_name} {order.requester?.last_name}
                   </div>
                 </div>
@@ -166,7 +168,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                 <div className="bg-muted/30 p-4 rounded-xl border border-border">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Código QR</span>
                   <div className="font-medium flex items-center gap-2 text-primary">
-                    <QrCode size={16} />
+                    <Icon name="qr_code_2" size={16} />
                     Asignado ({order.qr_code_id})
                   </div>
                 </div>
@@ -175,13 +177,13 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                   <div className="font-medium text-foreground">
                     {order.status === 'CANCELADA' ? (
                       <div>
-                        <span className="text-destructive flex items-center gap-1"><X size={16} /> Cancelada el {new Date(order.resolved_at || order.updated_at).toLocaleDateString()}</span>
+                        <span className="text-destructive flex items-center gap-1"><Icon name="close" size={16} /> Cancelada el {new Date(order.resolved_at || order.updated_at).toLocaleDateString()}</span>
                         {order.resolver && <span className="text-xs text-muted-foreground font-semibold block mt-1">Por: {order.resolver.first_name} {order.resolver.last_name}</span>}
                       </div>
                     ) : order.status === 'PREPARANDO' || order.status === 'SURTIDA' ? (
                       <div>
                         <span className={order.status === 'SURTIDA' ? "text-success flex items-center gap-1" : "text-info flex items-center gap-1"}>
-                          {order.status === 'SURTIDA' ? <CheckCircle2 size={16} /> : <Clock size={16} />} 
+                          {order.status === 'SURTIDA' ? <Icon name="check_circle" size={16} /> : <Icon name="schedule" size={16} />} 
                           {order.status === 'SURTIDA' ? 'Surtida el' : 'Preparando desde'} {new Date(order.resolved_at || order.updated_at).toLocaleDateString()}
                         </span>
                         {order.resolver && <span className="text-xs text-muted-foreground font-semibold block mt-1">Por: {order.resolver.first_name} {order.resolver.last_name}</span>}
@@ -209,7 +211,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                         <th className="px-4 py-3 text-sm font-semibold text-muted-foreground w-10">Status</th>
                         <th className="px-4 py-3 text-sm font-semibold text-muted-foreground">Material</th>
                         <th className="px-4 py-3 text-sm font-semibold text-muted-foreground">Lote / Factura</th>
-                        <th className="px-4 py-3 text-sm font-semibold text-muted-foreground text-right">Cantidad Surtida</th>
+                        <th className="px-4 py-3 text-sm font-semibold text-muted-foreground text-right whitespace-nowrap">Cantidad Surtida</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -232,7 +234,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                               <tr key={idx} className={`hover:bg-muted/10 ${isFulfilled ? 'bg-success/5' : ''}`}>
                                 <td className="px-4 py-3 text-center">
                                   {isFulfilled ? (
-                                    <CheckCircle2 className="text-success inline-block" size={20} />
+                                    <Icon name="check_circle" className="text-success inline-block" size={20} />
                                   ) : (
                                     <svg width="24" height="24" viewBox="0 0 24 24" className="inline-block transform -rotate-90">
                                       <circle
@@ -277,16 +279,35 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                                     );
                                   })()}
                                 </div>
+                                {item.child_qr?.qr_code && (
+                                  <div className="mt-1.5 flex items-center gap-1.5">
+                                    <span className={`inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded border ${
+                                      item.child_qr.is_active 
+                                        ? 'bg-primary/10 text-primary border-primary/25' 
+                                        : 'bg-muted text-muted-foreground border-border'
+                                    }`}>
+                                      <Icon name="qr_code" size={13} />
+                                      <span>{item.child_qr.qr_code}</span>
+                                      {item.child_qr.is_active ? (
+                                        <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-primary text-primary-foreground font-sans ml-1">WIP</span>
+                                      ) : (
+                                        <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-muted-foreground/20 text-muted-foreground font-sans ml-1">RESERVADO</span>
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="font-bold">
+                              <td className="px-4 py-3 text-right whitespace-nowrap">
+                                <div className="inline-flex items-baseline justify-end gap-1.5 font-mono text-sm font-bold">
                                   <span className={isFulfilled ? 'text-success' : 'text-primary'}>
                                     {parseFloat(item.fulfilled_quantity || 0).toFixed(2)}
                                   </span>
-                                  <span className="text-muted-foreground mx-1">/</span>
+                                  <span className="text-muted-foreground font-normal">/</span>
                                   <span className="text-foreground">{parseFloat(item.requested_quantity).toFixed(2)}</span>
+                                  <span className="text-xs font-bold text-muted-foreground uppercase font-sans ml-1">
+                                    {item.unit?.code || item.material?.base_unit?.code || item.unit?.abbreviation || 'KG'}
+                                  </span>
                                 </div>
-                                <div className="text-xs font-bold text-muted-foreground uppercase">{item.material?.base_unit?.code || item.unit?.code || item.unit?.abbreviation || 'U'}</div>
                               </td>
                             </tr>
                           );
@@ -325,9 +346,9 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
             className="sm:hidden w-full flex items-center justify-center gap-2 py-2 text-sm font-bold text-muted-foreground bg-background border border-border rounded-xl"
           >
             {showActionsMobile ? (
-              <>Ocultar Acciones <ChevronDown size={16} /></>
+              <>Ocultar Acciones <Icon name="expand_more" size={16} /></>
             ) : (
-              <>Ver Acciones <ChevronUp size={16} /></>
+              <>Ver Acciones <Icon name="expand_less" size={16} /></>
             )}
           </button>
 
@@ -348,7 +369,7 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                 }}
                 className="w-full sm:w-auto px-5 py-2.5 bg-secondary text-secondary-foreground border border-border rounded-xl font-medium hover:bg-secondary/80 transition-colors shadow-sm flex items-center justify-center gap-2 sm:mr-auto"
               >
-                <Download size={18} /> Descargar PDF
+                <Icon name="download" size={18} /> Descargar PDF
               </button>
             )}
 
@@ -378,7 +399,17 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                 disabled={updating}
                 className="w-full sm:w-auto px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-colors shadow-md flex items-center justify-center gap-2"
               >
-                <QrCode size={18} /> Escanear Lotes
+                <Icon name="qr_code_2" size={18} /> Escanear Lotes
+              </button>
+            )}
+
+            {order?.items?.some((it: any) => it.child_qr?.qr_code) && (
+              <button 
+                onClick={() => setShowChildQrModal(true)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl font-bold hover:bg-primary/20 transition-colors shadow-sm flex items-center justify-center gap-2"
+                title="Ver e imprimir etiquetas QR de los mini-lotes (WIP)"
+              >
+                <Icon name="qr_code_2" size={18} /> Imprimir QRs Mini-lotes (WIP)
               </button>
             )}
             
@@ -423,23 +454,44 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
         {showSuccessModal && (
           <div className="absolute inset-0 z-[60] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-300">
             <div className="w-24 h-24 bg-success/20 text-success rounded-full flex items-center justify-center mb-6 animate-bounce shadow-xl shadow-success/10 border border-success/30">
-              <CheckCircle2 size={48} />
+              <Icon name="check_circle" size={48} />
             </div>
             <h2 className="text-3xl font-black text-foreground mb-2 tracking-tight text-center">¡Orden Completada!</h2>
             <p className="text-muted-foreground text-center mb-8 max-w-sm">
               La orden de consumo <span className="font-bold text-foreground">{order?.order_number}</span> ha sido surtida exitosamente en su totalidad.
             </p>
-            <button
-              onClick={() => {
-                setShowSuccessModal(false);
-                onClose();
-              }}
-              className="px-8 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0"
-            >
-              Cerrar y Volver
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {order?.items?.some((it: any) => it.child_qr?.qr_code) && (
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setShowChildQrModal(true);
+                  }}
+                  className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/25 flex items-center justify-center gap-2"
+                >
+                  <Icon name="qr_code_2" size={20} />
+                  <span>Imprimir QRs Mini-lotes (WIP)</span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  onClose();
+                }}
+                className="px-8 py-3 bg-secondary text-secondary-foreground font-bold rounded-xl hover:bg-secondary/80 transition-all shadow-md"
+              >
+                Cerrar y Volver
+              </button>
+            </div>
           </div>
         )}
+
+        {/* Modal para impresión de QRs hijos de Mini-Lotes */}
+        <ChildQrPrintModal
+          isOpen={showChildQrModal}
+          onClose={() => setShowChildQrModal(false)}
+          order={order}
+        />
 
       </div>
     </div>,

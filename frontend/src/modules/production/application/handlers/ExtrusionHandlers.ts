@@ -43,7 +43,7 @@ export class ExtrusionHandlers {
 
     await this.repository.saveExtrusionTransformation(extrusion);
 
-    for (const event of extrusion.pullDomainEvents()) {
+    for (const event of extrusion.pullEvents()) {
       await this.eventBus.publish(event);
     }
 
@@ -75,7 +75,7 @@ export class ExtrusionHandlers {
     await this.repository.saveRack(rack);
     await this.repository.saveExtrusionTransformation(extrusion);
 
-    for (const event of rack.pullDomainEvents()) {
+    for (const event of rack.pullEvents()) {
       await this.eventBus.publish(event);
     }
   }

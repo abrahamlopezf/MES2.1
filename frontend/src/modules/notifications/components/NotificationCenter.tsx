@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, Check, ShieldAlert, Info, AlertTriangle, UserPlus, UserMinus, X, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
 import { useAuthStore } from '../../../store/authStore';
+import { BrowserNotificationBanner } from '../../../core/notifications/BrowserNotificationBanner';
+import { sendBrowserNotification } from '../../../core/notifications/browserNotifications';
 
 export const NotificationCenter = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +20,40 @@ export const NotificationCenter = () => {
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
   const navigate = useNavigate();
+
+  const knownNotificationIdsRef = useRef<Set<number>>(new Set());
+  const isInitializedRef = useRef(false);
+
+  // Detector de nuevas notificaciones en tiempo real para disparar alertas de escritorio y sonner
+  useEffect(() => {
+    if (!notifications || notifications.length === 0) return;
+
+    if (!isInitializedRef.current) {
+      notifications.forEach((n: any) => knownNotificationIdsRef.current.add(n.id));
+      isInitializedRef.current = true;
+      return;
+    }
+
+    notifications.forEach((n: any) => {
+      if (!knownNotificationIdsRef.current.has(n.id)) {
+        knownNotificationIdsRef.current.add(n.id);
+        if (!n.is_read && !n.read_at) {
+          const displayMessage = n.message ? n.message.split('?')[0] : '';
+          sendBrowserNotification(n.title || 'Nueva Notificación MES', {
+            body: displayMessage,
+            sound: true,
+            tag: `mes-notif-${n.id}`,
+            onClick: () => {
+              setIsOpen(true);
+            }
+          });
+          toast.info(n.title || 'Nueva Notificación', {
+            description: displayMessage,
+          });
+        }
+      }
+    });
+  }, [notifications]);
 
   // Bloquear el scroll del body cuando el workspace está abierto
   useEffect(() => {
@@ -153,6 +190,9 @@ export const NotificationCenter = () => {
                 </span>
               )}
             </div>
+            <div className="p-3 border-b border-border bg-card">
+              <BrowserNotificationBanner compact={true} />
+            </div>
             <div className="max-h-[350px] overflow-y-auto divide-y divide-border">
               {notifications.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground text-sm">
@@ -262,6 +302,7 @@ export const NotificationCenter = () => {
           {/* Área Principal: Lista de Notificaciones */}
           <main className="flex-1 overflow-y-auto bg-muted/10 p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-4">
+              <BrowserNotificationBanner compact={false} />
               {isLoading ? (
                 <div className="p-12 text-center text-muted-foreground font-bold text-lg animate-pulse">
                   Sincronizando sistema...

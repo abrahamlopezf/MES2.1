@@ -47,6 +47,26 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: 'Área de Racks PTI',
       },
+      unit_price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0.00,
+        comment: 'Precio unitario por bobina PTI almacenada en el rack (editable por el usuario)',
+      },
+      unit_weight_kg: {
+        type: DataTypes.DECIMAL(10, 3),
+        allowNull: false,
+        defaultValue: 6.800,
+        comment: 'Peso unitario estándar por bobina PTI en kg (para conversión peso <-> piezas)',
+      },
+      total_value: {
+        type: DataTypes.VIRTUAL,
+        get() {
+          const qty = Number(this.getDataValue('current_quantity') || 0);
+          const price = Number(this.getDataValue('unit_price') || 0);
+          return Number((qty * price).toFixed(2));
+        },
+      },
     },
     {
       tableName: 'pti_racks',

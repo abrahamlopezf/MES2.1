@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Clock, Eye, CheckCircle2, XCircle, Search, Plus } from 'lucide-react';
+import { Icon } from '@/design-system';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
 import { useAuthStore } from '../../../../store/authStore';
@@ -135,7 +135,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
                 onClick={() => setIsCreateModalOpen(true)}
                 className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-medium hover:bg-primary/90 transition-colors shadow-sm"
               >
-                <Plus size={20} />
+                <Icon name="add" size={20} />
                 <span>Nueva Orden</span>
               </button>
             </div>
@@ -165,7 +165,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
             <div className="p-8 text-center text-muted-foreground">Cargando órdenes...</div>
           ) : orders.length === 0 ? (
             <div className="p-12 flex flex-col items-center justify-center text-center">
-              <Package className="w-12 h-12 text-muted-foreground/50 mb-4" />
+              <Icon name="inventory_2" size={48} className="text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium text-foreground">No hay órdenes</h3>
               <p className="text-muted-foreground text-sm max-w-sm mt-2">No se encontraron órdenes de consumo con los filtros seleccionados.</p>
             </div>
@@ -200,7 +200,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
                           {isWarehouseUser ? (order.requesting_area?.name || 'N/A') : 'Almacén'}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <Clock size={12} />
+                          <Icon name="schedule" size={13} />
                           <span>{new Date(order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
@@ -209,7 +209,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
                         onClick={(e) => { e.stopPropagation(); setSelectedOrderUuid(order.uuid); }}
                         className="w-full py-2 bg-secondary/80 border border-border rounded-xl text-xs font-bold hover:border-primary/50 hover:text-primary transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        <Eye size={15} /> Ver Detalles de la Orden
+                        <Icon name="visibility" size={16} /> Ver Detalles de la Orden
                       </button>
                     </div>
                   );
@@ -252,7 +252,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
                           </td>
                           <td className="px-5 py-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1.5">
-                              <Clock size={14} />
+                              <Icon name="schedule" size={14} />
                               {new Date(order.created_at).toLocaleString()}
                             </div>
                           </td>
@@ -261,7 +261,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
                               onClick={() => setSelectedOrderUuid(order.uuid)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium hover:border-primary/50 hover:text-primary transition-all cursor-pointer"
                             >
-                              <Eye size={16} /> Detalles
+                              <Icon name="visibility" size={16} /> Detalles
                             </button>
                           </td>
                         </tr>

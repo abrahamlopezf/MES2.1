@@ -29,6 +29,10 @@ export abstract class AggregateRoot<TId> {
     return pulledEvents;
   }
 
+  public pullDomainEvents(): DomainEvent[] {
+    return this.pullEvents();
+  }
+
   /**
    * Borra los eventos sin extraerlos.
    */

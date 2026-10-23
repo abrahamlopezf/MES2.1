@@ -1,5 +1,5 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Menu } from 'lucide-react';
+import { Icon } from '../../design-system';
 
 const ROUTE_DICTIONARY = {
   portal: 'Portal Admin',
@@ -20,12 +20,15 @@ const ROUTE_DICTIONARY = {
   production: 'Producción',
   mixing: 'Mezclado',
   extrusion: 'Extrusión',
-  rack: 'Rack',
+  board: 'Tablero Operativo',
+  formulas: 'Fórmulas',
+  'rack-ingress': 'Ingreso a Racks',
+  rack: 'Racks',
   new: 'Nuevo',
   orders: 'Órdenes',
   stations: 'Estaciones',
   runs: 'Corridas',
-  machines: 'Andon Board',
+  machines: 'Máquinas Extrusoras',
   
   warehouse: 'Almacén',
   almacen: 'Almacén',
@@ -66,7 +69,7 @@ export const GlobalBreadcrumbs = () => {
           aria-label="Abrir Menú de Navegación"
           title="Menú"
         >
-          <Menu size={18} />
+          <Icon name="menu" size={20} />
         </button>
 
         {/* Botón de volver genérico */}
@@ -96,7 +99,7 @@ export const GlobalBreadcrumbs = () => {
                     <Link to={to} className="text-blue-500 hover:text-blue-600 transition-colors">
                       {label}
                     </Link>
-                    <ChevronRight size={14} className="mx-1 text-muted-foreground/60 shrink-0" />
+                    <Icon name="chevron_right" size={16} className="mx-1 text-muted-foreground/60 shrink-0" />
                   </>
                 )}
               </div>

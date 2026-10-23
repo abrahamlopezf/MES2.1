@@ -246,7 +246,7 @@ export const router = createBrowserRouter([
                 element: <ExtrusionTerminalPage />
               },
               {
-                path: 'machines',
+                path: 'andon',
                 element: <AndonBoardPage />
               }
             ]

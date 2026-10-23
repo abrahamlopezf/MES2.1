@@ -1,0 +1,220 @@
+2026-10-21T01:12:00.305Z\nMessage: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.\nStack: Error: Código QR no reconocido o inválido. Por seguridad, solo se aceptan códigos generados por este sistema.
+    at decryptQrData (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\shared\utils\crypto.utils.js:40:11)
+    at lookup (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\qrcodes\qrcodes.controller.js:238:25)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n2026-10-21T03:42:46.433Z\nMessage: ProcessPreparationInput is not associated to ProcessPreparation!\nStack: SequelizeEagerLoadingError: ProcessPreparationInput is not associated to ProcessPreparation!
+    at ProcessPreparation._getIncludedAssociation (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:565:13)
+    at ProcessPreparation._validateIncludedElement (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:502:53)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:421:37
+    at Array.map (<anonymous>)
+    at ProcessPreparation._validateIncludedElements (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:417:39)
+    at ProcessPreparation.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1124:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async ProcessPreparation.findOne (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1240:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:774:18
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18\n\n2026-10-21T03:43:33.765Z\nMessage: notNull Violation: QrCode.batch_id cannot be null,
+notNull Violation: QrCode.created_by cannot be null\nStack: SequelizeValidationError: notNull Violation: QrCode.batch_id cannot be null,
+notNull Violation: QrCode.created_by cannot be null
+    at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
+    at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async QrCode.findOrCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1422:25)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:791:28
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.splitMixtureContainers (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:773:12)\n\n2026-10-21T03:44:16.823Z\nMessage: inserción o actualización en la tabla «qr_codes» viola la llave foránea «qr_codes_batch_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async QrCode.findOrCreate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1422:25)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:793:28
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.splitMixtureContainers (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:775:12)\n\n2026-10-22T05:08:00.513Z\nMessage: inserción o actualización en la tabla «qr_codes» viola la llave foránea «qr_codes_batch_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:22:18
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-22T05:08:29.247Z\nMessage: inserción o actualización en la tabla «qr_codes» viola la llave foránea «qr_codes_batch_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:22:18
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-22T05:09:16.339Z\nMessage: inserción o actualización en la tabla «qr_codes» viola la llave foránea «qr_codes_batch_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:22:18
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-22T05:09:30.418Z\nMessage: inserción o actualización en la tabla «qr_codes» viola la llave foránea «qr_codes_batch_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:22:18
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-22T05:11:27.267Z\nMessage: inserción o actualización en la tabla «qr_codes» viola la llave foránea «qr_codes_batch_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.insert (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async QrCode.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:22:18
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-22T05:17:05.667Z\nMessage: inserción o actualización en la tabla «pti_racks» viola la llave foránea «pti_racks_current_pti_type_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:355:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:576:7
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.scanRackPti (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:441:12)
+    at async scanRack (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:95:22)\n\n2026-10-22T05:18:31.938Z\nMessage: inserción o actualización en la tabla «pti_racks» viola la llave foránea «pti_racks_current_pti_type_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:355:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:576:7
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.scanRackPti (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:441:12)
+    at async scanRack (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:95:22)\n\n2026-10-22T05:22:01.802Z\nMessage: inserción o actualización en la tabla «pti_racks» viola la llave foránea «pti_racks_current_pti_type_id_fkey»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.update (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:355:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2490:35)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:576:7
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.scanRackPti (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:441:12)
+    at async scanRack (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:95:22)\n\n2026-10-22T17:02:59.305Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:03:00.353Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:03:02.401Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:05:17.978Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:05:19.015Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:05:21.069Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:07:04.605Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:07:05.659Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-22T17:07:07.705Z\nMessage: Fórmula no encontrada.\nStack: Error: Fórmula no encontrada.
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:231:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:36:23)\n\n2026-10-23T06:29:01.046Z\nMessage: notNull Violation: TraceabilityEvent.qr_code_id cannot be null\nStack: SequelizeValidationError: notNull Violation: TraceabilityEvent.qr_code_id cannot be null
+    at InstanceValidator._validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:50:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async InstanceValidator._validateAndRunHooks (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:60:7)
+    at async InstanceValidator.validate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\instance-validator.js:54:12)
+    at async model.save (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:2426:7)
+    at async TraceabilityEvent.create (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1362:12)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2563:7
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.receiveSiloInvoiceEntry (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2528:12)
+    at async receiveSiloInvoiceEntry (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:460:22)\n\n2026-10-23T06:30:04.524Z\nMessage: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 1 mientras tenga órdenes en proceso o mezclas encoladas (3 registros activos en cola).\nStack: Error: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 1 mientras tenga órdenes en proceso o mezclas encoladas (3 registros activos en cola).
+    at ExtrusionService.toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2444:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:422:23)\n\n2026-10-23T06:30:04.566Z\nMessage: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 1 mientras tenga órdenes en proceso o mezclas encoladas (2 registros activos en cola).\nStack: Error: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 1 mientras tenga órdenes en proceso o mezclas encoladas (2 registros activos en cola).
+    at ExtrusionService.toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2444:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:422:23)\n\n2026-10-23T06:31:58.601Z\nMessage: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (1 registros activos en cola).\nStack: Error: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (1 registros activos en cola).
+    at ExtrusionService.toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2444:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:422:23)\n\n2026-10-23T06:31:58.711Z\nMessage: Restricción de Máquina: Las fórmulas de Rafia para Cinturón son de uso exclusivo en la Extrusora 1. Intento bloqueado.\nStack: Error: Restricción de Máquina: Las fórmulas de Rafia para Cinturón son de uso exclusivo en la Extrusora 1. Intento bloqueado.
+    at ExtrusionService.enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1301:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:161:22)\n\n2026-10-23T06:31:58.755Z\nMessage: Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido procesar fórmulas que contengan 'POLIPROPILENO (B)'. Intento bloqueado.\nStack: Error: Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido procesar fórmulas que contengan 'POLIPROPILENO (B)'. Intento bloqueado.
+    at ExtrusionService.enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1320:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:161:22)\n\n2026-10-23T06:31:58.791Z\nMessage: Restricción de Seguridad: La Extrusora 4 tiene estrictamente prohibido el uso de Polipropileno 'B'. El silo seleccionado (Silo 3 (PP Resina B)) contiene resina Lote tipo 'B'. Asignación bloqueada.\nStack: Error: Restricción de Seguridad: La Extrusora 4 tiene estrictamente prohibido el uso de Polipropileno 'B'. El silo seleccionado (Silo 3 (PP Resina B)) contiene resina Lote tipo 'B'. Asignación bloqueada.
+    at ExtrusionService.assignExtruderSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2479:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async assignExtruderSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:435:23)\n\n2026-10-23T06:31:58.961Z\nMessage: QR TEST-INPUT-WIP-01 no encontrado.\nStack: Error: QR TEST-INPUT-WIP-01 no encontrado.
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:188:30
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-23T06:33:23.538Z\nMessage: Operación bloqueada: No se puede cambiar el modo operativo (Manual) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (2 registros activos en cola).\nStack: Error: Operación bloqueada: No se puede cambiar el modo operativo (Manual) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (2 registros activos en cola).
+    at ExtrusionService.toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2444:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:422:23)\n\n2026-10-23T06:33:23.609Z\nMessage: Operación bloqueada: No se puede cambiar el modo operativo (Manual) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (1 registros activos en cola).\nStack: Error: Operación bloqueada: No se puede cambiar el modo operativo (Manual) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (1 registros activos en cola).
+    at ExtrusionService.toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2444:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:422:23)\n\n2026-10-23T06:34:11.143Z\nMessage: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (1 registros activos en cola).\nStack: Error: Operación bloqueada: No se puede cambiar el modo operativo (Silo) de la Extrusora 2 mientras tenga órdenes en proceso o mezclas encoladas (1 registros activos en cola).
+    at ExtrusionService.toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2444:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async toggleModoSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:422:23)\n\n2026-10-23T06:34:11.247Z\nMessage: Restricción de Máquina: Las fórmulas de Rafia para Cinturón son de uso exclusivo en la Extrusora 1. Intento bloqueado.\nStack: Error: Restricción de Máquina: Las fórmulas de Rafia para Cinturón son de uso exclusivo en la Extrusora 1. Intento bloqueado.
+    at ExtrusionService.enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1301:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:161:22)\n\n2026-10-23T06:34:11.292Z\nMessage: Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido procesar fórmulas que contengan 'POLIPROPILENO (B)'. Intento bloqueado.\nStack: Error: Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido procesar fórmulas que contengan 'POLIPROPILENO (B)'. Intento bloqueado.
+    at ExtrusionService.enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1320:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async enqueueMix (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:161:22)\n\n2026-10-23T06:34:11.323Z\nMessage: Restricción de Seguridad: La Extrusora 4 tiene estrictamente prohibido el uso de Polipropileno 'B'. El silo seleccionado (Silo 3 (PP Resina B)) contiene resina Lote tipo 'B'. Asignación bloqueada.\nStack: Error: Restricción de Seguridad: La Extrusora 4 tiene estrictamente prohibido el uso de Polipropileno 'B'. El silo seleccionado (Silo 3 (PP Resina B)) contiene resina Lote tipo 'B'. Asignación bloqueada.
+    at ExtrusionService.assignExtruderSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2479:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async assignExtruderSilo (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:435:23)\n\n2026-10-23T06:34:11.517Z\nMessage: QR TEST-INPUT-WIP-01 no encontrado.\nStack: Error: QR TEST-INPUT-WIP-01 no encontrado.
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:188:30
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:7:22)\n\n2026-10-23T07:17:43.732Z\nMessage: El QR Hijo 'QR-LOT-CARB-1792473431913-86293-SN1' no tiene existencias disponibles en el WIP de Extrusión.\nStack: Error: El QR Hijo 'QR-LOT-CARB-1792473431913-86293-SN1' no tiene existencias disponibles en el WIP de Extrusión.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:561:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T07:18:00.030Z\nMessage: El QR Hijo 'QR-LOT-CARB-1792473431913-86293-SN1' no tiene existencias disponibles en el WIP de Extrusión.\nStack: Error: El QR Hijo 'QR-LOT-CARB-1792473431913-86293-SN1' no tiene existencias disponibles en el WIP de Extrusión.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:561:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T07:40:40.705Z\nMessage: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' no tiene existencias disponibles en el WIP de Extrusión.\nStack: Error: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' no tiene existencias disponibles en el WIP de Extrusión.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:581:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T07:45:15.042Z\nMessage: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).\nStack: Error: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:576:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T07:48:02.438Z\nMessage: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).\nStack: Error: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:576:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T07:57:53.264Z\nMessage: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).\nStack: Error: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:632:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T07:58:56.218Z\nMessage: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).\nStack: Error: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:632:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n2026-10-23T08:00:20.218Z\nMessage: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).\nStack: Error: El QR Hijo 'QR-LOT-PPA-1792473240206-68303-SN4' ya fue consumido en su totalidad en una preparación anterior (Stock disponible: 0 kg).
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:632:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:48:22)\n\n

@@ -21,12 +21,65 @@ export interface Formula {
   code: string;
   description?: string;
   batch_size_kg: number;
+  cost_index?: number;
+  raw_materials_cost?: number;
+  transformed_mixture_value?: number;
+  suggested_pti_unit_price?: number;
   expected_yield_pieces: number;
   expected_yield_kg: number;
   allowed_extruders?: number[];
   restricted_extruders?: number[];
   is_active: boolean;
   ingredients?: FormulaIngredient[];
+  ptiProducts?: PtiProduct[];
+}
+
+export interface PtiProduct {
+  id: number;
+  code: string;
+  name: string;
+  specifications?: string;
+  unit_weight_kg: number;
+  unit_price: number;
+  formula_id: number;
+  material_id?: number | null;
+  is_active: boolean;
+  formula?: Formula;
+  material?: MaterialRef;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreatePtiProductPayload {
+  code?: string;
+  name: string;
+  specifications?: string;
+  unit_weight_kg?: number;
+  unit_price?: number;
+  formula_id: number;
+  material_id?: number | null;
+  is_active?: boolean;
+}
+
+export interface UpdatePtiProductPayload {
+  code?: string;
+  name?: string;
+  specifications?: string;
+  unit_weight_kg?: number;
+  unit_price?: number;
+  formula_id?: number;
+  material_id?: number | null;
+  is_active?: boolean;
+}
+
+export interface UpdateFormulaPayload {
+  name?: string;
+  description?: string;
+  cost_index?: number;
+  batch_size_kg?: number;
+  expected_yield_pieces?: number;
+  expected_yield_kg?: number;
+  is_active?: boolean;
 }
 
 export type RackStatus = 'VACIO' | 'DISPONIBLE' | 'LLENO';
@@ -42,6 +95,9 @@ export interface PtiRack {
   status: RackStatus;
   currentPtiType?: MaterialRef | null;
   notes?: string;
+  unit_price?: number;
+  unit_weight_kg?: number;
+  total_value?: number;
 }
 
 export type QueueStatus = 'EN_ESPERA' | 'ACTIVA' | 'PAUSADA' | 'COMPLETADA' | 'CANCELADA';
@@ -111,7 +167,75 @@ export interface EnqueueMixPayload {
 export interface ScanRackPtiPayload {
   rack_qr: string;
   pti_material_id: number;
-  quantity: number;
+  quantity?: number;
+  weight_kg?: number;
+  unit_price?: number;
   mixture_qr?: string;
+  scrap_weight_kg?: number;
+  scrap_reason?: string;
+  notes?: string;
+}
+
+export interface ScrapDetail {
+  id: number;
+  extruder_id: number;
+  from_mixture_qr_id: string;
+  scrap_weight_kg: number;
+  reason: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface MassBalanceData {
+  mixture_qr: string;
+  batch_size_kg: number;
+  total_scrap_kg: number;
+  scrap_percentage: number;
+  estimated_useful_kg: number;
+  estimated_yield_percentage: number;
+  scrap_status: 'OPTIMO' | 'NORMAL' | 'ELEVADO' | 'CRITICO';
+  scrap_records_count: number;
+  scrap_details: ScrapDetail[];
+}
+
+export interface ExtrusionValuation {
+  cost_index: number;
+  queued_mixes_value: number;
+  active_mixes_value: number;
+  pti_racks_value: number;
+  total_extrusion_wip_value: number;
+  queued_items_count: number;
+  active_items_count: number;
+  racks_count: number;
+  racks: Array<{
+    id: number;
+    rack_code: string;
+    current_quantity: number;
+    unit_price: number;
+    unit_weight_kg: number;
+    total_value: number;
+    pti_type: string;
+  }>;
+}
+
+export interface SplitContainerItem {
+  container_number?: number;
+  weight_kg?: number;
+}
+
+export interface SplitContainersPayload {
+  parent_mixture_qr: string;
+  containers: SplitContainerItem[];
+  notes?: string;
+}
+
+export interface MixtureTransitionPayload {
+  extruder_id: number;
+  from_mixture_qr?: string;
+  to_mixture_qr?: string;
+  transition_scrap_kg: number;
+  last_pti_quantity?: number;
+  first_pti_quantity?: number;
+  reason?: string;
   notes?: string;
 }

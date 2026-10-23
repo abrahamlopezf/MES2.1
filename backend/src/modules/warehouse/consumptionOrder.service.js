@@ -23,6 +23,27 @@ class ConsumptionOrderService {
       { transaction }
     );
 
+    // Determine if requesting area is a production process area
+    const PROCESS_AREAS = ['EXTRUSION', 'TELARES', 'LAMINADO', 'GLOBO', 'CORTE', 'CONFECCION', 'IMPRENTA', 'PEGADO', 'ENSAMBLADO', 'ETIQUETADO', 'DOBLADO', 'PRENSADO'];
+    let isProcessArea = false;
+    if (requesting_area_id) {
+      const areaRecord = await Area.findByPk(requesting_area_id, { transaction });
+      if (areaRecord && areaRecord.code) {
+        isProcessArea = PROCESS_AREAS.includes(areaRecord.code.toUpperCase());
+      }
+    }
+
+    const { QrBatch } = require('../../database/models');
+    let batch = await QrBatch.findOne({ transaction });
+    if (!batch) {
+      batch = await QrBatch.create({
+        batch_number: 'BATCH-ORD-001',
+        total_qrs: 1000,
+        type: 'CONSUMPTION_ORDER',
+        created_by: requested_by
+      }, { transaction });
+    }
+
     // Process Items and FIFO Allocation
     for (const item of items) {
       const { material_id, quantity } = item;
@@ -45,7 +66,7 @@ class ConsumptionOrderService {
       }
 
       // Get material to have fallback base_unit_id
-      const materialRecord = await Material.findByPk(material_id, { attributes: ['id', 'base_unit_id'], transaction });
+      const materialRecord = await Material.findByPk(material_id, { attributes: ['id', 'family_id', 'base_unit_id'], transaction });
 
       const allocations = [];
       let remainingQuantity = quantity;
@@ -56,12 +77,61 @@ class ConsumptionOrderService {
         const lotAvailable = Number(lot.available_amount);
         const quantityToTake = Math.min(remainingQuantity, lotAvailable);
 
+        let childQrId = null;
+        if (isProcessArea) {
+          // Parent lot nomenclature (conservar nomenclatura padre y heredar cuerpo principal)
+          const parentLote = await Lote.findByPk(lot.id, {
+            include: [{ model: QrCode, as: 'qr_code' }],
+            transaction
+          });
+          let parentQrCode = parentLote?.qr_code?.qr_code;
+          if (!parentQrCode && parentLote?.qr_id) {
+            const qrRec = await QrCode.findByPk(parentLote.qr_id, { transaction });
+            if (qrRec) parentQrCode = qrRec.qr_code;
+          }
+          const parentNomenclature = parentQrCode || parentLote?.folio || `LOT-${lot.id}`;
+
+          // Count existing child QRs for this parent lot
+          const existingChildCount = await ConsumptionOrderItem.count({
+            where: { lote_id: lot.id, child_qr_id: { [Op.ne]: null } },
+            transaction
+          });
+          let snNumber = existingChildCount + allocations.filter(a => a.lote_id === lot.id).length + 1;
+          let childQrString = `${parentNomenclature}-SN${snNumber}`;
+
+          // Evitar colisiones garantizando unicidad en qr_codes
+          while (await QrCode.findOne({ where: { qr_code: childQrString }, transaction })) {
+            snNumber++;
+            childQrString = `${parentNomenclature}-SN${snNumber}`;
+          }
+
+          // Create Child QR in RESERVED_ORDER status (inactive until order is SURTIDA)
+          const childQr = await QrCode.create({
+            serial: Date.now() + Math.floor(Math.random() * 100000),
+            qr_code: childQrString,
+            batch_id: batch.id,
+            purpose: 'WIP_PROCESS_INPUT',
+            assigned_area_id: requesting_area_id,
+            status: 'RESERVED_ORDER',
+            created_by: requested_by,
+            is_active: false
+          }, { transaction });
+
+          childQrId = childQr.id;
+        }
+
+        let unitId = lot.unit_id || materialRecord?.base_unit_id;
+        if (!unitId && (materialRecord?.family_id === 43 || isProcessArea)) {
+          unitId = 4; // Default KG
+        }
+
         allocations.push({
           order_id: order.id,
           material_id,
           lote_id: lot.id,
           requested_quantity: quantityToTake,
-          unit_id: lot.unit_id || materialRecord?.base_unit_id || null,
+          unit_id: unitId,
+          child_qr_id: childQrId
         });
 
         remainingQuantity -= quantityToTake;
@@ -70,25 +140,9 @@ class ConsumptionOrderService {
       await ConsumptionOrderItem.bulkCreate(allocations, { transaction });
     }
 
-    // Generate QR Code
-    // First need a batch or we can just create a single QR. For now let's create a single QR with a dummy batch_id or if required, create a batch.
-    // The QrCode model requires batch_id, serial, qr_code, purpose, created_by
-    // We will generate it in a simple way.
+    // Generate Order Tracking QR Code
     const serial = Date.now();
     const qrString = `ORD-${order.uuid}`;
-    
-    // As a simplification, assuming batch_id = 1 exists, or we should fetch one.
-    // Let's create a dummy batch or find first
-    const { QrBatch } = require('../../database/models');
-    let batch = await QrBatch.findOne({ transaction });
-    if (!batch) {
-      batch = await QrBatch.create({
-        batch_number: 'BATCH-ORD-001',
-        total_qrs: 1000,
-        type: 'CONSUMPTION_ORDER',
-        created_by: requested_by
-      }, { transaction });
-    }
 
     const qr = await QrCode.create({
       serial,
@@ -116,7 +170,101 @@ class ConsumptionOrderService {
     });
   }
 
+  async ensureChildQrsForOrder(orderId, requestingAreaId, transaction = null) {
+    const { ConsumptionOrderItem, Lote, QrCode, QrBatch, WipInventory } = require('../../database/models');
+    const { Op } = require('sequelize');
+
+    const itemsWithoutChild = await ConsumptionOrderItem.findAll({
+      where: {
+        order_id: orderId,
+        lote_id: { [Op.ne]: null },
+        child_qr_id: null
+      },
+      include: [
+        {
+          model: Lote,
+          as: 'lote',
+          include: [{ model: QrCode, as: 'qr_code' }]
+        }
+      ],
+      transaction
+    });
+
+    if (itemsWithoutChild.length === 0) return;
+
+    let batch = await QrBatch.findOne({ transaction });
+    if (!batch) {
+      batch = await QrBatch.create({
+        batch_number: 'BATCH-ORD-AUTO',
+        total_qrs: 10000,
+        type: 'CONSUMPTION_ORDER',
+        created_by: 1
+      }, { transaction });
+    }
+
+    for (const item of itemsWithoutChild) {
+      const lote = item.lote;
+      if (!lote) continue;
+
+      let parentQrCode = lote.qr_code?.qr_code;
+      if (!parentQrCode && lote.qr_id) {
+        const qrRec = await QrCode.findByPk(lote.qr_id, { transaction });
+        if (qrRec) parentQrCode = qrRec.qr_code;
+      }
+      const parentNomenclature = parentQrCode || lote.folio || `LOT-${lote.id}`;
+
+      const existingChildCount = await ConsumptionOrderItem.count({
+        where: { lote_id: lote.id, child_qr_id: { [Op.ne]: null } },
+        transaction
+      });
+      let snNumber = existingChildCount + 1;
+      let childQrString = `${parentNomenclature}-SN${snNumber}`;
+
+      while (await QrCode.findOne({ where: { qr_code: childQrString }, transaction })) {
+        snNumber++;
+        childQrString = `${parentNomenclature}-SN${snNumber}`;
+      }
+
+      const childQr = await QrCode.create({
+        serial: Date.now() + Math.floor(Math.random() * 100000),
+        qr_code: childQrString,
+        batch_id: batch.id,
+        purpose: 'WIP_PROCESS_INPUT',
+        assigned_area_id: requestingAreaId || 2,
+        status: 'IN_WIP',
+        created_by: 1,
+        is_active: true
+      }, { transaction });
+
+      item.child_qr_id = childQr.id;
+      await item.save({ transaction });
+
+      if (requestingAreaId === 2) {
+        const qty = Number(item.fulfilled_quantity || item.requested_quantity || 0);
+        const wipExisting = await WipInventory.findOne({
+          where: { qr_code_id: childQr.id, area_id: 2 },
+          transaction
+        });
+        if (!wipExisting) {
+          await WipInventory.create({
+            material_id: item.material_id,
+            lote_id: item.lote_id,
+            qr_code_id: childQr.id,
+            area_id: 2,
+            amount: qty
+          }, { transaction });
+        }
+      }
+    }
+  }
+
   async getOrderDetails(uuid) {
+    const rawOrder = await ConsumptionOrder.findOne({ where: { uuid } });
+    if (!rawOrder) return null;
+
+    // Asegurar que ningún lote asignado quede sin su QR hijo
+    await this.ensureChildQrsForOrder(rawOrder.id, rawOrder.requesting_area_id);
+
     const order = await ConsumptionOrder.findOne({
       where: { uuid },
       include: [
@@ -138,7 +286,12 @@ class ConsumptionOrderService {
             { 
               model: Lote, 
               as: 'lote',
-              include: [{ model: QrCode, as: 'qr_code', attributes: ['qr_code'] }]
+              include: [{ model: QrCode, as: 'qr_code', attributes: ['id', 'qr_code'] }]
+            },
+            {
+              model: QrCode,
+              as: 'child_qr',
+              attributes: ['id', 'qr_code', 'status', 'is_active', 'assigned_area_id']
             }
           ]
         }
@@ -149,7 +302,10 @@ class ConsumptionOrderService {
     
     const plainOrder = order.toJSON();
     
-    if (plainOrder.status === 'PENDIENTE' || plainOrder.status === 'PREPARANDO') {
+    // Si la orden ya tiene items asignados a lotes/QRs, no sobreescribir con virtuales para no perder los QRs hijos
+    const hasAssignedLots = plainOrder.items && plainOrder.items.some(it => it.lote_id || it.child_qr_id);
+    
+    if (!hasAssignedLots && (plainOrder.status === 'PENDIENTE' || plainOrder.status === 'PREPARANDO')) {
       const finalItems = [];
       const materialPendingQty = {};
       const materialMap = {};
@@ -340,7 +496,7 @@ class ConsumptionOrderService {
         lote_id: scannedLote.id,
         requested_quantity: pendingQty,
         fulfilled_quantity: qtyToTake,
-        unit_id: itemToFulfill.unit_id
+        unit_id: itemToFulfill.unit_id || (isProcessArea ? 4 : null)
       }, { transaction });
 
       itemToFulfill.id = newItem.id;
@@ -365,22 +521,66 @@ class ConsumptionOrderService {
       }, { transaction });
     }
 
-    // 2. Create TraceabilityEvent & update QR if depleted
-    if (itemToFulfill.lote && itemToFulfill.lote.qr_id) {
-      const lote = await Lote.findByPk(itemToFulfill.lote_id, { transaction });
-      const isTotal = lote && !lote.is_active;
-      
-      const toStatus = 'IN_WIP';
-      const eventType = 'TRANSFERENCIA_AREA';
-      
-      await QrCode.update({ status: 'IN_WIP', is_active: true, assigned_area_id: order.requesting_area_id }, { where: { id: itemToFulfill.lote.qr_id }, transaction });
-      
+    // 2. Manejo de Trazabilidad y WIP (QRs Hijos para Áreas de Proceso vs Consumo Directo)
+    const PROCESS_AREAS = ['EXTRUSION', 'TELARES', 'LAMINADO', 'GLOBO', 'CORTE', 'CONFECCION', 'IMPRENTA', 'PEGADO', 'ENSAMBLADO', 'ETIQUETADO', 'DOBLADO', 'PRENSADO'];
+    const areaCode = order.requesting_area?.code ? order.requesting_area.code.toUpperCase() : '';
+    const isProcessArea = PROCESS_AREAS.includes(areaCode);
+
+    let activeChildQrId = itemToFulfill.child_qr_id;
+    if (isProcessArea) {
+      if (activeChildQrId) {
+        // Activar el QR hijo previamente reservado
+        await QrCode.update({
+          status: 'IN_WIP',
+          is_active: true,
+          assigned_area_id: order.requesting_area_id
+        }, { where: { id: activeChildQrId }, transaction });
+      } else {
+        // Generar y activar QR Hijo si el item no lo tenía (ej. órdenes previas o items divididos)
+        let parentQrCode = scannedLote.qr_code?.qr_code;
+        if (!parentQrCode && scannedLote.qr_id) {
+          const qrRec = await QrCode.findByPk(scannedLote.qr_id, { transaction });
+          if (qrRec) parentQrCode = qrRec.qr_code;
+        }
+        const parentNomenclature = parentQrCode || scannedLote.folio || `LOT-${scannedLote.id}`;
+        const existingChildCount = await ConsumptionOrderItem.count({
+          where: { lote_id: scannedLote.id, child_qr_id: { [Op.ne]: null } },
+          transaction
+        });
+        let snNumber = existingChildCount + 1;
+        let childQrString = `${parentNomenclature}-SN${snNumber}`;
+        while (await QrCode.findOne({ where: { qr_code: childQrString }, transaction })) {
+          snNumber++;
+          childQrString = `${parentNomenclature}-SN${snNumber}`;
+        }
+        const childQr = await QrCode.create({
+          serial: Date.now() + Math.floor(Math.random() * 100000),
+          qr_code: childQrString,
+          batch_id: scannedLote.qr_code?.batch_id || 1,
+          purpose: 'WIP_PROCESS_INPUT',
+          assigned_area_id: order.requesting_area_id,
+          status: 'IN_WIP',
+          created_by: resolved_by,
+          is_active: true
+        }, { transaction });
+
+        await ConsumptionOrderItem.update({ child_qr_id: childQr.id }, { where: { id: itemToFulfill.id }, transaction });
+        itemToFulfill.child_qr_id = childQr.id;
+        activeChildQrId = childQr.id;
+      }
+
+      // Ingresar a WIP de planta referenciando al QR Hijo
       const { WipInventory } = require('../../database/models');
       const wipItem = await WipInventory.findOne({
-        where: { material_id: itemToFulfill.material_id, lote_id: itemToFulfill.lote_id, qr_code_id: itemToFulfill.lote.qr_id, area_id: order.requesting_area_id },
+        where: {
+          material_id: itemToFulfill.material_id,
+          lote_id: itemToFulfill.lote_id,
+          qr_code_id: activeChildQrId,
+          area_id: order.requesting_area_id
+        },
         transaction
       });
-      
+
       if (wipItem) {
         wipItem.amount = Number(wipItem.amount) + qtyToTake;
         await wipItem.save({ transaction });
@@ -388,23 +588,76 @@ class ConsumptionOrderService {
         await WipInventory.create({
           material_id: itemToFulfill.material_id,
           lote_id: itemToFulfill.lote_id,
-          qr_code_id: itemToFulfill.lote.qr_id,
+          qr_code_id: activeChildQrId,
           area_id: order.requesting_area_id,
           amount: qtyToTake
         }, { transaction });
       }
 
+      // Vincular Genealogía Padre -> Hijo en TraceabilityLink (si existen unidades trazables)
+      if (itemToFulfill.lote?.qr_id && activeChildQrId) {
+        const { TraceabilityLink, TraceableItem } = require('../../database/models');
+        const parentTraceable = await TraceableItem.findOne({ where: { qr_code_id: itemToFulfill.lote.qr_id }, transaction });
+        if (parentTraceable) {
+          let childTraceable = await TraceableItem.findOne({ where: { qr_code_id: activeChildQrId }, transaction });
+          if (!childTraceable) {
+            childTraceable = await TraceableItem.create({
+              qr_code_id: activeChildQrId,
+              item_type: 'RAW_MATERIAL_LOT',
+              material_id: itemToFulfill.material_id,
+              product_name: parentTraceable.product_name || 'Insumo Proceso',
+              origin_area_id: parentTraceable.current_area_id,
+              current_area_id: order.requesting_area_id,
+              quantity_initial: qtyToTake,
+              quantity_current: qtyToTake,
+              unit: 'KG',
+              status: 'EN_PROCESO',
+              reference_folio: order.order_number,
+              created_by: resolved_by
+            }, { transaction });
+          }
+          await TraceabilityLink.create({
+            parent_traceable_item_id: parentTraceable.id,
+            child_traceable_item_id: childTraceable.id,
+            parent_qr_code_id: itemToFulfill.lote.qr_id,
+            child_qr_code_id: activeChildQrId,
+            link_type: 'DIVISION',
+            quantity_used: qtyToTake,
+            quantity_generated: qtyToTake,
+            unit: 'KG',
+            process_area_id: order.requesting_area_id,
+            notes: `Sub-lote SN generado para Orden ${order.order_number}`
+          }, { transaction });
+        }
+      }
+
+      // Evento de Trazabilidad en el QR Hijo
       await TraceabilityEvent.create({
-        qr_code_id: itemToFulfill.lote.qr_id,
-        event_type: eventType,
-        entity_type: 'LOTE',
-        entity_id: itemToFulfill.lote_id.toString(),
-        from_status: 'ACTIVE',
-        to_status: toStatus,
+        qr_code_id: activeChildQrId,
+        event_type: 'TRANSFERENCIA_AREA',
+        entity_type: 'LOTE_HIJO',
+        entity_id: itemToFulfill.id.toString(),
+        from_status: 'RESERVED_ORDER',
+        to_status: 'IN_WIP',
         performed_by: resolved_by,
-        notes: `Transferencia de ${qtyToTake} a Inventario de Área (${order.requesting_area?.name || 'N/A'}). Orden: ${order.order_number}`,
-        metadata: { order_number: order.order_number, quantity: qtyToTake, isTotal, area_id: order.requesting_area_id }
+        notes: `Sub-lote activado para entrega en WIP (${order.requesting_area?.name || 'N/A'}). Cantidad: ${qtyToTake}. Orden: ${order.order_number}`,
+        metadata: { order_number: order.order_number, quantity: qtyToTake, parent_lote_id: itemToFulfill.lote_id, area_id: order.requesting_area_id }
       }, { transaction });
+    } else {
+      // Consumo Directo (Área no productiva: Limpieza, Administración, etc.)
+      if (itemToFulfill.lote && itemToFulfill.lote.qr_id) {
+        await TraceabilityEvent.create({
+          qr_code_id: itemToFulfill.lote.qr_id,
+          event_type: 'CONSUMO_PROCESO',
+          entity_type: 'LOTE',
+          entity_id: itemToFulfill.lote_id.toString(),
+          from_status: 'ACTIVE',
+          to_status: 'ACTIVE',
+          performed_by: resolved_by,
+          notes: `Consumo directo de ${qtyToTake} para área ${order.requesting_area?.name || 'N/A'}. Orden: ${order.order_number}`,
+          metadata: { order_number: order.order_number, quantity: qtyToTake, area_id: order.requesting_area_id }
+        }, { transaction });
+      }
     }
 
     // Revisar si ya están todos surtidos
@@ -442,9 +695,16 @@ class ConsumptionOrderService {
       if (order.status === 'CANCELADA') throw new Error('La orden ya está cancelada');
       if (order.status === 'SURTIDA') throw new Error('No se puede cancelar una orden completamente surtida');
 
-      // NOTA: createOrder NO descuenta de lote.available_amount (los descuentos ocurren en scanFulfillmentItem
-      // al escanear y surtir físicamente el material). Por ende, al cancelar una orden pendiente o en preparación,
-      // la cantidad pendiente (requested - fulfilled) nunca fue descontada del lote y no debe sumarse, evitando inventario fantasma.
+      // Invalidar cualquier QR Hijo pre-generado que estuviese reservado
+      for (const item of order.items) {
+        if (item.child_qr_id) {
+          await QrCode.update({
+            status: 'CANCELADO',
+            is_active: false,
+            cancel_reason: `Orden ${order.order_number} cancelada: ${reason}`
+          }, { where: { id: item.child_qr_id }, transaction });
+        }
+      }
 
       // Actualizar estado y notas de la orden
       const appendedNotes = order.notes ? `${order.notes}\n\nCANCELADA - Motivo: ${reason}` : `CANCELADA - Motivo: ${reason}`;

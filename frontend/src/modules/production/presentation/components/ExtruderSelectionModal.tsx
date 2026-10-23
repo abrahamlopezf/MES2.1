@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Factory, CheckCircle2 } from 'lucide-react';
-import { Card, Button } from '../../../../design-system';
+import { Card, Button, Icon } from '../../../../design-system';
 import { useAuthStore } from '../../../../store/authStore';
 
 const SESSION_KEY = 'extrusion_machine_session';
@@ -76,7 +75,7 @@ export const ExtruderSelectionModal = () => {
       <div className="bg-card w-full max-w-xl rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 bg-primary/5 border-b border-border text-center">
           <div className="w-16 h-16 bg-primary text-primary-foreground rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4">
-            <Factory size={32} />
+            <Icon name="precision_manufacturing" size={32} />
           </div>
           <h2 className="text-2xl font-black text-foreground">Inicio de Turno</h2>
           <p className="text-muted-foreground mt-2">
@@ -107,7 +106,7 @@ export const ExtruderSelectionModal = () => {
                   <p className="text-xs text-muted-foreground font-medium mt-1">{machine.type}</p>
                   
                   {selectedMachineId === machine.id && (
-                    <CheckCircle2 className="absolute top-4 right-4 text-primary" size={20} />
+                    <Icon name="check_circle" className="absolute top-4 right-4 text-primary" size={20} />
                   )}
                 </button>
               ))}

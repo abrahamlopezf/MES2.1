@@ -552,6 +552,8 @@ db.ConsumptionOrderItem.belongsTo(db.ConsumptionOrder, { foreignKey: 'order_id',
 db.ConsumptionOrderItem.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
 db.ConsumptionOrderItem.belongsTo(db.Lote, { foreignKey: 'lote_id', as: 'lote' });
 db.ConsumptionOrderItem.belongsTo(db.MaterialUnit, { foreignKey: 'unit_id', as: 'unit' });
+db.ConsumptionOrderItem.belongsTo(db.QrCode, { foreignKey: 'child_qr_id', as: 'child_qr' });
+db.QrCode.hasOne(db.ConsumptionOrderItem, { foreignKey: 'child_qr_id', as: 'consumption_order_item' });
 
 /* =========================
    NOTIFICATIONS & USERS
@@ -616,6 +618,16 @@ db.ProcessFormula.belongsTo(db.Area, {
   as: 'target_area',
 });
 
+// ProcessPreparation -> Inputs
+db.ProcessPreparation.hasMany(db.ProcessPreparationInput, {
+  foreignKey: 'preparation_id',
+  as: 'inputs',
+});
+db.ProcessPreparationInput.belongsTo(db.ProcessPreparation, {
+  foreignKey: 'preparation_id',
+  as: 'preparation',
+});
+
 /* =========================
    EXTRUSION MODULE
 ========================= */
@@ -624,6 +636,9 @@ const initFormulaIngredientModel = require('../../modules/extrusion/models/formu
 const initPtiRackModel = require('../../modules/extrusion/models/ptiRack.model');
 const initExtruderQueueModel = require('../../modules/extrusion/models/extruderQueue.model');
 const initExtrusionScrapLogModel = require('../../modules/extrusion/models/extrusionScrapLog.model');
+const initSiloModel = require('../../modules/extrusion/models/silo.model');
+const initExtruderModel = require('../../modules/extrusion/models/extruder.model');
+const initExtruderFormulaModel = require('../../modules/extrusion/models/extruderFormula.model');
 
 db.Formula = initFormulaModel(sequelize, DataTypes);
 db.FormulaIngredient = initFormulaIngredientModel(sequelize, DataTypes);
@@ -631,6 +646,49 @@ db.Formula_Ingredients = db.FormulaIngredient; // Alias for requirement compatib
 db.PtiRack = initPtiRackModel(sequelize, DataTypes);
 db.ExtruderQueue = initExtruderQueueModel(sequelize, DataTypes);
 db.ExtrusionScrapLog = initExtrusionScrapLogModel(sequelize, DataTypes);
+db.Silo = initSiloModel(sequelize, DataTypes);
+db.Extruder = initExtruderModel(sequelize, DataTypes);
+db.ExtruderFormula = initExtruderFormulaModel(sequelize, DataTypes);
+
+// Silo -> Material
+db.Silo.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+// Extruder -> Silo
+db.Extruder.belongsTo(db.Silo, {
+  foreignKey: 'silo_id',
+  as: 'silo',
+});
+db.Silo.hasMany(db.Extruder, {
+  foreignKey: 'silo_id',
+  as: 'extruders',
+});
+
+// Extruder <-> Formula (Compatibility Matrix)
+db.Extruder.belongsToMany(db.Formula, {
+  through: db.ExtruderFormula,
+  foreignKey: 'extruder_id',
+  otherKey: 'formula_id',
+  as: 'allowedFormulas',
+});
+db.Formula.belongsToMany(db.Extruder, {
+  through: db.ExtruderFormula,
+  foreignKey: 'formula_id',
+  otherKey: 'extruder_id',
+  as: 'allowedExtrudersRel',
+});
+
+// Extruder -> Queues
+db.Extruder.hasMany(db.ExtruderQueue, {
+  foreignKey: 'extruder_id',
+  as: 'queues',
+});
+db.ExtruderQueue.belongsTo(db.Extruder, {
+  foreignKey: 'extruder_id',
+  as: 'extruder',
+});
 
 // Formula -> Ingredients
 db.Formula.hasMany(db.FormulaIngredient, {
@@ -670,6 +728,34 @@ db.ExtruderQueue.belongsTo(db.ConsumptionOrder, {
 db.ExtrusionScrapLog.belongsTo(db.User, {
   foreignKey: 'logged_by',
   as: 'operator',
+});
+
+// =========================
+// PTI PRODUCTS CATALOG
+// =========================
+const initPtiProductModel = require('../../modules/extrusion/models/ptiProduct.model');
+db.PtiProduct = initPtiProductModel(sequelize, DataTypes);
+
+// Formula -> PTI Products
+db.Formula.hasMany(db.PtiProduct, {
+  foreignKey: 'formula_id',
+  as: 'ptiProducts',
+});
+db.PtiProduct.belongsTo(db.Formula, {
+  foreignKey: 'formula_id',
+  as: 'formula',
+});
+
+// PtiProduct -> Material (opcional)
+db.PtiProduct.belongsTo(db.Material, {
+  foreignKey: 'material_id',
+  as: 'material',
+});
+
+// PtiRack -> PtiProduct
+db.PtiRack.belongsTo(db.PtiProduct, {
+  foreignKey: 'current_pti_type_id',
+  as: 'currentPtiProduct',
 });
 
 module.exports = db;

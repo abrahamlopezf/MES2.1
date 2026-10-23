@@ -14,7 +14,7 @@ textarea {
   font-size: 1rem;
 }
 
-button {
+button:not([data-close-button]):not([data-sonner-toast] button):not(.sonner-close-button):not([data-ignore-accessibility-min-height]) {
   min-height: 52px;
   padding: 12px 22px;
   border-radius: var(--radius-md);

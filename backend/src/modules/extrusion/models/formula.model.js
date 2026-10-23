@@ -26,6 +26,12 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 500.00,
         comment: 'Peso total de la mezcla en kg (habitualmente 500kg)'
       },
+      cost_index: {
+        type: DataTypes.DECIMAL(8, 4),
+        allowNull: false,
+        defaultValue: 1.1500,
+        comment: 'Índice de multiplicación para el valor de la mezcla/fórmula'
+      },
       expected_yield_pieces: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,

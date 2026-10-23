@@ -4,8 +4,7 @@ import { GlobalScannerModal } from '../../modules/identity/presentation/context/
 import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
 import { ExtruderSelectionModal } from '../../modules/production/presentation/components/ExtruderSelectionModal';
 import { NotificationCenter } from '../../modules/notifications/components/NotificationCenter';
-import { Home, Grid, QrCode, ScanLine, Package, Menu, Users } from 'lucide-react';
-import { PageContainer, BottomNavigation, FAB } from '../../design-system';
+import { PageContainer, BottomNavigation, FAB, Icon } from '../../design-system';
 import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../../store/authStore';
@@ -59,28 +58,28 @@ const AppLayout = () => {
 
   const navItems = [
     {
-      icon: <Home size={24} />,
+      icon: <Icon name="home" size={24} />,
       label: 'Home',
       onClick: () => handleNav('/dashboard'),
       isActive: location.pathname === '/dashboard' || location.pathname === '/',
       show: true
     },
     {
-      icon: <Package size={24} />,
+      icon: <Icon name="assignment" size={24} />,
       label: 'Órdenes',
       onClick: () => handleNav('/warehouse/orders'),
       isActive: location.pathname.startsWith('/warehouse/orders'),
       show: useAuthStore().hasPermission('inventory.view')
     },
     {
-      icon: <Grid size={24} />,
+      icon: <Icon name="grid_view" size={24} />,
       label: 'Áreas',
       onClick: () => handleNav('/areas'),
       isActive: location.pathname.startsWith('/areas'),
       show: true
     },
     /* {
-      icon: <Users size={24} />,
+      icon: <Icon name="group" size={24} />,
       label: 'Usuarios',
       onClick: () => handleNav('/users'),
       isActive: location.pathname.startsWith('/users'),
@@ -124,7 +123,7 @@ const AppLayout = () => {
         <GlobalBreadcrumbs />
         
       {/* Main Content Area */}
-        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-4 lg:pt-4 flex-1">
+        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-3 lg:pt-3 flex-1 pb-24 lg:pb-28">
           {/* Transition Wrapper */}
           <div key={location.pathname} className="animate-page-enter w-full h-full">
             <Outlet />
@@ -159,7 +158,7 @@ const AppLayout = () => {
           {/* Shine effect on hover */}
           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
           
-          <ScanLine size={28} className="drop-shadow-md" />
+          <Icon name="qr_code_scanner" size={28} className="drop-shadow-md text-primary-foreground" />
         </button>
       </div>
 

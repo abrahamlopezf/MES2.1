@@ -1,4 +1,4 @@
-import { Menu, Search, Sun, Moon } from 'lucide-react';
+import { Icon } from '../../design-system';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 
@@ -17,11 +17,11 @@ const Header = ({ onMenuToggle }) => {
           onClick={onMenuToggle}
           className="p-2 rounded-lg text-foreground hover:bg-border/50 transition-colors focus:outline-none hidden"
         >
-          <Menu size={24} />
+          <Icon name="menu" size={24} />
         </button> */}
         
         <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background text-foreground focus-within:border-primary transition-all shadow-sm">
-          <Search size={18} className="text-muted-foreground" />
+          <Icon name="search" size={20} className="text-muted-foreground" />
           <input 
             type="text" 
             placeholder="Buscar Lote, QR o Material..." 
@@ -37,7 +37,7 @@ const Header = ({ onMenuToggle }) => {
           className="p-2 rounded-md border border-border text-foreground hover:bg-border/50 transition-colors focus:outline-none shadow-sm"
           title="Cambiar tema"
         >
-          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size={20} />
         </button>
 
         {/* User Pill */}

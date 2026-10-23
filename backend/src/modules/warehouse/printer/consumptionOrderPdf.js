@@ -95,7 +95,7 @@ const generateConsumptionOrderPdf = async (order, res) => {
           doc.font('Helvetica').text(folio, colX[3], y + 7, { width: colWidths[3], align: 'center' });
           
           const qty = parseFloat(item.requested_quantity).toFixed(2);
-          const unit = item.material?.base_unit?.code || item.unit?.code || item.unit?.abbreviation || 'U';
+          const unit = item.unit?.code || item.material?.base_unit?.code || item.unit?.abbreviation || 'KG';
           doc.font('Helvetica-Bold').text(`${qty} ${unit}`, colX[4], y + 7, { width: colWidths[4] - 5, align: 'right' });
           
           y += 25;
@@ -149,6 +149,88 @@ const generateConsumptionOrderPdf = async (order, res) => {
       doc.moveTo(416, signatureY).lineTo(561, signatureY).stroke();
       doc.fontSize(10).font('Helvetica-Bold').fillColor('black').text('Autoriza/almacen', 411, signatureY + 6, { width: 155, align: 'center' });
       doc.fontSize(8).font('Helvetica').fillColor('black').text(adminAlmName, 411, signatureY + 20, { width: 155, align: 'center' });
+
+      // 4. Si la orden contiene items con QR Hijo, agregar páginas con etiquetas de mini-lotes listas para imprimir
+      const itemsWithChild = (order.items || []).filter(item => item.child_qr && item.child_qr.qr_code);
+
+      if (itemsWithChild.length > 0) {
+        doc.addPage();
+        
+        const areaName = (order.requesting_area?.name || 'EXTRUSIÓN').toUpperCase();
+        
+        // Cabecera de la sección de etiquetas
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('black').text('ETIQUETAS QR DE MINI-LOTES (WIP)', 50, 40, { align: 'left' });
+        doc.fontSize(9).font('Helvetica').fillColor('gray').text(`Etiquetas listas para imprimir y adherir en sacos/tarimas • Orden ${order.order_number}`, 50, 60, { align: 'left' });
+        doc.moveTo(50, 75).lineTo(560, 75).stroke();
+
+        const labelWidth = 245;
+        const labelHeight = 135;
+        const startX = 50;
+        const gapX = 20;
+        const startY = 90;
+        const gapY = 15;
+        const labelsPerPage = 8; // 2 columnas x 4 filas = 8 etiquetas por hoja carta
+
+        for (let i = 0; i < itemsWithChild.length; i++) {
+          const pageIndex = i % labelsPerPage;
+          if (i > 0 && pageIndex === 0) {
+            doc.addPage();
+            doc.fontSize(16).font('Helvetica-Bold').fillColor('black').text('ETIQUETAS QR DE MINI-LOTES (WIP) - Continuación', 50, 40, { align: 'left' });
+            doc.moveTo(50, 65).lineTo(560, 65).stroke();
+          }
+
+          const col = pageIndex % 2;
+          const row = Math.floor(pageIndex / 2);
+          const currentYOffset = (i >= labelsPerPage) ? 80 : startY;
+          const x = startX + col * (labelWidth + gapX);
+          const y = currentYOffset + row * (labelHeight + gapY);
+
+          const item = itemsWithChild[i];
+          const childCode = item.child_qr.qr_code;
+          const parentFolio = item.lote?.folio || (item.lote?.qr_code?.qr_code ? item.lote.qr_code.qr_code : 'S/N');
+          const qty = Number(item.fulfilled_quantity || item.requested_quantity || 0).toFixed(2);
+          const unit = item.unit?.code || item.material?.base_unit?.code || 'KG';
+
+          // Marco de la etiqueta
+          doc.roundedRect(x, y, labelWidth, labelHeight, 8).lineWidth(1).stroke('#333333');
+
+          // Franja superior de encabezado
+          doc.rect(x, y, labelWidth, 20).fill('#f0f4f8');
+          doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#004b87').text(`${areaName} — INSUMO WIP`, x + 8, y + 6);
+          doc.fontSize(7.5).font('Courier-Bold').fillColor('#555555').text(order.order_number, x + labelWidth - 75, y + 6, { width: 67, align: 'right' });
+
+          // Generar imagen QR
+          try {
+            const qrDataUrl = await QRCode.toDataURL(childCode, { errorCorrectionLevel: 'M', margin: 1 });
+            doc.image(qrDataUrl, x + 6, y + 25, { width: 75, height: 75 });
+          } catch (qrErr) {
+            console.error('Error generating QR image:', qrErr);
+          }
+
+          // Detalles de texto de la etiqueta
+          const textX = x + 86;
+          let textY = y + 26;
+
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#000000');
+          doc.text(item.material?.name || 'Material', textX, textY, { width: labelWidth - 92, height: 22, ellipsis: true });
+          textY += 24;
+
+          doc.fontSize(7.5).font('Helvetica').fillColor('#555555');
+          if (item.material?.material_code || item.material?.internal_code) {
+            doc.text(`Cód: ${item.material?.material_code || item.material?.internal_code}`, textX, textY);
+            textY += 11;
+          }
+
+          doc.text(`Lote Padre: ${parentFolio}`, textX, textY, { width: labelWidth - 92, ellipsis: true });
+          textY += 12;
+
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#006622').text(`Cant: ${qty} ${unit}`, textX, textY);
+          textY += 14;
+
+          // Código QR Hijo en texto mono en la parte inferior
+          doc.fontSize(7).font('Courier-Bold').fillColor('#111111').text(childCode, x + 6, y + labelHeight - 14, { width: labelWidth - 12, align: 'center' });
+        }
+      }
 
       doc.end();
       resolve();

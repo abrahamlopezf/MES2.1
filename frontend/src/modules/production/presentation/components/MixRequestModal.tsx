@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { X, Send, Loader2 } from 'lucide-react';
 import { apiClient } from '@/core/api/apiClient';
-import { Button, Input, Card, CardHeader, CardTitle, CardContent } from '@/design-system';
+import { Button, Input, Badge, Icon } from '@/design-system';
 
 interface MixRequestModalProps {
   isOpen: boolean;
@@ -41,51 +41,134 @@ export const MixRequestModal: React.FC<MixRequestModalProps> = ({ isOpen, onClos
 
   if (!isOpen || !formula) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <Card className="w-full max-w-md mx-4 shadow-xl border-border bg-card overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-border bg-muted/20 pb-4">
-          <CardTitle className="text-xl font-black text-foreground">Solicitar Mezcla</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-secondary/20 h-8 w-8">
-            <X size={18} />
-          </Button>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <h3 className="font-bold text-lg mb-1">{formula.name}</h3>
-            <p className="text-sm text-muted-foreground">{formula.internal_code || formula.code}</p>
-          </div>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">Cantidad (Kg)</label>
-            <Input 
-              type="number" 
-              value={quantity} 
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              min={1}
-            />
-          </div>
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (quantity <= 0) {
+      toast.error('La cantidad en kg debe ser mayor a 0.');
+      return;
+    }
+    submitRequest();
+  };
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">Notas (Opcional)</label>
-            <textarea 
-              className="w-full min-h-[80px] bg-card border border-border rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none resize-none"
-              placeholder="Alguna observación para el centro de mezclado..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
+      style={{ isolation: 'isolate' }}
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-          <Button 
-            className="w-full mt-4 gap-2" 
-            onClick={() => submitRequest()}
-            disabled={isPending || quantity <= 0}
+      {/* Modal Dialog Card */}
+      <div
+        className="relative w-full max-w-md bg-card rounded-2xl border border-border flex flex-col overflow-hidden max-h-[92vh] shadow-2xl z-10 animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-card shrink-0">
+          <div className="flex items-center gap-3 min-w-0 pr-2">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+              <Icon name="blender" size={22} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2 truncate">
+                Solicitar Mezcla
+                {formula.code && (
+                  <Badge variant="outline" className="font-mono text-xs">{formula.code}</Badge>
+                )}
+              </h2>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5 line-clamp-1">
+                {formula.name}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50 shrink-0"
           >
-            {isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-            Confirmar Solicitud
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+            <Icon name="close" size={20} />
+          </button>
+        </div>
+
+        {/* Form Body & Footer */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-6 overflow-y-auto flex-1 space-y-4 bg-background">
+            <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Fórmula Seleccionada
+              </div>
+              <div className="font-bold text-foreground text-sm">
+                {formula.name}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Lote Estándar: {formula.batch_size_kg || 500} Kg
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Cantidad Requerida (Kg) *
+              </label>
+              <Input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                min={1}
+                step="any"
+                required
+                className="font-semibold text-base"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Notas / Observaciones (Opcional)
+              </label>
+              <textarea
+                className="w-full min-h-[90px] bg-background border border-border rounded-lg p-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none resize-none placeholder:text-muted-foreground"
+                placeholder="Indica especificaciones para el centro de mezclado..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Fixed Footer */}
+          <div className="p-4 border-t border-border bg-card flex justify-end items-center gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isPending}
+              className="font-bold px-5"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={isPending || quantity <= 0}
+              className="gap-2 font-bold px-6"
+            >
+              {isPending ? (
+                <>
+                  <Icon name="progress_activity" size={16} className="animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Icon name="send" size={16} />
+                  Confirmar Solicitud
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
   );
 };

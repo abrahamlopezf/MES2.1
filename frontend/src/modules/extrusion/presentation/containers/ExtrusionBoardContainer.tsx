@@ -8,6 +8,8 @@ import {
 } from '../../hooks/useExtrusionFloorQueries';
 import { ExtrusionBoardPresenter } from '../presenters/ExtrusionBoardPresenter';
 import { ExtruderQueue, Formula } from '../../types/extrusion.types';
+import { useExtrusionMixing } from '../../hooks/useExtrusionMixing';
+import { MixContainersPrintModal, MixResultData } from '../../../production/presentation/components/MixContainersPrintModal';
 
 export const ExtrusionBoardContainer: React.FC = () => {
   const {
@@ -25,6 +27,25 @@ export const ExtrusionBoardContainer: React.FC = () => {
 
   const switchMutation = useSwitchQueueMutation();
   const enqueueMutation = useEnqueueMixMutation();
+
+  // Integración de Recuperación e Impresión de Etiquetas QR de Contenedores
+  const { fetchMixContainersByQrOrFolio } = useExtrusionMixing();
+  const [printModalData, setPrintModalData] = useState<MixResultData | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  const handleOpenContainerQr = async (qrCodeOrFolio: string) => {
+    try {
+      const data = await fetchMixContainersByQrOrFolio(qrCodeOrFolio);
+      if (data && data.containers?.length > 0) {
+        setPrintModalData(data);
+        setIsPrintModalOpen(true);
+      } else {
+        toast.error(`No se encontraron etiquetas QR para '${qrCodeOrFolio}'.`);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Error al recuperar etiquetas QR.');
+    }
+  };
 
   // State para Modal de Transición / Purga
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
@@ -163,7 +184,8 @@ export const ExtrusionBoardContainer: React.FC = () => {
   };
 
   return (
-    <ExtrusionBoardPresenter
+    <>
+      <ExtrusionBoardPresenter
       queues={queues}
       formulas={formulas}
       isLoading={isQueuesLoading || isFormulasLoading}
@@ -187,7 +209,20 @@ export const ExtrusionBoardContainer: React.FC = () => {
       onConfirmEnqueue={handleConfirmEnqueue}
       isEnqueuing={enqueueMutation.isPending}
       isFormulaRestrictedForMachine={isFormulaRestrictedForMachine}
+      onOpenContainerQr={handleOpenContainerQr}
     />
+
+    {/* Modal de Impresión y Visualización de Etiquetas QR de Contenedor */}
+    <MixContainersPrintModal
+      isOpen={isPrintModalOpen}
+      onClose={() => {
+        setIsPrintModalOpen(false);
+        setPrintModalData(null);
+      }}
+      mixData={printModalData}
+      autoPrint={false}
+    />
+    </>
   );
 };
 

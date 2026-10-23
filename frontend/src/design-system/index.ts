@@ -16,3 +16,6 @@ export * from './components/Layout/TopBar';
 
 // Industrial Specific
 export * from './components/Industrial/QRCard';
+
+// Icons (Google Fonts Material Symbols)
+export * from './components/Icon/Icon';

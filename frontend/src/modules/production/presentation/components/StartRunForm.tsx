@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStartProductionRunMutation } from '../hooks/useProductionPipeline';
-import { Play, Factory, User, Package, AlertCircle, Loader2 } from 'lucide-react';
+import { Icon } from '@/design-system';
 
 interface StartRunFormProps {
   onSuccess?: (runId: string) => void;
@@ -42,8 +42,8 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-200">
       <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-        <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600">
-          <Play size={24} className="fill-current" />
+        <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600 flex items-center justify-center">
+          <Icon name="play_arrow" size={24} fill />
         </div>
         <h2 className="text-xl font-bold text-slate-800">Iniciar Nueva Corrida</h2>
       </div>
@@ -51,7 +51,7 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-            <Factory size={16} /> Identificación
+            <Icon name="precision_manufacturing" size={16} /> Identificación
           </h3>
           
           <div>
@@ -80,7 +80,7 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
             <label className="block text-sm font-medium text-slate-700 mb-1">ID Operador</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User size={16} className="text-slate-400" />
+                <Icon name="person" size={16} className="text-slate-400" />
               </div>
               <input 
                 type="text" 
@@ -95,7 +95,7 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
 
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-            <Package size={16} /> Reserva de Materiales
+            <Icon name="inventory_2" size={16} /> Reserva de Materiales
           </h3>
           
           <div className="bg-slate-50 p-4 rounded border border-slate-200">
@@ -132,8 +132,8 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
                 />
               </div>
             </div>
-            <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-              <AlertCircle size={12} /> Reserva lógica. No descuenta inventario.
+            <p className="text-xs text-amber-600 mt-2 flex items-center gap-1 font-medium">
+              <Icon name="info" size={14} /> Reserva lógica. No descuenta inventario.
             </p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
 
       {mutation.isError && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-3">
-          <AlertCircle className="shrink-0 mt-0.5" size={18} />
+          <Icon name="warning" className="shrink-0 mt-0.5 text-red-600" size={18} />
           <div>
             <p className="font-bold text-sm">Fallo al iniciar corrida</p>
             <p className="text-sm mt-1">{mutation.error.message}</p>
@@ -168,11 +168,11 @@ export const StartRunForm: React.FC<StartRunFormProps> = ({ onSuccess }) => {
       >
         {mutation.isPending ? (
           <>
-            <Loader2 className="animate-spin" size={24} /> Iniciando Hardware...
+            <Icon name="progress_activity" className="animate-spin" size={24} /> Iniciando Hardware...
           </>
         ) : (
           <>
-            <Play size={24} className="fill-current" /> INICIAR PRODUCCIÓN
+            <Icon name="play_arrow" size={24} fill /> INICIAR PRODUCCIÓN
           </>
         )}
       </button>

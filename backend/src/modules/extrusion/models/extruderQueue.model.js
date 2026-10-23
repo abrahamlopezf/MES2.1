@@ -38,6 +38,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'EN_ESPERA',
       },
+      is_silo_kit: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Indica si la mezcla es un kit de solo aditivos procesado con alimentación de Silo',
+      },
       notes: {
         type: DataTypes.TEXT,
         allowNull: true,

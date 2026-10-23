@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { catalogFacade } from '../../../catalog/infrastructure/di/CatalogModuleDI';
 import { productionFacade } from '../../infrastructure/di/ProductionModuleDI';
-import { Factory, AlertTriangle, CheckCircle, Wrench, Settings } from 'lucide-react';
+import { Icon } from '@/design-system';
 
 export const AndonBoardPage: React.FC = () => {
   const { data: stations } = useQuery({
@@ -46,22 +46,22 @@ export const AndonBoardPage: React.FC = () => {
 
   const getMachineIcon = (status: string) => {
     switch (status) {
-      case 'ONLINE': return <CheckCircle size={16} />;
-      case 'FAULT': return <AlertTriangle size={16} />;
-      case 'MAINTENANCE': return <Wrench size={16} />;
-      default: return <Settings size={16} />;
+      case 'ONLINE': return <Icon name="check_circle" size={16} />;
+      case 'FAULT': return <Icon name="warning" size={16} />;
+      case 'MAINTENANCE': return <Icon name="build" size={16} />;
+      default: return <Icon name="settings" size={16} />;
     }
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
-      <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-200">
-        <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
-          <Factory size={28} />
+      <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border">
+        <div className="bg-primary/10 p-2.5 rounded-xl text-primary border border-primary/20">
+          <Icon name="precision_manufacturing" size={28} />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">Andon Board</h1>
-          <p className="text-slate-600 mt-1">Monitoreo en tiempo real de Estaciones y Máquinas</p>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Tablero Andon</h1>
+          <p className="text-muted-foreground mt-1 font-medium">Monitoreo en tiempo real de Estaciones y Máquinas de Planta</p>
         </div>
       </div>
 

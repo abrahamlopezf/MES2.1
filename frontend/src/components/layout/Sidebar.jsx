@@ -1,88 +1,61 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  QrCode,
-  Users,
-  Boxes,
-  LogOut,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  List,
-  Printer,
-  ShieldCheck,
-  MapPin,
-  User as UserIcon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ChevronLeft,
-  Package,
-  PackagePlus,
-  AlertTriangle,
-  Layers,
-  Factory,
-  Activity,
-  Beaker,
-  ClipboardList,
-  MonitorPlay,
-  BarChart3
-} from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useUsersQuery } from "../../modules/users/hooks/useUsers";
+import { Icon, renderAnyIcon } from "../../design-system";
 
 const menuGroups = [
   {
     label: "Dashboard",
     path: "/dashboard",
-    icon: LayoutDashboard,
+    icon: "dashboard",
     permission: ["dashboard.read", "warehouse.dashboard.view"],
     isGroup: false
   },
   {
     label: "Gestión de Usuarios",
-    icon: Users,
+    icon: "manage_accounts",
     permission: ["users.read", "roles.read", "areas.read"],
     isGroup: true,
     children: [
-      { label: "Usuarios", path: "/users", icon: UserIcon, permission: "users.read" },
-      { label: "Roles", path: "/roles", icon: ShieldCheck, permission: "roles.read" },
-      //{ label: "Áreas", path: "/areas", icon: MapPin, permission: "areas.read" }
+      { label: "Usuarios", path: "/users", icon: "group", permission: "users.read" },
+      { label: "Roles", path: "/roles", icon: "shield_person", permission: "roles.read" },
+      //{ label: "Áreas", path: "/areas", icon: "apartment", permission: "areas.read" }
     ]
   },
   {
     label: "Identidad y Lotes",
-    icon: QrCode,
+    icon: "qr_code_2",
     permission: ["qr.create", "qr.history.read", "qr.events.read"],
     isGroup: true,
     children: [
-      { label: "Generar Lote", path: "/identity/generate", icon: Printer, permission: "qr.create" },
-      { label: "Historial QRs", path: "/qrcodes", icon: List, permission: ["qr.history.read", "qr.events.read"] }
+      { label: "Generar Lote", path: "/identity/generate", icon: "qr_code", permission: "qr.create" },
+      { label: "Historial QRs", path: "/qrcodes", icon: "format_list_bulleted", permission: ["qr.history.read", "qr.events.read"] }
     ]
   },
   {
     label: "Almacén",
-    icon: Boxes,
+    icon: "warehouse",
     permission: "",
     hiddenRoles: ["ADMIN_EXT"],
     isGroup: true,
     children: [
-      { label: "Catálogo", path: "/materials", icon: Package, permission: "materials.read" },
+      { label: "Catálogo", path: "/materials", icon: "inventory_2", permission: "materials.read" },
       { 
         label: "Recepción", 
         onClick: () => window.dispatchEvent(new Event('open-scanner')), 
-        icon: PackagePlus, 
+        icon: "move_to_inbox", 
         permission: "inventory.receive",
         allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM"]
       },
-      { label: "Inventario", path: "/warehouse/inventory", icon: List, permission: "inventory.view" },
-      // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: Layers, permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
-      { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: AlertTriangle, permission: "warehouse.merma_scrap.view" },
-      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: Package, permission: "" },
+      { label: "Inventario", path: "/warehouse/inventory", icon: "inventory", permission: "inventory.view" },
+      // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: "layers", permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
+      { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: "delete_sweep", permission: "warehouse.merma_scrap.view" },
+      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: "assignment", permission: "" },
       { 
         label: "Reportes de Almacén", 
         path: "/warehouse/reports", 
-        icon: BarChart3, 
+        icon: "bar_chart", 
         permission: "", 
         allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM"] 
       }
@@ -90,17 +63,18 @@ const menuGroups = [
   },
   {
     label: "Extrusión",
-    icon: Factory,
+    icon: "precision_manufacturing",
     permission: "extrusion.view",
     allowedRoles: ["SUPERADMIN"],
     isGroup: true,
     children: [
-      { label: "Tablero de Colas", path: "/extrusion/board", icon: MonitorPlay, permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
-      { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: Boxes, permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
-      { label: "Fórmulas y PTI", path: "/production/formulas", icon: ClipboardList, permission: "extrusion.formulas.view" },
-      { label: "Máquinas Extrusoras", path: "/production/machines", icon: Factory, permission: "extrusion.view" },
-      { label: "Centro de Mezclado", path: "/production/mixing", icon: Beaker, permission: "extrusion.wip.manage" },
-      { label: "Tablero Andon", path: "/production/andon", icon: AlertTriangle, permission: "extrusion.view" }
+      { label: "Fórmulas y PTI", path: "/production/formulas", icon: "science", permission: "extrusion.formulas.view" },
+      { label: "Máquinas Extrusoras", path: "/production/machines", icon: "precision_manufacturing", permission: "extrusion.view" },
+      { label: "Centro de Mezclado", path: "/production/mixing", icon: "blender", permission: "extrusion.wip.manage" },
+      { label: "Tablero de Colas", path: "/extrusion/board", icon: "view_kanban", permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
+      { label: "Terminal de Extrusión", path: "/production/extrusion", icon: "settings", permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
+      { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: "shelves", permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
+      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: "assignment", permission: "" }
     ]
   }
 ];
@@ -140,7 +114,10 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
         }
       >
         <div className={`flex items-center min-w-0 ${isCollapsed ? 'justify-center w-full' : 'gap-4'}`}>
-          <item.icon size={26} className={`shrink-0 ${location.pathname === item.path ? "text-primary" : "text-muted-foreground"}`} />
+          {renderAnyIcon(item.icon, {
+            size: 24,
+            className: `shrink-0 ${location.pathname === item.path ? "text-primary" : "text-muted-foreground"}`
+          })}
           {!isCollapsed && <span className="truncate">{item.label}</span>}
         </div>
         {!isCollapsed && item.path === '/users' && pendingUsersCount > 0 && (
@@ -179,11 +156,14 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
         }`}
       >
         <div className={`flex items-center min-w-0 ${isCollapsed ? 'justify-center w-full' : 'gap-4'}`}>
-          <item.icon size={26} className={`shrink-0 ${isActiveGroup ? "text-primary" : "text-muted-foreground"}`} />
+          {renderAnyIcon(item.icon, {
+            size: 24,
+            className: `shrink-0 ${isActiveGroup ? "text-primary" : "text-muted-foreground"}`
+          })}
           {!isCollapsed && <span className="truncate">{item.label}</span>}
         </div>
         {!isCollapsed && (
-          isOpen ? <ChevronDown size={16} className="shrink-0" /> : <ChevronRight size={16} className="shrink-0" />
+          <Icon name={isOpen ? "expand_more" : "chevron_right"} size={20} className="shrink-0 text-muted-foreground" />
         )}
       </div>
 
@@ -203,7 +183,7 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
                   onClick={child.onClick}
                   className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm text-muted-foreground hover:bg-secondary/50 hover:text-foreground w-full text-left"
                 >
-                  <child.icon size={22} />
+                  {renderAnyIcon(child.icon, { size: 20, className: "shrink-0" })}
                   <span>{child.label}</span>
                 </button>
               );
@@ -226,7 +206,7 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
                   }`
                 }
               >
-                <child.icon size={22} />
+                {renderAnyIcon(child.icon, { size: 20, className: "shrink-0" })}
                 <span>{child.label}</span>
               </NavLink>
             );
@@ -273,7 +253,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
             <div className={`w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-300 ${!isCollapsed ? 'hover:rotate-6' : ''} relative overflow-hidden`}>
               <span className={`text-primary-foreground font-bold text-xl leading-none transition-opacity duration-300 ${isCollapsed ? 'group-hover/logo:opacity-0' : ''}`}>TF</span>
               {isCollapsed && (
-                <PanelLeftOpen size={24} className="absolute inset-0 m-auto text-primary-foreground opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300" strokeWidth={2.5} />
+                <Icon name="dock_to_left" size={22} className="absolute inset-0 m-auto text-primary-foreground opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300" />
               )}
             </div>
             {!isCollapsed && (
@@ -290,7 +270,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
               className="hidden lg:flex p-1.5 ml-2 flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-secondary/80 rounded-md transition-colors"
               title="Ocultar menú"
             >
-              <PanelLeftClose size={22} />
+              <Icon name="dock_to_left" size={22} />
             </button>
           )}
         </div>
@@ -316,7 +296,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
             title={isCollapsed ? "Cerrar Sesión" : undefined}
             className={`w-full flex items-center ${isCollapsed ? 'justify-center p-3' : 'gap-4 px-4 py-3'} rounded-lg text-danger hover:bg-danger/10 transition-colors font-bold`}
           >
-            <LogOut size={26} className="shrink-0" />
+            <Icon name="logout" size={24} className="shrink-0" />
             {!isCollapsed && <span className="whitespace-nowrap">Cerrar Sesión</span>}
           </button>
         </div>

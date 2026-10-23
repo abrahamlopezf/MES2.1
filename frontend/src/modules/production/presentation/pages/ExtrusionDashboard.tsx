@@ -5,10 +5,9 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, 
   AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
-import { Activity, Gauge, TrendingDown, Layers } from 'lucide-react';
 import { useAuthStore } from '../../../../store/authStore';
 import { useThemeStore } from '../../../../store/themeStore';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../design-system';
+import { Card, CardContent, CardHeader, CardTitle, Icon } from '../../../../design-system';
 
 const ExecutiveKpiCard = ({ title, value, unit = '', colorClass }) => {
   return (
@@ -62,7 +61,7 @@ export const ExtrusionDashboard = () => {
       {/* HEADER GREETING */}
       <div className="flex flex-col gap-1 w-full">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <Activity className="w-8 h-8 text-primary" />
+          <Icon name="monitoring" size={32} className="text-primary" />
           Módulo de Extrusión
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground font-medium">
@@ -116,7 +115,7 @@ export const ExtrusionDashboard = () => {
         <Card className="lg:col-span-2 shadow-sm border-border flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Layers className="w-5 h-5 text-muted-foreground" />
+              <Icon name="stacked_bar_chart" size={20} className="text-muted-foreground" />
               Tendencia de Producción vs Scrap
             </CardTitle>
           </CardHeader>
@@ -151,7 +150,7 @@ export const ExtrusionDashboard = () => {
         <Card className="shadow-sm border-border flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Gauge className="w-5 h-5 text-muted-foreground" />
+              <Icon name="speed" size={20} className="text-muted-foreground" />
               Desglose OEE
             </CardTitle>
           </CardHeader>
