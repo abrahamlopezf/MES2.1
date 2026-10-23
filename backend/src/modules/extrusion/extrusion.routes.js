@@ -75,6 +75,8 @@ router.post('/mixture-transition', extrusionController.recordMixtureTransition);
 // CATÁLOGO DE MÁQUINAS (EXTRUSORAS) & SILOS (FASE 2)
 // ==========================================
 router.get('/machines', extrusionController.getMachines);
+router.put('/machines/:id', extrusionController.updateMachine);
+router.put('/machines/:id/formulas', extrusionController.updateMachineFormulaCompatibility);
 router.put('/machines/:id/modo-silo', extrusionController.toggleModoSilo);
 router.put('/machines/:id/silo', extrusionController.assignExtruderSilo);
 router.get('/silos', extrusionController.getSilos);

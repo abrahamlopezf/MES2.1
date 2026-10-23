@@ -44,7 +44,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
     } else {
       setName('');
       setCode('');
-      setFormulaId(formulas[0]?.id || '');
+      setFormulaId('');
       setUnitWeightKg(6.800);
       setUnitPrice(195.00);
       setSpecifications('');
@@ -54,6 +54,10 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
 
   // Encontrar fórmula seleccionada para datos sugeridos
   const selectedFormula = formulas.find((f) => f.id === Number(formulaId));
+  const availableFormulas = formulas.filter((f) => {
+    const linkedPtiId = Number(f.output_pti_id || f.ptiProducts?.[0]?.id || 0);
+    return !linkedPtiId || linkedPtiId === Number(pti?.id) || Number(pti?.formula_id) === Number(f.id);
+  });
 
   const handleApplySuggestedPrice = () => {
     if (selectedFormula?.suggested_pti_unit_price && selectedFormula.suggested_pti_unit_price > 0) {
@@ -72,10 +76,6 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
       toast.error('El nombre del producto PTI (carrete/bobina) es obligatorio.');
       return;
     }
-    if (!formulaId) {
-      toast.error('Debes seleccionar la fórmula de extrusión enlazada.');
-      return;
-    }
     if (unitWeightKg <= 0) {
       toast.error('El peso unitario en kg debe ser mayor a 0.');
       return;
@@ -92,7 +92,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
           payload: {
             name: name.trim(),
             code: code.trim().toUpperCase() || undefined,
-            formula_id: Number(formulaId),
+            formula_id: formulaId ? Number(formulaId) : null,
             unit_weight_kg: Number(unitWeightKg),
             unit_price: Number(unitPrice),
             specifications: specifications.trim() || undefined,
@@ -104,7 +104,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
         await createMutation.mutateAsync({
           name: name.trim(),
           code: code.trim().toUpperCase() || undefined,
-          formula_id: Number(formulaId),
+          formula_id: formulaId ? Number(formulaId) : null,
           unit_weight_kg: Number(unitWeightKg),
           unit_price: Number(unitPrice),
           specifications: specifications.trim() || undefined,
@@ -172,7 +172,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <Icon name="link" size={14} className="text-primary" />
-                  Fórmula de Extrusión Enlazada (Origen) *
+                  Fórmula de Extrusión Enlazada (Opcional)
                 </label>
                 <span className="text-[11px] font-semibold text-muted-foreground">
                   Determina la mezcla de 500kg
@@ -183,10 +183,9 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                 value={formulaId}
                 onChange={(e) => setFormulaId(Number(e.target.value))}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
-                required
               >
-                <option value="">-- Seleccionar Fórmula de Extrusión --</option>
-                {formulas.map((f) => (
+                <option value="">-- Sin enlazar (puedes hacerlo desde Editar Fórmula) --</option>
+                {availableFormulas.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.code} - {f.name} (Índice: ×{Number(f.cost_index || 1.15).toFixed(2)})
                   </option>

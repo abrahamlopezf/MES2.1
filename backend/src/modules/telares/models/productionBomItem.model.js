@@ -34,6 +34,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 32.50,
       },
+      required_quantity: {
+        type: DataTypes.DECIMAL(10, 3),
+        allowNull: true,
+        comment: 'Cantidad de este PTI requerida por rollo terminado; unidad indicada en required_unit',
+      },
+      required_unit: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'KG',
+      },
       notes: {
         type: DataTypes.TEXT,
         allowNull: true,

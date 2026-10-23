@@ -106,6 +106,7 @@ export const extrusionApi = {
     expected_yield_pieces?: number;
     expected_yield_kg?: number;
     is_active?: boolean;
+    output_pti_id?: number | null;
   }): Promise<Formula> => {
     const response = await axiosClient.put(`/extrusion/floor-formulas/${id}`, payload);
     return response.data.data;

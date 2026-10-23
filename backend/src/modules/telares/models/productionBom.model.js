@@ -43,6 +43,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'Rollo de Tela Tubular',
       },
+      expected_output_quantity: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 1,
+      },
+      expected_output_unit: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'ROLLO',
+      },
       default_route: {
         type: DataTypes.JSON,
         allowNull: false,

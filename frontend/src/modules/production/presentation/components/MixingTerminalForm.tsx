@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Badge, Icon } from '@/design-system';
 import { apiClient } from '@/core/api/apiClient';
 import { useFormulas, useFormulaDetails, fetchWipChildQr, useMixFormula } from '../../../extrusion/hooks/useExtrusionMixing';
-import { useExtruderQueuesQuery } from '../../../extrusion/hooks/useExtrusionFloorQueries';
+import { useExtruderQueuesQuery, usePtiProductsQuery } from '../../../extrusion/hooks/useExtrusionFloorQueries';
 import { CameraScanner } from '@/design-system/components/scanner-overlay/CameraScanner';
 import { CreateConsumptionOrderModal, PreloadedOdcItem } from '../../../warehouse/presentation/components/CreateConsumptionOrderModal';
 import { MixContainersPrintModal, MixResultData } from './MixContainersPrintModal';
@@ -46,6 +46,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const navigate = useNavigate();
   const { data: rawFormulas, isLoading: loadingFormulas } = useFormulas();
   const { data: queueGroups = [] } = useExtruderQueuesQuery();
+  const { data: registeredPtis = [] } = usePtiProductsQuery({ is_active: true });
   const mutation = useMixFormula();
 
   // Consulta de catálogo real de máquinas extrusoras con información de Silos y Matriz
@@ -126,25 +127,13 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   }, [ticket, formulas]);
 
   const selectedFormula = formulas.find((f: any) => String(f.id) === String(formulaId));
+  const hasLinkedActivePti = Boolean(selectedFormula && registeredPtis.some((pti: any) =>
+    Number(pti.id) === Number(selectedFormula.output_pti_id) || Number(pti.formula_id) === Number(selectedFormula.id)
+  ));
   const batchTargetKg = Number(formulaDetails?.batch_size_kg || selectedFormula?.batch_size_kg || 500);
 
-  // Identificar si la fórmula es de Rafia (exclusiva de Extrusora 1) o si contiene PP-B (prohibido en Extrusora 4)
-  const isRafiaFormula = useMemo(() => {
-    if (!selectedFormula) return false;
-    const cat = (selectedFormula.category || '').toUpperCase();
-    const code = (selectedFormula.code || '').toUpperCase();
-    const name = (selectedFormula.name || '').toUpperCase();
-    return Boolean(
-      selectedFormula.is_exclusive ||
-      cat === 'RAFIA' ||
-      code.startsWith('F-EXT-1-') ||
-      code === 'F-EXT-01-FIXED' ||
-      name.includes('RAFIA') ||
-      name.includes('CINTURON') ||
-      name.includes('CINTURÓN')
-    );
-  }, [selectedFormula]);
-
+  // Restricciones operativas especiales de materiales se conservan aparte de
+  // la matriz editable de compatibilidad por máquina.
   const hasPpbInFormula = useMemo(() => {
     if (!selectedFormula) return false;
     const code = (selectedFormula.code || '').toUpperCase();
@@ -160,16 +149,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
 
     const filtered = machines.filter((ext: any) => {
-      // 1. Exclusividad Rafia: Las 9 mezclas de Rafia son exclusivas de Extrusora 1
-      if (isRafiaFormula) {
-        return ext.id === 1;
-      }
-
-      // Si no es Rafia, Extrusora 1 está restringida exclusivamente para Rafia
-      if (ext.id === 1 && !isRafiaFormula) {
-        return false;
-      }
-
       // 2. Hard-block Extrusora 4: PROHIBIDO Polipropileno B (por fórmula o por silo con lote B)
       if (ext.id === 4) {
         if (hasPpbInFormula) return false;
@@ -181,19 +160,19 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       }
 
       // 3. Matriz técnica de compatibilidad (extrusoras_formulas)
-      if (ext.compatible_formulas && Array.isArray(ext.compatible_formulas) && ext.compatible_formulas.length > 0) {
+      if (ext.has_formula_matrix) {
         const isMatched = ext.compatible_formulas.some((cf: any) => 
           cf.id === selectedFormula.id || cf.code === selectedFormula.code
         );
         if (!isMatched) return false;
-      }
-
-      // 4. Allowed / Restricted de la fórmula
-      if (selectedFormula.allowed_extruders && Array.isArray(selectedFormula.allowed_extruders) && selectedFormula.allowed_extruders.length > 0) {
+      } else {
+        // Conserva la compatibilidad histórica hasta que el cliente configure la matriz.
+        if (selectedFormula.allowed_extruders && Array.isArray(selectedFormula.allowed_extruders) && selectedFormula.allowed_extruders.length > 0) {
         if (!selectedFormula.allowed_extruders.map(Number).includes(ext.id)) return false;
-      }
-      if (selectedFormula.restricted_extruders && Array.isArray(selectedFormula.restricted_extruders)) {
-        if (selectedFormula.restricted_extruders.map(Number).includes(ext.id)) return false;
+        }
+        if (selectedFormula.restricted_extruders && Array.isArray(selectedFormula.restricted_extruders)) {
+          if (selectedFormula.restricted_extruders.map(Number).includes(ext.id)) return false;
+        }
       }
 
       return true;
@@ -224,7 +203,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       availableExtruders: filtered,
       suggestedExtruder: suggested || filtered[0] || null
     };
-  }, [selectedFormula, machines, isRafiaFormula, hasPpbInFormula, queueGroups]);
+  }, [selectedFormula, machines, hasPpbInFormula, queueGroups]);
 
   // Actualizar extrusora seleccionada con la sugerencia al cambiar fórmula
   useEffect(() => {
@@ -611,6 +590,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasLinkedActivePti) {
+      toast.error('Registra y enlaza un PTI activo a esta fórmula antes de preparar la mezcla.');
+      return;
+    }
     if (!formulaId) {
       toast.error('Selecciona una fórmula de extrusión.');
       return;
@@ -804,8 +787,13 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   >
                     <option value="" disabled>-- Seleccione Fórmula --</option>
                     {formulas.map((f: any) => (
-                      <option key={f.id} value={f.id}>
+                      <option
+                        key={f.id}
+                        value={f.id}
+                        disabled={!registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(f.id) || Number(pti.id) === Number(f.output_pti_id))}
+                      >
                         {f.code ? `[${f.code}] ` : ''}{f.name} ({f.batch_size_kg || 500} kg)
+                        {!registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(f.id) || Number(pti.id) === Number(f.output_pti_id)) ? ' — REGISTRA PTI PARA PREPARAR' : ''}
                       </option>
                     ))}
                   </select>
@@ -813,6 +801,12 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     <Icon name="expand_more" size={20} />
                   </div>
                 </div>
+
+                {selectedFormula && !hasLinkedActivePti && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                    Esta fórmula no tiene un PTI activo enlazado. Regístralo en el catálogo de Extrusión antes de preparar la mezcla.
+                  </div>
+                )}
 
                 {/* Ficha Resumen de Parámetros de la Fórmula */}
                 {selectedFormula && (
@@ -1415,7 +1409,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
           <Button
             type="submit"
-            disabled={mutation.isPending || loadingFormulas || inputs.length === 0 || !formulaId || !selectedExtruderId}
+            disabled={mutation.isPending || loadingFormulas || inputs.length === 0 || !formulaId || !selectedExtruderId || !hasLinkedActivePti}
             className="w-full sm:w-auto font-bold text-xs sm:text-sm h-11 px-6 gap-2 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {mutation.isPending ? (
@@ -1578,6 +1572,15 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 Código QR Hijo *
               </label>
               <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={() => setIsMixingCameraOpen(true)}
+                  className="!h-11 px-3.5 font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80 gap-1.5 border-2 border-border shrink-0"
+                  title="Abrir cámara del dispositivo para escanear QR Hijo"
+                >
+                  <Icon name="photo_camera" size={18} className="text-primary" />
+                  <span>Escanear</span>
+                </Button>
                 <div className="relative flex-1">
                   <Icon name="qr_code_2" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <Input
@@ -1611,15 +1614,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   <span>Verificar</span>
                 </Button>
 
-                <Button
-                  type="button"
-                  onClick={() => setIsMixingCameraOpen(true)}
-                  className="!h-11 px-3.5 font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80 gap-1.5 border-2 border-border shrink-0"
-                  title="Abrir cámara del dispositivo para escanear QR Hijo"
-                >
-                  <Icon name="photo_camera" size={18} className="text-primary" />
-                  <span className="hidden sm:inline">Cámara</span>
-                </Button>
               </div>
             </div>
 

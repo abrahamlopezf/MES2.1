@@ -51,6 +51,7 @@ import AdminAlmRoute from './AdminAlmRoute';
 import TelaresTerminalPage from '../modules/telares/presentation/pages/TelaresTerminalPage';
 import RoutingStationTerminalPage from '../modules/telares/presentation/pages/RoutingStationTerminalPage';
 import ViajeroTrackerPage from '../modules/telares/presentation/pages/ViajeroTrackerPage';
+import TelaresCatalogPage from '../modules/telares/presentation/pages/TelaresCatalogPage';
 
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
@@ -289,6 +290,10 @@ export const router = createBrowserRouter([
           {
             path: '/globo',
             element: <Navigate to="/production/globo" replace />
+          },
+          {
+            path: '/telares/catalogos',
+            element: <TelaresRoute><TelaresCatalogPage /></TelaresRoute>
           },
           // Warehouse
           {

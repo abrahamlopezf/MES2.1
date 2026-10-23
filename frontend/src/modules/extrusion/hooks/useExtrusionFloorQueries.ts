@@ -18,6 +18,8 @@ export const useExtruderQueuesQuery = () => {
     queryKey: EXTRUSION_QUERY_KEYS.queues,
     queryFn: extrusionApi.getExtruderQueues,
     refetchInterval: 10000, // Refresca cada 10s para mantener el estado operativo del piso actualizado
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: 'always',
   });
 };
 
@@ -182,6 +184,8 @@ export const useUpdateFormulaMutation = () => {
       extrusionApi.updateFormula(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.formulas });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'mixing-formulas'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'pti-products'] });
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'valuation'] });
     },
   });
@@ -206,6 +210,7 @@ export const useCreatePtiProductMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'pti-products'] });
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.formulas });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'mixing-formulas'] });
     },
   });
 };
@@ -219,6 +224,7 @@ export const useUpdatePtiProductMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'pti-products'] });
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.formulas });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'mixing-formulas'] });
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.racks });
     },
   });
@@ -232,6 +238,7 @@ export const useDeletePtiProductMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'pti-products'] });
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.formulas });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'mixing-formulas'] });
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.racks });
     },
   });

@@ -7,6 +7,12 @@ export interface Loom {
   active_weft_rack_id: number | null;
   current_bom_id: number | null;
   is_active: boolean;
+  model?: string;
+  type?: string;
+  rpm?: number;
+  specifications?: string | null;
+  supported_pti_types?: number[];
+  supported_bom_ids?: number[];
   warpRack?: {
     id: number;
     rack_code: string;
@@ -41,6 +47,8 @@ export interface ProductionBomItem {
   material_id: number | null;
   ratio_percentage: number;
   consumption_g_per_m: number;
+  required_quantity?: number | null;
+  required_unit?: 'KG' | 'PIEZAS';
   ptiProduct?: {
     id: number;
     name: string;
@@ -59,6 +67,8 @@ export interface ProductionBom {
   warp_density?: string;
   weft_density?: string;
   output_product_name: string;
+  expected_output_quantity?: number;
+  expected_output_unit?: string;
   default_route: string[];
   is_active: boolean;
   items?: ProductionBomItem[];

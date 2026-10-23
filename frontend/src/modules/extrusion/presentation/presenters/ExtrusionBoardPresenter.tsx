@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 
 export interface ExtrusionBoardPresenterProps {
   queues: MachineQueueGroup[];
@@ -580,12 +581,18 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 <label className="text-xs font-black uppercase text-foreground">
                   Código QR de Orden de Consumo (Almacén) *
                 </label>
-                <Input
-                  placeholder="Ej: QR-MIX-ORD-001 o folio"
-                  value={enqueueForm.consumption_order_qr_id}
-                  onChange={(e) => onEnqueueFormChange('consumption_order_qr_id', e.target.value)}
-                  className="font-mono font-bold h-10 border-2"
-                />
+                <div className="flex gap-2">
+                  <QrScannerButton
+                    title="Escanear QR de la orden de consumo"
+                    onScan={(code) => onEnqueueFormChange('consumption_order_qr_id', code.trim())}
+                  />
+                  <Input
+                    placeholder="Ej: QR-MIX-ORD-001 o folio"
+                    value={enqueueForm.consumption_order_qr_id}
+                    onChange={(e) => onEnqueueFormChange('consumption_order_qr_id', e.target.value)}
+                    className="font-mono font-bold h-10 border-2"
+                  />
+                </div>
               </div>
 
               {/* Selección de Fórmula */}

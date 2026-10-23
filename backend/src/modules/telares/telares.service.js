@@ -21,9 +21,9 @@ class TelaresService {
   /**
    * Listar todos los telares con sus Racks Maestros activos y BOM actual
    */
-  async getLooms() {
+  async getLooms(includeInactive = false) {
     return await Loom.findAll({
-      where: { is_active: true },
+      where: includeInactive ? {} : { is_active: true },
       include: [
         {
           model: PtiRack,
@@ -55,9 +55,9 @@ class TelaresService {
   /**
    * Listar recetas / BOMs de producción
    */
-  async getBoms() {
+  async getBoms(includeInactive = false) {
     return await ProductionBom.findAll({
-      where: { is_active: true },
+      where: includeInactive ? {} : { is_active: true },
       include: [
         {
           model: ProductionBomItem,
@@ -70,6 +70,136 @@ class TelaresService {
       ],
       order: [['id', 'ASC']],
     });
+  }
+
+  async saveLoom(payload, id = null) {
+    const t = await sequelize.transaction();
+    try {
+      let loom = id ? await Loom.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE }) : null;
+      if (id && !loom) throw new Error(`Telar ID ${id} no encontrado.`);
+      const code = String(payload.code ?? loom?.code ?? '').trim().toUpperCase();
+      const name = String(payload.name ?? loom?.name ?? '').trim();
+      if (!code || !name) throw new Error('El código y el nombre del telar son obligatorios.');
+
+      const ptiIds = [...new Set((payload.supported_pti_types ?? loom?.supported_pti_types ?? []).map(Number))];
+      if (ptiIds.some((value) => !Number.isInteger(value) || value <= 0)) throw new Error('La lista de PTI compatibles contiene un valor no válido.');
+      if (!ptiIds.length) throw new Error('Selecciona al menos un tipo de PTI de Extrusión que maneje el telar.');
+      if (ptiIds.length && await PtiProduct.count({ where: { id: ptiIds }, transaction: t }) !== ptiIds.length) {
+        throw new Error('Uno o más PTI compatibles no existen en el catálogo de Extrusión.');
+      }
+
+      const bomIds = [...new Set((payload.supported_bom_ids ?? loom?.supported_bom_ids ?? []).map(Number))];
+      if (bomIds.some((value) => !Number.isInteger(value) || value <= 0)) throw new Error('La lista de rollos compatibles contiene un valor no válido.');
+      if (bomIds.length && await ProductionBom.count({ where: { id: bomIds }, transaction: t }) !== bomIds.length) {
+        throw new Error('Uno o más rollos compatibles no existen en el catálogo de Telares.');
+      }
+
+      const values = {
+        code,
+        name,
+        model: payload.model ?? loom?.model ?? 'LOHIA LSL-6',
+        type: payload.type ?? loom?.type ?? 'CIRCULAR',
+        rpm: Number(payload.rpm ?? loom?.rpm ?? 120),
+        status: payload.status ?? loom?.status ?? 'DISPONIBLE',
+        specifications: payload.specifications ?? loom?.specifications ?? null,
+        supported_pti_types: ptiIds,
+        supported_bom_ids: bomIds,
+        is_active: payload.is_active ?? loom?.is_active ?? true,
+      };
+      if (!Number.isFinite(values.rpm) || values.rpm <= 0) throw new Error('La velocidad RPM debe ser mayor a cero.');
+      if (loom) await loom.update(values, { transaction: t });
+      else loom = await Loom.create(values, { transaction: t });
+      await t.commit();
+      return loom;
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
+  }
+
+  async deactivateLoom(id) {
+    const loom = await Loom.findByPk(id);
+    if (!loom) throw new Error(`Telar ID ${id} no encontrado.`);
+    const activeRun = await LoomRun.findOne({ where: { loom_id: id, status: 'EN_PROCESO' } });
+    if (activeRun) throw new Error(`No se puede desactivar ${loom.name}: tiene una corrida activa.`);
+    await loom.update({ is_active: false, status: 'DETENIDO' });
+    return { id: loom.id, is_active: false };
+  }
+
+  async saveBom(payload, id = null) {
+    const t = await sequelize.transaction();
+    try {
+      let bom = id ? await ProductionBom.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE }) : null;
+      if (id && !bom) throw new Error(`Rollo/BOM ID ${id} no encontrado.`);
+      const code = String(payload.code ?? bom?.code ?? '').trim().toUpperCase();
+      const name = String(payload.name ?? bom?.name ?? '').trim();
+      const items = payload.items ?? (bom ? await ProductionBomItem.findAll({ where: { bom_id: bom.id }, transaction: t }) : []);
+      if (!code || !name) throw new Error('El código y el nombre del rollo son obligatorios.');
+      if (!Array.isArray(items) || items.length === 0) throw new Error('Agrega al menos un tipo de PTI de Extrusión requerido.');
+
+      const route = payload.default_route ?? bom?.default_route ?? ['TELARES', 'LAMINADO', 'CORTE'];
+      const validStages = ['TELARES', 'GLOBO', 'LAMINADO', 'CORTE', 'CONFECCION'];
+      if (!Array.isArray(route) || route[0] !== 'TELARES' || route.some((stage) => !validStages.includes(String(stage).toUpperCase())) || new Set(route).size !== route.length) {
+        throw new Error('La ruta debe iniciar en TELARES y contener etapas válidas sin repetir.');
+      }
+      const normalizedItems = [];
+      for (const item of items) {
+        const ptiId = Number(item.pti_product_id);
+        const pti = ptiId > 0 ? await PtiProduct.findByPk(ptiId, { transaction: t }) : null;
+        if (!pti || !pti.is_active) throw new Error('Cada componente debe ser un PTI activo del catálogo de Extrusión.');
+        const role = String(item.role || '').trim().toUpperCase();
+        if (!['URDIMBRE', 'TRAMA', 'AMBOS', 'REFUERZO'].includes(role)) throw new Error(`Rol de componente no válido para el PTI ${pti.code}.`);
+        const ratio = Number(item.ratio_percentage ?? 0);
+        const consumption = Number(item.consumption_g_per_m ?? 0);
+        const requiredQuantity = item.required_quantity === '' || item.required_quantity === null || item.required_quantity === undefined
+          ? null
+          : Number(item.required_quantity);
+        const requiredUnit = String(item.required_unit || 'KG').toUpperCase();
+        if (!Number.isFinite(ratio) || ratio < 0 || ratio > 100 || !Number.isFinite(consumption) || consumption < 0) throw new Error(`Consumo o proporción no válida para ${pti.code}.`);
+        if (requiredQuantity === null || !Number.isFinite(requiredQuantity) || requiredQuantity <= 0) throw new Error(`Indica la cantidad de PTI requerida por rollo para ${pti.code}.`);
+        if (!['KG', 'PIEZAS'].includes(requiredUnit)) throw new Error('La unidad requerida debe ser KG o PIEZAS.');
+        normalizedItems.push({ pti_product_id: pti.id, role, ratio_percentage: ratio, consumption_g_per_m: consumption, required_quantity: requiredQuantity, required_unit: requiredUnit, notes: item.notes || null });
+      }
+
+      const values = {
+        code,
+        name,
+        description: payload.description ?? bom?.description ?? null,
+        target_width_cm: Number(payload.target_width_cm ?? bom?.target_width_cm ?? 50),
+        target_weight_g_per_m: Number(payload.target_weight_g_per_m ?? bom?.target_weight_g_per_m ?? 65),
+        warp_density: Number(payload.warp_density ?? bom?.warp_density ?? 10),
+        weft_density: Number(payload.weft_density ?? bom?.weft_density ?? 10),
+        output_product_name: String(payload.output_product_name ?? bom?.output_product_name ?? name).trim(),
+        expected_output_quantity: Number(payload.expected_output_quantity ?? bom?.expected_output_quantity ?? 1),
+        expected_output_unit: String(payload.expected_output_unit ?? bom?.expected_output_unit ?? 'ROLLO').toUpperCase(),
+        default_route: route.map((stage) => String(stage).toUpperCase()),
+        is_active: payload.is_active ?? bom?.is_active ?? true,
+      };
+      if (!Number.isFinite(values.target_width_cm) || values.target_width_cm <= 0 || !Number.isFinite(values.expected_output_quantity) || values.expected_output_quantity <= 0) {
+        throw new Error('El ancho y la cantidad de salida deben ser mayores a cero.');
+      }
+      if (bom) {
+        await bom.update(values, { transaction: t });
+        await ProductionBomItem.destroy({ where: { bom_id: bom.id }, transaction: t });
+      } else {
+        bom = await ProductionBom.create(values, { transaction: t });
+      }
+      await ProductionBomItem.bulkCreate(normalizedItems.map((item) => ({ ...item, bom_id: bom.id })), { transaction: t });
+      await t.commit();
+      return await ProductionBom.findByPk(bom.id, { include: [{ model: ProductionBomItem, as: 'items', include: [{ model: PtiProduct, as: 'ptiProduct' }] }] });
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
+  }
+
+  async deactivateBom(id) {
+    const bom = await ProductionBom.findByPk(id);
+    if (!bom) throw new Error(`Rollo/BOM ID ${id} no encontrado.`);
+    const activeRun = await LoomRun.findOne({ where: { bom_id: id, status: 'EN_PROCESO' } });
+    if (activeRun) throw new Error('No se puede desactivar el rollo: está vinculado a una corrida activa.');
+    await bom.update({ is_active: false });
+    return { id: bom.id, is_active: false };
   }
 
   /**
@@ -90,6 +220,10 @@ class TelaresService {
 
       if (Number(rack.current_quantity) <= 0) {
         throw new Error(`El Rack '${rack.rack_code}' se encuentra vacío (0 bobinas disponibles).`);
+      }
+      const supportedTypes = Array.isArray(loom.supported_pti_types) ? loom.supported_pti_types.map(Number) : [];
+      if (supportedTypes.length && !supportedTypes.includes(Number(rack.current_pti_type_id))) {
+        throw new Error(`El telar ${loom.name} no está configurado para manejar el PTI ${rack.currentPtiProduct?.code || rack.current_pti_type_id}.`);
       }
 
       const updateData = {};
@@ -149,10 +283,36 @@ class TelaresService {
       }
 
       const bom = await ProductionBom.findByPk(bom_id, {
-        include: [{ model: ProductionBomItem, as: 'items' }],
+        include: [{ model: ProductionBomItem, as: 'items', include: [{ model: PtiProduct, as: 'ptiProduct' }] }],
         transaction: t,
       });
       if (!bom) throw new Error(`Receta / BOM ID ${bom_id} no encontrada.`);
+      const supportedBoms = Array.isArray(loom.supported_bom_ids) ? loom.supported_bom_ids.map(Number) : [];
+      if (supportedBoms.length && !supportedBoms.includes(Number(bom.id))) {
+        throw new Error(`El telar ${loom.name} no está habilitado para producir ${bom.name}.`);
+      }
+      const supportedTypes = Array.isArray(loom.supported_pti_types) ? loom.supported_pti_types.map(Number) : [];
+      for (const item of bom.items || []) {
+        const ptiId = Number(item.pti_product_id);
+        if (!ptiId || (supportedTypes.length && !supportedTypes.includes(ptiId))) {
+          throw new Error(`El telar ${loom.name} no está configurado para el PTI de Extrusión ${item.ptiProduct?.name || ptiId}.`);
+        }
+        const ptiRacks = await PtiRack.findAll({
+          where: { current_pti_type_id: ptiId, current_quantity: { [Op.gt]: 0 } },
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        if (!ptiRacks.length) throw new Error(`No hay existencias del PTI ${item.ptiProduct?.code || ptiId} en racks de Extrusión.`);
+        const required = Number(item.required_quantity || 0);
+        if (required > 0) {
+          const availablePieces = ptiRacks.reduce((sum, rack) => sum + Number(rack.current_quantity || 0), 0);
+          const unitWeight = Number(ptiRacks[0]?.unit_weight_kg || item.ptiProduct?.unit_weight_kg || 6.8);
+          const requiredPieces = String(item.required_unit).toUpperCase() === 'KG' ? required / unitWeight : required;
+          if (availablePieces + 0.0001 < requiredPieces) {
+            throw new Error(`PTI insuficiente para ${bom.name}: ${item.ptiProduct?.name || `#${ptiId}`} requiere ${required} ${item.required_unit}; disponible ${availablePieces.toFixed(2)} piezas en Extrusión.`);
+          }
+        }
+      }
 
       // Generar Folio único
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -298,7 +458,7 @@ class TelaresService {
 
       for (const item of bom.items) {
         const ratio = Number(item.ratio_percentage || 50.0) / 100.0;
-        const theoreticalKgForItem = numWeightKg * ratio;
+        let theoreticalKgForItem = numWeightKg * ratio;
 
         // Determinar qué Rack Maestro corresponde (Urdimbre o Trama)
         let targetRackId = null;
@@ -311,33 +471,49 @@ class TelaresService {
           targetRackId = run.warp_rack_id || run.weft_rack_id;
         }
 
-        if (!targetRackId) {
-          // Si el telar no tiene rack maestro asignado, buscamos cualquier rack con stock del PTI correspondiente
+        let rack = targetRackId ? await PtiRack.findByPk(targetRackId, {
+          lock: t.LOCK.UPDATE,
+          transaction: t,
+        }) : null;
+        if (rack && Number(rack.current_pti_type_id) !== Number(item.pti_product_id)) rack = null;
+        if (!rack) {
+          // El consumo solo puede salir del rack del tipo PTI requerido por el BOM.
           const fallbackRack = await PtiRack.findOne({
             where: {
+              current_pti_type_id: item.pti_product_id,
               current_quantity: { [Op.gt]: 0 },
             },
             order: [['updated_at', 'DESC']],
             transaction: t,
+            lock: t.LOCK.UPDATE,
           });
-          if (fallbackRack) targetRackId = fallbackRack.id;
+          rack = fallbackRack;
+        }
+        if (!rack) {
+          throw new Error(`No hay un rack de Extrusión disponible para el PTI requerido ${item.pti_product_id}.`);
         }
 
-        if (targetRackId) {
-          const rack = await PtiRack.findByPk(targetRackId, {
-            lock: t.LOCK.UPDATE,
-            transaction: t,
-          });
-
-          if (rack) {
+        if (rack) {
             const unitWeightKg = Number(rack.unit_weight_kg) > 0 ? Number(rack.unit_weight_kg) : 6.8;
-            const spoolsToDeduct = parseFloat((theoreticalKgForItem / unitWeightKg).toFixed(2));
+            const requiredQuantity = Number(item.required_quantity || 0);
+            const usesConfiguredRequirement = requiredQuantity > 0;
+            const spoolsToDeduct = usesConfiguredRequirement
+              ? Number((String(item.required_unit).toUpperCase() === 'KG' ? requiredQuantity / unitWeightKg : requiredQuantity).toFixed(2))
+              : parseFloat((theoreticalKgForItem / unitWeightKg).toFixed(2));
+            if (usesConfiguredRequirement) {
+              theoreticalKgForItem = String(item.required_unit).toUpperCase() === 'KG'
+                ? requiredQuantity
+                : requiredQuantity * unitWeightKg;
+            }
 
             const balanceBefore = Number(rack.current_quantity);
-            const balanceAfter = Math.max(0, parseFloat((balanceBefore - spoolsToDeduct).toFixed(2)));
+            if (spoolsToDeduct > balanceBefore + 0.0001) {
+              throw new Error(`PTI insuficiente en Rack ${rack.rack_code}: requerido ${spoolsToDeduct.toFixed(2)} piezas y disponible ${balanceBefore.toFixed(2)}.`);
+            }
+            const balanceAfter = parseFloat((balanceBefore - spoolsToDeduct).toFixed(2));
 
             // Actualizar stock del Rack Maestro
-            const newRackStatus = balanceAfter === 0 ? 'DISPONIBLE' : rack.status;
+            const newRackStatus = balanceAfter === 0 ? 'VACIO' : rack.status;
             await rack.update(
               {
                 current_quantity: balanceAfter,
@@ -352,7 +528,7 @@ class TelaresService {
                 viajero_roll_id: viajeroRoll.id,
                 loom_run_id: run.id,
                 rack_id: rack.id,
-                pti_product_id: item.pti_product_id || rack.current_pti_type_id || 1,
+                pti_product_id: item.pti_product_id,
                 role: item.role,
                 theoretical_kg: theoreticalKgForItem,
                 spools_consumed: spoolsToDeduct,
@@ -363,7 +539,6 @@ class TelaresService {
             );
             backflushRecords.push(consumptionEntry);
             totalPtiDeductedKg += theoreticalKgForItem;
-          }
         }
       }
 

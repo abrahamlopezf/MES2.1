@@ -6,6 +6,7 @@ import {
 } from '../../hooks/useTelaresQueries';
 import { ValidateViajeroScanResponse } from '../../types/telares.types';
 import { CreateConsumptionOrderModal } from '../../../warehouse/presentation/components/CreateConsumptionOrderModal';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { Button, Badge } from '@/design-system';
 import { toast } from 'sonner';
 import {
@@ -73,9 +74,8 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
   }, [validationResult]);
 
   // Manejar escaneo
-  const handleScanSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = scannedCode.trim();
+  const validateQrCode = async (code: string) => {
+    const clean = code.trim();
     if (!clean) return;
 
     try {
@@ -95,6 +95,11 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
     } catch (err: any) {
       toast.error(err.friendlyMessage || err.message || 'Error al validar escaneo');
     }
+  };
+
+  const handleScanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await validateQrCode(scannedCode);
   };
 
   // Manejar confirmación de proceso
@@ -197,6 +202,13 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
         </div>
 
         <form onSubmit={handleScanSubmit} className="flex flex-col sm:flex-row gap-3">
+          <QrScannerButton
+            title={`Escanear QR Viajero en ${currentStation}`}
+            onScan={(code) => {
+              setScannedCode(code);
+              void validateQrCode(code);
+            }}
+          />
           <div className="relative flex-1">
             <input
               ref={inputRef}

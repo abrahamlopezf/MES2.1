@@ -16,11 +16,30 @@ class ExtrusionService {
         include: [{ model: FormulaIngredient, as: 'ingredients' }],
         transaction
       });
+      const isOfficialExtrusionFormula = Boolean(formula);
       if (!formula) {
         formula = await ProcessFormula.findByPk(formula_id, { transaction });
       }
       if (!formula || (formula.is_active !== undefined && !formula.is_active)) {
         throw new Error('Fórmula no válida o inactiva.');
+      }
+
+      // No se prepara mezcla si la fórmula todavía no tiene PTI de salida.
+      const { PtiProduct } = require('../../database/models');
+      const linkedPti = isOfficialExtrusionFormula && await PtiProduct.findOne({
+        where: {
+          is_active: true,
+          [sequelize.Sequelize.Op.or]: [
+            { id: formula.output_pti_id || -1 },
+            { formula_id: formula.id },
+          ],
+        },
+        transaction,
+      });
+      if (!linkedPti) {
+        const error = new Error('No se puede preparar la mezcla: registra y enlaza primero un PTI activo a esta fórmula.');
+        error.statusCode = 400;
+        throw error;
       }
 
       // 2. Validar restricciones de Extrusora si se especificó
@@ -42,19 +61,6 @@ class ExtrusionService {
         }
 
         isSiloMode = Boolean(extruder?.modo_silo);
-
-        // Fase 3: Rafia exclusiva para Extrusora 1
-        const isRafiaFormula = (formula.code || '').startsWith('F-EXT-1-') || formula.code === 'F-EXT-01-FIXED' || (formula.name || '').includes('RAFIA PARA CINTURÓN');
-        if (isRafiaFormula && machineId !== 1) {
-          const error = new Error(`Restricción de Máquina: Las fórmulas de Rafia para Cinturón son de uso exclusivo en la Extrusora 1. Intento bloqueado.`);
-          error.statusCode = 400;
-          throw error;
-        }
-        if (machineId === 1 && !isRafiaFormula) {
-          const error = new Error(`Restricción de Máquina: La Extrusora 1 está asignada exclusivamente a recetas fijas de Rafia para Cinturón. Intento bloqueado.`);
-          error.statusCode = 400;
-          throw error;
-        }
 
         // Fase 3: Hard-block Extrusora 4 (Cero PP-B)
         if (machineId === 4) {
@@ -1384,19 +1390,6 @@ class ExtrusionService {
       throw error;
     }
 
-    // Restricción Rafia exclusivo Extrusora 1
-    const isRafiaFormula = (formula.code || '').startsWith('F-EXT-1-') || formula.code === 'F-EXT-01-FIXED' || (formula.name || '').includes('RAFIA PARA CINTURÓN');
-    if (isRafiaFormula && machineId !== 1) {
-      const error = new Error(`Restricción de Máquina: Las fórmulas de Rafia para Cinturón son de uso exclusivo en la Extrusora 1. Intento bloqueado.`);
-      error.statusCode = 400;
-      throw error;
-    }
-    if (machineId === 1 && !isRafiaFormula) {
-      const error = new Error(`Restricción de Máquina: La Extrusora 1 está asignada exclusivamente a recetas fijas de Rafia para Cinturón. Intento bloqueado.`);
-      error.statusCode = 400;
-      throw error;
-    }
-
     // Restricción Extrusora 4: PROHIBIDO PP-B (Fórmula o Silo)
     if (machineId === 4) {
       const hasProhibitedPpb = (formula.ingredients || []).some(ing => {
@@ -2068,7 +2061,7 @@ class ExtrusionService {
    * Permite ajustar materiales, cantidades, composición y el índice de multiplicación para dar el valor transformado a la mezcla.
    */
   async updateFormula(id, payload) {
-    const { Formula, FormulaIngredient, Material, sequelize } = require('../../database/models');
+    const { Formula, FormulaIngredient, Material, PtiProduct, sequelize } = require('../../database/models');
     const formula = await Formula.findByPk(id);
     if (!formula) {
       const error = new Error(`Fórmula con ID ${id} no encontrada.`);
@@ -2127,6 +2120,44 @@ class ExtrusionService {
 
       if (payload.is_active !== undefined) {
         formula.is_active = Boolean(payload.is_active);
+      }
+
+      if (payload.output_pti_id !== undefined) {
+        const ptiId = payload.output_pti_id === null || payload.output_pti_id === ''
+          ? null
+          : Number(payload.output_pti_id);
+        if (ptiId !== null && (!Number.isInteger(ptiId) || ptiId <= 0)) {
+          const error = new Error('El PTI seleccionado no es válido.');
+          error.statusCode = 400;
+          throw error;
+        }
+
+        const nextPti = ptiId === null ? null : await PtiProduct.findByPk(ptiId, {
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        if (ptiId !== null && !nextPti) {
+          const error = new Error('El PTI seleccionado no existe.');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (nextPti && nextPti.formula_id && Number(nextPti.formula_id) !== Number(formula.id)) {
+          const error = new Error(`El PTI '${nextPti.code}' ya está enlazado a otra fórmula.`);
+          error.statusCode = 409;
+          throw error;
+        }
+
+        const previouslyLinkedPtis = await PtiProduct.findAll({ where: { formula_id: formula.id }, transaction: t });
+        for (const previousPti of previouslyLinkedPtis) {
+          if (Number(previousPti.id) !== ptiId) await previousPti.update({ formula_id: null }, { transaction: t });
+        }
+        if (nextPti) {
+          await PtiProduct.update(
+            { formula_id: formula.id },
+            { where: { id: nextPti.id }, transaction: t }
+          );
+        }
+        formula.output_pti_id = ptiId;
       }
 
       if (payload.ingredients && Array.isArray(payload.ingredients)) {
@@ -2310,22 +2341,24 @@ class ExtrusionService {
       throw error;
     }
 
-    if (!formula_id) {
-      const error = new Error('Debes seleccionar la fórmula de extrusión enlazada que genera este PTI.');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    const formula = await Formula.findByPk(formula_id);
-    if (!formula) {
+    const formula = formula_id ? await Formula.findByPk(formula_id) : null;
+    if (formula_id && !formula) {
       const error = new Error(`La fórmula seleccionada con ID ${formula_id} no existe.`);
       error.statusCode = 404;
       throw error;
     }
+    if (formula) {
+      const alreadyLinked = await PtiProduct.findOne({ where: { formula_id: formula.id } });
+      if (alreadyLinked) {
+        const error = new Error(`La fórmula '${formula.name}' ya tiene enlazado el PTI ${alreadyLinked.code}.`);
+        error.statusCode = 409;
+        throw error;
+      }
+    }
 
     let ptiCode = code ? code.trim().toUpperCase() : null;
     if (!ptiCode) {
-      ptiCode = `PTI-${formula.code || 'EXT'}-${Date.now().toString().slice(-4)}`;
+      ptiCode = `PTI-${formula?.code || 'EXT'}-${Date.now().toString().slice(-4)}`;
     }
 
     const existing = await PtiProduct.findOne({ where: { code: ptiCode } });
@@ -2344,7 +2377,7 @@ class ExtrusionService {
       specifications: specifications ? specifications.trim() : null,
       unit_weight_kg: !isNaN(weight) && weight > 0 ? weight : 6.800,
       unit_price: !isNaN(price) && price >= 0 ? price : 0.00,
-      formula_id: Number(formula_id),
+      formula_id: formula ? Number(formula_id) : null,
       material_id: material_id ? Number(material_id) : null,
       is_active: is_active !== undefined ? Boolean(is_active) : true
     });
@@ -2391,11 +2424,17 @@ class ExtrusionService {
     }
 
     if (payload.formula_id !== undefined) {
-      const fId = Number(payload.formula_id);
-      const formula = await Formula.findByPk(fId);
-      if (!formula) {
+      const fId = payload.formula_id === null || payload.formula_id === '' ? null : Number(payload.formula_id);
+      const formula = fId === null ? null : await Formula.findByPk(fId);
+      if (fId !== null && !formula) {
         const error = new Error(`La fórmula con ID ${fId} no existe.`);
         error.statusCode = 404;
+        throw error;
+      }
+      const linkedPti = fId === null ? null : await PtiProduct.findOne({ where: { formula_id: fId } });
+      if (linkedPti && linkedPti.id !== pti.id) {
+        const error = new Error(`La fórmula '${formula.name}' ya tiene enlazado el PTI ${linkedPti.code}.`);
+        error.statusCode = 409;
         throw error;
       }
       pti.formula_id = fId;
@@ -2466,12 +2505,17 @@ class ExtrusionService {
    * Catálogo de Extrusoras con toggle híbrido modo_silo, estado y silos asignados.
    */
   async getMachines() {
-    const { Extruder, Silo, Formula, ExtruderQueue } = require('../../database/models');
+    const { Extruder, Silo, Formula, ExtruderFormula, ExtruderQueue } = require('../../database/models');
     const extruders = await Extruder.findAll({
       where: { is_active: true },
       include: [
         { model: Silo, as: 'silo' },
-        { model: Formula, as: 'allowedFormulas', attributes: ['id', 'code', 'name'] }
+        {
+          model: Formula,
+          as: 'allowedFormulas',
+          attributes: ['id', 'code', 'name'],
+          through: { attributes: [], where: { is_allowed: true } }
+        }
       ],
       order: [['id', 'ASC']]
     });
@@ -2479,6 +2523,8 @@ class ExtrusionService {
     const queues = await ExtruderQueue.findAll({
       where: { status: ['ACTIVA', 'EN_ESPERA', 'PAUSADA'] }
     });
+    const compatibilityRows = await ExtruderFormula.findAll({ attributes: ['extruder_id', 'formula_id', 'is_allowed'] });
+    const configuredMachineIds = new Set(compatibilityRows.map((row) => Number(row.extruder_id)));
 
     return extruders.map(ext => {
       const activeCount = queues.filter(q => q.extruder_id === ext.id).length;
@@ -2488,6 +2534,7 @@ class ExtrusionService {
         name: ext.name,
         type: ext.type,
         status: ext.status,
+        notes: ext.notes,
         modo_silo: ext.modo_silo,
         silo_id: ext.silo_id,
         silo: ext.silo ? {
@@ -2501,10 +2548,81 @@ class ExtrusionService {
           unit_cost: Number(ext.silo.unit_cost)
         } : null,
         allowedFormulas: ext.allowedFormulas || [],
+        compatible_formulas: ext.allowedFormulas || [],
+        has_formula_matrix: configuredMachineIds.has(Number(ext.id)),
         active_orders_count: activeCount,
         can_toggle_silo: activeCount === 0
       };
     });
+  }
+
+  async updateMachine(extruderId, payload) {
+    const { Extruder } = require('../../database/models');
+    const machine = await Extruder.findByPk(extruderId);
+    if (!machine) {
+      const error = new Error(`Extrusora #${extruderId} no encontrada.`);
+      error.statusCode = 404;
+      throw error;
+    }
+    if (payload.name !== undefined) {
+      const name = String(payload.name).trim();
+      if (!name) {
+        const error = new Error('El nombre de la extrusora es obligatorio.');
+        error.statusCode = 400;
+        throw error;
+      }
+      machine.name = name;
+    }
+    if (payload.type !== undefined) machine.type = String(payload.type).trim() || 'STANDARD';
+    if (payload.status !== undefined) machine.status = String(payload.status).trim().toUpperCase();
+    if (payload.notes !== undefined) machine.notes = payload.notes ? String(payload.notes).trim() : null;
+    if (payload.is_active !== undefined) machine.is_active = Boolean(payload.is_active);
+    await machine.save();
+    return machine;
+  }
+
+  async updateMachineFormulaCompatibility(extruderId, formulaIds = []) {
+    const { sequelize, Extruder, ExtruderFormula, Formula } = require('../../database/models');
+    const machine = await Extruder.findByPk(extruderId);
+    if (!machine) {
+      const error = new Error(`Extrusora #${extruderId} no encontrada.`);
+      error.statusCode = 404;
+      throw error;
+    }
+    if (!Array.isArray(formulaIds)) {
+      const error = new Error('La lista de fórmulas compatibles no es válida.');
+      error.statusCode = 400;
+      throw error;
+    }
+    const normalizedIds = [...new Set(formulaIds.map(Number))];
+    if (normalizedIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      const error = new Error('La lista contiene una fórmula no válida.');
+      error.statusCode = 400;
+      throw error;
+    }
+    const transaction = await sequelize.transaction();
+    try {
+      const allFormulas = await Formula.findAll({ attributes: ['id'], transaction });
+      const allFormulaIds = allFormulas.map((formula) => Number(formula.id));
+      if (normalizedIds.some((id) => !allFormulaIds.includes(id))) {
+        const error = new Error('Una o más fórmulas seleccionadas no existen.');
+        error.statusCode = 400;
+        throw error;
+      }
+      await ExtruderFormula.destroy({ where: { extruder_id: machine.id }, transaction });
+      if (allFormulaIds.length) {
+        await ExtruderFormula.bulkCreate(allFormulaIds.map((formula_id) => ({
+          extruder_id: machine.id,
+          formula_id,
+          is_allowed: normalizedIds.includes(formula_id),
+        })), { transaction });
+      }
+      await transaction.commit();
+      return this.getMachines();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   /**

@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { ViajeroRoll, Loom } from '../../types/telares.types';
 import { ViajeroLabelModal } from '../components/ViajeroLabelModal';
 import { CreateConsumptionOrderModal } from '../../../warehouse/presentation/components/CreateConsumptionOrderModal';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { Button, Input, Badge } from '@/design-system';
 import { toast } from 'sonner';
 import {
@@ -77,11 +78,17 @@ export const TelaresTerminalPage: React.FC = () => {
   const activeRun = useMemo(() => {
     return activeLoom?.runs?.find((r) => r.status === 'EN_PROCESO') || null;
   }, [activeLoom]);
+  const selectedBom = useMemo(() => boms.find((bom) => bom.id === Number(selectedBomId)) || null, [boms, selectedBomId]);
 
   // Racks disponibles en planta para asignación
   const availableRacks = useMemo(() => {
-    return ptiRacks.filter((r) => Number(r.current_quantity) > 0);
-  }, [ptiRacks]);
+    const supportedTypes = (activeLoom?.supported_pti_types || []).map(Number);
+    return ptiRacks.filter((r) => Number(r.current_quantity) > 0 && (!supportedTypes.length || supportedTypes.includes(Number(r.current_pti_type_id))));
+  }, [ptiRacks, activeLoom]);
+  const compatibleBoms = useMemo(() => {
+    const supportedBoms = (activeLoom?.supported_bom_ids || []).map(Number);
+    return boms.filter((bom) => !supportedBoms.length || supportedBoms.includes(Number(bom.id)));
+  }, [boms, activeLoom]);
 
   // Manejador: Asignar Rack Maestro
   const handleAssignRack = async (e: React.FormEvent) => {
@@ -198,6 +205,13 @@ export const TelaresTerminalPage: React.FC = () => {
 
         {/* Indicadores Clave Rápidos */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <Button
+            onClick={() => navigate('/telares/catalogos')}
+            variant="outline"
+            className="h-11 px-3 border-slate-700 bg-slate-900 text-slate-200 font-bold text-xs"
+          >
+            <Factory className="h-4 w-4 mr-1.5" />Catálogos Telares
+          </Button>
           <div className="rounded-xl bg-slate-900 border border-slate-700 px-4 py-2 text-center flex-1 md:flex-initial">
             <span className="block text-[11px] font-bold text-slate-400 uppercase">Turno Actual</span>
             <span className="text-base font-black text-amber-400">TURNO 1 (07:00 - 15:00)</span>
@@ -570,19 +584,26 @@ export const TelaresTerminalPage: React.FC = () => {
               {/* Selector de Rack Disponible */}
               <div className="space-y-1">
                 <label className="text-xs font-bold uppercase text-slate-300">Rack Disponible de Extrusión:</label>
-                <select
-                  value={selectedPtiRackId}
-                  onChange={(e) => setSelectedPtiRackId(Number(e.target.value) || '')}
-                  required
-                  className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">-- Seleccionar Rack con Stock --</option>
-                  {availableRacks.map((rack) => (
-                    <option key={rack.id} value={rack.id}>
-                      {rack.rack_code} ({rack.current_quantity} bobinas disp. - {rack.currentPtiProduct?.name || 'PTI'})
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <QrScannerButton title="Escanear rack de PTI de Extrusión" onScan={(code) => {
+                    const match = availableRacks.find((rack) => [rack.qr_code, rack.rack_code].some((value) => String(value || '').toUpperCase() === code.toUpperCase()));
+                    if (match) setSelectedPtiRackId(match.id);
+                    else toast.error('El código escaneado no corresponde a un rack con stock de Extrusión.');
+                  }} />
+                  <select
+                    value={selectedPtiRackId}
+                    onChange={(e) => setSelectedPtiRackId(Number(e.target.value) || '')}
+                    required
+                    className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">-- Seleccionar Rack con Stock --</option>
+                    {availableRacks.map((rack) => (
+                      <option key={rack.id} value={rack.id}>
+                        {rack.rack_code} ({rack.current_quantity} bobinas disp. - {rack.currentPtiProduct?.name || 'PTI'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -623,12 +644,23 @@ export const TelaresTerminalPage: React.FC = () => {
                   className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
                 >
                   <option value="">-- Seleccionar Receta (BOM) --</option>
-                  {boms.map((bom) => (
+                  {compatibleBoms.map((bom) => (
                     <option key={bom.id} value={bom.id}>
                       {bom.code} - {bom.name} ({bom.target_width_cm}cm)
                     </option>
                   ))}
                 </select>
+                {selectedBom?.items?.length ? (
+                  <div className="space-y-1 rounded-lg border border-blue-400/30 bg-blue-500/10 p-3 text-xs">
+                    <strong className="text-blue-200">Surtir desde Extrusión por tipo de PTI:</strong>
+                    {selectedBom.items.map((item: any) => (
+                      <div key={item.id} className="flex justify-between gap-2 text-slate-200">
+                        <span>{item.role} · {item.ptiProduct?.code || item.pti_product_id} · {item.ptiProduct?.name || 'PTI'}</span>
+                        <strong>{item.required_quantity ? `${item.required_quantity} ${item.required_unit} / rollo` : `${item.consumption_g_per_m} g/m`}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-1">

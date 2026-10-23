@@ -16,9 +16,12 @@ export const ExtruderSelectionModal = () => {
   // 2. User is NOT an Admin (ADMIN_EXT, ADMIN_GRAL, SUPERADMIN)
   const isExtrusionUser = user?.area?.code === 'EXTRUSION' || user?.area?.name === 'EXTRUSIÓN';
   const isAdmin = user?.role?.code === 'ADMIN_EXT' || user?.role?.code === 'ADMIN_GRAL' || user?.role?.code === 'SUPERADMIN';
+  const isExtrusionSupervisor = user?.role?.code === 'SUPERVISOR_EXTRUSION';
   
   useEffect(() => {
-    if (!isExtrusionUser || isAdmin) return;
+    // El supervisor administra y consulta todas las extrusoras; no debe iniciar
+    // turno asociado a una máquina específica.
+    if (!isExtrusionUser || isAdmin || isExtrusionSupervisor) return;
 
     const sessionData = localStorage.getItem(SESSION_KEY);
     if (sessionData) {
@@ -34,7 +37,7 @@ export const ExtruderSelectionModal = () => {
     } else {
       setIsOpen(true);
     }
-  }, [isExtrusionUser, isAdmin]);
+  }, [isExtrusionUser, isAdmin, isExtrusionSupervisor]);
 
   const { data: machinesData, isLoading } = useQuery({
     queryKey: ['extrusion', 'machines'],

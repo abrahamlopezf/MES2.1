@@ -43,7 +43,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
-import { CameraScanner } from '@/design-system/components/scanner-overlay/CameraScanner';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 
 export interface PtiIngressPresenterProps {
   racks: PtiRack[];
@@ -170,14 +170,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   );
 
   // Escáner de cámara
-  const [isRackCameraScannerOpen, setIsRackCameraScannerOpen] = React.useState(false);
   const [isRackScannerModalOpen, setIsRackScannerModalOpen] = React.useState(false);
   const [scannedRackInput, setScannedRackInput] = React.useState('');
   const [rackScanError, setRackScanError] = React.useState<string | null>(null);
 
-  const handleOpenRackScanner = () => {
-    setIsRackCameraScannerOpen(true);
-  };
 
   // Modal para edición manual de Precio y Peso por Rack
   const [isEditRackModalOpen, setIsEditRackModalOpen] = React.useState(false);
@@ -495,12 +491,15 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 <label className="text-[11px] font-bold uppercase text-muted-foreground block mb-1">
                   O escanear código QR de mezcla:
                 </label>
-                <Input
-                  placeholder="Ej. CONT-MIX-20261023-XXXX-C1"
-                  value={mixtureQr}
-                  onChange={(e) => onMixtureQrChange(e.target.value.toUpperCase())}
-                  className="font-mono font-bold text-sm h-10 border bg-background uppercase"
-                />
+                <div className="flex gap-2">
+                  <QrScannerButton title="Escanear QR de mezcla" onScan={(code) => onMixtureQrChange(code.trim().toUpperCase())} />
+                  <Input
+                    placeholder="Ej. CONT-MIX-20261023-XXXX-C1"
+                    value={mixtureQr}
+                    onChange={(e) => onMixtureQrChange(e.target.value.toUpperCase())}
+                    className="font-mono font-bold text-sm h-10 border bg-background uppercase"
+                  />
+                </div>
               </div>
 
               {/* Ficha Resumen de la Fórmula si está identificada */}
@@ -536,20 +535,19 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleOpenRackScanner}
-                  className="h-9 px-3 text-xs font-bold border-border gap-1.5 shrink-0"
-                >
-                  <QrCode className="h-4 w-4 text-primary" />
-                  <span className="hidden sm:inline">Escanear Cámara</span>
-                </Button>
               </div>
 
               {/* Selector Desplegable de Rack con Letras Grandes y Legibles */}
-              <div className="space-y-1.5 pt-1">
+              <div className="flex gap-2 pt-1">
+                <QrScannerButton
+                  title="Escanear QR del rack de destino"
+                  onScan={(code) => {
+                    const clean = code.trim().toUpperCase();
+                    const found = racks.find((rack) => rack.qr_code?.toUpperCase() === clean || rack.rack_code?.toUpperCase() === clean);
+                    if (found) onSelectRackFromGrid(found);
+                    else onRackQrChange(clean);
+                  }}
+                />
                 <select
                   value={rackQr}
                   onChange={(e) => {
@@ -1521,27 +1519,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* ========================================================= */}
-      {/* MODAL 4: CÁMARA INDUSTRIAL PARA ESCANEAR RACK FÍSICO */}
-      {/* ========================================================= */}
-      {isRackCameraScannerOpen && (
-        <CameraScanner
-          title="Escanear QR de Rack Físico"
-          onScan={(code: string) => {
-            const clean = (code || '').trim().toUpperCase();
-            const matched = racks.find(
-              (r) => r.qr_code.toUpperCase() === clean || r.rack_code.toUpperCase() === clean
-            );
-            if (matched) {
-              onSelectRackFromGrid(matched);
-            } else {
-              onRackQrChange(clean);
-            }
-            setIsRackCameraScannerOpen(false);
-          }}
-          onClose={() => setIsRackCameraScannerOpen(false)}
-        />
-      )}
     </div>
   );
 };

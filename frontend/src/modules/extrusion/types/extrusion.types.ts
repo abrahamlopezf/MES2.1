@@ -30,6 +30,7 @@ export interface Formula {
   allowed_extruders?: number[];
   restricted_extruders?: number[];
   is_active: boolean;
+  output_pti_id?: number | null;
   ingredients?: FormulaIngredient[];
   ptiProducts?: PtiProduct[];
 }
@@ -41,7 +42,7 @@ export interface PtiProduct {
   specifications?: string;
   unit_weight_kg: number;
   unit_price: number;
-  formula_id: number;
+  formula_id: number | null;
   material_id?: number | null;
   is_active: boolean;
   formula?: Formula;
@@ -56,7 +57,7 @@ export interface CreatePtiProductPayload {
   specifications?: string;
   unit_weight_kg?: number;
   unit_price?: number;
-  formula_id: number;
+  formula_id?: number | null;
   material_id?: number | null;
   is_active?: boolean;
 }

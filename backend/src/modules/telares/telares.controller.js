@@ -2,7 +2,7 @@ const telaresService = require('./telares.service');
 
 exports.getLooms = async (req, res, next) => {
   try {
-    const looms = await telaresService.getLooms();
+    const looms = await telaresService.getLooms(req.query.all === 'true');
     res.json(looms);
   } catch (err) {
     next(err);
@@ -11,11 +11,35 @@ exports.getLooms = async (req, res, next) => {
 
 exports.getBoms = async (req, res, next) => {
   try {
-    const boms = await telaresService.getBoms();
+    const boms = await telaresService.getBoms(req.query.all === 'true');
     res.json(boms);
   } catch (err) {
     next(err);
   }
+};
+
+exports.createLoom = async (req, res, next) => {
+  try { res.status(201).json(await telaresService.saveLoom(req.body)); } catch (err) { next(err); }
+};
+
+exports.updateLoom = async (req, res, next) => {
+  try { res.json(await telaresService.saveLoom(req.body, Number(req.params.id))); } catch (err) { next(err); }
+};
+
+exports.deleteLoom = async (req, res, next) => {
+  try { res.json(await telaresService.deactivateLoom(Number(req.params.id))); } catch (err) { next(err); }
+};
+
+exports.createBom = async (req, res, next) => {
+  try { res.status(201).json(await telaresService.saveBom(req.body)); } catch (err) { next(err); }
+};
+
+exports.updateBom = async (req, res, next) => {
+  try { res.json(await telaresService.saveBom(req.body, Number(req.params.id))); } catch (err) { next(err); }
+};
+
+exports.deleteBom = async (req, res, next) => {
+  try { res.json(await telaresService.deactivateBom(Number(req.params.id))); } catch (err) { next(err); }
 };
 
 exports.assignRack = async (req, res, next) => {

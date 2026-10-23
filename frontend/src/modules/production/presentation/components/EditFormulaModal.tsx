@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Button, Input, Badge, Icon } from '@/design-system';
-import { useUpdateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
+import { usePtiProductsQuery, useUpdateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
 import { Formula } from '@/modules/extrusion/types/extrusion.types';
 
 interface EditFormulaModalProps {
@@ -19,8 +19,14 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
   const [expectedYieldPieces, setExpectedYieldPieces] = useState<number>(5000);
   const [expectedYieldKg, setExpectedYieldKg] = useState<number>(490);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [outputPtiId, setOutputPtiId] = useState<number | ''>('');
 
   const updateMutation = useUpdateFormulaMutation();
+  const { data: ptiProducts = [] } = usePtiProductsQuery({ is_active: true });
+
+  const availablePtis = ptiProducts.filter((pti: any) =>
+    !pti.formula_id || Number(pti.formula_id) === Number(formula?.id)
+  );
 
   useEffect(() => {
     if (formula) {
@@ -31,6 +37,7 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
       setExpectedYieldPieces(Number(formula.expected_yield_pieces) || 5000);
       setExpectedYieldKg(Number(formula.expected_yield_kg) || 490);
       setIsActive(formula.is_active !== undefined ? formula.is_active : true);
+      setOutputPtiId(formula.output_pti_id || formula.ptiProducts?.[0]?.id || '');
     }
   }, [formula]);
 
@@ -62,7 +69,8 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
           batch_size_kg: Number(batchSizeKg),
           expected_yield_pieces: Number(expectedYieldPieces),
           expected_yield_kg: Number(expectedYieldKg),
-          is_active: isActive
+          is_active: isActive,
+          output_pti_id: outputPtiId === '' ? null : Number(outputPtiId)
         }
       });
       toast.success(`Fórmula '${formula.code}' actualizada exitosamente.`);
@@ -166,6 +174,25 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
 
             {/* CAMPOS DEL FORMULARIO */}
             <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                  PTI de salida enlazado
+                </label>
+                <select
+                  value={outputPtiId}
+                  onChange={(e) => setOutputPtiId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
+                >
+                  <option value="">-- Sin PTI enlazado --</option>
+                  {availablePtis.map((pti: any) => (
+                    <option key={pti.id} value={pti.id}>{pti.code} — {pti.name}</option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-muted-foreground mt-1 block">
+                  Los PTI asignados a otra fórmula no aparecen disponibles.
+                </span>
+              </div>
+
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
                   Nombre de la Fórmula

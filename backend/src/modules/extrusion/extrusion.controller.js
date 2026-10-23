@@ -417,6 +417,25 @@ class ExtrusionController {
     }
   }
 
+  async updateMachine(req, res, next) {
+    try {
+      const machine = await extrusionService.updateMachine(req.params.id, req.body);
+      return res.status(200).json({ success: true, data: machine, message: 'Extrusora actualizada.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateMachineFormulaCompatibility(req, res, next) {
+    try {
+      const machines = await extrusionService.updateMachineFormulaCompatibility(req.params.id, req.body.formula_ids || []);
+      const machine = machines.find((item) => Number(item.id) === Number(req.params.id));
+      return res.status(200).json({ success: true, data: machine, message: 'Compatibilidad de recetas actualizada.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async toggleModoSilo(req, res, next) {
     try {
       const machine = await extrusionService.toggleModoSilo(req.params.id, req.body);

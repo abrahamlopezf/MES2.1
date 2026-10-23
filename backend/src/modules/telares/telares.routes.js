@@ -8,7 +8,13 @@ router.use(authMiddleware);
 
 // Rutas de Telares y Racks
 router.get('/looms', telaresController.getLooms);
+router.post('/looms', telaresController.createLoom);
+router.put('/looms/:id', telaresController.updateLoom);
+router.delete('/looms/:id', telaresController.deleteLoom);
 router.get('/boms', telaresController.getBoms);
+router.post('/boms', telaresController.createBom);
+router.put('/boms/:id', telaresController.updateBom);
+router.delete('/boms/:id', telaresController.deleteBom);
 router.post('/looms/:id/assign-rack', telaresController.assignRack);
 router.post('/runs/start', telaresController.startRun);
 router.post('/runs/finish-roll', telaresController.finishRoll);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useViajeroDetailsQuery } from '../../hooks/useTelaresQueries';
 import { ViajeroLabelModal } from '../components/ViajeroLabelModal';
 import { Button, Badge } from '@/design-system';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import {
   Search,
   Printer,
@@ -49,6 +50,11 @@ export const ViajeroTrackerPage: React.FC = () => {
           Buscar por Código QR Viajero o Folio de Rollo:
         </label>
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
+          <QrScannerButton title="Escanear QR Viajero o folio de rollo" onScan={(code) => {
+            const clean = code.trim();
+            setSearchInput(clean);
+            setQueriedCode(clean);
+          }} />
           <input
             type="text"
             value={searchInput}

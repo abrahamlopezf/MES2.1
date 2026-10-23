@@ -22,6 +22,7 @@ import {
   useCreatePtiRackMutation,
 } from '../../../extrusion/hooks/useExtrusionFloorQueries';
 import { toast } from 'sonner';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 
 interface SessionRoll {
   rollIndex: number;
@@ -41,7 +42,14 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const isNewRackRoute = location.pathname.includes('/rack/new');
   const qrFromUrl = searchParams.get('qr') || '';
   const feedQrFromUrl = searchParams.get('feedQr') || '';
-  const initialMachineId = Number(searchParams.get('machineId')) || 2; // Por defecto Extrusora 2 (o param)
+  const savedSessionMachineId = (() => {
+    try {
+      return Number(JSON.parse(localStorage.getItem('extrusion_machine_session') || '{}').machineId) || 0;
+    } catch {
+      return 0;
+    }
+  })();
+  const initialMachineId = Number(searchParams.get('machineId')) || savedSessionMachineId || 2;
 
   // Consultas Reales de MES
   const {
@@ -82,6 +90,23 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [piecesInput, setPiecesInput] = useState<string>('1');
   const [weightInput, setWeightInput] = useState<string>('6.80');
   const [sessionRolls, setSessionRolls] = useState<SessionRoll[]>([]);
+
+  useEffect(() => {
+    const syncMachineSession = () => {
+      try {
+        const machineId = Number(JSON.parse(localStorage.getItem('extrusion_machine_session') || '{}').machineId);
+        if (machineId > 0) setSelectedMachineId(machineId);
+      } catch {
+        // Mantener la máquina actual si no hay sesión válida.
+      }
+    };
+    window.addEventListener('extruder-session-updated', syncMachineSession);
+    window.addEventListener('storage', syncMachineSession);
+    return () => {
+      window.removeEventListener('extruder-session-updated', syncMachineSession);
+      window.removeEventListener('storage', syncMachineSession);
+    };
+  }, []);
 
   // Extrusora y Cola actual
   const currentGroup = useMemo(() => {
@@ -518,17 +543,13 @@ export const ExtrusionTerminalPage: React.FC = () => {
                     Requerido
                   </Badge>
                 </label>
-                <div className="relative">
-                  <Icon
-                    name="qr_code_2"
-                    size={18}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
-                  />
+                <div className="flex gap-2">
+                  <QrScannerButton onScan={(code) => setRackId(code.toUpperCase())} title="Escanear QR virgen del rack" />
                   <Input
                     required
                     value={rackId || qrFromUrl}
                     onChange={(e) => setRackId(e.target.value.toUpperCase())}
-                    className="!h-11 !pl-11 font-mono font-bold uppercase text-sm bg-background border-border"
+                    className="!h-11 font-mono font-bold uppercase text-sm bg-background border-border"
                     placeholder="Ej. QR-RACK-005"
                   />
                 </div>
@@ -682,7 +703,9 @@ export const ExtrusionTerminalPage: React.FC = () => {
                 <select
                   value={selectedMachineId}
                   onChange={(e) => {
-                    setSelectedMachineId(Number(e.target.value));
+                    const machineId = Number(e.target.value);
+                    setSelectedMachineId(machineId);
+                    localStorage.setItem('extrusion_machine_session', JSON.stringify({ machineId, timestamp: Date.now() }));
                     setIsChangingMix(false);
                     setSelectedQueueToSwitch('');
                   }}
@@ -818,17 +841,13 @@ export const ExtrusionTerminalPage: React.FC = () => {
                             </span>
                           )}
                         </label>
-                        <div className="relative">
-                          <Icon
-                            name="blender"
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
-                          />
+                        <div className="flex gap-2">
+                          <QrScannerButton onScan={(code) => setFeedQr(code.toUpperCase())} title="Escanear QR de mezcla" />
                           <Input
                             value={feedQr}
                             onChange={(e) => setFeedQr(e.target.value.toUpperCase())}
                             placeholder="Ej. CONT-MIX-20261023-XXXX-C1"
-                            className="!h-11 !pl-11 font-mono font-bold uppercase text-sm bg-background border-border"
+                            className="!h-11 font-mono font-bold uppercase text-sm bg-background border-border"
                           />
                         </div>
                         <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
