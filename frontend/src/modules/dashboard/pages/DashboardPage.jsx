@@ -106,7 +106,7 @@ const DashboardPage = () => {
 
   // Roles operativos van a su pantalla correspondiente
   if (!isExecutive) {
-    if (roleCode === 'ADMIN_EXT') {
+    if (roleCode === 'SUPERVISOR_EXTRUSION' || roleCode === 'ADMIN_EXT' || user?.area?.code === 'EXTRUSION' || user?.area?.id === 2) {
       return <ExtrusionDashboard />;
     }
     return <WarehouseDashboard />;

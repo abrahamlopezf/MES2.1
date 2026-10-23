@@ -31,6 +31,7 @@ const notificationRoutes = require('../modules/notifications/notification.routes
 const supplierRoutes = require('../modules/catalogs/supplier/supplier.routes');
 const extrusionRoutes = require('../modules/extrusion/extrusion.routes');
 const formulasRoutes = require('../modules/formulas/formulas.routes');
+const telaresRoutes = require('../modules/telares/telares.routes');
 
 const router = express.Router();
 
@@ -62,5 +63,6 @@ router.use('/reception', receptionRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/extrusion', extrusionRoutes);
 router.use('/formulas', formulasRoutes);
+router.use('/telares', telaresRoutes);
 
 module.exports = router;

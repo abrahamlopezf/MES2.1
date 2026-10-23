@@ -44,8 +44,13 @@ import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
 import ExtrusionBoardContainer from '../modules/extrusion/presentation/containers/ExtrusionBoardContainer';
 import PtiIngressContainer from '../modules/extrusion/presentation/containers/PtiIngressContainer';
-import SuperAdminRoute from './SuperAdminRoute';
+import { SuperAdminRoute, ExtrusionRoute, TelaresRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
+
+// Telares & Ruteo (Fase Escalonada)
+import TelaresTerminalPage from '../modules/telares/presentation/pages/TelaresTerminalPage';
+import RoutingStationTerminalPage from '../modules/telares/presentation/pages/RoutingStationTerminalPage';
+import ViajeroTrackerPage from '../modules/telares/presentation/pages/ViajeroTrackerPage';
 
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
@@ -192,34 +197,34 @@ export const router = createBrowserRouter([
             path: '/qrcodes',
             element: <QrHistoryPage />,
           },
-          // Rutas de Extrusión (Exclusivo SuperAdmin de momento)
+          // Rutas de Extrusión
           {
             path: '/extrusion/board',
             element: (
-              <SuperAdminRoute>
+              <ExtrusionRoute>
                 <ExtrusionBoardContainer />
-              </SuperAdminRoute>
+              </ExtrusionRoute>
             )
           },
           {
             path: '/extrusion/rack-ingress',
             element: (
-              <SuperAdminRoute>
+              <ExtrusionRoute>
                 <PtiIngressContainer />
-              </SuperAdminRoute>
+              </ExtrusionRoute>
             )
           },
           {
             path: '/extrusion/dashboard',
             element: (
-              <SuperAdminRoute>
+              <ExtrusionRoute>
                 <ExtrusionDashboard />
-              </SuperAdminRoute>
+              </ExtrusionRoute>
             )
           },
           {
             path: '/production',
-            element: <SuperAdminRoute />,
+            element: <ExtrusionRoute />,
             children: [
               {
                 path: 'machines',
@@ -248,8 +253,42 @@ export const router = createBrowserRouter([
               {
                 path: 'andon',
                 element: <AndonBoardPage />
+              },
+              // Telares y Estaciones de Ruteo
+              {
+                path: 'telares',
+                element: <TelaresTerminalPage />
+              },
+              {
+                path: 'laminado',
+                element: <RoutingStationTerminalPage stationNameOverride="LAMINADO" />
+              },
+              {
+                path: 'globo',
+                element: <RoutingStationTerminalPage stationNameOverride="GLOBO" />
+              },
+              {
+                path: 'corte',
+                element: <RoutingStationTerminalPage stationNameOverride="CORTE" />
+              },
+              {
+                path: 'viajero-tracker',
+                element: <ViajeroTrackerPage />
               }
             ]
+          },
+          // Alias directos de planta para escáneres y operadores
+          {
+            path: '/telares',
+            element: <Navigate to="/production/telares" replace />
+          },
+          {
+            path: '/laminado',
+            element: <Navigate to="/production/laminado" replace />
+          },
+          {
+            path: '/globo',
+            element: <Navigate to="/production/globo" replace />
           },
           // Warehouse
           {

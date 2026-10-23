@@ -65,8 +65,13 @@ class ConsumptionOrderService {
         throw new Error(`Inventario insuficiente para el material ID ${material_id}. Solicitado: ${quantity}, Disponible: ${totalAvailable}.`);
       }
 
-      // Get material to have fallback base_unit_id
-      const materialRecord = await Material.findByPk(material_id, { attributes: ['id', 'family_id', 'base_unit_id'], transaction });
+      // Get material to have fallback base_unit_id and check if Raw Material
+      const materialRecord = await Material.findByPk(material_id, { 
+        attributes: ['id', 'family_id', 'base_unit_id', 'internal_code'], 
+        transaction 
+      });
+      const isRawMaterial = materialRecord?.family_id === 43 || 
+                            (materialRecord?.internal_code && materialRecord.internal_code.startsWith('MP-'));
 
       const allocations = [];
       let remainingQuantity = quantity;
@@ -78,7 +83,8 @@ class ConsumptionOrderService {
         const quantityToTake = Math.min(remainingQuantity, lotAvailable);
 
         let childQrId = null;
-        if (isProcessArea) {
+        // Solo generar QR hijo para Materia Prima en áreas de proceso (Consumibles van a gasto operativo directo)
+        if (isProcessArea && isRawMaterial) {
           // Parent lot nomenclature (conservar nomenclatura padre y heredar cuerpo principal)
           const parentLote = await Lote.findByPk(lot.id, {
             include: [{ model: QrCode, as: 'qr_code' }],
@@ -121,7 +127,7 @@ class ConsumptionOrderService {
         }
 
         let unitId = lot.unit_id || materialRecord?.base_unit_id;
-        if (!unitId && (materialRecord?.family_id === 43 || isProcessArea)) {
+        if (!unitId && (isRawMaterial || isProcessArea)) {
           unitId = 4; // Default KG
         }
 
@@ -205,6 +211,11 @@ class ConsumptionOrderService {
     for (const item of itemsWithoutChild) {
       const lote = item.lote;
       if (!lote) continue;
+
+      // Solo generar QR hijo y asignar a WIP si es Materia Prima (Consumibles son gasto operativo)
+      const mat = await Material.findByPk(item.material_id, { attributes: ['id', 'family_id', 'internal_code'], transaction });
+      const isRaw = mat?.family_id === 43 || (mat?.internal_code && mat.internal_code.startsWith('MP-'));
+      if (!isRaw) continue;
 
       let parentQrCode = lote.qr_code?.qr_code;
       if (!parentQrCode && lote.qr_id) {
@@ -521,13 +532,21 @@ class ConsumptionOrderService {
       }, { transaction });
     }
 
-    // 2. Manejo de Trazabilidad y WIP (QRs Hijos para Áreas de Proceso vs Consumo Directo)
+    // 2. Manejo de Trazabilidad y WIP (QRs Hijos para Materia Prima a WIP vs Consumibles a Gasto Operativo)
     const PROCESS_AREAS = ['EXTRUSION', 'TELARES', 'LAMINADO', 'GLOBO', 'CORTE', 'CONFECCION', 'IMPRENTA', 'PEGADO', 'ENSAMBLADO', 'ETIQUETADO', 'DOBLADO', 'PRENSADO'];
     const areaCode = order.requesting_area?.code ? order.requesting_area.code.toUpperCase() : '';
     const isProcessArea = PROCESS_AREAS.includes(areaCode);
 
+    // Obtener información del material para determinar si es Materia Prima o Consumible
+    const materialRec = await Material.findByPk(itemToFulfill.material_id, {
+      attributes: ['id', 'family_id', 'internal_code', 'name'],
+      transaction
+    });
+    const isRawMaterial = materialRec?.family_id === 43 || 
+                          (materialRec?.internal_code && materialRec.internal_code.startsWith('MP-'));
+
     let activeChildQrId = itemToFulfill.child_qr_id;
-    if (isProcessArea) {
+    if (isProcessArea && isRawMaterial) {
       if (activeChildQrId) {
         // Activar el QR hijo previamente reservado
         await QrCode.update({
@@ -644,18 +663,18 @@ class ConsumptionOrderService {
         metadata: { order_number: order.order_number, quantity: qtyToTake, parent_lote_id: itemToFulfill.lote_id, area_id: order.requesting_area_id }
       }, { transaction });
     } else {
-      // Consumo Directo (Área no productiva: Limpieza, Administración, etc.)
+      // Consumo Directo a Gasto Operativo (Consumibles en cualquier área o áreas operativas no productivas)
       if (itemToFulfill.lote && itemToFulfill.lote.qr_id) {
         await TraceabilityEvent.create({
           qr_code_id: itemToFulfill.lote.qr_id,
-          event_type: 'CONSUMO_PROCESO',
+          event_type: 'GASTO_OPERATIVO',
           entity_type: 'LOTE',
           entity_id: itemToFulfill.lote_id.toString(),
           from_status: 'ACTIVE',
           to_status: 'ACTIVE',
           performed_by: resolved_by,
-          notes: `Consumo directo de ${qtyToTake} para área ${order.requesting_area?.name || 'N/A'}. Orden: ${order.order_number}`,
-          metadata: { order_number: order.order_number, quantity: qtyToTake, area_id: order.requesting_area_id }
+          notes: `Consumo directo (Gasto Operativo) para área ${order.requesting_area?.name || 'N/A'}. Material: ${materialRec?.name || itemToFulfill.material_id}. Orden: ${order.order_number}`,
+          metadata: { order_number: order.order_number, quantity: qtyToTake, area_id: order.requesting_area_id, expense_type: 'GASTO_OPERATIVO' }
         }, { transaction });
       }
     }

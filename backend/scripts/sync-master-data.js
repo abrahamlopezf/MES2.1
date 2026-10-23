@@ -250,49 +250,8 @@ async function syncMasterData() {
       processedMaterialIds.push(material.id);
     }
 
-    console.log(
-      "✅ Sincronización completada. Iniciando Purga de datos obsoletos...",
-    );
-
-    // ---------------------------------------------------------------------------
-    // FASE 6: PURGA (CLEANUP)
-    // Elimina de la BD todo lo que NO estaba en el Excel.
-    // El orden de borrado es vital para no romper las Foreign Keys (de hijos a padres)
-    // ---------------------------------------------------------------------------
-
-    const deletedMaterials = await db.Material.destroy({
-      where: { id: { [Op.notIn]: processedMaterialIds } },
-    });
-    console.log(`🗑️  Materiales eliminados: ${deletedMaterials}`);
-
-    const deletedMaterialCodes = await db.MaterialCode.destroy({
-      where: { id: { [Op.notIn]: processedMaterialCodeIds } },
-    });
-    console.log(`🗑️  Códigos de Material eliminados: ${deletedMaterialCodes}`);
-
-    const deletedFamilies = await db.MaterialFamily.destroy({
-      where: { id: { [Op.notIn]: processedFamilyIds } },
-    });
-    console.log(`🗑️  Familias eliminadas: ${deletedFamilies}`);
-
-    const deletedTypes = await db.MaterialType.destroy({
-      where: { id: { [Op.notIn]: processedTypeIds } },
-    });
-    console.log(`🗑️  Tipos eliminados: ${deletedTypes}`);
-
-    const deletedBrands = await db.MaterialBrand.destroy({
-      where: { id: { [Op.notIn]: processedBrandIds } },
-    });
-    console.log(`🗑️  Marcas eliminadas: ${deletedBrands}`);
-
-    const deletedLocs = await db.Location.destroy({
-      where: { id: { [Op.notIn]: processedLocIds } },
-    });
-    console.log(`🗑️  Localidades eliminadas: ${deletedLocs}`);
-
-    console.log(
-      "🚀 Proceso finalizado. La base de datos es ahora una copia exacta del Excel.",
-    );
+    console.log("✅ Sincronización completada. Purga desactivada para proteger datos de almacén en marcha.");
+    // Las destrucciones masivas están deshabilitadas para garantizar la integridad operativa de planta.
   } catch (e) {
     console.error("Error crítico durante la ejecución:", e);
   } finally {

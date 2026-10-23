@@ -59,6 +59,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: true,
       },
+      output_pti_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'ID del Producto Terminado Intermedio (PTI) enlazado 1:1 a esta fórmula',
+      },
     },
     {
       tableName: 'formulas',

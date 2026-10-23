@@ -37,7 +37,7 @@ const menuGroups = [
     label: "Almacén",
     icon: "warehouse",
     permission: "",
-    hiddenRoles: ["ADMIN_EXT"],
+    hiddenRoles: ["ADMIN_EXT", "SUPERVISOR_EXTRUSION"],
     isGroup: true,
     children: [
       { label: "Catálogo", path: "/materials", icon: "inventory_2", permission: "materials.read" },
@@ -65,17 +65,54 @@ const menuGroups = [
     label: "Extrusión",
     icon: "precision_manufacturing",
     permission: "extrusion.view",
-    allowedRoles: ["SUPERADMIN"],
+    allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "SUPERVISOR_EXTRUSION"],
     isGroup: true,
     children: [
       { label: "Fórmulas y PTI", path: "/production/formulas", icon: "science", permission: "extrusion.formulas.view" },
       { label: "Máquinas Extrusoras", path: "/production/machines", icon: "precision_manufacturing", permission: "extrusion.view" },
       { label: "Centro de Mezclado", path: "/production/mixing", icon: "blender", permission: "extrusion.wip.manage" },
-      { label: "Tablero de Colas", path: "/extrusion/board", icon: "view_kanban", permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
-      { label: "Terminal de Extrusión", path: "/production/extrusion", icon: "settings", permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
-      { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: "shelves", permission: "extrusion.view", allowedRoles: ["SUPERADMIN"] },
+      { label: "Tablero de Colas", path: "/extrusion/board", icon: "view_kanban", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "SUPERVISOR_EXTRUSION"] },
+      { label: "Terminal de Extrusión", path: "/production/extrusion", icon: "settings", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "SUPERVISOR_EXTRUSION"] },
+      { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: "shelves", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "SUPERVISOR_EXTRUSION"] },
       { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: "assignment", permission: "" }
     ]
+  },
+  {
+    label: "Telares",
+    icon: "factory",
+    permission: "",
+    isGroup: true,
+    children: [
+      { label: "Terminal de Telares", path: "/production/telares", icon: "settings", permission: "" },
+      { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=3&area_name=Telares", icon: "assignment", permission: "" }
+    ]
+  },
+  {
+    label: "Laminado",
+    icon: "layers",
+    permission: "",
+    isGroup: true,
+    children: [
+      { label: "Estación de Laminado", path: "/production/laminado", icon: "layers", permission: "" },
+      { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=4&area_name=Laminado", icon: "assignment", permission: "" }
+    ]
+  },
+  {
+    label: "Globo",
+    icon: "air",
+    permission: "",
+    isGroup: true,
+    children: [
+      { label: "Estación de Globo", path: "/production/globo", icon: "air", permission: "" },
+      { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=5&area_name=Globo", icon: "assignment", permission: "" }
+    ]
+  },
+  {
+    label: "QR Viajero",
+    path: "/production/viajero-tracker",
+    icon: "qr_code_scanner",
+    permission: "",
+    isGroup: false
   }
 ];
 

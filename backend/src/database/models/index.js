@@ -758,4 +758,62 @@ db.PtiRack.belongsTo(db.PtiProduct, {
   as: 'currentPtiProduct',
 });
 
+// ============================================
+// TELARES, BOMS (RECETAS) Y QR VIAJERO MODELS
+// ============================================
+const initLoomModel = require('../../modules/telares/models/loom.model');
+const initProductionBomModel = require('../../modules/telares/models/productionBom.model');
+const initProductionBomItemModel = require('../../modules/telares/models/productionBomItem.model');
+const initLoomRunModel = require('../../modules/telares/models/loomRun.model');
+const initViajeroRollModel = require('../../modules/telares/models/viajeroRoll.model');
+const initViajeroRoutingLogModel = require('../../modules/telares/models/viajeroRoutingLog.model');
+const initLoomBackflushConsumptionModel = require('../../modules/telares/models/loomBackflushConsumption.model');
+
+db.Loom = initLoomModel(sequelize, DataTypes);
+db.ProductionBom = initProductionBomModel(sequelize, DataTypes);
+db.ProductionBomItem = initProductionBomItemModel(sequelize, DataTypes);
+db.LoomRun = initLoomRunModel(sequelize, DataTypes);
+db.ViajeroRoll = initViajeroRollModel(sequelize, DataTypes);
+db.ViajeroRoutingLog = initViajeroRoutingLogModel(sequelize, DataTypes);
+db.LoomBackflushConsumption = initLoomBackflushConsumptionModel(sequelize, DataTypes);
+
+// Loom Associations
+db.Loom.belongsTo(db.PtiRack, { foreignKey: 'active_warp_rack_id', as: 'warpRack' });
+db.Loom.belongsTo(db.PtiRack, { foreignKey: 'active_weft_rack_id', as: 'weftRack' });
+db.Loom.belongsTo(db.ProductionBom, { foreignKey: 'current_bom_id', as: 'currentBom' });
+db.Loom.hasMany(db.LoomRun, { foreignKey: 'loom_id', as: 'runs' });
+
+// BOM Associations
+db.ProductionBom.hasMany(db.ProductionBomItem, { foreignKey: 'bom_id', as: 'items' });
+db.ProductionBomItem.belongsTo(db.ProductionBom, { foreignKey: 'bom_id', as: 'bom' });
+db.ProductionBomItem.belongsTo(db.PtiProduct, { foreignKey: 'pti_product_id', as: 'ptiProduct' });
+db.ProductionBomItem.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+
+// LoomRun Associations
+db.LoomRun.belongsTo(db.Loom, { foreignKey: 'loom_id', as: 'loom' });
+db.LoomRun.belongsTo(db.ProductionBom, { foreignKey: 'bom_id', as: 'bom' });
+db.LoomRun.belongsTo(db.User, { foreignKey: 'operator_id', as: 'operator' });
+db.LoomRun.belongsTo(db.PtiRack, { foreignKey: 'warp_rack_id', as: 'warpRack' });
+db.LoomRun.belongsTo(db.PtiRack, { foreignKey: 'weft_rack_id', as: 'weftRack' });
+db.LoomRun.hasMany(db.ViajeroRoll, { foreignKey: 'run_id', as: 'rolls' });
+
+// ViajeroRoll Associations
+db.ViajeroRoll.belongsTo(db.LoomRun, { foreignKey: 'run_id', as: 'run' });
+db.ViajeroRoll.belongsTo(db.Loom, { foreignKey: 'loom_id', as: 'loom' });
+db.ViajeroRoll.belongsTo(db.ProductionBom, { foreignKey: 'bom_id', as: 'bom' });
+db.ViajeroRoll.belongsTo(db.User, { foreignKey: 'operator_id', as: 'operator' });
+db.ViajeroRoll.hasMany(db.ViajeroRoutingLog, { foreignKey: 'viajero_roll_id', as: 'routingLogs' });
+db.ViajeroRoll.hasMany(db.LoomBackflushConsumption, { foreignKey: 'viajero_roll_id', as: 'consumptions' });
+
+// ViajeroRoutingLog Associations
+db.ViajeroRoutingLog.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id', as: 'roll' });
+db.ViajeroRoutingLog.belongsTo(db.User, { foreignKey: 'operator_id', as: 'operator' });
+db.ViajeroRoutingLog.belongsTo(db.Area, { foreignKey: 'area_id', as: 'area' });
+
+// LoomBackflushConsumption Associations
+db.LoomBackflushConsumption.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id', as: 'roll' });
+db.LoomBackflushConsumption.belongsTo(db.LoomRun, { foreignKey: 'loom_run_id', as: 'run' });
+db.LoomBackflushConsumption.belongsTo(db.PtiRack, { foreignKey: 'rack_id', as: 'rack' });
+db.LoomBackflushConsumption.belongsTo(db.PtiProduct, { foreignKey: 'pti_product_id', as: 'ptiProduct' });
+
 module.exports = db;

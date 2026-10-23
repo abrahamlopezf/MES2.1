@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       formula_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         comment: 'Fórmula de extrusión de la cual se deriva este producto PTI',
       },
       material_id: {

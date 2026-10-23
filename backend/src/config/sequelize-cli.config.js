@@ -3,6 +3,8 @@ require('dotenv').config();
 const common = {
   dialect: 'postgres',
   migrationStorageTableName: 'sequelize_meta',
+  seederStorage: 'sequelize',
+  seederStorageTableName: 'sequelize_data',
 };
 
 module.exports = {
@@ -38,8 +40,8 @@ module.exports = {
       },
     },
 
-    migrationStorageTableName: 'sequelize_meta',
-
     logging: false,
+
+    ...common,
   },
 };

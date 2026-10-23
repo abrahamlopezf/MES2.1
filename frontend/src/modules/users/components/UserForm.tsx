@@ -48,8 +48,9 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
   });
 
   const { user: currentUser } = useAuthStore();
-  const isGeneralAdmin = currentUser?.role?.code === 'ADMIN' || currentUser?.role?.code === 'SUPERADMIN';
-  const isSupervisor = currentUser?.role?.code === 'SUPERVISOR';
+  const roleCode = (currentUser?.role?.code || '').toUpperCase();
+  const isGeneralAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(roleCode);
+  const isSupervisor = ['SUPERVISOR', 'SUPERVISOR_EXTRUSION'].includes(roleCode);
 
   useEffect(() => {
     if (user) {
@@ -65,8 +66,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
         password: '',
         mustChangePassword: user.mustChangePassword ?? false,
       });
-    } else if (isSupervisor) {
-      // Auto-seleccionar para el Supervisor ya que solo tiene 1 opción
+    } else if (isSupervisor && roles.length === 1) {
+      // Auto-seleccionar para el Supervisor si solo tiene 1 opción disponible
       form.setValue('rolId', roles[0]?.id ? String(roles[0].id) : '');
     }
   }, [user, form, isSupervisor, roles]);

@@ -29,17 +29,28 @@ type GenerateBatchFormValues = z.infer<typeof generateBatchSchema>;
 
 export function GenerateBatchPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const isAdmin = user?.role?.code === 'ADMIN' || user?.role?.code === 'SUPERADMIN';
+  const userRoleCode = (user?.role?.code || '').toUpperCase();
+  const isAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(userRoleCode);
   
   const mutation = useGenerateBatchMutation();
   const { data: allBatches, isLoading: loadingBatches } = useIdentityBatchesQuery();
   
-  // Si no es admin, filtramos los lotes para que solo vea los de su área
+  // Si no es admin global, filtramos los lotes para que solo vea los de su área o creados por él
   const batches = useMemo(() => {
     if (!allBatches) return [];
     if (isAdmin) return allBatches;
-    return allBatches.filter(b => b.areaId === user?.area?.code);
+    const userAreaCode = (user?.area?.code || '').toUpperCase();
+    const mappedNomenclature = mapBackendAreaToNomenclature(userAreaCode);
+    return allBatches.filter(b => {
+      const bArea = (b.areaId || b.area_code || b.area_id || '').toString().toUpperCase();
+      const bCreatorId = b.created_by || b.creator_id || b.creator?.id;
+      return (
+        bArea === userAreaCode ||
+        bArea === mappedNomenclature ||
+        (userAreaCode === 'EXTRUSION' && (bArea === 'EXT' || bArea === '2')) ||
+        (bCreatorId && user?.id && Number(bCreatorId) === Number(user.id))
+      );
+    });
   }, [allBatches, isAdmin, user]);
 
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);

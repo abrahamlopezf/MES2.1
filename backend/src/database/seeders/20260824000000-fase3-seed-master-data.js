@@ -140,10 +140,9 @@ module.exports = {
         // Update
         await queryInterface.sequelize.query(
           `UPDATE materials SET 
-            family_id = :famId,
-            type_id = :typeId,
-            brand_id = :brandId,
-            default_location_id = :locId,
+            family_id = COALESCE(:famId, family_id),
+            type_id = COALESCE(:typeId, type_id),
+            brand_id = COALESCE(:brandId, brand_id),
             minimum_stock = :minStock,
             updated_at = :now,
             is_active = true,
@@ -151,7 +150,7 @@ module.exports = {
           WHERE id = :id`,
           {
             replacements: {
-              famId: famId || null, typeId, brandId, locId, minStock, now, id: existing[0].id
+              famId: famId || null, typeId, brandId, minStock, now, id: existing[0].id
             }
           }
         );
@@ -187,37 +186,9 @@ module.exports = {
       }
     }
     
-    // --- 7. DEACTIVATE EXTRA RECORDS ---
-    const allInternalCodes = Array.from(new Set(materialsData.map(r => r['NOMENCLATURA DE   QR'] || r['NOMENCLATURA DE QR']).filter(Boolean)));
-    if (allInternalCodes.length > 0) {
-      await queryInterface.sequelize.query(`UPDATE materials SET is_active = false WHERE internal_code NOT IN (:codes)`, { replacements: { codes: allInternalCodes } });
-    }
-
-    const famList = Array.from(families).filter(Boolean);
-    if (famList.length > 0) {
-      await queryInterface.sequelize.query(`UPDATE material_families SET is_active = false WHERE code NOT IN (:codes)`, { replacements: { codes: famList } });
-    }
-
-    const typeList = Array.from(types).filter(Boolean);
-    if (typeList.length > 0) {
-      await queryInterface.sequelize.query(`UPDATE material_types SET is_active = false WHERE name NOT IN (:names)`, { replacements: { names: typeList } });
-    }
-
-    const brandList = Array.from(brands).filter(Boolean);
-    if (brandList.length > 0) {
-      await queryInterface.sequelize.query(`UPDATE material_brands SET is_active = false WHERE name NOT IN (:names)`, { replacements: { names: brandList } });
-    }
-
-    const locList = Array.from(localities).filter(Boolean);
-    if (locList.length > 0) {
-      await queryInterface.sequelize.query(`UPDATE material_locations SET is_active = false WHERE code NOT IN (:codes)`, { replacements: { codes: locList } });
-    }
-
-    const artList = Array.from(articles).filter(Boolean);
-    if (artList.length > 0) {
-      await queryInterface.sequelize.query(`UPDATE material_codes SET is_active = false WHERE code NOT IN (:codes)`, { replacements: { codes: artList } });
-    }
-
+    // --- 7. SAFETY PRESERVATION: DO NOT DEACTIVATE USER-CREATED MATERIALS OR CATALOGS ---
+    // In production, plant users add real operational materials, families, brands and locations.
+    // Master data seeders MUST NEVER deactivate or delete records not present in the initial seed file.
   },
 
   down: async (queryInterface, Sequelize) => {

@@ -229,8 +229,12 @@ const createUser = async (payload, currentUser) => {
       transaction,
     });
 
-    // Ahora todos pueden crear usuarios activos (según payload o true por defecto)
-    const isActive = payload.is_active ?? true;
+    // Regla: Supervisor siempre crea usuarios en estado inactivo (is_active: false) a la espera de autorización
+    const isSupervisor = ['SUPERVISOR', 'SUPERVISOR_EXTRUSION'].includes(currentUser.role?.code);
+    let isActive = payload.is_active ?? true;
+    if (isSupervisor || payload.status === 'PENDING') {
+      isActive = false;
+    }
     
     const tempPassword = payload.password || Math.random().toString(36).slice(-8) + '1Aa@';
     const passwordHash = await bcrypt.hash(tempPassword, PASSWORD_SALT_ROUNDS);
@@ -252,12 +256,17 @@ const createUser = async (payload, currentUser) => {
     );
 
     const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
-    if (!isGlobalAdmin) {
+    if (!isGlobalAdmin || isSupervisor) {
       const globalAdmins = await User.findAll({
         include: [{
           model: Role,
           as: 'role',
-          where: { area_id: null, subarea_id: null }
+          where: {
+            [Op.or]: [
+              { area_id: null, subarea_id: null },
+              { code: ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'] }
+            ]
+          }
         }],
         where: { is_active: true },
         transaction
@@ -267,8 +276,10 @@ const createUser = async (payload, currentUser) => {
         recipient_id: admin.id,
         sender_id: currentUser.id,
         type: 'SYSTEM',
-        title: 'Nuevo usuario creado por Administrador de Área',
-        message: `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}.`,
+        title: isSupervisor ? 'Usuario pendiente de autorización' : 'Nuevo usuario creado por Administrador de Área',
+        message: isSupervisor
+          ? `El supervisor ${currentUser.first_name} ${currentUser.last_name} ha registrado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}. Requiere autorización de Superadmin o Admin General.`
+          : `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}.`,
       }));
 
       if (notifications.length > 0) {

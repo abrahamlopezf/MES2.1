@@ -8,15 +8,17 @@ const router = express.Router();
 const authenticate = authMiddleware.authenticate || authMiddleware.authMiddleware || authMiddleware;
 const authorizePermission = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
 
-// Control de acceso: Superadmin o roles operativos de extrusión
+// Control de acceso: Superadmin, Admin General o roles operativos de extrusión
 const requireExtrusionAccess = (req, res, next) => {
   const roleCode = req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '');
-  if (roleCode === 'SUPERADMIN' || roleCode === 'SUPERVISOR' || req.user?.area_id === 2) {
+  const areaId = req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id;
+  const allowedRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'SUPERVISOR_EXTRUSION', 'SUPERVISOR'];
+  if (allowedRoles.includes(roleCode) || areaId === 2) {
     return next();
   }
   return res.status(403).json({
     success: false,
-    message: 'Acceso restringido: El módulo de extrusión requiere permisos de SUPERADMIN o SUPERVISOR.'
+    message: 'Acceso restringido: El módulo de extrusión requiere permisos de SUPERADMIN, ADMIN_GRAL o SUPERVISOR_EXTRUSION.'
   });
 };
 
@@ -24,15 +26,15 @@ router.use(authenticate);
 router.use(requireExtrusionAccess);
 
 // Formulas
-router.get('/formulas', authorizePermission('extrusion.formulas.read'), extrusionController.getFormulas);
-router.get('/formulas/:id', authorizePermission('extrusion.formulas.read'), extrusionController.getFormulaDetails);
-router.get('/wip-child-qr/:qrCode', authorizePermission('extrusion.formulas.read'), extrusionController.getWipChildQr);
+router.get('/formulas', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getFormulas);
+router.get('/formulas/:id', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getFormulaDetails);
+router.get('/wip-child-qr/:qrCode', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getWipChildQr);
 
 router.post('/mix', authorizePermission('extrusion.formulas.manage'), extrusionController.mixFormula);
-router.get('/mix-history', authorizePermission('extrusion.formulas.read'), extrusionController.getPreparedMixHistory);
-router.get('/mix/containers/:identifier', authorizePermission('extrusion.formulas.read'), extrusionController.getMixContainersByQrOrFolio);
+router.get('/mix-history', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getPreparedMixHistory);
+router.get('/mix/containers/:identifier', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getMixContainersByQrOrFolio);
 router.post('/mix-requests', authorizePermission('extrusion.formulas.manage'), extrusionController.createMixRequest);
-router.get('/mix-requests', authorizePermission('extrusion.formulas.read'), extrusionController.getMixRequests);
+router.get('/mix-requests', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getMixRequests);
 
 // ==========================================
 // PISO DE EXTRUSIÓN & CONTROL DE COLAS & SCRAP

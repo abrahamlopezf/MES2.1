@@ -56,8 +56,12 @@ module.exports = {
       ALTER TABLE extruder_queues 
       ADD COLUMN IF NOT EXISTS is_silo_kit BOOLEAN NOT NULL DEFAULT false;
 
-      ALTER TABLE process_preparations 
-      ADD COLUMN IF NOT EXISTS is_silo_kit BOOLEAN NOT NULL DEFAULT false;
+      DO $$ 
+      BEGIN 
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'process_preparations') THEN 
+          ALTER TABLE process_preparations ADD COLUMN IF NOT EXISTS is_silo_kit BOOLEAN NOT NULL DEFAULT false;
+        END IF; 
+      END $$;
     `);
 
     // 5. Poblar Silos iniciales

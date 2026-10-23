@@ -1,5 +1,6 @@
 const consumptionOrderService = require('./consumptionOrder.service');
 const { sequelize } = require('../../database/models');
+const { Op } = require('sequelize');
 const { notifyAdmins } = require('../notifications/notification.service');
 const { generateConsumptionOrderPdf } = require('./printer/consumptionOrderPdf');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
@@ -51,6 +52,19 @@ exports.getOrders = async (req, res) => {
     const filters = {};
     if (status) filters.status = status;
     if (area_id) filters.requesting_area_id = area_id;
+
+    // Restricción por rol: Si no es admin global o admin de almacén, solo puede ver las ODC creadas por él o para su área
+    const roleCode = req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '');
+    const isGlobalOrWarehouseAdmin = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM'].includes(roleCode);
+    const userAreaId = req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id;
+
+    if (!isGlobalOrWarehouseAdmin) {
+      const orConditions = [{ requested_by: req.user.id }];
+      if (userAreaId) {
+        orConditions.push({ requesting_area_id: userAreaId });
+      }
+      filters[Op.or] = orConditions;
+    }
 
     const orders = await consumptionOrderService.getOrders(filters);
     res.json(orders);

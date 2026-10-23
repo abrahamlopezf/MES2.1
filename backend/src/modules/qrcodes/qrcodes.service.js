@@ -28,7 +28,13 @@ const canManageAllAreas = (currentUser) => {
 };
 
 const getUserAreaId = (currentUser) => {
-  return currentUser?.area?.id || currentUser?.areaId || null;
+  return (
+    currentUser?.area?.id ||
+    currentUser?.areaId ||
+    currentUser?.role?.area_id ||
+    currentUser?.role?.area?.id ||
+    null
+  );
 };
 
 const assertCanUseArea = async (areaId, currentUser, transaction = null) => {
@@ -62,14 +68,14 @@ const getQrVisibilityWhere = (currentUser) => {
 
   if (!userAreaId) {
     return {
-      id: null,
+      created_by: currentUser.id,
     };
   }
 
   return {
     [Op.or]: [
       { assigned_area_id: userAreaId },
-      { assigned_area_id: null }, // Usually batches/QRs could be generated without area initially, but the user requested strict scoping.
+      { created_by: currentUser.id },
     ],
   };
 };

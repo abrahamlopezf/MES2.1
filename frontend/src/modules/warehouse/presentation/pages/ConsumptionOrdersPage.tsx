@@ -28,6 +28,9 @@ export const ConsumptionOrdersPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchParams] = useSearchParams();
 
+  const filterAreaId = searchParams.get('area_id');
+  const filterAreaName = searchParams.get('area_name') || searchParams.get('area');
+
   useEffect(() => {
     const orderId = searchParams.get('order_id');
     if (orderId) {
@@ -42,7 +45,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
       fetchOrders(true);
     }, 10000);
     return () => clearInterval(interval);
-  }, [selectedStatus]);
+  }, [selectedStatus, filterAreaId]);
 
   // Manejo del escaner físico (teclado)
   useEffect(() => {
@@ -95,7 +98,12 @@ export const ConsumptionOrdersPage: React.FC = () => {
   const fetchOrders = async (isSilent = false) => {
     try {
       if (!isSilent) setLoading(true);
-      const url = selectedStatus ? `/warehouse/consumption-orders?status=${selectedStatus}` : '/warehouse/consumption-orders';
+      const params = new URLSearchParams();
+      if (selectedStatus) params.append('status', selectedStatus);
+      if (filterAreaId) params.append('area_id', filterAreaId);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/warehouse/consumption-orders?${queryString}` : '/warehouse/consumption-orders';
       const response = await axiosClient.get(url);
       setOrders(response.data);
     } catch (error) {
@@ -126,17 +134,36 @@ export const ConsumptionOrdersPage: React.FC = () => {
                 <span className="inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold bg-secondary/50 font-mono text-foreground">
                   Módulo de Almacén
                 </span>
+                {filterAreaName && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-blue-500/40 px-2.5 py-0.5 text-xs font-black bg-blue-500/10 text-blue-400">
+                    Área: {filterAreaName}
+                  </span>
+                )}
               </div>
-              <h1 className="text-3xl font-black text-foreground tracking-tight">Órdenes de Consumo</h1>
-              <p className="text-muted-foreground font-semibold mt-1">Gestión y surtido de materiales solicitados por áreas</p>
+              <h1 className="text-3xl font-black text-foreground tracking-tight">
+                Órdenes de Consumo {filterAreaName ? `- ${filterAreaName}` : ''}
+              </h1>
+              <p className="text-muted-foreground font-semibold mt-1">
+                {filterAreaName 
+                  ? `Gestión y solicitud de materiales exclusivos para el área de ${filterAreaName}` 
+                  : 'Gestión y surtido de materiales solicitados por áreas'}
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
+              {filterAreaId && (
+                <button
+                  onClick={() => navigate('/warehouse/orders')}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Ver Todas las Áreas
+                </button>
+              )}
               <button 
                 onClick={() => setIsCreateModalOpen(true)}
                 className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-medium hover:bg-primary/90 transition-colors shadow-sm"
               >
                 <Icon name="add" size={20} />
-                <span>Nueva Orden</span>
+                <span>Nueva Orden {filterAreaName ? `(${filterAreaName})` : ''}</span>
               </button>
             </div>
           </div>
@@ -289,6 +316,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
       {isCreateModalOpen && (
         <CreateConsumptionOrderModal 
           isOpen={isCreateModalOpen}
+          initialAreaId={filterAreaId ? Number(filterAreaId) : undefined}
           onClose={() => {
             setIsCreateModalOpen(false);
             fetchOrders();

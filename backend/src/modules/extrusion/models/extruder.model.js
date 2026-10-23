@@ -42,6 +42,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: true,
       },
+      notes: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Notas operativas o especificaciones de exclusividad (ej. exclusiva rafia cinturón)',
+      },
     },
     {
       tableName: 'extruders',
