@@ -1,0 +1,67 @@
+name: Provision demo users
+
+on:
+  workflow_dispatch:
+    inputs:
+      supervisor_username:
+        description: Usuario para Supervisor de Extrusión
+        required: true
+        type: string
+      supervisor_email:
+        description: Correo para Supervisor de Extrusión
+        required: true
+        type: string
+      global_username:
+        description: Usuario para el administrador global de demostración
+        required: true
+        type: string
+      global_email:
+        description: Correo para el administrador global de demostración
+        required: true
+        type: string
+      global_role_code:
+        description: Código del rol global que ya existe en producción
+        required: true
+        default: ADMIN_GRAL
+        type: choice
+        options:
+          - ADMIN_GRAL
+          - ADMIN_GENERAL
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    environment: production
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create demo accounts in production
+        run: node src/scripts/provision-demo-users.js
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEMO_SUPERVISOR_USERNAME: ${{ inputs.supervisor_username }}
+          DEMO_SUPERVISOR_EMAIL: ${{ inputs.supervisor_email }}
+          DEMO_SUPERVISOR_PASSWORD: ${{ secrets.DEMO_SUPERVISOR_PASSWORD }}
+          DEMO_GLOBAL_USERNAME: ${{ inputs.global_username }}
+          DEMO_GLOBAL_EMAIL: ${{ inputs.global_email }}
+          DEMO_GLOBAL_PASSWORD: ${{ secrets.DEMO_GLOBAL_PASSWORD }}
+          DEMO_GLOBAL_ROLE_CODE: ${{ inputs.global_role_code }}

@@ -26,7 +26,12 @@ const MODULE_CATEGORY_MAP = {
   areas: 'Sistema y Usuarios',
   operations: 'Operaciones y Producción',
   extrusion: 'Extrusión',
+  Extrusion: 'Extrusión',
   Extrusión: 'Extrusión',
+  globo: 'Globo',
+  Globo: 'Globo',
+  laminado: 'Laminado',
+  Laminado: 'Laminado',
   Formulas: 'Operaciones y Producción',
   Scrap: 'Mermas y Scrap',
   reports: 'Reportes y Auditoría',
@@ -42,6 +47,8 @@ const getCategoryIcon = (category) => {
     case 'Sistema y Usuarios': return '⚙️';
     case 'Operaciones y Producción': return '🏭';
     case 'Extrusión': return '🏭';
+    case 'Globo': return '🎈';
+    case 'Laminado': return '🧻';
     case 'Mermas y Scrap': return '♻️';
     case 'Reportes y Auditoría': return '📊';
     default: return '🧩';

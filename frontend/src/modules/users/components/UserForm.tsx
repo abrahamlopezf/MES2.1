@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Save, Power, X, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,7 +61,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
         numeroNomina: user.numeroNomina,
         correo: user.correo,
         telefono: user.telefono,
-        rolId: user.rolId,
+                rolId: String(user.rolId || ''),
         status: user.status,
         password: '',
         mustChangePassword: user.mustChangePassword ?? false,
@@ -282,14 +282,24 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 {...form.register('telefono')}
               />
 
-              <TFSelect
-                label="Puesto"
-                options={roles.map(r => ({ label: r.name, value: String(r.id) }))}
-                error={form.formState.errors.rolId?.message}
-                disabled={roles.length === 0}
-                containerClassName="animate-form-field"
-                style={{ '--stagger': 9 } as React.CSSProperties}
-                {...form.register('rolId')}
+              <Controller
+                control={form.control}
+                name="rolId"
+                render={({ field }) => (
+                  <TFSelect
+                    label="Puesto"
+                    options={roles.map(r => ({ label: r.name, value: String(r.id) }))}
+                    value={field.value || ''}
+                    onChange={(event: { target: { value: string } }) => field.onChange(event.target.value)}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                    error={form.formState.errors.rolId?.message}
+                    disabled={roles.length === 0}
+                    containerClassName="animate-form-field"
+                    style={{ '--stagger': 9 } as React.CSSProperties}
+                  />
+                )}
               />
             </div>
 
