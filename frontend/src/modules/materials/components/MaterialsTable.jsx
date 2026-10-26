@@ -32,8 +32,91 @@ const MaterialsTable = ({
     return text.replace(/<br\s*\/?>/gi, ' ');
   };
 
+  const MaterialActions = ({ material, mobile = false }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`Acciones para ${stripBr(material.name)}`}
+        className={mobile
+          ? 'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-base font-bold text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          : 'inline-flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-foreground border border-border hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
+      >
+        {mobile ? <><Settings className="size-5" />Acciones</> : <><span className="sr-only">Abrir menú</span><span className="text-xl font-bold leading-none pb-1">⋮</span></>}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40 font-medium">
+        {canUpdate && (
+          <DropdownMenuItem onClick={() => onEdit?.(material)} className="cursor-pointer min-h-11 py-2">
+            <Edit3 className="mr-2 h-4 w-4 text-primary" />
+            <span>Editar</span>
+          </DropdownMenuItem>
+        )}
+        {canUpdate && canDelete && <DropdownMenuSeparator />}
+        {canDelete && (
+          <DropdownMenuItem onClick={() => onDeactivate?.(material)} className="cursor-pointer min-h-11 py-2 text-danger focus:text-danger focus:bg-danger/10">
+            <ShieldAlert className="mr-2 h-4 w-4" />
+            <span>Eliminar</span>
+          </DropdownMenuItem>
+        )}
+        {!canUpdate && !canDelete && (
+          <DropdownMenuItem disabled className="min-h-11 py-2">
+            <span>Sin acciones</span>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="w-full pb-2 overflow-x-auto">
+    <div className="w-full pb-2">
+      <div className="md:hidden flex flex-col gap-3">
+        {materials.length === 0 ? (
+          <p className="rounded-xl border border-border bg-card p-6 text-center text-base text-muted-foreground">
+            No hay materiales para mostrar.
+          </p>
+        ) : materials.map((material) => (
+          <article key={material.id} className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-muted-foreground">{renderTextWithBr(material.family?.code)}</p>
+                <p className="text-base font-black text-primary break-words">
+                  {material.internal_code ? material.internal_code.split('-').slice(1).join('-') : renderTextWithBr(material.code)}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-md bg-secondary px-2 py-1 text-sm font-bold text-secondary-foreground">
+                {renderTextWithBr(material.default_location?.code || material.default_location?.name || material.location?.code || material.location?.name)}
+              </span>
+            </div>
+
+            <div>
+              <h3 className="text-base leading-snug font-bold text-foreground break-words">{stripBr(material.name)}</h3>
+              {material.tags && material.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {material.tags.map((tag) => (
+                    <span key={tag.id} className="inline-flex items-center gap-2 rounded-full border border-border px-2.5 py-1 text-sm font-semibold text-foreground">
+                      <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: tag.color || '#e2e8f0' }} />
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt className="text-muted-foreground">Tipo</dt>
+                <dd className="mt-0.5 font-semibold text-foreground break-words">{renderTextWithBr(material.type?.name)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Marca</dt>
+                <dd className="mt-0.5 font-semibold text-foreground break-words">{renderTextWithBr(material.brand?.name)}</dd>
+              </div>
+            </dl>
+
+            <MaterialActions material={material} mobile />
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto">
       <table className="w-full min-w-[1050px] border-separate border-spacing-0">
         <thead>
           <tr>
@@ -121,37 +204,13 @@ const MaterialsTable = ({
               </td>
 
               <td className="border-b border-border/50 px-2 py-2 align-middle text-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
-                    <span className="sr-only">Abrir menú</span>
-                    <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40 font-medium">
-                    {canUpdate && (
-                      <DropdownMenuItem onClick={() => onEdit?.(material)} className="cursor-pointer py-2">
-                        <Edit3 className="mr-2 h-4 w-4 text-primary" />
-                        <span>Editar</span>
-                      </DropdownMenuItem>
-                    )}
-                    {canUpdate && canDelete && <DropdownMenuSeparator />}
-                    {canDelete && (
-                      <DropdownMenuItem onClick={() => onDeactivate?.(material)} className="cursor-pointer py-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
-                        <ShieldAlert className="mr-2 h-4 w-4" />
-                        <span>Eliminar</span>
-                      </DropdownMenuItem>
-                    )}
-                    {!canUpdate && !canDelete && (
-                      <DropdownMenuItem disabled className="py-2">
-                        <span>Sin acciones</span>
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <MaterialActions material={material} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };

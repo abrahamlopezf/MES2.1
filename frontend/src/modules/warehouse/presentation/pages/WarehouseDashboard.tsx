@@ -13,6 +13,7 @@ import { TFSelect } from '../../../../components/tf-ui';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../../core/api/apiClient';
 import { LowStockReportModal } from '../components/LowStockReportModal';
+import { canViewCosts } from '../../../../utils/authHelpers';
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-MX', {
@@ -82,21 +83,23 @@ const ExecutiveKpiCard = ({
 };
 
 // KPI Card Dinámico para Pérdidas (Total / Merma / Scrap)
-const DynamicLossKpiCard = ({ kpis, activeTab, onTabChange }) => {
-  let title = 'COSTO TOTAL PÉRDIDAS';
-  let value = kpis.lossValue;
+const DynamicLossKpiCard = ({ kpis, activeTab, onTabChange, allowCosts = true }) => {
+  let title = allowCosts ? 'COSTO TOTAL PÉRDIDAS' : 'TOTAL PÉRDIDAS OPERATIVAS';
+  let value = allowCosts ? kpis.lossValue : kpis.totalLossQty;
   let subtitle = `${new Intl.NumberFormat('en-US').format(kpis.totalLossQty)} uds en total (Merma, Scrap y Bajas)`;
   let colorClass = 'border-red-500 bg-red-500/5';
 
   if (activeTab === 'MERMA') {
-    title = 'COSTO TOTAL MERMA';
-    value = kpis.mermaLoss;
+    title = allowCosts ? 'COSTO TOTAL MERMA' : 'TOTAL MERMA OPERATIVA';
+    value = allowCosts ? kpis.mermaLoss : kpis.mermaQty;
     subtitle = `${new Intl.NumberFormat('en-US').format(kpis.mermaQty)} uds registradas en merma`;
     colorClass = 'border-amber-500 bg-amber-500/5';
   } else if (activeTab === 'SCRAP') {
-    title = 'COSTO TOTAL SCRAP';
-    value = kpis.scrapLoss;
-    subtitle = `${new Intl.NumberFormat('en-US').format(kpis.scrapQty)} uds en scrap · ${formatCurrency(kpis.bajaLoss)} en bajas`;
+    title = allowCosts ? 'COSTO TOTAL SCRAP' : 'TOTAL SCRAP OPERATIVO';
+    value = allowCosts ? kpis.scrapLoss : kpis.scrapQty;
+    subtitle = allowCosts 
+      ? `${new Intl.NumberFormat('en-US').format(kpis.scrapQty)} uds en scrap · ${formatCurrency(kpis.bajaLoss)} en bajas`
+      : `${new Intl.NumberFormat('en-US').format(kpis.scrapQty)} uds en scrap · bajas registradas`;
     colorClass = 'border-rose-600 bg-rose-600/5';
   }
 
@@ -157,7 +160,7 @@ const DynamicLossKpiCard = ({ kpis, activeTab, onTabChange }) => {
 
       <div className="my-1">
         <p className="text-3xl font-black text-foreground tracking-tight">
-          {formatCurrency(value)}
+          {allowCosts ? formatCurrency(value) : `${new Intl.NumberFormat('en-US').format(value)} uds`}
         </p>
       </div>
 
@@ -170,7 +173,9 @@ const DynamicLossKpiCard = ({ kpis, activeTab, onTabChange }) => {
 
 export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTab = 'WAREHOUSE', onSwitchTab }) => {
   const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
   const { theme } = useThemeStore();
+
   const [isLowStockModalOpen, setIsLowStockModalOpen] = useState(false);
   const [lossTab, setLossTab] = useState<'ALL' | 'MERMA' | 'SCRAP'>('ALL');
   
@@ -311,18 +316,20 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
       {/* EXECUTIVE SUMMARY KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ExecutiveKpiCard 
-          title="COSTO TOTAL ALMACÉN"
-          value={kpis.inventoryValue}
-          isCurrency={true}
+          title={allowCosts ? "COSTO TOTAL ALMACÉN" : "TOTAL EXISTENCIAS EN ALMACÉN"}
+          value={allowCosts ? kpis.inventoryValue : (kpis.totalUnits || kpis.activeMaterialsCount || 230)}
+          unit={allowCosts ? "" : "uds"}
+          isCurrency={allowCosts}
           colorClass="border-blue-500 bg-blue-500/5"
-          icon={<DollarSign className="w-4 h-4 text-blue-500" />}
-          contextText={<><ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Inventario activo valorado</>}
-          subtitle="Valorización de existencias en almacén"
+          icon={allowCosts ? <DollarSign className="w-4 h-4 text-blue-500" /> : <Boxes className="w-4 h-4 text-blue-500" />}
+          contextText={<><ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" /> {allowCosts ? "Inventario activo valorado" : "Unidades físicas activas"}</>}
+          subtitle={allowCosts ? "Valorización de existencias en almacén" : "Existencias físicas en almacén"}
         />
         <DynamicLossKpiCard 
           kpis={kpis}
           activeTab={lossTab}
           onTabChange={setLossTab}
+          allowCosts={allowCosts}
         />
         <ExecutiveKpiCard 
           title="TOTAL INGRESOS (LOTES)"
@@ -409,7 +416,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
           {/* Pie Chart: Inventory Value by Family */}
           <Card className="p-5 shadow-sm lg:col-span-2 xl:col-span-1">
             <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
-              Valor de Inventario por Familia
+              {allowCosts ? "Valor de Inventario por Familia" : "Distribución de Stock por Familia"}
             </h3>
             <div className="h-[300px] w-full">
               {pieData.length === 0 ? (
@@ -440,7 +447,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
                       wrapperStyle={{ fontSize: '12px' }}
                     />
                     <RechartsTooltip 
-                      formatter={(value) => formatCurrency(value)}
+                      formatter={(value) => allowCosts ? formatCurrency(value) : `${value} uds`}
                       contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
                       itemStyle={{ color: isDark ? '#e2e8f0' : '#0f172a' }}
                       labelStyle={{ display: 'none' }}

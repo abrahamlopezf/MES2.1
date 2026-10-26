@@ -97,6 +97,8 @@ export const WarehouseEntryForm: React.FC = () => {
     });
   };
 
+  const selectedMaterial = materials?.find((m: any) => String(m.id) === String(materialId));
+
   return (
     <form onSubmit={handleSubmit} className="bg-card p-8 rounded-2xl shadow-lg border border-border max-w-5xl mx-auto animate-form-field" style={{ '--stagger': 1 } as React.CSSProperties}>
       <div className="flex items-center justify-between mb-10 pb-6 border-b border-border">
@@ -182,12 +184,9 @@ export const WarehouseEntryForm: React.FC = () => {
               </div>
             )}
           </div>
-
-  const selectedMaterial = materials.find((m: any) => String(m.id) === String(materialId));
-
           <div className="bg-background rounded-2xl p-8 border border-border animate-form-field" style={{ '--stagger': 4 } as React.CSSProperties}>
             <label className="block text-xl font-bold text-foreground mb-3 uppercase tracking-wide">
-              3. Cantidad Recibida {selectedMaterial ? `(${selectedMaterial.unit_measure || 'Unidades'})` : ''}
+              3. Cantidad Recibida {selectedMaterial ? `(${selectedMaterial.base_unit?.code || selectedMaterial.unit_measure || 'Unidades'})` : ''}
             </label>
             <input 
               ref={amountInputRef}
@@ -201,7 +200,19 @@ export const WarehouseEntryForm: React.FC = () => {
                   e.preventDefault();
                 }
               }}
-              onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) {
+                  setAmount('');
+                  return;
+                }
+                const num = Number(val);
+                if (isNaN(num) || num < 0) {
+                  setAmount('');
+                } else {
+                  setAmount(num);
+                }
+              }}
               className="w-full border-2 border-input rounded-xl px-6 py-6 text-4xl font-black text-foreground focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none font-mono bg-card shadow-sm transition-all"
               placeholder="0.000"
             />

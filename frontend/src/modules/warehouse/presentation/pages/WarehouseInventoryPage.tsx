@@ -84,26 +84,26 @@ export const WarehouseInventoryPage: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 w-full md:w-auto gap-2 sm:gap-3 shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full lg:w-auto gap-2 sm:gap-3 shrink-0">
               <Button 
-                variant="secondary"
+                variant="outline"
                 size="lg" 
                 onClick={() => refetch()} 
                 disabled={isRefetching}
-                className="font-bold shadow-sm w-full justify-center h-12 text-xs sm:text-sm"
+                className="font-bold shadow-sm w-full justify-center h-12 text-base bg-background text-foreground border-border hover:bg-muted"
               >
                 <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
-                <span className="truncate">Actualizar</span>
+                <span className="leading-tight">Actualizar</span>
               </Button>
               {isAdminAlm && (
                 <Button
                   variant="destructive"
                   size="lg"
                   onClick={() => setIsBajaModalOpen(true)}
-                  className="font-bold shadow-sm w-full justify-center bg-red-600 hover:bg-red-700 text-white h-12 text-xs sm:text-sm"
+                  className="font-bold shadow-sm w-full justify-center bg-red-600 hover:bg-red-700 text-white h-12 text-base"
                 >
                   <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
-                  <span className="truncate">Baja</span>
+                  <span className="leading-tight">Baja</span>
                 </Button>
               )}
               {hasPermission('warehouse.consume') && (
@@ -111,10 +111,10 @@ export const WarehouseInventoryPage: React.FC = () => {
                   variant="primary"
                   size="lg"
                   onClick={() => setIsConsumoModalOpen(true)}
-                  className="font-bold shadow-sm w-full justify-center bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-12 text-xs sm:text-sm"
+                  className="font-bold shadow-sm w-full justify-center bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-12 text-base"
                 >
                   <QrCode className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
-                  <span className="truncate">Consumo</span>
+                  <span className="leading-tight">Consumo</span>
                 </Button>
               )}
               {isAdminAlm && (
@@ -122,10 +122,10 @@ export const WarehouseInventoryPage: React.FC = () => {
                   variant="secondary"
                   size="lg"
                   onClick={() => setIsManualEntryModalOpen(true)}
-                  className="font-bold shadow-sm w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 h-12 text-xs sm:text-sm"
+                  className="font-bold shadow-sm w-full justify-center bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700 h-12 text-base"
                 >
                   <Layers className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
-                  <span className="truncate">Ingreso</span>
+                  <span className="leading-tight">Ingreso</span>
                 </Button>
               )}
             </div>
@@ -151,7 +151,7 @@ export const WarehouseInventoryPage: React.FC = () => {
             <div className="relative w-full">
               <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por código QR, lote o material..."
+                placeholder="Buscar por QR, lote o material"
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 className="!pl-10 font-medium w-full h-14 rounded-xl"

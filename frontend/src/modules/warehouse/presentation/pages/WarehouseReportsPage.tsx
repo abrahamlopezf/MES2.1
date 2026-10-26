@@ -172,6 +172,14 @@ export const WarehouseReportsPage: React.FC = () => {
     );
   }
 
+  const filteredRecentMovements = (monthlyData?.recentMovements || [])
+    .filter((movement: any) =>
+      !searchTerm ||
+      movement.materialName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.internalCode?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .slice(0, 20);
+
   // Paleta de colores ejecutiva (Design System tokens)
   const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
@@ -251,51 +259,51 @@ export const WarehouseReportsPage: React.FC = () => {
 
         {/* Barra de Navegación de Vistas de Reportes */}
         <div className="border-b border-border">
-          <nav className="flex items-center gap-2 sm:gap-6 -mb-px overflow-x-auto custom-scrollbar" aria-label="Tabs">
+          <nav className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-6 pb-3 lg:pb-0" aria-label="Vistas de reportes">
             <button
               onClick={() => setActiveTab('MONTHLY')}
-              className={`group flex items-center gap-2.5 py-3.5 px-2 sm:px-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer shrink-0 ${
+              className={`group w-full lg:w-auto flex items-center text-left lg:text-center gap-3 py-3 px-3 lg:py-3.5 text-base font-bold border-l-4 lg:border-l-0 lg:border-b-2 transition-colors cursor-pointer ${
                 activeTab === 'MONTHLY'
-                  ? 'border-primary text-primary'
+                  ? 'border-primary bg-primary/5 text-primary lg:bg-transparent'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/80'
               }`}
             >
-              <div className={`p-1.5 rounded-lg transition-colors ${
+                <div className={`p-2 rounded-lg transition-colors ${
                 activeTab === 'MONTHLY' ? 'bg-primary/15 text-primary' : 'bg-muted/40 text-muted-foreground group-hover:text-foreground'
               }`}>
-                <Layers size={16} />
+                <Layers size={20} />
               </div>
               <span>Reporte Mensual y Balances</span>
             </button>
 
             <button
               onClick={() => setActiveTab('SUPPLIERS')}
-              className={`group flex items-center gap-2.5 py-3.5 px-2 sm:px-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer shrink-0 ${
+              className={`group w-full lg:w-auto flex items-center text-left lg:text-center gap-3 py-3 px-3 lg:py-3.5 text-base font-bold border-l-4 lg:border-l-0 lg:border-b-2 transition-colors cursor-pointer ${
                 activeTab === 'SUPPLIERS'
-                  ? 'border-primary text-primary'
+                  ? 'border-primary bg-primary/5 text-primary lg:bg-transparent'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/80'
               }`}
             >
-              <div className={`p-1.5 rounded-lg transition-colors ${
+                <div className={`p-2 rounded-lg transition-colors ${
                 activeTab === 'SUPPLIERS' ? 'bg-primary/15 text-primary' : 'bg-muted/40 text-muted-foreground group-hover:text-foreground'
               }`}>
-                <Truck size={16} />
+                <Truck size={20} />
               </div>
               <span>Proveedores de Materia Prima (MP)</span>
             </button>
 
             <button
               onClick={() => setActiveTab('MERMA_SCRAP')}
-              className={`group flex items-center gap-2.5 py-3.5 px-2 sm:px-3 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer shrink-0 ${
+              className={`group w-full lg:w-auto flex items-center text-left lg:text-center gap-3 py-3 px-3 lg:py-3.5 text-base font-bold border-l-4 lg:border-l-0 lg:border-b-2 transition-colors cursor-pointer ${
                 activeTab === 'MERMA_SCRAP'
-                  ? 'border-primary text-primary'
+                  ? 'border-primary bg-primary/5 text-primary lg:bg-transparent'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/80'
               }`}
             >
-              <div className={`p-1.5 rounded-lg transition-colors ${
+                <div className={`p-2 rounded-lg transition-colors ${
                 activeTab === 'MERMA_SCRAP' ? 'bg-primary/15 text-primary' : 'bg-muted/40 text-muted-foreground group-hover:text-foreground'
               }`}>
-                <RotateCcw size={16} />
+                <RotateCcw size={20} />
               </div>
               <span>Bajas, Merma, Scrap y Devoluciones</span>
             </button>
@@ -311,16 +319,16 @@ export const WarehouseReportsPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between">
                 <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ingresos / Compras</span>
+                  <span className="text-sm sm:text-base font-bold text-foreground">Ingresos / Compras</span>
                   <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
                     <TrendingUp size={18} />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-2xl sm:text-3xl font-black text-foreground tabular-nums break-words">
                     {formatCurrency(monthlyData?.kpis?.totalIncomeCost || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm leading-snug text-muted-foreground mt-2">
                     Volumen recibido: <strong className="text-foreground">{formatNumber(monthlyData?.kpis?.totalIncomeQty || 0)}</strong> uds/kg
                   </p>
                 </div>
@@ -328,16 +336,16 @@ export const WarehouseReportsPage: React.FC = () => {
 
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between">
                 <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Consumos Operativos</span>
+                  <span className="text-sm sm:text-base font-bold text-foreground">Consumos Operativos</span>
                   <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
                     <Package size={18} />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-2xl sm:text-3xl font-black text-foreground tabular-nums break-words">
                     {formatCurrency(monthlyData?.kpis?.totalConsumptionCost || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm leading-snug text-muted-foreground mt-2">
                     Material consumido: <strong className="text-foreground">{formatNumber(monthlyData?.kpis?.totalConsumptionQty || 0)}</strong> uds/kg
                   </p>
                 </div>
@@ -345,16 +353,16 @@ export const WarehouseReportsPage: React.FC = () => {
 
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between">
                 <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Pérdidas (Merma + Scrap)</span>
+                  <span className="text-sm sm:text-base font-bold text-foreground">Pérdidas (Merma + Scrap)</span>
                   <div className="p-2 rounded-xl bg-red-500/10 text-red-500">
                     <TrendingDown size={18} />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-2xl sm:text-3xl font-black text-foreground tabular-nums break-words">
                     {formatCurrency(monthlyData?.kpis?.totalWasteCost || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm leading-snug text-muted-foreground mt-2">
                     Merma/Scrap/Bajas: <strong className="text-foreground">{formatNumber(monthlyData?.kpis?.totalWasteQty || 0)}</strong> uds/kg
                   </p>
                 </div>
@@ -362,16 +370,16 @@ export const WarehouseReportsPage: React.FC = () => {
 
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between">
                 <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devoluciones a Prov.</span>
+                  <span className="text-sm sm:text-base font-bold text-foreground">Devoluciones a Proveedor</span>
                   <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
                     <RotateCcw size={18} />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-2xl sm:text-3xl font-black text-foreground tabular-nums break-words">
                     {formatCurrency(monthlyData?.kpis?.devolucionCost || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm leading-snug text-muted-foreground mt-2">
                     Devuelto al proveedor: <strong className="text-foreground">{formatNumber(monthlyData?.kpis?.devolucionQty || 0)}</strong> uds/kg
                   </p>
                 </div>
@@ -385,7 +393,7 @@ export const WarehouseReportsPage: React.FC = () => {
                   <h3 className="text-lg font-bold text-foreground">Tendencia Mensual de Movimientos ({selectedYear})</h3>
                   <p className="text-xs text-muted-foreground">Comparativa de compras vs consumos vs pérdidas y devoluciones</p>
                 </div>
-                <div className="flex items-center gap-4 text-xs font-semibold">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold">
                   <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500" /> Ingresos</span>
                   <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500" /> Consumos</span>
                   <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500" /> Pérdidas</span>
@@ -447,24 +455,24 @@ export const WarehouseReportsPage: React.FC = () => {
               <div className="bg-card p-6 rounded-2xl border border-border shadow-sm space-y-4 flex flex-col justify-between">
                 <div>
                   <h3 className="text-base font-bold text-foreground">Diagnóstico de Rotación de Almacén</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Indicador ejecutivo de absorción del inventario por la planta de producción.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 my-auto">
                   <div className="p-4 rounded-xl bg-muted/20 border border-border">
-                    <span className="text-xs text-muted-foreground font-semibold">Tasa de Consumo s/ Ingreso</span>
+                    <span className="text-sm text-muted-foreground font-semibold">Tasa de Consumo s/ Ingreso</span>
                     <div className="text-3xl font-black text-primary mt-2">
                       {monthlyData?.kpis?.turnoverRatePct || 0}%
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1">De lo comprado ha sido consumido en producción</p>
+                    <p className="text-sm leading-snug text-muted-foreground mt-2">De lo comprado ha sido consumido en producción</p>
                   </div>
                   <div className="p-4 rounded-xl bg-muted/20 border border-border">
-                    <span className="text-xs text-muted-foreground font-semibold">Balance Financiero Neto</span>
+                    <span className="text-sm text-muted-foreground font-semibold">Balance Financiero Neto</span>
                     <div className="text-2xl font-black text-foreground mt-2">
                       {formatCurrency(monthlyData?.kpis?.netBalanceCost || 0)}
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1">Valor retenido en almacén en el período</p>
+                    <p className="text-sm leading-snug text-muted-foreground mt-2">Valor retenido en almacén en el período</p>
                   </div>
                 </div>
                 <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary flex items-center gap-2">
@@ -493,8 +501,58 @@ export const WarehouseReportsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+              <div className="md:hidden divide-y divide-border">
+                {filteredRecentMovements.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-base text-muted-foreground">
+                    No hay movimientos registrados en este período.
+                  </p>
+                ) : (
+                  filteredRecentMovements.map((row: any) => (
+                    <article key={row.id} className="p-4 flex flex-col gap-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-muted-foreground">
+                            {new Date(row.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          </p>
+                          <h4 className="mt-1 text-base leading-snug font-bold text-foreground break-words">{row.materialName}</h4>
+                          <p className="text-sm text-muted-foreground mt-0.5">{row.internalCode}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs leading-snug font-bold uppercase shrink-0 ${
+                          row.type === 'MANUAL_ENTRY' || row.type === 'RECEPTION' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                          row.type === 'CONSUMPTION' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                          row.type === 'DEVOLUCION' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                          'bg-red-500/10 text-red-500 border border-red-500/20'
+                        }`}>
+                          {row.type}
+                        </span>
+                      </div>
+
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        <div>
+                          <dt className="text-muted-foreground">Cantidad</dt>
+                          <dd className="mt-0.5 font-bold text-foreground">{formatNumber(row.quantity)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Costo unitario</dt>
+                          <dd className="mt-0.5 font-semibold text-foreground">{formatCurrency(row.unitCost)}</dd>
+                        </div>
+                        <div className="col-span-2">
+                          <dt className="text-muted-foreground">Costo total</dt>
+                          <dd className="mt-0.5 text-base font-bold text-foreground">{formatCurrency(row.totalCost)}</dd>
+                        </div>
+                      </dl>
+
+                      <div className="border-t border-border pt-3 text-sm">
+                        <p className="font-semibold text-foreground break-words">{row.performedBy}</p>
+                        {row.notes && <p className="mt-1 leading-snug text-muted-foreground break-words">{row.notes}</p>}
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
                   <thead className="bg-muted/40 text-muted-foreground uppercase tracking-wider font-bold border-b border-border">
                     <tr>
                       <th className="py-3 px-4">Fecha</th>
@@ -507,14 +565,7 @@ export const WarehouseReportsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {(monthlyData?.recentMovements || [])
-                      .filter((m: any) => 
-                        !searchTerm || 
-                        m.materialName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        m.internalCode?.toLowerCase().includes(searchTerm.toLowerCase())
-                      )
-                      .slice(0, 20)
-                      .map((row: any) => (
+                    {filteredRecentMovements.map((row: any) => (
                         <tr key={row.id} className="hover:bg-muted/20 transition-colors">
                           <td className="py-3 px-4 font-mono text-muted-foreground">
                             {new Date(row.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}

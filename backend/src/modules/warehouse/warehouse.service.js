@@ -531,6 +531,15 @@ const getDashboardMetrics = async (user) => {
   `);
   const inventoryValue = parseFloat(invValueResult[0]?.total_value || 0);
 
+  const [silosValResult] = await sequelize.query(`
+    SELECT COALESCE(SUM(current_stock_kg * unit_cost), 0) as silos_value,
+           COALESCE(SUM(current_stock_kg), 0) as silos_stock
+    FROM silos 
+    WHERE is_active = true
+  `);
+  const silosValue = parseFloat(silosValResult[0]?.silos_value || 0);
+  const silosStockKg = parseFloat(silosValResult[0]?.silos_stock || 0);
+
   const [lossBreakdownResult] = await sequelize.query(`
     SELECT 
       SUM(CASE WHEN type = 'MERMA' THEN COALESCE(NULLIF(total_cost, 0), ABS(quantity_change) * COALESCE(unit_cost, 0)) ELSE 0 END) as merma_loss,
@@ -692,6 +701,8 @@ const getDashboardMetrics = async (user) => {
     mermaRegistrada: Math.abs(mermaKg || 0),
     financial: {
       inventoryValue,
+      silosValue,
+      silosStockKg,
       lossValue,
       mermaLoss,
       scrapLoss,
@@ -708,75 +719,122 @@ const getDashboardMetrics = async (user) => {
 };
 
 const manualEntry = async (payload, currentUser) => {
-  if (!payload.material_id || !payload.location_id || !payload.entries || !Array.isArray(payload.entries) || payload.entries.length === 0) {
-    throwHttpError('Faltan datos obligatorios para el ingreso manual (material, localidad, y al menos una entrada).', 400);
+  if (!payload.material_id || !payload.entries || !Array.isArray(payload.entries) || payload.entries.length === 0) {
+    throwHttpError('Faltan datos obligatorios para el ingreso manual (material y al menos una entrada).', 400);
   }
 
   return await sequelize.transaction(async (t) => {
-    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier } = require('../../database/models');
+    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier, Material, Silo } = require('../../database/models');
     
+    // Validar material
+    const material = await Material.findByPk(payload.material_id, { transaction: t });
+    if (!material) {
+      throwHttpError('El material especificado no existe.', 404);
+    }
+
+    const matName = (material.name || '').toUpperCase();
+    const matCode = (material.code || material.internal_code || '').toUpperCase();
+    const isPp = Boolean(payload.silo_id) || matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP') || matCode.includes('PP-');
+
+    // Para materiales distintos de Polipropileno, la localidad de almacén es obligatoria
+    if (!isPp && !payload.location_id) {
+      throwHttpError('La localidad es obligatoria para el ingreso de este material.', 400);
+    }
+
     // 0. Cache for auto-created suppliers during this transaction
     const createdCatalogs = [];
     const supplierCache = new Map();
-    
-    // 1. Generate QR Batch and Codes
     const now = new Date();
-    const batchCode = `QRB-MAN-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${now.toISOString().slice(11, 19).replace(/:/g, '')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const areaALM = await Area.findOne({ where: { code: 'ALM' }, transaction: t });
-    const assignedAreaId = areaALM ? areaALM.id : null;
 
-    const qrBatch = await QrBatch.create({
-      batch_code: batchCode,
-      quantity: payload.entries.length,
-      assigned_area_id: assignedAreaId,
-      status: 'ASSIGNED',
-      notes: 'Generado desde Ingreso Manual',
-      created_by: currentUser.id,
-    }, { transaction: t });
+    let qrBatch = null;
+    let createdQrs = [];
+    let targetSilo = null;
 
-    const crypto = require('crypto');
-    const seqResult = await sequelize.query(
-      `SELECT nextval('qr_code_serial_seq') as serial FROM generate_series(1, :qty);`,
-      {
-        replacements: { qty: payload.entries.length },
-        type: sequelize.QueryTypes.SELECT,
-        transaction: t,
+    if (isPp) {
+      // Regla de Almacén: Si es Polipropileno, NO genera QR y se va a Silos directamente
+      if (payload.silo_id) {
+        targetSilo = await Silo.findByPk(payload.silo_id, { transaction: t, lock: t.LOCK.UPDATE });
       }
-    );
-    const serials = seqResult.map(r => Number(r.serial));
+      if (!targetSilo) {
+        targetSilo = await Silo.findOne({
+          where: { material_id: material.id, is_active: true },
+          transaction: t,
+          lock: t.LOCK.UPDATE
+        });
+      }
+      if (!targetSilo) {
+        targetSilo = await Silo.findOne({
+          where: { is_active: true },
+          order: [['id', 'ASC']],
+          transaction: t,
+          lock: t.LOCK.UPDATE
+        });
+      }
+      if (!targetSilo) {
+        throwHttpError(`No hay un silo activo asignado al material ${material.name}.`, 400);
+      }
+      if (!targetSilo.is_active || Number(targetSilo.material_id) !== Number(material.id)) {
+        throwHttpError('El silo seleccionado está inactivo o contiene un material distinto al recibido.', 400);
+      }
+    } else {
+      // 1. Generate QR Batch and Codes ONLY for other materials (non-PP)
+      const batchCode = `QRB-MAN-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${now.toISOString().slice(11, 19).replace(/:/g, '')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      const areaALM = await Area.findOne({ where: { code: 'ALM' }, transaction: t });
+      const assignedAreaId = areaALM ? areaALM.id : null;
 
-    const qrRows = [];
-    for (let i = 0; i < payload.entries.length; i++) {
-      const serial = serials[i];
-      qrRows.push({
-        uuid: crypto.randomUUID(),
-        serial,
-        qr_code: `LOT-${String(serial).padStart(9, '0')}`,
-        batch_id: qrBatch.id,
+      qrBatch = await QrBatch.create({
+        batch_code: batchCode,
+        quantity: payload.entries.length,
         assigned_area_id: assignedAreaId,
-        status: 'IN_USE',
+        status: 'ASSIGNED',
+        notes: 'Generado desde Ingreso Manual',
         created_by: currentUser.id,
-        is_active: true,
+      }, { transaction: t });
+
+      const crypto = require('crypto');
+      const seqResult = await sequelize.query(
+        `SELECT nextval('qr_code_serial_seq') as serial FROM generate_series(1, :qty);`,
+        {
+          replacements: { qty: payload.entries.length },
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t,
+        }
+      );
+      const serials = seqResult.map(r => Number(r.serial));
+
+      const qrRows = [];
+      for (let i = 0; i < payload.entries.length; i++) {
+        const serial = serials[i];
+        qrRows.push({
+          uuid: crypto.randomUUID(),
+          serial,
+          qr_code: `LOT-${String(serial).padStart(9, '0')}`,
+          batch_id: qrBatch.id,
+          assigned_area_id: assignedAreaId,
+          status: 'IN_USE',
+          created_by: currentUser.id,
+          is_active: true,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      createdQrs = await QrCode.bulkCreate(qrRows, { transaction: t, returning: true });
+
+      const eventRows = createdQrs.map(qr => ({
+        uuid: crypto.randomUUID(),
+        qr_code_id: qr.id,
+        event_type: 'ASSIGNED',
+        to_status: 'IN_USE',
+        to_area_id: assignedAreaId,
+        performed_by: currentUser.id,
+        notes: 'QR asignado a lote en Ingreso Manual.',
+        metadata: { batch_code: batchCode },
         created_at: now,
         updated_at: now,
-      });
+      }));
+      await TraceabilityEvent.bulkCreate(eventRows, { transaction: t });
     }
-
-    const createdQrs = await QrCode.bulkCreate(qrRows, { transaction: t, returning: true });
-
-    const eventRows = createdQrs.map(qr => ({
-      uuid: crypto.randomUUID(),
-      qr_code_id: qr.id,
-      event_type: 'ASSIGNED',
-      to_status: 'IN_USE',
-      to_area_id: assignedAreaId,
-      performed_by: currentUser.id,
-      notes: 'QR asignado a lote en Ingreso Manual.',
-      metadata: { batch_code: batchCode },
-      created_at: now,
-      updated_at: now,
-    }));
-    await TraceabilityEvent.bulkCreate(eventRows, { transaction: t });
 
     let totalQuantity = 0;
     const loteData = [];
@@ -864,12 +922,12 @@ const manualEntry = async (payload, currentUser) => {
       loteData.push({
         material_id: payload.material_id,
         user_id: currentUser.id,
-        qr_id: createdQrs[i].id,
+        qr_id: isPp ? null : createdQrs[i]?.id || null,
         location_id: payload.location_id,
         folio: generatedFolio,
         initial_amount: q,
         available_amount: q,
-        notes: payload.notes || 'Ingreso manual',
+        notes: payload.notes || (isPp ? `Ingreso a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) sin QR` : 'Ingreso manual'),
         is_active: true,
         supplier_id: finalSupplierId,
         unit_cost: entry.unit_cost || null,
@@ -879,22 +937,22 @@ const manualEntry = async (payload, currentUser) => {
 
     // 1. Bulk create lotes
     console.time('Lote.bulkCreate');
-    const createdLotes = await Lote.bulkCreate(loteData, { transaction: t, returning: true });
+    const createdLotes = isPp ? [] : await Lote.bulkCreate(loteData, { transaction: t, returning: true });
     console.timeEnd('Lote.bulkCreate');
 
-    // 2. Upsert Inventory (only one DB call for finding, one for saving)
+    // 2. Upsert Inventory
     console.time('Inventory.findOne');
-    let inventory = await Inventory.findOne({
+    let inventory = isPp ? null : await Inventory.findOne({
       where: { material_id: payload.material_id },
       transaction: t
     });
     console.timeEnd('Inventory.findOne');
 
     console.time('Inventory.save');
-    if (inventory) {
+    if (!isPp && inventory) {
       inventory.amount = Number(inventory.amount) + totalQuantity;
       await inventory.save({ transaction: t });
-    } else {
+    } else if (!isPp) {
       inventory = await Inventory.create({
         material_id: payload.material_id,
         amount: totalQuantity
@@ -902,19 +960,65 @@ const manualEntry = async (payload, currentUser) => {
     }
     console.timeEnd('Inventory.save');
 
+    // 2.1 Si es Polipropileno, depositar directamente en el Silo destino
+    if (isPp && targetSilo) {
+      const stockBefore = Number(targetSilo.current_stock_kg || 0);
+      const capacity = Number(targetSilo.capacity_kg || 0);
+      if (capacity > 0 && stockBefore + totalQuantity > capacity) {
+        throwHttpError(`Capacidad excedida en ${targetSilo.code}: disponible ${Math.max(0, capacity - stockBefore)} kg, recibidos ${totalQuantity} kg.`, 400);
+      }
+      const existingCost = Number(targetSilo.unit_cost || 0);
+      const receivedValue = payload.entries.reduce((sum, entry) => sum + Number(entry.quantity) * Number(entry.unit_cost || 0), 0);
+      const totalValue = stockBefore * existingCost + receivedValue;
+      const lotTypes = [...new Set(payload.entries.map((entry) => String(entry.lot_type || '').trim().toUpperCase()).filter(Boolean))];
+      if (lotTypes.some((type) => !['A', 'B', 'C'].includes(type))) {
+        throwHttpError('El tipo de lote del silo debe ser A, B o C.', 400);
+      }
+      if (lotTypes.length > 1) {
+        throwHttpError('Separa los ingresos por tipo de lote; no se pueden mezclar tipos A, B o C en una recepción.', 400);
+      }
+      if (stockBefore > 0 && lotTypes.length === 1 && targetSilo.current_lot_type && lotTypes[0] !== String(targetSilo.current_lot_type).toUpperCase()) {
+        throwHttpError(`El silo conserva lote tipo ${targetSilo.current_lot_type}; no se puede mezclar con lote tipo ${lotTypes[0]}.`, 409);
+      }
+      targetSilo.current_stock_kg = Number((stockBefore + totalQuantity).toFixed(2));
+      if (totalValue > 0 && stockBefore + totalQuantity > 0) {
+        targetSilo.unit_cost = Number((totalValue / (stockBefore + totalQuantity)).toFixed(4));
+      }
+      const folios = payload.entries.map((entry) => String(entry.folio || '').trim()).filter(Boolean);
+      if (folios.length) targetSilo.current_lot_number = [...new Set(folios)].join(', ').slice(0, 100);
+      if (lotTypes.length === 1) targetSilo.current_lot_type = lotTypes[0];
+      await targetSilo.save({ transaction: t });
+      const { AuditLog } = require('../../database/models');
+      await AuditLog.create({
+        action: 'SILO_MANUAL_RECEIPT',
+        entity_type: 'SILO',
+        entity_id: String(targetSilo.id),
+        module: 'EXTRUSION_SILOS',
+        user_id: currentUser.id,
+        description: `Ingreso manual sin QR de ${totalQuantity} kg de ${material.name} al silo ${targetSilo.code}.`,
+        before_data: { current_stock_kg: stockBefore, unit_cost: existingCost },
+        after_data: { current_stock_kg: Number(targetSilo.current_stock_kg), unit_cost: Number(targetSilo.unit_cost) },
+        metadata: { material_id: material.id, entries: payload.entries.map(({ folio, quantity, unit_cost, lot_type }) => ({ folio, quantity: Number(quantity), unit_cost: Number(unit_cost), lot_type: lot_type || null })) },
+      }, { transaction: t });
+    }
+
     // 3. Bulk create movements
     console.time('Movement.bulkCreate');
-    const movementData = payload.entries.map((entry, idx) => ({
+    const movementData = isPp ? [] : payload.entries.map((entry) => ({
       inventory_id: inventory.id,
-      type: 'MANUAL_ENTRY',
+      type: isPp ? 'ENTRY' : 'MANUAL_ENTRY',
       quantity_change: Number(entry.quantity),
       unit_cost: entry.unit_cost || null,
       total_cost: entry.unit_cost ? Number(entry.unit_cost) * Number(entry.quantity) : null,
       performed_by: currentUser.id,
-      notes: payload.notes || 'Ingreso manual al sistema (Lote virtual)'
+      notes: isPp
+        ? `Ingreso directo a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) - Folio: ${entry.folio || 'S/N'}. Consumo directo Mezcladora (Excepción sin QR).`
+        : (payload.notes || 'Ingreso manual al sistema (Lote virtual)')
     }));
     
-    const createdMovements = await InventoryMovement.bulkCreate(movementData, { transaction: t, returning: true });
+    const createdMovements = movementData.length
+      ? await InventoryMovement.bulkCreate(movementData, { transaction: t, returning: true })
+      : [];
     console.timeEnd('Movement.bulkCreate');
 
     // 4. Build results
@@ -928,17 +1032,22 @@ const manualEntry = async (payload, currentUser) => {
     }
 
     const { notifyAdminsIfNonAdmin } = require('../notifications/notification.service');
-    const { Material } = require('../../database/models');
-    const mat = await Material.findByPk(payload.material_id, { transaction: t });
-    
     await notifyAdminsIfNonAdmin(
       currentUser,
-      'Ingreso Manual Crítico',
-      `Se registró un ingreso manual de ${totalQuantity} unidades del material ${mat ? mat.name : payload.material_id}. Notas: ${payload.notes || 'Ninguna'}.`,
+      isPp ? 'Ingreso PP a Silos (Sin QR)' : 'Ingreso Manual Crítico',
+      `Se registró un ingreso de ${totalQuantity} kg del material ${material.name}. Destino: ${isPp ? (targetSilo ? targetSilo.name : 'Silos PP') : 'Almacén General'}. Folios: ${payload.entries.map(e => e.folio).join(', ')}.`,
       t
     );
 
-    return { results, qrBatchId: qrBatch.id, created_catalogs: createdCatalogs };
+    return { 
+      results, 
+      qrBatchId: isPp ? null : qrBatch?.id || null, 
+      is_silo: isPp,
+      silo_code: targetSilo?.code || null,
+      silo_name: targetSilo?.name || null,
+      total_quantity: totalQuantity,
+      created_catalogs: createdCatalogs 
+    };
   });
 };
 const getMermaScrapReport = async () => {

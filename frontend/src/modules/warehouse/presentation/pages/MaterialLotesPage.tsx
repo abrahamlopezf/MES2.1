@@ -7,8 +7,12 @@ import axiosClient from '../../../../api/axiosClient';
 import { GlobalErrorBoundary } from '../../../../core/error/GlobalErrorBoundary';
 import { ChangeLocationBottomSheet } from '../components/ChangeLocationBottomSheet.container';
 import { LoteTraceabilityBottomSheet } from '../components/LoteTraceabilityBottomSheet.container';
+import { useAuthStore } from '../../../../store/authStore';
+import { canViewCosts } from '../../../../utils/authHelpers';
 
 const MaterialLotesPageContent = () => {
+  const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
   const { materialId } = useParams();
   const navigate = useNavigate();
   const [lotesToMove, setLotesToMove] = useState<any[]>([]);
@@ -422,15 +426,19 @@ const MaterialLotesPageContent = () => {
                       <th className="px-4 py-3 font-bold tracking-tight">Fecha Recepción</th>
                       <th className="px-4 py-3 font-bold tracking-tight">Recibido Por</th>
                       <th className="px-4 py-3 font-bold tracking-tight text-right">Cantidad</th>
-                      <th className="px-4 py-3 font-bold tracking-tight text-right">Costo Unit.</th>
-                      <th className="px-4 py-3 font-bold tracking-tight text-right">Costo Total</th>
+                      {allowCosts && (
+                        <>
+                          <th className="px-4 py-3 font-bold tracking-tight text-right">Costo Unit.</th>
+                          <th className="px-4 py-3 font-bold tracking-tight text-right">Costo Total</th>
+                        </>
+                      )}
                       <th className="px-4 py-3 font-bold tracking-tight text-right">Acción</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredLotes.length === 0 ? (
                       <tr>
-                        <td colSpan={isSelectionMode ? 9 : 8} className="text-center py-8 text-muted-foreground font-semibold">
+                        <td colSpan={isSelectionMode ? (allowCosts ? 9 : 7) : (allowCosts ? 8 : 6)} className="text-center py-8 text-muted-foreground font-semibold">
                           {data.length === 0 ? 'No hay lotes registrados para este material.' : 'No se encontraron lotes con estos filtros.'}
                         </td>
                       </tr>
@@ -475,12 +483,16 @@ const MaterialLotesPageContent = () => {
                             <td className={`px-4 py-3 text-right font-mono font-bold ${isInactive ? 'text-muted-foreground' : 'text-primary'}`}>
                               {Number((lote.available_amount ?? lote.amount) || 0).toFixed(2)} <span className="text-xs text-muted-foreground ml-0.5">{lote.material?.base_unit?.code || ''}</span>
                             </td>
-                            <td className={`px-4 py-3 text-right font-mono font-bold ${isInactive ? 'text-muted-foreground' : 'text-emerald-500'}`}>
-                              ${Number(lote.unit_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                            </td>
-                            <td className={`px-4 py-3 text-right font-mono font-bold ${isInactive ? 'text-muted-foreground' : 'text-emerald-500'}`}>
-                              ${(Number((lote.available_amount ?? lote.amount) || 0) * Number(lote.unit_cost || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
+                            {allowCosts && (
+                              <>
+                                <td className={`px-4 py-3 text-right font-mono font-bold ${isInactive ? 'text-muted-foreground' : 'text-emerald-500'}`}>
+                                  ${Number(lote.unit_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                </td>
+                                <td className={`px-4 py-3 text-right font-mono font-bold ${isInactive ? 'text-muted-foreground' : 'text-emerald-500'}`}>
+                                  ${(Number((lote.available_amount ?? lote.amount) || 0) * Number(lote.unit_cost || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </>
+                            )}
                             <td className="px-4 py-3 text-right whitespace-nowrap">
                               {!isSelectionMode && (
                                 <div className="flex justify-end gap-2">

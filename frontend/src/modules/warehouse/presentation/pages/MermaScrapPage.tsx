@@ -6,8 +6,12 @@ import { ArrowLeft, Package, Trash2, TrendingDown, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { MermaScrapDetallesBottomSheet } from '../components/MermaScrapDetallesBottomSheet.container';
+import { useAuthStore } from '../../../../store/authStore';
+import { canViewCosts } from '../../../../utils/authHelpers';
 
 export const MermaScrapPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
   const navigate = useNavigate();
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
 
@@ -68,35 +72,59 @@ export const MermaScrapPage: React.FC = () => {
         {/* Tarjetas de Resumen Financiero y Operativo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-red-500 shadow-sm flex flex-col justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO TOTAL PÉRDIDAS</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {allowCosts ? 'COSTO TOTAL PÉRDIDAS' : 'TOTAL PÉRDIDAS REGISTRADAS'}
+            </span>
             <div className="my-2">
-              <span className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">{formatCurrency(totalLossCost)}</span>
+              <span className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+                {allowCosts ? formatCurrency(totalLossCost) : `${totalLossQty.toFixed(2)} uds`}
+              </span>
             </div>
-            <span className="text-xs font-medium text-muted-foreground">{totalLossQty.toFixed(2)} uds registradas en total</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {allowCosts ? `${totalLossQty.toFixed(2)} uds registradas en total` : 'Volumen acumulado en almacén'}
+            </span>
           </div>
 
           <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-amber-500 shadow-sm flex flex-col justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO TOTAL MERMA</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {allowCosts ? 'COSTO TOTAL MERMA' : 'TOTAL MERMA OPERATIVA'}
+            </span>
             <div className="my-2">
-              <span className="text-2xl sm:text-3xl font-black text-warning tracking-tight">{formatCurrency(totalMermaCost)}</span>
+              <span className="text-2xl sm:text-3xl font-black text-warning tracking-tight">
+                {allowCosts ? formatCurrency(totalMermaCost) : `${totalMermaQty.toFixed(2)} uds`}
+              </span>
             </div>
-            <span className="text-xs font-medium text-muted-foreground">{totalMermaQty.toFixed(2)} uds en merma de proceso</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {allowCosts ? `${totalMermaQty.toFixed(2)} uds en merma de proceso` : 'Merma registrada en proceso'}
+            </span>
           </div>
 
           <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-rose-600 shadow-sm flex flex-col justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO TOTAL SCRAP</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {allowCosts ? 'COSTO TOTAL SCRAP' : 'TOTAL SCRAP OPERATIVO'}
+            </span>
             <div className="my-2">
-              <span className="text-2xl sm:text-3xl font-black text-destructive tracking-tight">{formatCurrency(totalScrapCost)}</span>
+              <span className="text-2xl sm:text-3xl font-black text-destructive tracking-tight">
+                {allowCosts ? formatCurrency(totalScrapCost) : `${totalScrapQty.toFixed(2)} uds`}
+              </span>
             </div>
-            <span className="text-xs font-medium text-muted-foreground">{totalScrapQty.toFixed(2)} uds en material dañado</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {allowCosts ? `${totalScrapQty.toFixed(2)} uds en material dañado` : 'Material y producto dañado'}
+            </span>
           </div>
 
           <div className="bg-card rounded-xl p-5 border border-border border-b-4 border-b-blue-500 shadow-sm flex flex-col justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COSTO OTRAS BAJAS</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {allowCosts ? 'COSTO OTRAS BAJAS' : 'TOTAL OTRAS BAJAS'}
+            </span>
             <div className="my-2">
-              <span className="text-2xl sm:text-3xl font-black text-info tracking-tight">{formatCurrency(totalBajaCost)}</span>
+              <span className="text-2xl sm:text-3xl font-black text-info tracking-tight">
+                {allowCosts ? formatCurrency(totalBajaCost) : `${totalBajaQty.toFixed(2)} uds`}
+              </span>
             </div>
-            <span className="text-xs font-medium text-muted-foreground">{totalBajaQty.toFixed(2)} uds en bajas no operativas</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {allowCosts ? `${totalBajaQty.toFixed(2)} uds en bajas no operativas` : 'Bajas administrativas registradas'}
+            </span>
           </div>
         </div>
 
@@ -244,8 +272,12 @@ export const MermaScrapPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-mono font-black text-foreground text-sm">{formatCurrency(item.total_loss_cost)}</div>
-                          <div className="text-[10px] text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
+                          <div className="font-mono font-black text-foreground text-sm">
+                            {allowCosts ? formatCurrency(item.total_loss_cost) : `${Number(item.total_loss_qty || 0).toFixed(2)} uds`}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {allowCosts ? `${Number(item.total_loss_qty || 0).toFixed(2)} uds` : 'Pérdidas acumuladas'}
+                          </div>
                         </div>
                       </div>
 
@@ -253,17 +285,17 @@ export const MermaScrapPage: React.FC = () => {
                         <div>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase">Merma</span>
                           <p className="text-xs font-bold text-warning font-mono">{Number(item.merma).toFixed(1)}</p>
-                          <span className="text-[10px] text-muted-foreground">{formatCurrency(item.merma_cost)}</span>
+                          {allowCosts && <span className="text-[10px] text-muted-foreground">{formatCurrency(item.merma_cost)}</span>}
                         </div>
                         <div>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase">Scrap</span>
                           <p className="text-xs font-bold text-destructive font-mono">{Number(item.scrap).toFixed(1)}</p>
-                          <span className="text-[10px] text-muted-foreground">{formatCurrency(item.scrap_cost)}</span>
+                          {allowCosts && <span className="text-[10px] text-muted-foreground">{formatCurrency(item.scrap_cost)}</span>}
                         </div>
                         <div>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase">Otras Bajas</span>
                           <p className="text-xs font-bold text-info font-mono">{Number(item.baja || 0).toFixed(1)}</p>
-                          <span className="text-[10px] text-muted-foreground">{formatCurrency(item.baja_cost)}</span>
+                          {allowCosts && <span className="text-[10px] text-muted-foreground">{formatCurrency(item.baja_cost)}</span>}
                         </div>
                       </div>
 
@@ -288,7 +320,7 @@ export const MermaScrapPage: React.FC = () => {
                         <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Merma</th>
                         <th className="px-5 py-3.5 font-bold tracking-tight text-right">Total Scrap</th>
                         <th className="px-5 py-3.5 font-bold tracking-tight text-right">Otras Bajas</th>
-                        <th className="px-5 py-3.5 font-bold tracking-tight text-right">Costo Total</th>
+                        {allowCosts && <th className="px-5 py-3.5 font-bold tracking-tight text-right">Costo Total</th>}
                         <th className="px-5 py-3.5 font-bold tracking-tight text-center">Acciones</th>
                       </tr>
                     </thead>
@@ -308,20 +340,22 @@ export const MermaScrapPage: React.FC = () => {
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="font-mono font-bold text-warning">{Number(item.merma).toFixed(2)}</div>
-                          <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.merma_cost)}</div>
+                          {allowCosts && <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.merma_cost)}</div>}
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="font-mono font-bold text-destructive">{Number(item.scrap).toFixed(2)}</div>
-                          <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.scrap_cost)}</div>
+                          {allowCosts && <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.scrap_cost)}</div>}
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="font-mono font-bold text-info">{Number(item.baja || 0).toFixed(2)}</div>
-                          <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.baja_cost)}</div>
+                          {allowCosts && <div className="text-xs font-semibold text-muted-foreground">{formatCurrency(item.baja_cost)}</div>}
                         </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="font-mono font-black text-foreground">{formatCurrency(item.total_loss_cost)}</div>
-                          <div className="text-[11px] font-semibold text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
-                        </td>
+                        {allowCosts && (
+                          <td className="px-5 py-4 text-right">
+                            <div className="font-mono font-black text-foreground">{formatCurrency(item.total_loss_cost)}</div>
+                            <div className="text-[11px] font-semibold text-muted-foreground">{Number(item.total_loss_qty || 0).toFixed(2)} uds</div>
+                          </td>
+                        )}
                         <td className="px-5 py-4 text-center">
                           <Button variant="outline" size="sm" className="font-bold bg-background cursor-pointer" onClick={() => setSelectedMaterialId(item.material_id)}>
                             Detalles

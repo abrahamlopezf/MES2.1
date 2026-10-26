@@ -212,4 +212,14 @@ router.put(
   consumptionOrderController.cancelOrder
 );
 
+// ==========================================
+// CONTROL Y GESTIÓN DE SILOS EN ALMACÉN
+// ==========================================
+const extrusionController = require('../extrusion/extrusion.controller');
+router.get('/silos', extrusionController.getSilos);
+router.post('/silos', extrusionController.createSilo);
+router.put('/silos/:id', extrusionController.updateSilo);
+router.delete('/silos/:id', extrusionController.deleteSilo);
+router.post('/silos/invoice-entry', extrusionController.receiveSiloInvoiceEntry);
+
 module.exports = router;

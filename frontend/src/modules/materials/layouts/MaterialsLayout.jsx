@@ -1,9 +1,10 @@
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Boxes, Layers3, Hash, Tag, Tags, Award, Factory, MapPin, Scale, Truck } from "lucide-react";
 import { TFCard } from "../../../components/tf-ui";
 
 const MaterialsLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   
   const tabs = [
     { name: "Materiales", path: "/materials/list", icon: Boxes, desc: "Catálogo maestro y control global de todos los materiales." },
@@ -18,6 +19,7 @@ const MaterialsLayout = () => {
   ];
 
   const currentTab = tabs.find(t => location.pathname.startsWith(t.path)) || { name: "Master Data", desc: "Administración centralizada de catálogos y parámetros operativos." };
+  const selectedTabPath = tabs.find(t => location.pathname.startsWith(t.path))?.path || tabs[0].path;
 
   return (
     <div className="flex flex-col gap-5 w-full min-w-0 max-w-7xl mx-auto py-2 px-4 sm:px-6 lg:px-8">
@@ -32,9 +34,19 @@ const MaterialsLayout = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="w-full min-w-0 overflow-x-auto pb-2 custom-scrollbar">
-        <div className="p-1.5 border border-border/50 shadow-sm bg-secondary/30 rounded-xl w-max min-w-full lg:min-w-max lg:mx-auto flex items-center gap-1 justify-start">
-            <nav className="flex items-center gap-1 w-full" aria-label="Tabs">
+      <div className="w-full min-w-0">
+        <label htmlFor="materials-section" className="sr-only">Sección del catálogo de materiales</label>
+        <select
+          id="materials-section"
+          aria-label="Sección del catálogo de materiales"
+          value={selectedTabPath}
+          onChange={(event) => navigate(event.target.value)}
+          className="xl:hidden h-12 w-full rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {tabs.map((tab) => <option key={tab.path} value={tab.path}>{tab.name}</option>)}
+        </select>
+
+        <nav className="hidden xl:flex flex-wrap items-center justify-center gap-1.5" aria-label="Secciones de materiales">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -42,7 +54,7 @@ const MaterialsLayout = () => {
                   key={tab.name}
                   to={tab.path}
                   className={({ isActive }) =>
-                    `flex items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-[13px] sm:text-sm font-bold whitespace-nowrap transition-all duration-200 ease-out rounded-lg active:scale-95 shrink-0
+                    `flex min-h-12 items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-bold whitespace-nowrap transition-colors duration-150 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                     ${
                       isActive
                         ? "bg-background text-foreground shadow-sm border border-border/50 ring-1 ring-black/5 dark:ring-white/5"
@@ -60,8 +72,7 @@ const MaterialsLayout = () => {
               );
             })}
           </nav>
-          </div>
-        </div>
+      </div>
 
       {/* Contenido Dinámico de la Pestaña Activa */}
       <div className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-300">

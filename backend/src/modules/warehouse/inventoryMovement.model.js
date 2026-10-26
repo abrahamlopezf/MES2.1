@@ -49,6 +49,23 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(12, 4),
         allowNull: true,
       },
+      area_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      consumption_order_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      consumption_order_item_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      cost_treatment: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+        comment: 'WIP_TRANSFER mantiene valor en proceso; DIRECT_EXPENSE carga costo al área.',
+      },
     },
     {
       tableName: 'inventory_movements',

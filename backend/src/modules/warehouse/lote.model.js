@@ -38,11 +38,11 @@ module.exports = (sequelize) => {
       defaultValue: DataTypes.NOW,
     },
     initial_amount: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.DECIMAL(12, 3),
       allowNull: false,
     },
     available_amount: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.DECIMAL(12, 3),
       allowNull: false,
     },
     notes: {

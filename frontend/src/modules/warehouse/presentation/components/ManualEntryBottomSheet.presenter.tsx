@@ -21,9 +21,15 @@ export interface ManualEntryBottomSheetPresenterProps {
   suppliers: any[];
   loadingSuppliers: boolean;
   isSubmitting: boolean;
+  // Silo PP specific
+  isPp: boolean;
+  silos: any[];
+  loadingSilos: boolean;
+  selectedSiloId: string;
   // Handlers
   onChangeMaterialId: (val: string) => void;
   onChangeLocationId: (val: string) => void;
+  onChangeSiloId: (val: string) => void;
   onChangeNotes: (val: string) => void;
   onAddEntry: () => void;
   onUpdateEntry: (index: number, field: string, value: string) => void;
@@ -45,8 +51,13 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   suppliers,
   loadingSuppliers,
   isSubmitting,
+  isPp,
+  silos,
+  loadingSilos,
+  selectedSiloId,
   onChangeMaterialId,
   onChangeLocationId,
+  onChangeSiloId,
   onChangeNotes,
   onAddEntry,
   onUpdateEntry,
@@ -62,6 +73,12 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   } = useBottomSheetAnimation(isOpen, 400);
 
   const selectedMaterialObj = materials?.find(m => String(m.id) === String(materialId));
+  const materialUnit = selectedMaterialObj?.base_unit?.code || 
+                       selectedMaterialObj?.base_unit?.name || 
+                       selectedMaterialObj?.stock_unit?.code || 
+                       selectedMaterialObj?.unit?.code || 
+                       selectedMaterialObj?.unit_measure || 
+                       (isPp ? 'KG' : 'U');
 
   if (!isRendered) return null;
 
@@ -93,8 +110,8 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
         {/* Header */}
         <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
           <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-            <PackagePlus size={20} />
-            Ingreso Manual (Lote Virtual)
+            <PackagePlus size={20} className={isPp ? "text-blue-500" : "text-primary"} />
+            {isPp ? 'Ingreso a Silos (PP - Consumo Mezcladora)' : 'Ingreso de Material (Lote Almacén)'}
           </h3>
           <button 
             onClick={onClose}
@@ -126,19 +143,66 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-foreground ml-1">Localidad *</label>
-              <SearchSelect
-                options={locations}
-                value={locationId}
-                onChange={onChangeLocationId}
-                getLabel={(loc: any) => `${loc.code} - ${loc.description || loc.name}`}
-                getValue={(loc: any) => loc.id.toString()}
-                placeholder="Seleccionar localidad..."
-                loading={loadingLocations}
-                searchable={true}
-              />
-            </div>
+            {isPp && (
+              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 dark:bg-blue-950/30 p-3.5 text-xs text-blue-800 dark:text-blue-200 flex items-start gap-3">
+                <span className="text-xl shrink-0">🛡️</span>
+                <div className="min-w-0">
+                  <span className="font-bold text-sm block text-foreground">
+                    Excepción de Almacén: Polipropileno para Silos (Sin QR)
+                  </span>
+                  <span className="text-xs text-muted-foreground block mt-0.5 leading-snug">
+                    Este material ingresa por tubería directamente a los Silos para surtir a la Mezcladora. <strong>No genera etiquetas QR</strong> y la cantidad ingresada se sumará directamente al Silo seleccionado.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {isPp && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-foreground ml-1">
+                    Silo de Destino *
+                  </label>
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                    Tolva Directa a Mezcladora
+                  </span>
+                </div>
+                {loadingSilos ? (
+                  <div className="h-10 flex items-center gap-2 text-muted-foreground text-xs font-semibold">
+                    <Loader2 className="animate-spin" size={16} /> Cargando silos...
+                  </div>
+                ) : (
+                  <select
+                    value={selectedSiloId}
+                    onChange={e => onChangeSiloId(e.target.value)}
+                    className="flex h-11 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm cursor-pointer"
+                  >
+                    <option value="" disabled>-- SELECCIONAR SILO DESTINO --</option>
+                    {silos.map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.code} - {s.name} ({Number(s.current_stock_kg || 0).toLocaleString()} kg disp. / Máx: {Number(s.capacity_kg || 0).toLocaleString()} kg)
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {!isPp && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-foreground ml-1">Localidad *</label>
+                <SearchSelect
+                  options={locations}
+                  value={locationId}
+                  onChange={onChangeLocationId}
+                  getLabel={(loc: any) => `${loc.code} - ${loc.description || loc.name}`}
+                  getValue={(loc: any) => loc.id.toString()}
+                  placeholder="Seleccionar localidad..."
+                  loading={loadingLocations}
+                  searchable={true}
+                />
+              </div>
+            )}
 
             <div className="flex flex-col gap-4 border-t border-border/50 pt-5">
               <div className="flex justify-between items-center">
@@ -189,21 +253,33 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
 
                       <div className="flex flex-col gap-1 min-w-0">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
-                          Cantidad {selectedMaterialObj ? `(${selectedMaterialObj.unit_measure || 'U'})` : ''} *
+                          Cantidad ({materialUnit}) *
                         </label>
                         <input 
                           type="number"
-                          min="0.01"
-                          step="0.01"
+                          min="0.001"
+                          step="0.001"
                           className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner min-w-0"
-                          placeholder="Ej. 10.00"
+                          placeholder={isPp ? "Ej. 30000.00" : `Ej. 10.00 ${materialUnit}`}
                           value={entry.quantity}
                           onKeyDown={(e) => {
                             if (['-', '+', 'e', 'E'].includes(e.key)) {
                               e.preventDefault();
                             }
                           }}
-                          onChange={e => onUpdateEntry(index, 'quantity', e.target.value)}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              onUpdateEntry(index, 'quantity', '');
+                              return;
+                            }
+                            const num = Number(val);
+                            if (isNaN(num) || num < 0) {
+                              onUpdateEntry(index, 'quantity', '');
+                            } else {
+                              onUpdateEntry(index, 'quantity', val);
+                            }
+                          }}
                         />
                       </div>
                     </div>
@@ -226,7 +302,19 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                             e.preventDefault();
                           }
                         }}
-                        onChange={e => onUpdateEntry(index, 'unit_cost', e.target.value)}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            onUpdateEntry(index, 'unit_cost', '');
+                            return;
+                          }
+                          const num = Number(val);
+                          if (isNaN(num) || num < 0) {
+                            onUpdateEntry(index, 'unit_cost', '');
+                          } else {
+                            onUpdateEntry(index, 'unit_cost', val);
+                          }
+                        }}
                       />
                     </div>
 
@@ -296,10 +384,16 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
           <Button 
             variant="default" 
             onClick={onConfirmEntry}
-            disabled={isSubmitting || !materialId || !locationId || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
-            className="flex-[1.5] font-bold py-6 rounded-xl shadow-md"
+            disabled={isSubmitting || !materialId || (!isPp && !locationId) || (isPp && !selectedSiloId) || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
+            className={`flex-[1.5] font-bold py-6 rounded-xl shadow-md ${isPp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
           >
-            {isSubmitting ? <><Loader2 className="mr-2 animate-spin" size={18} /> Procesando...</> : 'Confirmar Ingreso'}
+            {isSubmitting ? (
+              <><Loader2 className="mr-2 animate-spin" size={18} /> Procesando...</>
+            ) : isPp ? (
+              'Confirmar Ingreso a Silo (Sin QR)'
+            ) : (
+              'Confirmar Ingreso'
+            )}
           </Button>
         </div>
 

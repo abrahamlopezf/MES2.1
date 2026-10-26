@@ -1,6 +1,6 @@
 [
   {
-    "field": "password",
-    "message": "La contraseña debe tener al menos 8 caracteres."
+    "field": "identifier",
+    "message": "El usuario o correo es obligatorio."
   }
 ]

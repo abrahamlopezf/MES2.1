@@ -115,7 +115,7 @@ export const WarehouseWorkspace = ({
                 <div className="bg-muted/30 p-4 rounded-lg">
                   <span className="block text-sm text-muted-foreground mb-1">Cantidad Física</span>
                   <span className="font-medium text-foreground">
-                    {inventoryData?.quantity || 0} {inventoryData?.unit || inventoryData?.material?.unit_measure || ''}
+                    {inventoryData?.quantity || 0} {inventoryData?.unit || inventoryData?.material?.base_unit?.code || inventoryData?.material?.unit_measure || ''}
                   </span>
                 </div>
                 <div className="bg-muted/30 p-4 rounded-lg">

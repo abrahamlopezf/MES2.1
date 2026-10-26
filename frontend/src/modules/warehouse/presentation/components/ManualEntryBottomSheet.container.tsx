@@ -32,6 +32,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const { confirm } = useConfirmAction();
   const [materialId, setMaterialId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
+  const [selectedSiloId, setSelectedSiloId] = useState<string>('');
   const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
   const [notes, setNotes] = useState('');
   const [catalogReminder, setCatalogReminder] = useState<any>(null);
@@ -41,6 +42,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     if (isOpen) {
       setMaterialId('');
       setLocationId('');
+      setSelectedSiloId('');
       setEntries([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
       setNotes('');
     }
@@ -92,11 +94,42 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     return textA.localeCompare(textB);
   });
 
+  // Silos activos para abastecimiento directo de Polipropileno
+  const { data: silosData = [], isLoading: loadingSilos } = useQuery({
+    queryKey: ['warehouse', 'silos'],
+    queryFn: async () => {
+      const response = await axiosClient.get('/warehouse/silos');
+      return response.data?.data || response.data || [];
+    },
+    enabled: isOpen
+  });
+  const silos = Array.isArray(silosData) ? silosData : [];
+
+  // Helper para detectar si el material seleccionado es Polipropileno a granel (Silo)
+  const isPpMaterial = (mat: any) => {
+    if (!mat) return false;
+    const name = (mat.name || mat.material_name || '').toUpperCase();
+    const code = (mat.internal_code || mat.code || mat.material_code || '').toUpperCase();
+    return name.includes('POLIPROPILENO') || name.includes('PP ') || code.startsWith('MP-PP') || code.includes('PP-');
+  };
+
+  const selectedMaterialObj = materials.find((m: any) => m.id.toString() === materialId);
+  const isPp = isPpMaterial(selectedMaterialObj);
+
+  // Preseleccionar Silo cuando se elija Polipropileno
+  useEffect(() => {
+    if (isPp && silos.length > 0 && !selectedSiloId) {
+      const matched = silos.find((s: any) => Number(s.material_id) === Number(materialId)) || silos[0];
+      if (matched) setSelectedSiloId(String(matched.id));
+    }
+  }, [isPp, silos, materialId, selectedSiloId]);
+
   const { mutate: handleManualEntry, isPending: isSubmitting } = useMutation({
     mutationFn: async () => {
       const response = await axiosClient.post('/warehouse/inventory/manual-entry', {
         material_id: Number(materialId),
-        location_id: Number(locationId),
+        location_id: isPp ? null : (locationId ? Number(locationId) : null),
+        silo_id: isPp && selectedSiloId ? Number(selectedSiloId) : null,
         entries: entries.map(e => ({ 
           folio: e.folio, 
           quantity: Number(e.quantity),
@@ -108,15 +141,22 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       return response.data;
     },
     onSuccess: async (data) => {
-      toast.success('Ingreso manual registrado exitosamente');
+      const resPayload = data?.data || data;
+      if (resPayload?.is_silo) {
+        toast.success(`Ingreso a Silo ${resPayload?.silo_code || ''} registrado exitosamente (${resPayload?.total_quantity || ''} kg). Sin generación de QR.`);
+      } else {
+        toast.success('Ingreso manual registrado exitosamente');
+      }
+
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
       queryClient.invalidateQueries({ queryKey: ['materials', 'suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'silos'] });
       
-      const resPayload = data?.data || data;
       const createdCatalogs = resPayload?.created_catalogs || [];
       const qrBatchId = resPayload?.qrBatchId;
-      if (qrBatchId) {
+      if (qrBatchId && !resPayload?.is_silo) {
         toast.info('Generando y descargando códigos QR...');
         try {
           await downloadBatchPdf(qrBatchId, 'MANUAL-ENTRY');
@@ -140,21 +180,33 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     },
     onError: (error: any) => {
       console.error("FRONTEND MUTATION ERROR:", error);
-      toast.error(error.response?.data?.message || `Error al registrar el ingreso manual: ${error.message}`);
+      toast.error(error.response?.data?.message || `Error al registrar el ingreso: ${error.message}`);
     }
   });
 
   const handleMaterialChange = (val: string) => {
     setMaterialId(val);
     const selectedMat = materials.find((m: any) => m.id.toString() === val);
-    if (selectedMat && selectedMat.default_location_id) {
+    const selectedIsPp = isPpMaterial(selectedMat);
+    if (selectedIsPp) {
+      setLocationId('');
+    } else if (selectedMat && selectedMat.default_location_id) {
       setLocationId(selectedMat.default_location_id.toString());
     }
   };
 
   const handleUpdateEntry = (index: number, field: string, value: string) => {
     const newEntries = [...entries];
-    (newEntries[index] as any)[field] = value;
+    if (field === 'quantity') {
+      // Bloquear signos negativos o caracteres inválidos
+      const sanitized = value.replace(/[^0-9.]/g, '');
+      (newEntries[index] as any)[field] = sanitized;
+    } else if (field === 'unit_cost') {
+      const sanitized = value.replace(/[^0-9.]/g, '');
+      (newEntries[index] as any)[field] = sanitized;
+    } else {
+      (newEntries[index] as any)[field] = value;
+    }
     setEntries(newEntries);
   };
 
@@ -167,14 +219,44 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   };
 
   const onConfirmEntry = async () => {
-    if (!materialId || !locationId || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)) {
-      toast.error('Por favor complete todos los campos obligatorios correctamente.');
+    if (!materialId) {
+      toast.error('Selecciona un material del catálogo.');
+      return;
+    }
+
+    if (!isPp && !locationId) {
+      toast.error('Selecciona una localidad de almacenamiento.');
+      return;
+    }
+
+    if (isPp && !selectedSiloId) {
+      toast.error('Selecciona el Silo de destino para el Polipropileno.');
+      return;
+    }
+
+    const hasEmptyQty = entries.some(e => e.quantity === '' || e.quantity === null);
+    if (hasEmptyQty) {
+      toast.error('Ingresa la cantidad para cada renglón.');
+      return;
+    }
+
+    const hasInvalidQty = entries.some(e => Number(e.quantity) <= 0 || isNaN(Number(e.quantity)));
+    if (hasInvalidQty) {
+      toast.error('La cantidad debe ser mayor a 0. No se permiten valores negativos ni cero.');
+      return;
+    }
+
+    const hasInvalidCost = entries.some(e => e.unit_cost === '' || Number(e.unit_cost) < 0 || isNaN(Number(e.unit_cost)));
+    if (hasInvalidCost) {
+      toast.error('El costo unitario es obligatorio y no puede ser negativo.');
       return;
     }
 
     const confirmed = await confirm({
-      title: 'Ingreso Manual',
-      message: `¿Confirmas el ingreso manual de ${entries.length} lote(s)?`,
+      title: isPp ? 'Ingreso a Silos (Sin QR)' : 'Ingreso de Material',
+      message: isPp 
+        ? `¿Confirmas el ingreso directo de ${entries.reduce((sum, e) => sum + (Number(e.quantity) || 0), 0)} kg de Polipropileno al Silo seleccionado? No se generarán etiquetas QR.`
+        : `¿Confirmas el ingreso de ${entries.length} lote(s) al almacén?`,
       confirmText: 'Sí, ingresar',
       variant: 'primary'
     });
@@ -200,8 +282,13 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         suppliers={suppliers}
         loadingSuppliers={loadingSuppliers}
         isSubmitting={isSubmitting}
+        isPp={isPp}
+        silos={silos}
+        loadingSilos={loadingSilos}
+        selectedSiloId={selectedSiloId}
         onChangeMaterialId={handleMaterialChange}
         onChangeLocationId={setLocationId}
+        onChangeSiloId={setSelectedSiloId}
         onChangeNotes={setNotes}
         onAddEntry={handleAddEntry}
         onUpdateEntry={handleUpdateEntry}
