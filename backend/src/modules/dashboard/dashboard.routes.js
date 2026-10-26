@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
+const requireFinancialAccess = require('../../middlewares/financialAccess.middleware');
 const DashboardController = require('./dashboard.controller');
 
 const authenticate = authMiddleware.authenticate || authMiddleware.authMiddleware || authMiddleware;
@@ -10,7 +11,6 @@ const authorizePermission = permissionMiddleware.authorizePermission || permissi
 // Require authentication and 'dashboard.read' permission strictly
 router.get('/operations', authenticate, authorizePermission('dashboard.read'), DashboardController.getOperationsDashboard);
 
-// Require 'dashboard.financial' (which only SUPERADMIN/ADMIN_GENERAL have via bypass or explicit grant)
-router.get('/financial', authenticate, authorizePermission('dashboard.financial', 'dashboard.read'), DashboardController.getFinancialDashboard);
+router.get('/financial', authenticate, requireFinancialAccess, DashboardController.getFinancialDashboard);
 
 module.exports = router;

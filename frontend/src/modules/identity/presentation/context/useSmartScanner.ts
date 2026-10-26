@@ -1,12 +1,14 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
+import { getUserAreaCode, isAdminUser } from '@/utils/authHelpers';
 import { identityFacade } from '../../infrastructure/di/IdentityModuleDI';
 import { toast } from 'sonner';
 import { apiClient } from '@core/api/apiClient';
 
 export const useSmartScanner = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
+  const { user } = useAuthStore();
 
   const handleScan = async (scannedQr: string): Promise<boolean> => {
     try {
@@ -28,6 +30,44 @@ export const useSmartScanner = () => {
       } catch(e) {}
 
       let realQrCodeValue = cleanQrCode;
+
+      // A fixed PTI rack QR has two valid actions: register extrusion output or
+      // request a custody transfer into a specific loom's WIP. Resolve it before
+      // the generic traceability flow so the operator lands in the right form.
+      const areaCode = getUserAreaCode(user);
+      if (['EXTRUSION', 'TELARES'].includes(areaCode) || isAdminUser(user)) {
+        try {
+          const rackLookupCode = cleanQrCode.trim().toUpperCase();
+          const rackResponse = await apiClient.get(`/telares/pti-racks/lookup/${encodeURIComponent(rackLookupCode)}`);
+          const rack = rackResponse.data?.data || rackResponse.data;
+          if (rack?.id && [rack.qr_code, rack.rack_code].some((value: string) => String(value || '').toUpperCase() === rackLookupCode)) {
+            if (areaCode === 'TELARES' && Number(rack.current_quantity) <= 0) {
+              toast.error('Este rack está vacío; Telares solo puede solicitar PTI con bobinas disponibles.');
+              return false;
+            }
+            const effectiveArea = areaCode || (
+              location.pathname.includes('/production/extrusion') ? 'EXTRUSION' :
+              location.pathname.includes('/production/telares') ? 'TELARES' : ''
+            );
+            const encodedQr = encodeURIComponent(rack.qr_code || rack.rack_code);
+            if (effectiveArea === 'EXTRUSION') {
+              navigate(`/production/extrusion?rackQr=${encodedQr}`);
+              return true;
+            }
+            if (effectiveArea === 'TELARES') {
+              navigate(`/production/telares?ptiRackQr=${encodedQr}`);
+              return true;
+            }
+            toast.warning('Rack identificado. Abre el terminal de Extrusión o Telares para continuar con la operación correspondiente.');
+            return false;
+          }
+        } catch (lookupError: any) {
+          if (lookupError?.response?.status !== 404) {
+            toast.error(lookupError?.response?.data?.message || 'No se pudo validar el QR del rack. Revisa la conexión e inténtalo de nuevo.');
+            return false;
+          }
+        }
+      }
 
       // 1. Try real backend first (so we know if it was used/activated)
       try {

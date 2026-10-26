@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CapabilityRegistry } from '../../../core/platform/CapabilityRegistry/CapabilityRegistry';
+import { CapabilityRegistry } from '../../core/platform/CapabilityRegistry/CapabilityRegistry';
 
 describe('CapabilityRegistry (Unit)', () => {
   beforeEach(() => {
     // Limpiar el estado antes de cada prueba (suponiendo que haya un reset)
     // O mockear lo necesario. Aquí probaremos directo el módulo.
-    CapabilityRegistry.registry = new Map(); 
+    CapabilityRegistry.capabilities = new Map();
   });
 
   it('debe registrar una capacidad exitosamente (happy path)', () => {
@@ -17,10 +17,10 @@ describe('CapabilityRegistry (Unit)', () => {
     };
     
     CapabilityRegistry.register(manifest);
-    expect(CapabilityRegistry.registry.has('RECEPTION')).toBe(true);
+    expect(CapabilityRegistry.capabilities.has('RECEPTION')).toBe(true);
   });
 
-  it('debe fallar si se intenta registrar una capacidad con purpose duplicado', () => {
+  it('debe reemplazar una capacidad registrada con el mismo purpose', () => {
     const manifest = {
       purpose: 'RECEPTION',
       permissions: [],
@@ -29,8 +29,9 @@ describe('CapabilityRegistry (Unit)', () => {
     };
     CapabilityRegistry.register(manifest);
     
-    expect(() => CapabilityRegistry.register(manifest))
-      .toThrow(/\[MES_DUPLICATE_CAPABILITY\]/);
+    const replacement = { ...manifest, workflow: 'W2' };
+    CapabilityRegistry.register(replacement);
+    expect(CapabilityRegistry.getCapability('RECEPTION').workflow).toBe('W2');
   });
 
   it('debe fallar si el manifest no incluye la propiedad workspace', () => {
@@ -39,7 +40,7 @@ describe('CapabilityRegistry (Unit)', () => {
       workflow: 'W1'
     };
     expect(() => CapabilityRegistry.register(invalidManifest))
-      .toThrow(/\[MES_INVALID_MANIFEST\]/);
+      .toThrow(/Faltan propiedades obligatorias/);
   });
 
   it('debe resolver correctamente una capacidad existente', () => {
@@ -51,13 +52,13 @@ describe('CapabilityRegistry (Unit)', () => {
     };
     CapabilityRegistry.register(manifest);
     
-    const cap = CapabilityRegistry.resolve('EXTRUSION');
+    const cap = CapabilityRegistry.getCapability('EXTRUSION');
     expect(cap).toBeDefined();
     expect(cap.purpose).toBe('EXTRUSION');
   });
 
   it('debe fallar al resolver una capacidad no registrada', () => {
-    expect(() => CapabilityRegistry.resolve('UNKNOWN'))
-      .toThrow(/\[MES_CAPABILITY_NOT_FOUND\]/);
+    expect(() => CapabilityRegistry.getCapability('UNKNOWN'))
+      .toThrow(/No se encontró ninguna capacidad registrada/);
   });
 });

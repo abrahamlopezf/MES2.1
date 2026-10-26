@@ -53,10 +53,67 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'ROLLO',
       },
+      standard_output_meters: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        comment: 'Metros que representan expected_output_quantity y permiten prorratear los insumos por producto.',
+      },
       default_route: {
         type: DataTypes.JSON,
         allowNull: false,
         defaultValue: ['TELARES', 'LAMINADO', 'CORTE'],
+      },
+      ounces_yd2: {
+        type: DataTypes.DECIMAL(6, 2),
+        allowNull: true,
+        comment: 'Gramaje en Onzas por yarda cuadrada (3.0, 5.0, 6.0, 6.5, 7.2, 8.0 oz/yd2)',
+      },
+      fabric_type: {
+        type: DataTypes.STRING(30),
+        allowNull: false,
+        defaultValue: 'TUBULAR',
+        comment: 'TUBULAR o PLANA',
+      },
+      tape_color: {
+        type: DataTypes.STRING(80),
+        allowNull: false,
+        defaultValue: 'N/A',
+        comment: 'Color de cinta de identificación (N/A, VERDE / MORADO, ROJO, AZUL)',
+      },
+      tape_denier: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 2300,
+        comment: 'Denier de la cinta de identificación (ej. 1200, 2300)',
+      },
+      tape_width_mm: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true,
+        defaultValue: 3.00,
+        comment: 'Ancho de la cinta (ej. 3mm)',
+      },
+      weft_denier: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        defaultValue: '1800 - 2000',
+        comment: 'Denier de Trama permitido (ej. 1200, 1800-2000, 2000, 2000-2300)',
+      },
+      warp_denier: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        defaultValue: '1800 - 2000',
+        comment: 'Denier de Urdimbre permitido (ej. 1200, 1800-2000, 2100)',
+      },
+      cost_transformation_index: {
+        type: DataTypes.DECIMAL(8, 4),
+        allowNull: false,
+        defaultValue: 1.0000,
+        comment: 'Índice de transformación de costo editable para tejeduría',
+      },
+      general_considerations: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Consideraciones técnicas y restricciones operativas',
       },
       is_active: {
         type: DataTypes.BOOLEAN,

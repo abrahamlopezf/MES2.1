@@ -1,18 +1,9 @@
 'use strict';
 
 /**
- * ConsumptionService - Lógica de Backflushing y Descuento de Materiales
- * 
- * Soporta dos modalidades:
- * 1. modo_silo = false (Manual):
- *    - La mezcla completa (PP + Aditivos) fue solicitada con QR a almacén.
- *    - El consumo descuenta del lote/contenedor padre.
- * 2. modo_silo = true (Automatizado por Silos):
- *    - La orden en piso es un "Kit de Aditivos" (sin PP).
- *    - El PP se descuenta de forma automatizada del Silo asignado vía Backflushing.
- *    - La merma de arranque se deduce al 100% de la mezcla entrante / Silo de PP.
- *    - Trazabilidad Financiera: El costo del kit de aditivos entró en WIP al surtirse,
- *      y el costo del PP del silo se suma al PTI exactamente al reportar producción.
+ * ConsumptionService - estimación histórica de consumo por bobinas.
+ * El inventario real de silos se consume al preparar la mezcla, nunca al
+ * registrar la producción de la extrusora.
  */
 class ConsumptionService {
   /**
@@ -78,8 +69,7 @@ class ConsumptionService {
       additivesPercentage = 4.0;
     }
 
-    // En modo_silo:
-    // La merma de arranque se aplica 100% al Polipropileno de la mezcla entrante
+    // Estimación histórica: asigna la merma de arranque al componente de PP.
     const ppFromProductionKg = (productionConsumptionKg * (ppPercentage / 100));
     const ppFromScrapKg = transitionScrapKg * 1.0; // 100% de merma de arranque deducida de la mezcla entrante
     const totalPpConsumedKg = Number((ppFromProductionKg + ppFromScrapKg).toFixed(3));
@@ -160,76 +150,23 @@ class ConsumptionService {
   }
 
   /**
-   * Ejecuta el descuento de inventario teórico (Backflushing) en la base de datos.
-   * En modo silo, descuenta el PP automáticamente de la tabla silos.
+   * Compatibilidad para reportes heredados. No modifica inventario: el
+   * contenedor preparado ya incluye PP y aditivos, y la merma sale de ese WIP.
    */
   async processConsumption({ formula, pieces, scrapWeightKg = 0, isSiloMode = false, extruderId = null, transaction = null, notes = '', userId = 1 }) {
-    const { Silo, Extruder, InventoryMovement, TraceabilityEvent } = require('../../../database/models');
-
-    let silo = null;
-    let extruder = null;
-
-    if (extruderId) {
-      extruder = await Extruder.findByPk(extruderId, {
-        include: [{ model: Silo, as: 'silo' }],
-        transaction
-      });
-      if (extruder && extruder.silo) {
-        silo = extruder.silo;
-      }
-    }
-
-    if (!silo && isSiloMode) {
-      silo = await Silo.findOne({ where: { is_active: true }, transaction });
-    }
-
     const calculation = this.calculateBackflushing({
       formula,
       pieces,
       scrapWeightKg,
-      isSiloMode,
-      silo
+      isSiloMode: false,
+      silo: null
     });
-
-    let siloDeductionResult = null;
-
-    if (isSiloMode && silo) {
-      const ppToDeduct = calculation.pp_breakdown.total_pp_deducted_kg;
-      const initialStock = Number(silo.current_stock_kg);
-      const newStock = Math.max(0, initialStock - ppToDeduct);
-
-      silo.current_stock_kg = Number(newStock.toFixed(2));
-      await silo.save({ transaction });
-
-      // Registrar movimiento de auditoría en inventory_movements
-      if (silo.material_id) {
-        await InventoryMovement.create({
-          material_id: silo.material_id,
-          movement_type: 'EXIT',
-          quantity: ppToDeduct,
-          balance_after: newStock,
-          notes: notes || `Consumo Backflushing Silo ${silo.code} en Extrusora ${extruderId || 'N/A'} (${pieces} bobinas PTI + ${scrapWeightKg}kg merma de arranque).`,
-          created_by: userId || 1
-        }, { transaction });
-      }
-
-      siloDeductionResult = {
-        silo_id: silo.id,
-        silo_code: silo.code,
-        silo_name: silo.name,
-        initial_stock_kg: initialStock,
-        deducted_kg: ppToDeduct,
-        final_stock_kg: Number(newStock.toFixed(2)),
-        unit_cost: Number(silo.unit_cost),
-        applied_cost: calculation.pp_breakdown.pp_financial_cost_applied
-      };
-    }
 
     return {
       success: true,
       backflushing: calculation,
-      silo_deduction: siloDeductionResult,
-      dispatched_mode: isSiloMode ? 'SILO_BACKFLUSHING_EXECUTED' : 'DISCRETE_BACKFLUSHING_EXECUTED',
+      silo_deduction: null,
+      dispatched_mode: 'ESTIMATE_ONLY_PREPARED_MIX_WIP',
       timestamp: new Date(),
     };
   }

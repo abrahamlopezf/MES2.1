@@ -23,6 +23,7 @@ import {
   PackagePlus,
   ClipboardList,
 } from 'lucide-react';
+import { getCdmxTimeString } from '@/utils/date';
 
 interface RoutingStationProps {
   stationNameOverride?: string;
@@ -123,7 +124,7 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
           roll_code: validationResult.roll?.roll_code,
           qr_code: qr,
           next_stage: res.roll.next_allowed_stage,
-          time: new Date().toLocaleTimeString(),
+          time: `${getCdmxTimeString()} CST`,
         },
         ...prev,
       ]);

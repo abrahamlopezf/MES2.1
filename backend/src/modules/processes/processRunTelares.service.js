@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { getCdmxDateString } = require('../../utils/timezone');
 const {
   sequelize,
   ProcessRun,
@@ -23,8 +24,8 @@ const qrCodesService = require('../qrcodes/qrcodes.service');
 
 const startTelares = async (payload, currentUser) => {
   return sequelize.transaction(async (transaction) => {
-    // Generar Folio
-    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    // Generar Folio con fecha CDMX (CST)
+    const datePart = getCdmxDateString().replace(/-/g, '');
     const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
     const folio = `TEL-${datePart}-${randomPart}`;
 

@@ -16,7 +16,7 @@ export function BottomNavigation({ items, className, ...props }: BottomNavigatio
   return (
     <div
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 flex w-full items-center justify-around border-t border-border bg-card px-2 shadow-[0_-4px_10px_rgba(0,0,0,0.08)] md:hidden',
+        'fixed bottom-0 left-0 right-0 z-50 flex w-full items-center justify-around border-t border-border bg-card px-2 shadow-[0_-4px_10px_rgba(0,0,0,0.08)] lg:hidden',
         'h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]',
         className
       )}
@@ -27,7 +27,7 @@ export function BottomNavigation({ items, className, ...props }: BottomNavigatio
           key={index}
           onClick={item.onClick}
           className={cn(
-            'group flex flex-col items-center justify-center space-y-1 w-full h-full text-muted-foreground transition-colors hover:text-foreground',
+            'group flex flex-1 min-w-0 flex-col items-center justify-center space-y-1 h-full text-muted-foreground transition-colors hover:text-foreground',
             item.isActive && 'text-primary font-bold'
           )}
         >
@@ -37,7 +37,7 @@ export function BottomNavigation({ items, className, ...props }: BottomNavigatio
           )}>
             {item.icon}
           </div>
-          <span className="text-[10px] leading-none tracking-wide">{item.label}</span>
+          <span className="text-xs leading-none tracking-wide">{item.label}</span>
         </button>
       ))}
     </div>

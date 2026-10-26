@@ -9,6 +9,7 @@ const sequelize = isProduction
   ? new Sequelize(env.databaseUrl, {
       dialect: 'postgres',
       protocol: 'postgres',
+      timezone: 'America/Mexico_City',
       logging: false,
 
       dialectOptions: {
@@ -36,6 +37,7 @@ const sequelize = isProduction
       host: env.db.host,
       port: env.db.port,
       dialect: 'postgres',
+      timezone: 'America/Mexico_City',
 
       logging:
         env.nodeEnv === 'development'

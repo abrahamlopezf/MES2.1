@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { getCdmxDateString } = require('../../utils/timezone');
 const {
   sequelize,
   ProcessRun,
@@ -38,8 +39,8 @@ const startRun = async (payload, currentUser) => {
       throwHttpError(`La mezcla en el QR ${payload.mix_qr_code} ya fue consumida totalmente.`, 400);
     }
 
-    // 2. Generar Folio
-    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    // 2. Generar Folio con fecha CDMX (CST)
+    const datePart = getCdmxDateString().replace(/-/g, '');
     const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
     const folio = `RUN-${datePart}-${randomPart}`;
 

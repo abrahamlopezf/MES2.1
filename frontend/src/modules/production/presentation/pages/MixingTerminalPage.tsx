@@ -39,7 +39,7 @@ export const MixingTerminalPage: React.FC = () => {
   });
 
   // 2. Historial de mezclas preparadas con sus contenedores (orden predeterminado: de más antigua a más reciente)
-  const { data: preparedMixes = [], isLoading: isLoadingHistory, refetch: refetchHistory } = usePreparedMixHistory({
+  const { data: preparedMixes = [], isLoading: isLoadingHistory, isError: isHistoryError, refetch: refetchHistory } = usePreparedMixHistory({
     limit: 200,
     sort: historySortOrder,
     formula_id: historyFormulaFilter !== 'ALL' ? historyFormulaFilter : undefined,
@@ -146,7 +146,7 @@ export const MixingTerminalPage: React.FC = () => {
                   ? (selectedTicket ? `Atender Solicitud de Mezcla (${selectedTicket.folio})` : 'Preparación Directa de Mezcla (Batch 500 Kg)')
                   : 'Centro de Mezclado'}
               </h1>
-              <p className="text-muted-foreground text-xs sm:text-sm font-medium mt-0.5">
+              <p className="text-muted-foreground text-sm sm:text-base font-medium mt-1 leading-relaxed">
                 {showForm
                   ? 'Dosificación y pesaje de materias primas con descuento de inventario en piso (WIP).'
                   : SHOW_TICKETS
@@ -363,7 +363,7 @@ export const MixingTerminalPage: React.FC = () => {
                     <Button
                       variant="ghost"
                       onClick={handleResetFilters}
-                      className="gap-1.5 h-8 px-2.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted self-start sm:self-auto border border-border rounded-lg"
+                      className="gap-1.5 min-h-11 px-3 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted self-start sm:self-auto border border-border rounded-lg"
                     >
                       <Icon name="filter_alt_off" size={14} />
                       <span>Limpiar Filtros</span>
@@ -375,7 +375,7 @@ export const MixingTerminalPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                   {/* 1. Filtro por Fórmula */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="science" size={14} className="text-primary" />
                       <span>Filtrar por Fórmula</span>
                     </label>
@@ -383,7 +383,7 @@ export const MixingTerminalPage: React.FC = () => {
                       <select
                         value={historyFormulaFilter}
                         onChange={(e) => setHistoryFormulaFilter(e.target.value)}
-                        className="w-full h-10 bg-background border border-border rounded-xl pl-3 pr-8 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
+                        className="w-full min-h-12 bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
                       >
                         <option value="ALL">Todas las Fórmulas ({availableFormulasForFilter.length})</option>
                         {availableFormulasForFilter.map((f) => (
@@ -400,7 +400,7 @@ export const MixingTerminalPage: React.FC = () => {
 
                   {/* 2. Orden por Fecha (Predeterminado: Más antigua a más reciente) */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="sort" size={14} className="text-primary" />
                       <span>Orden por Fecha</span>
                     </label>
@@ -408,7 +408,7 @@ export const MixingTerminalPage: React.FC = () => {
                       <select
                         value={historySortOrder}
                         onChange={(e) => setHistorySortOrder(e.target.value as 'ASC' | 'DESC')}
-                        className="w-full h-10 bg-background border border-border rounded-xl pl-3 pr-8 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
+                        className="w-full min-h-12 bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
                       >
                         <option value="ASC">Más antiguas primero (FIFO)</option>
                         <option value="DESC">Recientes primero</option>
@@ -421,7 +421,7 @@ export const MixingTerminalPage: React.FC = () => {
 
                   {/* 3. Filtro por Rango de Fechas (Desde / Hasta) */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="calendar_today" size={14} className="text-primary" />
                       <span>Fecha de Creación</span>
                     </label>
@@ -431,14 +431,16 @@ export const MixingTerminalPage: React.FC = () => {
                         title="Fecha Desde"
                         value={historyDateFrom}
                         onChange={(e) => setHistoryDateFrom(e.target.value)}
-                        className="h-10 text-xs font-medium bg-background border border-border px-2 rounded-xl"
+                        aria-label="Fecha desde"
+                        className="min-h-12 text-base font-medium bg-background border border-border px-2 rounded-xl"
                       />
                       <Input
                         type="date"
                         title="Fecha Hasta"
                         value={historyDateTo}
                         onChange={(e) => setHistoryDateTo(e.target.value)}
-                        className="h-10 text-xs font-medium bg-background border border-border px-2 rounded-xl"
+                        aria-label="Fecha hasta"
+                        className="min-h-12 text-base font-medium bg-background border border-border px-2 rounded-xl"
                       />
                     </div>
                   </div>
@@ -450,11 +452,20 @@ export const MixingTerminalPage: React.FC = () => {
                   <div className="p-12 flex justify-center items-center text-muted-foreground">
                     <Icon name="progress_activity" size={32} className="animate-spin" />
                   </div>
+                ) : isHistoryError ? (
+                  <div role="alert" className="flex flex-col items-center gap-3 p-8 text-center sm:p-12">
+                    <Icon name="error" size={36} className="text-destructive" />
+                    <div>
+                      <p className="text-base font-bold text-foreground">No se pudo cargar el historial</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Revisa tu conexión e inténtalo de nuevo.</p>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => refetchHistory()} className="min-h-11 font-bold">Reintentar</Button>
+                  </div>
                 ) : filteredHistory.length === 0 ? (
                   <div className="p-12 text-center text-muted-foreground">
                     <Icon name="inventory_2" size={40} className="mx-auto mb-2 opacity-40 text-primary" />
                     <p className="font-bold text-foreground">No se encontraron mezclas preparadas con los criterios seleccionados.</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                       {hasActiveFilters ? 'Prueba ajustando el filtro de fórmula, rango de fechas o limpiando los filtros.' : 'Las mezclas completadas en la terminal aparecerán aquí.'}
                     </p>
                     {hasActiveFilters && (
@@ -496,7 +507,7 @@ export const MixingTerminalPage: React.FC = () => {
                               <Badge variant="success" className="font-bold text-xs px-2.5 py-0.5">
                                 PREPARADA
                               </Badge>
-                              <span className="text-xs text-muted-foreground font-medium">
+                                <span className="text-sm text-muted-foreground font-medium">
                                 • {formattedDate}
                               </span>
                               <span className="text-xs font-bold text-primary">
@@ -510,7 +521,7 @@ export const MixingTerminalPage: React.FC = () => {
                                 {mix.formula_code ? `[${mix.formula_code}] ` : ''}{mix.formula_name}
                               </h3>
                               {mix.notes && (
-                                <p className="text-xs text-muted-foreground italic mt-0.5">
+                                <p className="text-sm text-muted-foreground italic mt-1">
                                   Nota: {mix.notes}
                                 </p>
                               )}
@@ -518,14 +529,14 @@ export const MixingTerminalPage: React.FC = () => {
 
                             {/* Contenedores Generados para esta mezcla */}
                             <div className="pt-1">
-                              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                              <span className="text-sm font-bold text-muted-foreground block mb-2">
                                 Contenedores Asignados ({containers.length}):
                               </span>
                               <div className="flex flex-wrap gap-2">
                                 {containers.map((c: any, cIdx: number) => (
                                   <div
                                     key={c.qr_code || cIdx}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border-2 border-border text-xs font-mono shadow-xs hover:border-primary/50 transition-colors"
+                                    className="inline-flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg bg-card border-2 border-border text-sm font-mono shadow-xs hover:border-primary/50 transition-colors"
                                   >
                                     <Icon name="inventory_2" size={15} className="text-primary shrink-0" />
                                     <span className="font-black text-foreground">
@@ -557,7 +568,7 @@ export const MixingTerminalPage: React.FC = () => {
                             <Button
                               type="button"
                               onClick={() => handleOpenMixQrs(mix)}
-                              className="gap-2 font-black shadow bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 text-xs sm:text-sm rounded-xl"
+                              className="gap-2 font-black shadow bg-primary text-primary-foreground hover:bg-primary/90 min-h-12 px-4 text-base rounded-xl"
                             >
                               <Icon name="qr_code" size={18} />
                               <span>Ver / Reimprimir QR</span>

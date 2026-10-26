@@ -73,6 +73,7 @@ export const FinancialDashboard = () => {
 
   const kpis = data?.kpis || {};
   const inventoryByArea = data?.charts?.inventoryByArea || [];
+  const directExpensesByArea = data?.charts?.directExpensesByArea || [];
   const investmentVsLoss = data?.charts?.investmentVsLoss || [];
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -119,7 +120,7 @@ export const FinancialDashboard = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
           <Card className="h-[400px] shadow-sm flex flex-col">
             <CardHeader className="pb-2 border-b border-border/50">
-              <CardTitle className="text-lg font-bold">Valor de Inventario por Ubicación</CardTitle>
+              <CardTitle className="text-lg font-bold">Inventario y materia prima en WIP por área</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 p-0 pb-4 pt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -181,6 +182,30 @@ export const FinancialDashboard = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
+          <Card className="h-[360px] shadow-sm flex flex-col">
+            <CardHeader className="pb-2 border-b border-border/50">
+              <CardTitle className="text-lg font-bold">Consumo directo de consumibles por área</CardTitle>
+              <p className="text-xs text-muted-foreground">Costo surtido a gasto operativo, sin índice de transformación.</p>
+            </CardHeader>
+            <CardContent className="flex-1 p-0 pb-4 pt-4 pr-6">
+              {directExpensesByArea.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Aún no hay consumos directos valorizados.</div>
+              ) : <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={directExpensesByArea} margin={{ top: 16, right: 20, left: 16, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="name" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke={axisColor} fontSize={12} tickFormatter={(value) => `$${value / 1000}k`} tickLine={false} axisLine={false} />
+                  <RechartsTooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', fontWeight: 'bold' }} itemStyle={{ color: axisColor }} />
+                  <Bar dataKey="value" name="Consumo directo" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>}
             </CardContent>
           </Card>
         </motion.div>

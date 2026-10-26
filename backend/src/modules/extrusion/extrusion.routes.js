@@ -2,6 +2,7 @@ const express = require('express');
 const extrusionController = require('./extrusion.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
+const requireFinancialAccess = require('../../middlewares/financialAccess.middleware');
 
 const router = express.Router();
 
@@ -42,6 +43,8 @@ router.get('/mix-requests', authorizePermission('extrusion.formulas.view', 'extr
 router.post('/queue/switch', extrusionController.switchQueue);
 router.post('/rack/scan', extrusionController.scanRack);
 router.get('/queue', extrusionController.getQueues);
+router.get('/purge-materials', extrusionController.getPurgeMaterials);
+router.get('/purge-materials/:materialId/lotes', extrusionController.getPurgeMaterialLots);
 router.post('/queue/enqueue', extrusionController.enqueueMix);
 router.get('/racks', extrusionController.getRacks);
 router.post('/racks', extrusionController.createRack);
@@ -61,25 +64,30 @@ router.delete('/pti-products/:id', extrusionController.deletePtiProduct);
 // Merma / Scrap y Balance de Masa
 router.post('/scrap', extrusionController.registerScrap);
 router.get('/scrap-logs', extrusionController.getScrapLogs);
+router.patch('/scrap/:id/weigh', extrusionController.adjustScrapWeight);
+router.post('/shifts/close', extrusionController.closeExtrusionShift);
+router.patch('/production/:id', extrusionController.adjustProductionEntry);
 router.get('/mass-balance/:mixQr', extrusionController.getMassBalance);
+router.get('/wip/inventory', extrusionController.getExtrusionWip);
 
 // Precios de Rack / PTI y Valorización (Puntos 3, 5, 6, 7)
 router.put('/racks/:id/price', extrusionController.updatePtiRackPrice);
-router.get('/valuation', extrusionController.getExtrusionValuation);
+router.get('/valuation', requireFinancialAccess, extrusionController.getExtrusionValuation);
 
 // División de contenedores y transiciones espontáneas (Puntos 2, 4)
 router.post('/mix/split-containers', extrusionController.splitMixtureContainers);
 router.post('/mixture-transition', extrusionController.recordMixtureTransition);
 
 // ==========================================
-// CATÁLOGO DE MÁQUINAS (EXTRUSORAS) & SILOS (FASE 2)
+// CATÁLOGO DE MÁQUINAS (EXTRUSORAS)
 // ==========================================
 router.get('/machines', extrusionController.getMachines);
 router.put('/machines/:id', extrusionController.updateMachine);
 router.put('/machines/:id/formulas', extrusionController.updateMachineFormulaCompatibility);
-router.put('/machines/:id/modo-silo', extrusionController.toggleModoSilo);
-router.put('/machines/:id/silo', extrusionController.assignExtruderSilo);
 router.get('/silos', extrusionController.getSilos);
+router.post('/silos', extrusionController.createSilo);
+router.put('/silos/:id', extrusionController.updateSilo);
+router.delete('/silos/:id', extrusionController.deleteSilo);
 router.post('/silos/invoice-entry', extrusionController.receiveSiloInvoiceEntry);
 
 module.exports = router;

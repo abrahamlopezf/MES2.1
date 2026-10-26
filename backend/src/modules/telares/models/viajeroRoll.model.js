@@ -33,6 +33,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      shift_supervisor_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       meters: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
@@ -66,6 +70,49 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.JSON,
         allowNull: false,
         defaultValue: [],
+      },
+      loom_number: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      shift_number: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      roll_sequence: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      operator_nomina: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      cost_transformation_index: {
+        type: DataTypes.DECIMAL(8, 4),
+        allowNull: false,
+        defaultValue: 1.0000,
+      },
+      calculated_roll_cost: {
+        type: DataTypes.DECIMAL(14, 4),
+        allowNull: true,
+        defaultValue: 0.0000,
+      },
+      cost_data_complete: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      ounces_yd2: {
+        type: DataTypes.DECIMAL(6, 2),
+        allowNull: true,
+      },
+      fabric_type: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+      },
+      tape_color: {
+        type: DataTypes.STRING(80),
+        allowNull: true,
       },
       status: {
         type: DataTypes.STRING(50),

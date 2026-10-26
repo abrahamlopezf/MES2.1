@@ -23,6 +23,7 @@ import {
 } from '../../../extrusion/hooks/useExtrusionFloorQueries';
 import { toast } from 'sonner';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface SessionRoll {
   rollIndex: number;
@@ -34,13 +35,14 @@ interface SessionRoll {
 }
 
 export const ExtrusionTerminalPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const isNewRackRoute = location.pathname.includes('/rack/new');
   const qrFromUrl = searchParams.get('qr') || '';
+  const rackQrFromUrl = searchParams.get('rackQr') || '';
   const feedQrFromUrl = searchParams.get('feedQr') || '';
   const savedSessionMachineId = (() => {
     try {
@@ -71,6 +73,21 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
   const { data: ptiProducts = [] } = usePtiProductsQuery({ is_active: true });
 
+  useEffect(() => {
+    if (!rackQrFromUrl || isRacksLoading) return;
+    const clean = rackQrFromUrl.trim().toUpperCase();
+    const rack = racks.find((item) => [item.qr_code, item.rack_code].some((value) => String(value || '').toUpperCase() === clean));
+    if (rack) {
+      setRackId(rack.rack_code || rack.qr_code);
+      toast.success(`Rack ${rack.rack_code} identificado. Registra aquí las bobinas producidas.`);
+    } else {
+      toast.error('El QR escaneado no corresponde a un rack registrado de Extrusión.');
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('rackQr');
+    setSearchParams(next, { replace: true });
+  }, [rackQrFromUrl, isRacksLoading, racks, searchParams, setSearchParams]);
+
   // Mutaciones Reales de MES
   const switchMutation = useSwitchQueueMutation();
   const enqueueMutation = useEnqueueMixMutation();
@@ -83,10 +100,10 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [feedQr, setFeedQr] = useState(feedQrFromUrl);
   const [selectedRecipeId, setSelectedRecipeId] = useState<number | ''>('');
   const [selectedQueueToSwitch, setSelectedQueueToSwitch] = useState<number | ''>('');
-  const [purgeScrapWeight, setPurgeScrapWeight] = useState<number | ''>(0.5);
 
   // Estados de Registro Directo de Carretes en Rack PTI (Sin QR Virgen)
   const [rackId, setRackId] = useState('QR-RACK-004');
+  const [generatedRackQr, setGeneratedRackQr] = useState<{ rackCode: string; qrCode: string } | null>(null);
   const [piecesInput, setPiecesInput] = useState<string>('1');
   const [weightInput, setWeightInput] = useState<string>('6.80');
   const [sessionRolls, setSessionRolls] = useState<SessionRoll[]>([]);
@@ -252,7 +269,16 @@ export const ExtrusionTerminalPage: React.FC = () => {
     }
 
     // Caso Rack Virgen / Vacío
-    const isVacio = selectedRack.status === 'VACIO' || currentQty === 0 || !selectedRack.current_pti_type_id;
+    // A missing PTI id is not enough to call a rack empty: legacy/imported racks
+    // can have pieces and a product label without the typed relation populated.
+    const hasProductLabel = Boolean(
+      selectedRack.pti_product_name && selectedRack.pti_product_name.trim().toLowerCase() !== 'libre'
+    );
+    const isVacio =
+      currentQty === 0 &&
+      !selectedRack.current_pti_type_id &&
+      !selectedRack.currentPtiProduct?.formula_id &&
+      !hasProductLabel;
     if (isVacio) {
       return {
         isReady: true,
@@ -265,16 +291,19 @@ export const ExtrusionTerminalPage: React.FC = () => {
     }
 
     // Caso Rack con material previo: Verificación de correspondencia con el PTI de la mezcla
-    const rackPtiId = Number(selectedRack.current_pti_type_id);
+    const rackPtiProductId = Number(selectedRack.current_pti_product_id || selectedRack.currentPtiProduct?.id || 0);
     const expectedPtiId = expectedPti ? Number(expectedPti.id) : null;
-    const expectedMatId = expectedPti?.material_id ? Number(expectedPti.material_id) : null;
     const rackFormulaId = selectedRack.currentPtiProduct?.formula_id ? Number(selectedRack.currentPtiProduct.formula_id) : null;
     const activeFormulaId = activeQueue.formula?.id ? Number(activeQueue.formula.id) : null;
+    const rackProductName = (selectedRack.pti_product_name || selectedRack.currentPtiProduct?.name || '').trim().toLowerCase();
+    const expectedProductName = (expectedPti?.name || '').trim().toLowerCase();
 
     const isMatch =
-      (expectedPtiId && rackPtiId === expectedPtiId) ||
-      (expectedMatId && rackPtiId === expectedMatId) ||
-      (rackFormulaId && activeFormulaId && rackFormulaId === activeFormulaId);
+      (expectedPtiId && rackPtiProductId === expectedPtiId) ||
+      (rackFormulaId && activeFormulaId && rackFormulaId === activeFormulaId) ||
+      (rackProductName && rackProductName !== 'libre' && rackProductName === expectedProductName);
+
+    const rackPtiId = rackPtiProductId || Number(selectedRack.current_pti_type_id || 0);
 
     const rackMaterialName =
       selectedRack.pti_product_name ||
@@ -307,6 +336,12 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const handleStartExtrusion = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (activeQueue) {
+      toast.info('Clasifica la merma de transición desde el Tablero de Colas antes de activar otra mezcla.');
+      navigate('/extrusion/board');
+      return;
+    }
+
     if (!selectedMachineId) {
       toast.error('Seleccione una máquina extrusora.');
       return;
@@ -317,7 +352,6 @@ export const ExtrusionTerminalPage: React.FC = () => {
       if (selectedQueueToSwitch) {
         await switchMutation.mutateAsync({
           queue_id: Number(selectedQueueToSwitch),
-          scrap_weight_kg: Number(purgeScrapWeight) || 0.1,
         });
 
         toast.success(`Contenedor activado en ${currentGroup?.machine.name || 'Extrusora'}. Tolva alimentada.`);
@@ -342,7 +376,6 @@ export const ExtrusionTerminalPage: React.FC = () => {
       if (existingInWait) {
         await switchMutation.mutateAsync({
           queue_id: existingInWait.id,
-          scrap_weight_kg: Number(purgeScrapWeight) || 0.1,
         });
         toast.success(`Mezcla ${cleanQr} activada en ${currentGroup?.machine.name}.`);
       } else {
@@ -365,7 +398,6 @@ export const ExtrusionTerminalPage: React.FC = () => {
         if (enqueued?.id) {
           await switchMutation.mutateAsync({
             queue_id: enqueued.id,
-            scrap_weight_kg: Number(purgeScrapWeight) || 0.1,
           });
         }
         toast.success(`Extrusión iniciada exitosamente para ${cleanQr} en ${currentGroup?.machine.name}.`);
@@ -413,9 +445,10 @@ export const ExtrusionTerminalPage: React.FC = () => {
     }
 
     const effectivePtiId =
-      selectedRack.current_pti_type_id ||
-      expectedPti?.material_id ||
+      selectedRack.current_pti_product_id ||
+      selectedRack.currentPtiProduct?.id ||
       expectedPti?.id ||
+      selectedRack.current_pti_type_id ||
       1;
 
     try {
@@ -466,14 +499,14 @@ export const ExtrusionTerminalPage: React.FC = () => {
     if (!rackId.trim()) return;
 
     try {
-      await createRackMutation.mutateAsync({
+      const createdRack = await createRackMutation.mutateAsync({
         rack_code: rackId.trim().toUpperCase(),
         max_capacity: 100,
         location_name: 'Piso de Extrusión',
       });
 
-      toast.success(`Rack ${rackId.trim().toUpperCase()} inicializado exitosamente en planta.`);
-      navigate('/production/extrusion');
+      setGeneratedRackQr({ rackCode: createdRack.rack_code, qrCode: createdRack.qr_code });
+      toast.success(`Rack ${createdRack.rack_code} inicializado. Imprime y coloca su QR fijo.`);
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Error al inicializar Rack.';
       toast.error(msg);
@@ -581,6 +614,36 @@ export const ExtrusionTerminalPage: React.FC = () => {
             </form>
           </CardContent>
         </Card>
+        {generatedRackQr && (
+          <Card className="max-w-2xl mx-auto w-full border-border shadow-sm">
+            <CardContent className="p-6 flex flex-col items-center gap-4 text-center">
+              <div className="pti-rack-printable rounded-lg bg-white p-5 text-slate-950">
+                <QRCodeSVG value={generatedRackQr.qrCode} size={220} level="M" includeMargin />
+                <div className="mt-2 text-lg font-black">{generatedRackQr.rackCode}</div>
+                <div className="text-xs font-semibold">RACK PTI · EXTRUSIÓN</div>
+              </div>
+              <div>
+                <p className="font-bold text-foreground">QR fijo del rack generado</p>
+                <p className="text-sm text-muted-foreground">Este mismo QR identifica el rack durante todas sus cargas y transferencias.</p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button type="button" onClick={() => {
+                  document.body.classList.add('pti-rack-qr-printing');
+                  window.onafterprint = () => {
+                    document.body.classList.remove('pti-rack-qr-printing');
+                    window.onafterprint = null;
+                  };
+                  window.print();
+                }} className="gap-2 font-bold">
+                  <Icon name="print" size={17} /> Imprimir QR fijo
+                </Button>
+                <Button type="button" variant="outline" onClick={() => navigate('/production/extrusion')}>
+                  Abrir terminal de Extrusión
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }
@@ -713,7 +776,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                 >
                   {queuesGroups.map((g) => (
                     <option key={g.machine.id} value={g.machine.id}>
-                      {g.machine.name} {g.active ? '• [CORRIENDO]' : '• [DISPONIBLE]'} ({g.waiting.length} en cola)
+                      {g.machine.name} {g.active ? '• [CORRIENDO]' : '• [DISPONIBLE]'} ({g.waiting.length} en espera)
                     </option>
                   ))}
                 </select>
@@ -878,27 +941,12 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
                   {/* Merma de Purga en caso de cambio de mezcla */}
                   {activeQueue && (
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                        <span>Merma de Purga Estimada *</span>
-                        <span className="font-mono text-[11px] font-bold text-primary">PURGA / TRANSICIÓN</span>
-                      </label>
-                      <div className="flex items-stretch rounded-lg border border-border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={purgeScrapWeight}
-                          onChange={(e) =>
-                            setPurgeScrapWeight(e.target.value === '' ? '' : parseFloat(e.target.value))
-                          }
-                          className="w-full h-10 bg-transparent px-3 text-right font-mono font-bold text-sm text-foreground outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          placeholder="0.5"
-                        />
-                        <div className="flex items-center justify-center px-3 bg-muted/40 border-l border-border text-xs font-bold text-muted-foreground uppercase select-none shrink-0">
-                          KG
-                        </div>
-                      </div>
+                    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                      <p className="text-xs font-semibold text-foreground">El cambio requiere separar la merma de mezcla anterior, mezcla nueva, mezcla combinada o material de purga.</p>
+                      <Button type="button" variant="outline" onClick={() => navigate('/extrusion/board')} className="w-full gap-2">
+                        <Icon name="view_kanban" size={16} />
+                        Clasificar transición en Tablero de Colas
+                      </Button>
                     </div>
                   )}
 
@@ -1059,12 +1107,23 @@ export const ExtrusionTerminalPage: React.FC = () => {
                     className="w-full h-11 bg-background border border-border rounded-xl px-3 text-xs sm:text-sm font-bold font-mono text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all cursor-pointer disabled:opacity-70"
                   >
                     {racks.map((r) => {
-                      const isVacio = r.status === 'VACIO' || Number(r.current_quantity) === 0 || !r.current_pti_type_id;
-                      const isRackMatch = expectedPti && (
-                        Number(r.current_pti_type_id) === Number(expectedPti.id) ||
-                        Number(r.current_pti_type_id) === Number(expectedPti.material_id) ||
-                        Number(r.currentPtiProduct?.formula_id) === Number(activeQueue?.formula?.id)
+                      const currentQty = Number(r.current_quantity) || 0;
+                      const hasProductLabel = Boolean(
+                        r.pti_product_name && r.pti_product_name.trim().toLowerCase() !== 'libre'
                       );
+                      const isVacio =
+                        currentQty === 0 &&
+                        !r.current_pti_type_id &&
+                        !r.currentPtiProduct?.formula_id &&
+                        !hasProductLabel;
+                      const rackPtiProductId = Number(r.current_pti_product_id || r.currentPtiProduct?.id || 0);
+                      const rackProductName = (r.pti_product_name || r.currentPtiProduct?.name || '').trim().toLowerCase();
+                      const expectedProductName = (expectedPti?.name || '').trim().toLowerCase();
+                      const isRackMatch = Boolean(expectedPti && (
+                        (rackPtiProductId && rackPtiProductId === Number(expectedPti.id)) ||
+                        (Number(r.currentPtiProduct?.formula_id) && Number(r.currentPtiProduct?.formula_id) === Number(activeQueue?.formula?.id)) ||
+                        (rackProductName && rackProductName !== 'libre' && rackProductName === expectedProductName)
+                      ));
                       const tag = r.status === 'LLENO' ? '[LLENO]' : isVacio ? '[LIBRE]' : isRackMatch ? '[COMPATIBLE]' : '[NO COINCIDE]';
                       return (
                         <option key={r.id} value={r.rack_code || r.qr_code}>

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useGenerateBatchMutation } from '../hooks/useGenerateBatchMutation';
 import { useIdentityBatchesQuery, downloadBatchPdf, downloadQrPdf } from '../hooks/useIdentityBatches';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from 'lucide-react';
@@ -27,18 +27,46 @@ const generateBatchSchema = z.object({
 
 type GenerateBatchFormValues = z.infer<typeof generateBatchSchema>;
 
+import { isSupervisorUser } from '../../../../utils/authHelpers';
+
 export function GenerateBatchPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const userRoleCode = (user?.role?.code || '').toUpperCase();
   const isAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(userRoleCode);
+  const isSupervisor = isSupervisorUser(user);
+  
+  const isWarehouseUser = !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
+                          user?.area?.code === 'ALMACEN' || 
+                          user?.area?.code === 'ALM');
+  const isExtrusionAdmin = !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRoleCode) || 
+                           user?.area?.code === 'EXTRUSION');
   
   const mutation = useGenerateBatchMutation();
   const { data: allBatches, isLoading: loadingBatches } = useIdentityBatchesQuery();
   
-  // Si no es admin global, filtramos los lotes para que solo vea los de su área o creados por él
+  // Si es supervisor: REGLA ESTRICTA - Solo puede ver los lotes creados por él
   const batches = useMemo(() => {
     if (!allBatches) return [];
     if (isAdmin) return allBatches;
+    if (isSupervisor) {
+      return allBatches.filter(b => {
+        const bCreatorId = b.created_by || b.creator_id || b.creator?.id;
+        return bCreatorId && user?.id && Number(bCreatorId) === Number(user.id);
+      });
+    }
+    if (isWarehouseUser) {
+      return allBatches.filter(b => {
+        const bArea = (b.areaId || b.area_code || b.area_id || '').toString().toUpperCase();
+        return bArea === 'ALM' || bArea === 'ALMACEN' || bArea === '1';
+      });
+    }
+    if (isExtrusionAdmin) {
+      return allBatches.filter(b => {
+        const bArea = (b.areaId || b.area_code || b.area_id || '').toString().toUpperCase();
+        return bArea === 'EXT' || bArea === 'EXTRUSION' || bArea === '2';
+      });
+    }
     const userAreaCode = (user?.area?.code || '').toUpperCase();
     const mappedNomenclature = mapBackendAreaToNomenclature(userAreaCode);
     return allBatches.filter(b => {
@@ -51,7 +79,7 @@ export function GenerateBatchPage() {
         (bCreatorId && user?.id && Number(bCreatorId) === Number(user.id))
       );
     });
-  }, [allBatches, isAdmin, user]);
+  }, [allBatches, isAdmin, isSupervisor, isWarehouseUser, isExtrusionAdmin, user]);
 
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
   const expandedBatch = useMemo(() => {
@@ -73,7 +101,9 @@ export function GenerateBatchPage() {
     return mapping[backendCode] || 'ALM';
   };
 
-  const defaultArea = isAdmin ? nomenclature.areas[0].id : mapBackendAreaToNomenclature(user?.area?.code);
+  const defaultArea = isAdmin 
+    ? nomenclature.areas[0].id 
+    : mapBackendAreaToNomenclature(user?.area?.code || user?.role?.area?.code || (userRoleCode.includes('TELARES') ? 'TELARES' : userRoleCode.includes('EXTRUSION') ? 'EXTRUSION' : 'ALMACEN'));
   const defaultSubArea = isAdmin ? (nomenclature.areas[0].subcategories[0]?.id || '') : (user?.subarea?.code || '');
 
   const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<GenerateBatchFormValues>({
@@ -88,7 +118,15 @@ export function GenerateBatchPage() {
   const selectedMainAreaId = watch('mainAreaId');
   const selectedSubAreaId = watch('subAreaId');
 
-  const availableAreas = nomenclature.areas;
+  const availableAreas = useMemo(() => {
+    if (isWarehouseUser) {
+      return nomenclature.areas.filter(a => a.id === 'ALM');
+    }
+    if (isExtrusionAdmin) {
+      return nomenclature.areas.filter(a => a.id === 'EXT');
+    }
+    return nomenclature.areas;
+  }, [isWarehouseUser, isExtrusionAdmin]);
   const availableSubcategories = useMemo(() => {
     if (selectedMainAreaId === 'EXT') {
       const extArea = availableAreas.find(a => a.id === 'EXT');

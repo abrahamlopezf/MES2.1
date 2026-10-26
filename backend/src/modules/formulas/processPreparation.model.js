@@ -49,6 +49,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
+      cost_index_snapshot: { type: DataTypes.DECIMAL(8, 4), allowNull: true },
+      material_cost_snapshot: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
+      transformed_value_snapshot: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
+      transformed_cost_per_kg: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+      cost_valuation_status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'PENDIENTE' },
+      formula_snapshot: { type: DataTypes.JSONB, allowNull: true },
+      remaining_quantity_kg: { type: DataTypes.DECIMAL(14, 3), allowNull: true },
+
       unit: {
         type: DataTypes.STRING(20),
         allowNull: false,

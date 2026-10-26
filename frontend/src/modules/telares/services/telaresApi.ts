@@ -5,9 +5,20 @@ import {
   LoomRun,
   ViajeroRoll,
   ValidateViajeroScanResponse,
+  TejidoOperator,
 } from '../types/telares.types';
 
 export const telaresApi = {
+  getPtiRacks: async (): Promise<any[]> => {
+    const response = await axiosClient.get('/telares/pti-racks');
+    return response.data.data || [];
+  },
+
+  getPtiTransferMode: async (): Promise<{ transfer_mode: 'RACK_PARTIAL' | 'CART_FULL' }> => {
+    const response = await axiosClient.get('/telares/pti-transfer-mode');
+    return response.data;
+  },
+
   getLooms: async (): Promise<Loom[]> => {
     const response = await axiosClient.get('/telares/looms');
     return response.data;
@@ -15,6 +26,26 @@ export const telaresApi = {
 
   getBoms: async (): Promise<ProductionBom[]> => {
     const response = await axiosClient.get('/telares/boms');
+    return response.data;
+  },
+
+  getOperators: async (includeInactive = true): Promise<TejidoOperator[]> => {
+    const response = await axiosClient.get(`/telares/operators${includeInactive ? '?all=true' : ''}`);
+    return response.data;
+  },
+
+  createOperator: async (payload: Partial<TejidoOperator> & { password?: string }): Promise<TejidoOperator> => {
+    const response = await axiosClient.post('/telares/operators', payload);
+    return response.data;
+  },
+
+  updateOperator: async (id: number, payload: Partial<TejidoOperator> & { password?: string }): Promise<TejidoOperator> => {
+    const response = await axiosClient.put(`/telares/operators/${id}`, payload);
+    return response.data;
+  },
+
+  deleteOperator: async (id: number): Promise<any> => {
+    const response = await axiosClient.delete(`/telares/operators/${id}`);
     return response.data;
   },
 
@@ -30,11 +61,24 @@ export const telaresApi = {
     return response.data;
   },
 
+  loadCreel: async (payload: {
+    loom_id: number;
+    rack_id: number;
+    spools_to_load: number;
+  }): Promise<any> => {
+    const response = await axiosClient.post(`/telares/looms/${payload.loom_id}/load-creel`, {
+      rack_id: payload.rack_id,
+      spools_to_load: payload.spools_to_load,
+    });
+    return response.data;
+  },
+
   startRun: async (payload: {
     loom_id: number;
     bom_id: number;
     shift: string;
     meters_planned?: number;
+    weight_planned_kg?: number;
     notes?: string;
   }): Promise<LoomRun> => {
     const response = await axiosClient.post('/telares/runs/start', payload);
@@ -47,6 +91,17 @@ export const telaresApi = {
     weight_kg: number;
     custom_route?: string[];
     notes?: string;
+    shift_number?: number;
+    operator_nomina?: string;
+    shift_supervisor_id: number;
+    operator_segments: Array<{
+      operator_id: number;
+      shift_number: number;
+      meters_start: number;
+      meters_end: number;
+      weight_start_kg?: number;
+      weight_end_kg?: number;
+    }>;
   }): Promise<{
     success: boolean;
     roll: ViajeroRoll;
@@ -84,6 +139,31 @@ export const telaresApi = {
 
   getViajeroDetails: async (qr_code: string): Promise<ViajeroRoll> => {
     const response = await axiosClient.get(`/telares/viajero/${encodeURIComponent(qr_code)}`);
+    return response.data;
+  },
+
+  getWipSummary: async (): Promise<import('../types/telares.types').WipSummaryResponse> => {
+    const response = await axiosClient.get('/telares/wip-summary');
+    return response.data;
+  },
+
+  transferCart: async (payload: {
+    loom_id: number;
+    rack_id?: number;
+    cart_qr?: string;
+    spools_to_load?: number;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    loom: any;
+    rack: any;
+  }> => {
+    const response = await axiosClient.post('/telares/transfer-cart', payload);
+    return response.data;
+  },
+
+  updatePtiTransferMode: async (transfer_mode: 'RACK_PARTIAL' | 'CART_FULL'): Promise<{ success: boolean; transfer_mode: 'RACK_PARTIAL' | 'CART_FULL' }> => {
+    const response = await axiosClient.put('/telares/pti-transfer-mode', { transfer_mode });
     return response.data;
   },
 };

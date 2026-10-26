@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import axiosClient from '@/api/axiosClient';
 import {
   useExtruderQueuesQuery,
   useFloorFormulasQuery,
@@ -27,6 +29,10 @@ export const ExtrusionBoardContainer: React.FC = () => {
 
   const switchMutation = useSwitchQueueMutation();
   const enqueueMutation = useEnqueueMixMutation();
+  const { data: purgeMaterials = [] } = useQuery({
+    queryKey: ['extrusion', 'purge-materials'],
+    queryFn: async () => (await axiosClient.get('/extrusion/purge-materials')).data.data || [],
+  });
 
   // Integración de Recuperación e Impresión de Etiquetas QR de Contenedores
   const { fetchMixContainersByQrOrFolio } = useExtrusionMixing();
@@ -51,7 +57,20 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [targetQueue, setTargetQueue] = useState<ExtruderQueue | null>(null);
   const [activeQueue, setActiveQueue] = useState<ExtruderQueue | null>(null);
-  const [scrapWeight, setScrapWeight] = useState('');
+  const [prioritizeFormulaId, setPrioritizeFormulaId] = useState<number | null>(null);
+  const [scrapAnteriorWeight, setScrapAnteriorWeight] = useState('');
+  const [scrapNuevaWeight, setScrapNuevaWeight] = useState('');
+  const [scrapMixtaWeight, setScrapMixtaWeight] = useState('');
+  const [fromMixShare, setFromMixShare] = useState('');
+  const [shiftCode, setShiftCode] = useState('TURNO_1');
+  const [purgeWeight, setPurgeWeight] = useState('');
+  const [purgeMaterialId, setPurgeMaterialId] = useState<number | ''>('');
+  const [purgeLoteId, setPurgeLoteId] = useState<number | ''>('');
+  const { data: purgeLots = [] } = useQuery({
+    queryKey: ['extrusion', 'purge-lots', purgeMaterialId],
+    queryFn: async () => (await axiosClient.get('/extrusion/purge-materials/' + purgeMaterialId + '/lotes')).data.data || [],
+    enabled: Boolean(purgeMaterialId),
+  });
 
   // State para Modal de Encolar
   const [isEnqueueModalOpen, setIsEnqueueModalOpen] = useState(false);
@@ -85,10 +104,17 @@ export const ExtrusionBoardContainer: React.FC = () => {
     return false;
   };
 
-  const handleOpenSwitchModal = (target: ExtruderQueue, active: ExtruderQueue | null) => {
+  const handleOpenSwitchModal = (target: ExtruderQueue, active: ExtruderQueue | null, formulaId?: number) => {
     setTargetQueue(target);
     setActiveQueue(active);
-    setScrapWeight('');
+    setPrioritizeFormulaId(formulaId ?? null);
+    setScrapAnteriorWeight('');
+    setScrapNuevaWeight('');
+    setScrapMixtaWeight('');
+    setFromMixShare('');
+    setPurgeWeight('');
+    setPurgeMaterialId('');
+    setPurgeLoteId('');
     setIsSwitchModalOpen(true);
   };
 
@@ -96,26 +122,69 @@ export const ExtrusionBoardContainer: React.FC = () => {
     setIsSwitchModalOpen(false);
     setTargetQueue(null);
     setActiveQueue(null);
-    setScrapWeight('');
+    setPrioritizeFormulaId(null);
+    setScrapAnteriorWeight('');
+    setScrapNuevaWeight('');
+    setScrapMixtaWeight('');
+    setFromMixShare('');
   };
 
   const handleConfirmSwitch = async () => {
     if (!targetQueue) return;
 
-    const scrap = Number(scrapWeight);
-    if (!scrap || scrap <= 0) {
-      toast.error('Debe ingresar un peso de merma de purga mayor a 0 kg para efectuar la transición.');
+    const previousScrap = Number(scrapAnteriorWeight) || 0;
+    const nextScrap = Number(scrapNuevaWeight) || 0;
+    const mixedScrap = Number(scrapMixtaWeight) || 0;
+    const purge = Number(purgeWeight) || 0;
+    if ([previousScrap, nextScrap, mixedScrap, purge].some((weight) => !Number.isFinite(weight) || weight < 0)) {
+      toast.error('Los pesos de merma deben ser números iguales o mayores a cero.');
       return;
     }
+    if (previousScrap <= 0 && nextScrap <= 0 && mixedScrap <= 0 && purge <= 0) {
+      toast.error('Registra la merma estimada de cada origen y/o el material de purga.');
+      return;
+    }
+    if (purge > 0 && (!purgeMaterialId || !purgeLoteId)) {
+      toast.error('Selecciona el material y lote utilizado para purgar el husillo.');
+      return;
+    }
+    if (mixedScrap > 0 && (!Number.isFinite(Number(fromMixShare)) || Number(fromMixShare) <= 0 || Number(fromMixShare) >= 100)) {
+      toast.error('Indica una proporción estimada mayor a 0% y menor a 100% para la mezcla anterior.');
+      return;
+    }
+
+    const colorsOf = (queue: ExtruderQueue | null) => [...new Set((queue?.formula?.ptiProducts || []).filter((pti) => pti.is_active && pti.color).map((pti) => pti.color!.trim()).filter(Boolean))];
+    const previousColors = colorsOf(activeQueue);
+    const nextColors = colorsOf(targetQueue);
+    const scrapItems: any[] = [];
+    if (previousScrap > 0) scrapItems.push({ category: 'MEZCLA_ANTERIOR', estimated_weight_kg: previousScrap, color: previousColors.join(', ') || 'Color anterior no definido' });
+    if (nextScrap > 0) scrapItems.push({ category: 'MEZCLA_NUEVA', estimated_weight_kg: nextScrap, color: nextColors.join(', ') || 'Color nuevo no definido' });
+    if (mixedScrap > 0) scrapItems.push({
+      category: 'MEZCLA_MIXTA',
+      estimated_weight_kg: mixedScrap,
+      color: 'Anterior: ' + (previousColors.join(', ') || 'sin color ligado') + ' → Nueva: ' + (nextColors.join(', ') || 'sin color ligado'),
+      from_mix_share: Number(fromMixShare),
+      to_mix_share: 100 - Number(fromMixShare),
+    });
+    if (purge > 0) scrapItems.push({
+      category: 'MATERIAL_PURGA',
+      estimated_weight_kg: purge,
+      source_material_id: Number(purgeMaterialId),
+      source_lote_id: Number(purgeLoteId),
+      color: 'MATERIAL DE PURGA',
+      notes: 'Material usado para purgar el husillo. Fórmula entrante: ' + (nextColors.join(', ') || 'color no definido') + '.',
+    });
 
     try {
       await switchMutation.mutateAsync({
         queue_id: targetQueue.id,
-        scrap_weight_kg: scrap
+        ...(prioritizeFormulaId == null ? {} : { prioritize_formula_id: prioritizeFormulaId }),
+        scrap_items: scrapItems,
+        shift_code: shiftCode
       });
 
       toast.success(
-        `Transición completada: ${targetQueue.consumption_order_qr_id} activada. Purga registrada: ${scrap} kg.`
+        'Transición completada: ' + targetQueue.consumption_order_qr_id + ' activada. Merma estimada total: ' + (previousScrap + nextScrap + mixedScrap + purge) + ' kg.'
       );
       handleCloseSwitchModal();
     } catch (error: any) {
@@ -194,8 +263,24 @@ export const ExtrusionBoardContainer: React.FC = () => {
       isSwitchModalOpen={isSwitchModalOpen}
       targetQueue={targetQueue}
       activeQueue={activeQueue}
-      scrapWeight={scrapWeight}
-      onScrapWeightChange={setScrapWeight}
+      scrapAnteriorWeight={scrapAnteriorWeight}
+      onScrapAnteriorWeightChange={setScrapAnteriorWeight}
+      scrapNuevaWeight={scrapNuevaWeight}
+      onScrapNuevaWeightChange={setScrapNuevaWeight}
+      scrapMixtaWeight={scrapMixtaWeight}
+      onScrapMixtaWeightChange={setScrapMixtaWeight}
+      fromMixShare={fromMixShare}
+      onFromMixShareChange={setFromMixShare}
+      purgeWeight={purgeWeight}
+      onPurgeWeightChange={setPurgeWeight}
+      purgeMaterialId={purgeMaterialId}
+      onPurgeMaterialChange={(value) => { setPurgeMaterialId(value); setPurgeLoteId(''); }}
+      purgeLoteId={purgeLoteId}
+      onPurgeLoteChange={setPurgeLoteId}
+      purgeMaterials={purgeMaterials}
+      purgeLots={purgeLots}
+      shiftCode={shiftCode}
+      onShiftCodeChange={setShiftCode}
       onOpenSwitchModal={handleOpenSwitchModal}
       onCloseSwitchModal={handleCloseSwitchModal}
       onConfirmSwitch={handleConfirmSwitch}

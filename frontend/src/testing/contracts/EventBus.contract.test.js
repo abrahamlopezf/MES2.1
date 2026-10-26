@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EventBus } from '../../../core/platform/EventBus/EventBus';
+import { EventBus } from '../../core/platform/EventBus/EventBus';
 
 describe('EventBus (Contract)', () => {
   it('debe exponer el método emit(event, payload)', () => {

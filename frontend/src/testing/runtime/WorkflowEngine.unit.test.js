@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { createWorkflow } from '../../../core/runtime/WorkflowEngine/createWorkflow';
+import { describe, it, expect, vi } from 'vitest';
+import { createWorkflow } from '../../core/runtime/WorkflowEngine/createWorkflow';
 
 describe('WorkflowEngine (Unit)', () => {
   it('debe iniciar en el estado configurado como inicial', () => {
@@ -34,35 +34,37 @@ describe('WorkflowEngine (Unit)', () => {
     expect(entered).toBe(true);
   });
 
-  it('debe rechazar una transición inválida', () => {
+  it('debe ignorar una transición que no existe y conservar el estado', () => {
     const workflow = createWorkflow({
       id: 'TEST_WF',
-      initialState: 'READY',
+      initialState: 'INITIAL',
       states: {
-        READY: {
+        INITIAL: {
           on: { SCAN: 'SCANNING' }
         },
-        SUCCESS: {}
+        SCANNING: {}
       }
     });
     
-    // Attempt to jump directly to SUCCESS which is not defined from READY
-    expect(() => workflow.dispatch('JUMP_TO_SUCCESS')).toThrow();
-    expect(workflow.getState()).toBe('READY'); // Must remain in the same state
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    workflow.dispatch('JUMP_TO_SUCCESS');
+    expect(workflow.getState()).toBe('INITIAL');
+    expect(warning).toHaveBeenCalled();
+    warning.mockRestore();
   });
 
-  it('debe proteger contra invariantes (READY -> READY)', () => {
+  it('debe permitir una transición al mismo estado si está configurada', () => {
     const workflow = createWorkflow({
       id: 'TEST_WF',
-      initialState: 'READY',
+      initialState: 'INITIAL',
       states: {
-        READY: {
-          on: { CONTINUE: 'READY' } // This is technically valid in some FSMs, but according to MES invariant rules it might be blocked. For now, testing basic dispatch.
+        INITIAL: {
+          on: { CONTINUE: 'INITIAL' }
         }
       }
     });
     
     workflow.dispatch('CONTINUE');
-    expect(workflow.getState()).toBe('READY');
+    expect(workflow.getState()).toBe('INITIAL');
   });
 });

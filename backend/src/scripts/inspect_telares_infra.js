@@ -48,9 +48,9 @@ async function inspect() {
     const [sampleRacks] = await sequelize.query("SELECT * FROM pti_racks LIMIT 5;", { logging: false });
     console.table(sampleRacks);
 
-    console.log('--- COLUMNAS DE WIP_INVENTORIES ---');
-    const [wipCols] = await sequelize.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'wip_inventories'", { logging: false });
-    console.table(wipCols);
+    console.log('--- COLUMNAS DE VIAJERO_ROLLS ---');
+    const [rollCols] = await sequelize.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'viajero_rolls'", { logging: false });
+    console.table(rollCols);
   } catch (err) {
     console.error('ERROR EN INSPECT:', err);
   }

@@ -14,13 +14,13 @@
     --primary: #4338CA; /* Azul Índigo / Petróleo */
     --primary-foreground: #FFFFFF;
 
-    --secondary: #10B981; /* Verde Esmeralda */
-    --secondary-foreground: #FFFFFF;
+    --secondary: #10B981; /* Verde esmeralda con tinta oscura de alto contraste */
+    --secondary-foreground: #052E1B;
 
     --muted: #F1F5F9;
-    --muted-foreground: #64748B;
+    --muted-foreground: #475569;
 
-    --destructive: #EF4444;
+    --destructive: #B91C1C;
     --destructive-foreground: #FFFFFF;
 
     --border: #E2E8F0;
@@ -29,22 +29,22 @@
     --radius: 0.75rem; /* 12px redondeado */
 
     /* Domain specific tokens */
-    --success: #10B981; /* Verde */
+    --success: #15803D; /* Verde con contraste AA */
     --success-foreground: #FFFFFF;
     
-    --warning: #F59E0B; /* Ámbar */
+    --warning: #92400E; /* Ámbar oscuro para texto y superficies */
     --warning-foreground: #FFFFFF;
     
-    --danger: #EF4444; /* Rojo */
+    --danger: #B91C1C; /* Rojo con contraste AA */
     --danger-foreground: #FFFFFF;
     
-    --quality: #8B5CF6; /* Púrpura */
+    --quality: #6D28D9; /* Púrpura con contraste AA */
     --quality-foreground: #FFFFFF;
     
     --material: #0F766E; /* Teal / Petróleo alternativo */
     --material-foreground: #FFFFFF;
     
-    --info: #3B82F6; /* Azul */
+    --info: #1D4ED8; /* Azul con contraste AA */
     --info-foreground: #FFFFFF;
   }
 
@@ -62,37 +62,37 @@
     --primary: #6366F1; /* Indigo 500 */
     --primary-foreground: #FFFFFF;
 
-    --secondary: #10B981; /* Emerald 500 */
-    --secondary-foreground: #FFFFFF;
+    --secondary: #34D399; /* Emerald claro para texto en superficies oscuras */
+    --secondary-foreground: #052E1B;
 
     --muted: #334155; /* Slate 700 */
     --muted-foreground: #94A3B8;
 
     --destructive: #F87171; /* Rojo luminoso de alto contraste para Dark Mode */
-    --destructive-foreground: #FFFFFF;
+    --destructive-foreground: #450A0A;
 
     --border: #334155;
     --input: #334155;
     --ring: #6366F1;
 
     /* Domain specific tokens */
-    --success: #10B981;
-    --success-foreground: #FFFFFF;
+    --success: #34D399;
+    --success-foreground: #052E1B;
     
-    --warning: #F59E0B;
-    --warning-foreground: #FFFFFF;
+    --warning: #FBBF24;
+    --warning-foreground: #451A03;
     
-    --danger: #EF4444;
-    --danger-foreground: #FFFFFF;
+    --danger: #F87171;
+    --danger-foreground: #450A0A;
     
-    --quality: #8B5CF6;
-    --quality-foreground: #FFFFFF;
+    --quality: #C4B5FD;
+    --quality-foreground: #2E1065;
     
-    --material: #14B8A6; /* Teal 500 */
-    --material-foreground: #FFFFFF;
+    --material: #5EEAD4; /* Teal claro para superficies oscuras */
+    --material-foreground: #042F2E;
     
-    --info: #3B82F6;
-    --info-foreground: #FFFFFF;
+    --info: #93C5FD;
+    --info-foreground: #172554;
   }
 
   body {

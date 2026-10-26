@@ -11,6 +11,7 @@ export const EXTRUSION_QUERY_KEYS = {
   racks: ['extrusion', 'racks'] as const,
   formulas: ['extrusion', 'floor-formulas'] as const,
   massBalance: (mixQr: string) => ['extrusion', 'mass-balance', mixQr] as const,
+  wipInventory: ['extrusion', 'wip-inventory'] as const,
 };
 
 export const useExtruderQueuesQuery = () => {
@@ -96,6 +97,12 @@ export const useMassBalanceQuery = (mixtureQr?: string) => {
   });
 };
 
+export const useExtrusionWipQuery = () => useQuery({
+  queryKey: EXTRUSION_QUERY_KEYS.wipInventory,
+  queryFn: extrusionApi.getExtrusionWip,
+  refetchInterval: 15000,
+});
+
 export const useRegisterScrapMutation = () => {
   const queryClient = useQueryClient();
 
@@ -122,7 +129,7 @@ export const useUpdatePtiRackPriceMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ rackId, payload }: { rackId: number; payload: { unit_price?: number; unit_weight_kg?: number } }) =>
+    mutationFn: ({ rackId, payload }: { rackId: number; payload: { unit_price?: number; unit_weight_kg?: number | null } }) =>
       extrusionApi.updatePtiRackPrice(rackId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.racks });
@@ -131,11 +138,12 @@ export const useUpdatePtiRackPriceMutation = () => {
   });
 };
 
-export const useExtrusionValuationQuery = (costIndex?: number) => {
+export const useExtrusionValuationQuery = (costIndex?: number, enabled = true) => {
   return useQuery({
     queryKey: ['extrusion', 'valuation', costIndex],
     queryFn: () => extrusionApi.getExtrusionValuation(costIndex),
     refetchInterval: 15000,
+    enabled,
   });
 };
 

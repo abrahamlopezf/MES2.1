@@ -21,6 +21,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 40000.00,
       },
+      min_capacity_kg: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 5000.00,
+        comment: 'Nivel mínimo de seguridad / punto de reorden para evitar desabasto',
+      },
       current_stock_kg: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,

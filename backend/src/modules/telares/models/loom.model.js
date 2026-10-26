@@ -47,10 +47,44 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      loom_number: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Número de telar del 1 al 21 (para nomenclatura oficial del rollo)',
+      },
+      creel_capacity_spools: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1800,
+        comment: 'Capacidad máxima de bobinas en creel / fileta (hasta 1800 bobinas)',
+      },
+      current_spools_count: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Cantidad actual de bobinas montadas en fileta interna (WIP del telar)',
+      },
+      current_wip_kg: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Peso estimado de hilo cargado en creel (kg)',
+      },
+      total_rolls_produced: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Consecutivo total de rollos producidos en este telar',
+      },
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
+      },
+      subarea_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Subárea de tejido del telar (por ejemplo TELARES BANDA)',
       },
       specifications: {
         type: DataTypes.TEXT,

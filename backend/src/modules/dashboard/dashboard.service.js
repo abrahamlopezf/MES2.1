@@ -126,7 +126,16 @@ class DashboardService {
           [sequelize.literal('SUM(available_amount * COALESCE(unit_cost, 0))'), 'currentValue']
         ]
       });
-      const currentInventoryValue = Number(currentInventoryResult?.get('currentValue') || 0);
+      const warehouseInventoryValue = Number(currentInventoryResult?.get('currentValue') || 0);
+      const [wipInventoryValueRows] = await sequelize.query(`
+        SELECT COALESCE(SUM(w.amount * COALESCE(l.unit_cost, 0)), 0) AS value
+        FROM wip_inventories w
+        JOIN materials m ON m.id = w.material_id
+        JOIN lotes l ON l.id = w.lote_id
+        WHERE m.family_id = 43 OR COALESCE(m.internal_code, '') LIKE 'MP-%'
+      `);
+      const wipInventoryValue = Number(wipInventoryValueRows[0]?.value || 0);
+      const currentInventoryValue = warehouseInventoryValue + wipInventoryValue;
 
       // 3. Pérdidas desglosadas por Merma, Scrap y Bajas (Cálculo exacto alineado con Almacén)
       const [lossBreakdownResult] = await sequelize.query(`
@@ -163,10 +172,37 @@ class DashboardService {
         raw: true
       });
 
-      const inventoryByAreaGraph = inventoryByAreaQuery.map(item => ({
-        name: item.areaName || 'Sin Área',
-        value: Number(item.value || 0)
-      }));
+      const inventoryValueByArea = new Map(inventoryByAreaQuery.map(item => [
+        item.areaName || 'Sin Área',
+        Number(item.value || 0),
+      ]));
+      const [wipByAreaRows] = await sequelize.query(`
+        SELECT COALESCE(a.name, 'Sin Área') AS name,
+          COALESCE(SUM(w.amount * COALESCE(l.unit_cost, 0)), 0) AS value
+        FROM wip_inventories w
+        JOIN materials m ON m.id = w.material_id
+        JOIN lotes l ON l.id = w.lote_id
+        LEFT JOIN areas a ON a.id = w.area_id
+        WHERE m.family_id = 43 OR COALESCE(m.internal_code, '') LIKE 'MP-%'
+        GROUP BY a.id, a.name
+      `);
+      for (const item of wipByAreaRows) {
+        const name = item.name || 'Sin Área';
+        inventoryValueByArea.set(name, (inventoryValueByArea.get(name) || 0) + Number(item.value || 0));
+      }
+      const inventoryByAreaGraph = [...inventoryValueByArea].map(([name, value]) => ({ name, value }));
+
+      // Los consumibles se cargan al área al surtirse y no reciben índice de transformación.
+      const [directExpensesByAreaRows] = await sequelize.query(`
+        SELECT COALESCE(a.name, 'Sin Área') AS name,
+          COALESCE(SUM(COALESCE(NULLIF(im.total_cost, 0), ABS(im.quantity_change) * COALESCE(im.unit_cost, 0))), 0) AS value
+        FROM inventory_movements im
+        LEFT JOIN areas a ON a.id = im.area_id
+        WHERE im.type = 'CONSUMPTION' AND im.cost_treatment = 'DIRECT_EXPENSE'
+        GROUP BY a.id, a.name
+        ORDER BY value DESC
+      `);
+      const directExpensesByAreaGraph = directExpensesByAreaRows.map(item => ({ name: item.name, value: Number(item.value || 0) }));
 
       // 6. Pérdidas por Área (Merma)
       const mermaByAreaQuery = await InventoryMovement.findAll({
@@ -247,6 +283,7 @@ class DashboardService {
           },
           charts: {
             inventoryByArea: inventoryByAreaGraph,
+            directExpensesByArea: directExpensesByAreaGraph,
             investmentVsLoss: investmentVsLossGraph,
             monthlyFinancial: monthlyFinancialTrends,
             warehouseChartData: warehouseMetrics?.chartData || [],

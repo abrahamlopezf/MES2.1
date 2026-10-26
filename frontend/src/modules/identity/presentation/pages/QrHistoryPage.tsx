@@ -1,31 +1,56 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import axiosClient from '../../../../api/axiosClient';
 import { QrCode, Search, History, AlertTriangle } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Badge } from '../../../../design-system';
+import { useAuthStore } from '../../../../store/authStore';
+
+import { isSupervisorUser } from '../../../../utils/authHelpers';
 
 const fetchInactiveQrs = async () => {
   const response = await axiosClient.get('/qr/codes', {
     params: {
-      limit: 100, // Podemos agregar paginación luego
-      // Nota: El backend acepta status, pero como queremos CONSUMED y DISPOSED, 
-      // pediremos todos o los filtraremos aquí temporalmente hasta agregar soporte múltiple.
+      limit: 100,
     }
   });
   const data = response.data.data || response.data;
   
   // Filtramos inactivos o con estatus CONSUMED/DISPOSED
-  return data.items.filter((item: any) => 
+  return (data.items || []).filter((item: any) => 
     !item.is_active || item.status === 'CONSUMED' || item.status === 'DISPOSED'
   );
 };
 
 export function QrHistoryPage() {
-  const { data: qrs, isLoading } = useQuery({
+  const { user } = useAuthStore();
+  const userRoleCode = (user?.role?.code || '').toUpperCase();
+  const isSupervisor = isSupervisorUser(user);
+  const isWarehouseUser = !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
+                          user?.area?.code === 'ALMACEN' || 
+                          user?.area?.code === 'ALM');
+
+  const { data: rawQrs, isLoading } = useQuery({
     queryKey: ['qrcodes', 'history'],
     queryFn: fetchInactiveQrs
   });
+
+  const qrs = React.useMemo(() => {
+    if (!rawQrs) return [];
+    if (isSupervisor) {
+      return rawQrs.filter((qr: any) => {
+        const creatorId = qr.created_by?.id || qr.creator?.id || qr.created_by;
+        return creatorId && user?.id && Number(creatorId) === Number(user.id);
+      });
+    }
+    if (!isWarehouseUser) return rawQrs;
+    return rawQrs.filter((qr: any) => {
+      const areaCode = (qr.assigned_area?.code || qr.batch?.assigned_area?.code || '').toUpperCase();
+      const areaName = (qr.assigned_area?.name || qr.batch?.assigned_area?.name || '').toUpperCase();
+      const areaId = qr.assigned_area_id || qr.assigned_area?.id || qr.batch?.assigned_area?.id;
+      return areaCode === 'ALM' || areaCode === 'ALMACEN' || areaName.includes('ALMAC') || Number(areaId) === 1;
+    });
+  }, [rawQrs, isSupervisor, isWarehouseUser, user]);
 
   return (
     <div className="flex flex-col h-full bg-background overflow-x-hidden">

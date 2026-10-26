@@ -10,6 +10,8 @@ import { CameraScanner } from '@/design-system/components/scanner-overlay/Camera
 import { CreateConsumptionOrderModal, PreloadedOdcItem } from '../../../warehouse/presentation/components/CreateConsumptionOrderModal';
 import { MixContainersPrintModal, MixResultData } from './MixContainersPrintModal';
 import { sendBrowserNotification } from '@/core/notifications/browserNotifications';
+import { useAuthStore } from '@/store/authStore';
+import { canViewCosts } from '@/utils/authHelpers';
 
 // Helpers de validación de materiales de Polipropileno
 export const isPpMaterial = (item: any) => {
@@ -44,12 +46,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   onCancel
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
   const { data: rawFormulas, isLoading: loadingFormulas } = useFormulas();
   const { data: queueGroups = [] } = useExtruderQueuesQuery();
   const { data: registeredPtis = [] } = usePtiProductsQuery({ is_active: true });
   const mutation = useMixFormula();
 
-  // Consulta de catálogo real de máquinas extrusoras con información de Silos y Matriz
+  // Catálogo de extrusoras y fórmulas compatibles; los silos se consultan aparte para el mezclador.
   const { data: machinesData } = useQuery({
     queryKey: ['extrusion', 'machines'],
     queryFn: async () => {
@@ -58,10 +62,22 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
   });
 
+  // Consulta de Silos disponibles en planta (suministran a la Mezcladora)
+  const { data: silosData = [] } = useQuery({
+    queryKey: ['warehouse', 'silos'],
+    queryFn: async () => {
+      const res = await apiClient.get('/warehouse/silos');
+      return res.data?.data || res.data || [];
+    }
+  });
+
   const machines: any[] = Array.isArray(machinesData) ? machinesData : [];
   const formulas: any[] = Array.isArray(rawFormulas) ? rawFormulas : [];
+  const silos: any[] = Array.isArray(silosData) ? silosData : [];
 
   const [formulaId, setFormulaId] = useState('');
+  const [selectedSiloId, setSelectedSiloId] = useState<number | ''>('');
+  const [siloByMaterial, setSiloByMaterial] = useState<Record<number, number>>({});
   // 1. Selector de número de contenedores (el sistema asigna los QRs y divide los 500kg)
   const [containerCount, setContainerCount] = useState<number>(1);
   // 2. Extrusora seleccionada (sugerida automáticamente según compatibilidad y restricciones)
@@ -152,11 +168,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       // 2. Hard-block Extrusora 4: PROHIBIDO Polipropileno B (por fórmula o por silo con lote B)
       if (ext.id === 4) {
         if (hasPpbInFormula) return false;
-        if (ext.modo_silo && ext.silo) {
-          const sLotType = (ext.silo.current_lot_type || '').toUpperCase();
-          const sLotNum = (ext.silo.current_lot_number || '').toUpperCase();
-          if (sLotType === 'B' || sLotNum.includes('B')) return false;
-        }
       }
 
       // 3. Matriz técnica de compatibilidad (extrusoras_formulas)
@@ -212,28 +223,71 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
   }, [suggestedExtruder, availableExtruders, selectedExtruderId]);
 
-  // Extrusora seleccionada actualmente con detalles de Silo
-  const selectedMachine = useMemo(() => {
-    return machines.find((m: any) => m.id === Number(selectedExtruderId)) || suggestedExtruder || null;
-  }, [machines, selectedExtruderId, suggestedExtruder]);
+  // Silo seleccionado que alimenta directamente a la Mezcladora
+  useEffect(() => {
+    if (silos.length > 0 && (!selectedSiloId || !silos.some((s: any) => s.id === Number(selectedSiloId)))) {
+      setSelectedSiloId(silos[0].id);
+    }
+  }, [silos, selectedSiloId]);
 
-  const isSelectedMachineSilo = Boolean(selectedMachine?.modo_silo);
+  const selectedSilo = useMemo(() => {
+    return silos.find((s: any) => Number(s.id) === Number(selectedSiloId)) || silos[0] || null;
+  }, [silos, selectedSiloId]);
 
-  // En modo silo, el PP no se dosifica en mezclado; solo se prepara el Kit de Aditivos
-  const nonPpIngredientsKg = useMemo(() => {
-    return (formulaItems || [])
-      .filter((i: any) => !isPpMaterial(i))
-      .reduce((sum: number, i: any) => sum + Number(i.required_quantity || 0), 0);
+  // Separación de ingredientes: Polipropileno (Silo a Mezcladora) vs Aditivos (QR Hijo -SN)
+  const ppIngredients = useMemo(() => {
+    return (formulaItems || []).filter((it: any) => isPpMaterial(it));
+  }, [formulaItems]);
+  const ppIngredient = ppIngredients[0] || null;
+  useEffect(() => {
+    if (!silos.length || !ppIngredients.length) return;
+    setSiloByMaterial((current) => {
+      const next = { ...current };
+      for (const ingredient of ppIngredients) {
+        const materialId = Number(ingredient.material_id);
+        const matching = silos.find((s: any) => Number(s.material_id) === materialId);
+        if (!next[materialId] || !silos.some((s: any) => Number(s.id) === next[materialId])) {
+          next[materialId] = Number(matching?.id || selectedSiloId || silos[0].id);
+        }
+      }
+      return next;
+    });
+  }, [silos, ppIngredients, selectedSiloId]);
+  const siloForIngredient = (ingredient: any) => silos.find((s: any) => Number(s.id) === Number(siloByMaterial[Number(ingredient?.material_id)])) || null;
+
+  const requiredKgPerBatch = (item: any) => Number(item?.required_quantity || 0) * containerCount;
+  const ppRequiredKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + requiredKgPerBatch(item), 0).toFixed(2));
+
+  const nonPpIngredients = useMemo(() => {
+    return (formulaItems || []).filter((it: any) => !isPpMaterial(it));
   }, [formulaItems]);
 
-  const effectiveTargetKg = isSelectedMachineSilo && nonPpIngredientsKg > 0
-    ? Number(nonPpIngredientsKg.toFixed(2))
-    : batchTargetKg;
+  const nonPpRequiredKg = useMemo(() => {
+    return Number(nonPpIngredients.reduce((sum: number, it: any) => sum + requiredKgPerBatch(it), 0).toFixed(2));
+  }, [nonPpIngredients, containerCount]);
 
-  // Suma total escaneada
-  const totalScannedKg = inputs.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const isBatchBalanced = Math.abs(totalScannedKg - effectiveTargetKg) < 0.05;
-  const progressPercent = Math.min(100, Math.round((totalScannedKg / (effectiveTargetKg || 1)) * 100));
+  // Total de aditivos escaneados con QR Hijo
+  const totalScannedNonPpKg = useMemo(() => {
+    return inputs.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  }, [inputs]);
+  const totalScannedKg = totalScannedNonPpKg;
+
+  // Verificación de stock en Silo para el PP de este lote
+  const hasSufficientPpInSilo = useMemo(() => {
+    return ppIngredients.every((ingredient: any) => {
+      const silo = siloForIngredient(ingredient);
+      return !requiredKgPerBatch(ingredient) || (silo && Number(silo.material_id) === Number(ingredient.material_id) && Number(silo.current_stock_kg || 0) >= requiredKgPerBatch(ingredient));
+    });
+  }, [ppIngredients, ppRequiredKg, silos, siloByMaterial, containerCount]);
+
+  // Balance: los aditivos escaneados deben igualar nonPpRequiredKg (o ser 0 si la fórmula solo lleva PP)
+  const isNonPpBalanced = nonPpRequiredKg === 0
+    ? true
+    : Math.abs(totalScannedNonPpKg - nonPpRequiredKg) < 0.05;
+
+  const totalBatchKg = batchTargetKg * containerCount;
+  const isBatchBalanced = isNonPpBalanced && hasSufficientPpInSilo;
+  const progressPercent = Math.min(100, Math.round(((ppRequiredKg + totalScannedNonPpKg) / (totalBatchKg || 1)) * 100));
 
   // Mapa de insumos dosificados por material_id
   const dosedByMaterial = useMemo(() => {
@@ -272,6 +326,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     fifo_qrs?: any[];
   }) => {
     if (mat) {
+      if (isPpMaterial(mat)) {
+        toast.info(`Alimentación Automática de Silo: "${mat.name}" se abastece directamente desde el Silo seleccionado hacia la Mezcladora. No requiere escaneo de QR.`);
+        return;
+      }
+
       const alreadyDosed = dosedByMaterial[mat.id] || 0;
       const pending = Math.max(0, Number((mat.required - alreadyDosed).toFixed(2)));
       const { remainingFifoList, nextFifoSack } = getMaterialFifoState(mat.id);
@@ -324,12 +383,12 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
 
     if (mode === 'single' && singleItem) {
-      if (isSelectedMachineSilo && isPpMaterial(singleItem)) {
-        toast.warning(`Suministro por Silo: "${singleItem.material_name}" se alimenta directamente desde la tolva del ${selectedMachine?.silo?.name || 'Silo'}. No se requiere solicitar costales en ODC.`);
+      if (isPpMaterial(singleItem)) {
+        toast.warning(`Alimentación por Silo: "${singleItem.material_name}" se alimenta directamente desde el ${selectedSilo?.name || 'Silo de PP'} por tubería hacia la Mezcladora. No se requiere solicitar costales en ODC.`);
         return;
       }
 
-      const req = Number(singleItem.required_quantity || 0);
+      const req = requiredKgPerBatch(singleItem);
       const wip = Math.max(0, Number(singleItem.available_wip_kg || 0));
       const missing = Math.max(0, Number((req - wip).toFixed(2)));
       const qty = missing > 0 ? missing : req;
@@ -364,14 +423,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     let notesStr = '';
 
     if (mode === 'full') {
-      let itemsToLoad = formulaItems;
-      // Fase 4: En modo_silo, Mezclado omite el PP en la ODC. Solo pide aditivos -> genera Kit de Aditivos
-      if (isSelectedMachineSilo) {
-        itemsToLoad = itemsToLoad.filter((item: any) => !isPpMaterial(item));
-      }
+      // El PP se alimenta directamente desde el Silo hacia la Mezcladora. Solo pedimos aditivos en la ODC.
+      const itemsToLoad = formulaItems.filter((item: any) => !isPpMaterial(item));
 
       preloaded = itemsToLoad.map((item: any) => {
-        const req = Number(item.required_quantity || 0);
+        const req = requiredKgPerBatch(item);
         return {
           material_id: item.material_id,
           req_quantity: req,
@@ -386,21 +442,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         };
       });
 
-      notesStr = isSelectedMachineSilo
-        ? `[MODO SILO]: Solicitud de Kit de Aditivos para Extrusión - Máquina: ${selectedMachine?.name || `Extrusora ${selectedExtruderId}`} (Tolva conectada a ${selectedMachine?.silo?.name || 'Silo PP'}). Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. El Polipropileno se abastece directo de silo.`
-        : `Solicitud de batch completo (500kg) para Extrusión - Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}.`;
+      notesStr = `Solicitud de Aditivos para Mezcladora - Silo PP: ${selectedSilo?.name || 'Silo'}. Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. El Polipropileno se abastece directo de silo por tubería.`;
     } else {
-      // Mode 'missing': insumos faltantes de la fórmula (donde el stock WIP es insuficiente)
-      let candidateItems = formulaItems.filter((i: any) => !i.is_sufficient);
-      if (candidateItems.length === 0) candidateItems = formulaItems;
-
-      // En modo silo, no solicitar PP faltante en ODC pues se alimenta de tolva
-      if (isSelectedMachineSilo) {
-        candidateItems = candidateItems.filter((item: any) => !isPpMaterial(item));
-      }
+      // Mode 'missing': aditivos faltantes de la fórmula (donde el stock WIP es insuficiente, PP excluido)
+      let candidateItems = formulaItems.filter((i: any) => !isPpMaterial(i) && !i.is_sufficient);
+      if (candidateItems.length === 0) candidateItems = formulaItems.filter((i: any) => !isPpMaterial(i));
 
       preloaded = candidateItems.map((item: any) => {
-        const req = Number(item.required_quantity || 0);
+        const req = requiredKgPerBatch(item);
         const wip = Math.max(0, Number(item.available_wip_kg || 0));
         const missing = Math.max(0, Number((req - wip).toFixed(2)));
         const qty = req > 0 ? req : missing;
@@ -421,14 +470,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         };
       });
 
-      notesStr = isSelectedMachineSilo
-        ? `[MODO SILO]: Solicitud de insumos faltantes para Kit de Aditivos - Máquina: ${selectedMachine?.name || `Extrusora ${selectedExtruderId}`}. Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. PP omitido por alimentación automatizada.`
-        : `Solicitud de insumos faltantes para Extrusión - Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. Insumos faltantes precargados con la cantidad necesaria para crear la mezcla.`;
+      notesStr = `Solicitud de aditivos faltantes para Mezcladora - Silo PP: ${selectedSilo?.name || 'Silo'}. Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. PP omitido por alimentación directa desde Silo.`;
     }
 
-    if (isSelectedMachineSilo) {
-      toast.info('Modo Silo activo: Se omitió el Polipropileno (PP) de la ODC. Solicitando únicamente Kit de Aditivos.');
-    }
+    toast.info('Alimentación por Silo: Se omitió el Polipropileno (PP) de la ODC. Solicitando aditivos requeridos.');
 
     setOdcInitialItems(preloaded);
     setOdcInitialNotes(notesStr);
@@ -457,6 +502,15 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     try {
       const childData = await fetchWipChildQr(cleanQr);
 
+      // Bloquear escaneo de Polipropileno (PP)
+      if (isPpMaterial(childData)) {
+        const err = `El Polipropileno "${childData.material_name}" se abastece directamente desde el Silo seleccionado hacia la Mezcladora. No requiere ni admite escaneo de QR.`;
+        setScanError(err);
+        toast.warning(err);
+        setRecognizedChildQr(null);
+        return;
+      }
+
       // Calcular cantidad sugerida inteligentemente y verificar pertenencia a receta
       const formulaItems = formulaDetails?.items || [];
       const matchingItem = formulaItems.find((it: any) => Number(it.material_id) === Number(childData.material_id));
@@ -472,11 +526,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       if (targetMaterialForScan && Number(childData.material_id) !== Number(targetMaterialForScan.id)) {
         toast.info(`Insumo detectado: "${childData.material_name}". Se sincronizó la dosificación a este insumo de la receta.`);
         const alreadyDosed = dosedByMaterial[childData.material_id] || 0;
-        const pending = Math.max(0, Number(matchingItem.required_quantity) - alreadyDosed);
+        const pending = Math.max(0, requiredKgPerBatch(matchingItem) - alreadyDosed);
         setTargetMaterialForScan({
           id: matchingItem.material_id,
           name: matchingItem.material_name,
-          required: Number(matchingItem.required_quantity),
+          required: requiredKgPerBatch(matchingItem),
           pending
         });
       }
@@ -486,7 +540,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       let suggestedQty = Number(childData.available_amount);
       if (matchingItem) {
         const alreadyDosed = dosedByMaterial[childData.material_id] || 0;
-        const pending = Math.max(0, Number(matchingItem.required_quantity) - alreadyDosed);
+        const pending = Math.max(0, requiredKgPerBatch(matchingItem) - alreadyDosed);
         if (pending > 0 && pending < suggestedQty) {
           suggestedQty = Number(pending.toFixed(2));
         }
@@ -546,7 +600,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     // Calcular estado restante del insumo dosificado
     const matId = recognizedChildQr.material_id;
     const formulaItem = (formulaItems || []).find((it: any) => Number(it.material_id) === Number(matId));
-    const targetReq = Number(targetMaterialForScan?.required || formulaItem?.required_quantity || 0);
+    const targetReq = Number(targetMaterialForScan?.required || requiredKgPerBatch(formulaItem));
     const newAlreadyDosed = (dosedByMaterial[matId] || 0) + qty;
     const newPending = Math.max(0, Number((targetReq - newAlreadyDosed).toFixed(2)));
 
@@ -602,13 +656,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       toast.error('Selecciona la extrusora de destino para encolar la mezcla.');
       return;
     }
-    if (inputs.length === 0) {
-      toast.error('Debes agregar al menos un insumo escaneado con QR Hijo desde WIP.');
+    if (ppRequiredKg > 0 && !hasSufficientPpInSilo) {
+      toast.error(`Stock insuficiente en Silo ${selectedSilo?.name || ''}: Requiere ${ppRequiredKg} kg de PP, pero solo hay ${selectedSilo?.current_stock_kg || 0} kg.`);
+      return;
+    }
+    if (nonPpRequiredKg > 0 && inputs.length === 0) {
+      toast.error('Debes agregar al menos un insumo de aditivos escaneado con QR Hijo desde WIP.');
       return;
     }
 
     mutation.mutate({
       formula_id: formulaId,
+      silo_inputs: ppIngredients.map((ingredient: any) => ({ material_id: Number(ingredient.material_id), silo_id: Number(siloByMaterial[Number(ingredient.material_id)]) })),
       preparation_id: ticket?.id,
       container_count: containerCount,
       extruder_id: selectedExtruderId ? Number(selectedExtruderId) : undefined,
@@ -630,14 +689,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
           folio: data.folio || `MIX-EXT-${Date.now()}`,
           formula_name: selectedFormula?.name || 'Fórmula Extrusión',
           formula_code: selectedFormula?.code || '',
-          total_quantity: Number(data.total_quantity || totalScannedKg || batchTargetKg),
+          total_quantity: Number(data.total_quantity || totalBatchKg),
           extruder_id: selectedExtruderId ? Number(selectedExtruderId) : null,
           containers: createdContainers.length > 0 ? createdContainers : [
             {
               container_number: 1,
               total_containers: 1,
               qr_code: data.destination_qr_code || `CONT-MIX-${Date.now()}`,
-              capacity_kg: Number(data.total_quantity || totalScannedKg || batchTargetKg),
+              capacity_kg: Number(data.total_quantity || totalBatchKg),
               formula_name: selectedFormula?.name || '',
               formula_code: selectedFormula?.code || '',
               folio: data.folio || '',
@@ -697,18 +756,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   {allWipAvailable ? 'Inventario OK' : 'Faltan Insumos'}
                 </Badge>
               </div>
-              <p className={`text-xs font-semibold leading-relaxed ${
+              <p className={`text-base font-semibold leading-relaxed ${
                 allWipAvailable
                   ? 'text-emerald-800 dark:text-emerald-100'
                   : 'text-amber-800 dark:text-amber-100'
               }`}>
                 {allWipAvailable
-                  ? (isSelectedMachineSilo
-                      ? 'El área de Extrusión cuenta con aditivos suficientes en piso para preparar este Kit (PP en Silo).'
-                      : 'El área de Extrusión cuenta con existencias suficientes en piso para completar este lote.')
-                  : (isSelectedMachineSilo
-                      ? 'Faltan aditivos en piso de Extrusión para preparar el Kit. Se requiere surtir Orden de Consumo (ODC) desde Almacén (PP omitido por alimentación en Silo).'
-                      : 'Faltan existencias en piso de Extrusión para preparar la receta completa. Se requiere surtir Orden de Consumo (ODC) desde Almacén para los insumos marcados en rojo.')}
+                  ? 'El área de Extrusión cuenta con aditivos suficientes en piso para preparar este lote (PP abastecido por Silo).'
+                  : 'Faltan aditivos en piso para preparar la receta en la Mezcladora. Se requiere surtir Orden de Consumo (ODC) desde Almacén (PP abastecido por Silo).'}
               </p>
             </div>
           </div>
@@ -718,11 +773,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 type="button"
                 size="sm"
                 onClick={() => handleOpenOdcModal('missing')}
-                className="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-black text-xs gap-2 shadow-sm border border-amber-400/50 h-10 px-4 whitespace-nowrap transition-colors"
-                title="Crear ODC hacia Almacén con los insumos faltantes de la fórmula (cantidades editables)"
+                className="w-full min-h-12 sm:w-auto bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-black text-base gap-2 shadow-sm border border-amber-400/50 px-4 whitespace-normal text-center leading-snug transition-colors"
+                title="Crear ODC hacia Almacén con los aditivos faltantes de la fórmula (cantidades editables)"
               >
-                <Icon name={isSelectedMachineSilo ? 'hub' : 'post_add'} size={17} />
-                <span>{isSelectedMachineSilo ? 'Crear ODC de Kit (Modo Silo)' : 'Crear ODC hacia Almacén'}</span>
+                <Icon name="post_add" size={17} />
+                <span>Crear ODC de Aditivos hacia Almacén</span>
               </Button>
             </div>
           )}
@@ -741,10 +796,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   <Icon name="science" size={18} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-black text-xs uppercase tracking-wider text-foreground truncate">
+                  <h3 className="font-black text-base text-foreground truncate">
                     1. Fórmula y Destino
                   </h3>
-                  <p className="text-[10px] text-muted-foreground font-medium truncate">
+                  <p className="text-sm text-muted-foreground font-medium truncate">
                     Lote y asignación a máquina
                   </p>
                 </div>
@@ -766,7 +821,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
               {/* 1. Selector de Fórmula de Extrusión */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Icon name="menu_book" size={14} className="text-primary" />
                     <span>Fórmula de Extrusión *</span>
                   </label>
@@ -812,7 +867,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 {selectedFormula && (
                   <div className="grid grid-cols-3 gap-2 pt-1">
                     <div className="p-2 rounded-lg bg-muted/40 border border-border/70 text-center">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground block leading-tight">
+                      <span className="text-sm font-bold text-muted-foreground block leading-tight">
                         Lote Objetivo
                       </span>
                       <span className="font-mono text-xs font-black text-foreground">
@@ -820,15 +875,17 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                       </span>
                     </div>
                     <div className="p-2 rounded-lg bg-muted/40 border border-border/70 text-center">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground block leading-tight">
-                        Factor Costo
+                      <span className="text-sm font-bold text-muted-foreground block leading-tight">
+                        {allowCosts ? 'Factor Costo' : 'Esperado'}
                       </span>
                       <span className="font-mono text-xs font-black text-primary">
-                        ×{Number(selectedFormula.cost_index || 1.15).toFixed(2)}
+                        {allowCosts
+                          ? `×${Number(selectedFormula.cost_index || 1.15).toFixed(2)}`
+                          : `${selectedFormula.expected_yield_kg || 490} Kg`}
                       </span>
                     </div>
                     <div className="p-2 rounded-lg bg-muted/40 border border-border/70 text-center">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground block leading-tight">
+                      <span className="text-sm font-bold text-muted-foreground block leading-tight">
                         Rendimiento
                       </span>
                       <span className="font-mono text-xs font-black text-foreground">
@@ -842,7 +899,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
               {/* 2. Contenedores Destino (División Automática de los 500 Kg) */}
               <div className="space-y-2.5 pt-3 border-t border-border/60">
                 <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Icon name="inventory_2" size={15} className="text-primary" />
                     <span>Contenedores Destino *</span>
                   </label>
@@ -864,7 +921,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                         type="button"
                         onClick={() => setContainerCount(prev => Math.max(1, prev - 1))}
                         disabled={containerCount <= 1}
-                        className="w-8 h-8 flex items-center justify-center rounded-md bg-background border border-border/80 hover:bg-muted text-foreground disabled:opacity-30 disabled:cursor-not-allowed font-black text-base transition-colors shadow-2xs"
+                    aria-label="Reducir cantidad de contenedores"
+                    className="min-h-11 min-w-11 flex items-center justify-center rounded-md bg-background border border-border/80 hover:bg-muted text-foreground disabled:opacity-50 disabled:cursor-not-allowed font-black text-xl transition-colors shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         title="Reducir un contenedor"
                       >
                         -
@@ -876,7 +934,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                         type="button"
                         onClick={() => setContainerCount(prev => Math.min(10, prev + 1))}
                         disabled={containerCount >= 10}
-                        className="w-8 h-8 flex items-center justify-center rounded-md bg-background border border-border/80 hover:bg-muted text-foreground disabled:opacity-30 disabled:cursor-not-allowed font-black text-base transition-colors shadow-2xs"
+                    aria-label="Aumentar cantidad de contenedores"
+                    className="min-h-11 min-w-11 flex items-center justify-center rounded-md bg-background border border-border/80 hover:bg-muted text-foreground disabled:opacity-50 disabled:cursor-not-allowed font-black text-xl transition-colors shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         title="Aumentar un contenedor"
                       >
                         +
@@ -887,30 +946,30 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   {/* Fila 2: Indicador de Reparto por Contenedor */}
                   <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block leading-tight">
-                        {containerCount === 1 ? 'Contenedor Único' : `Reparto por Contenedor (${containerCount})`}
+                      <span className="text-sm font-bold text-muted-foreground block leading-tight">
+                        {containerCount === 1 ? 'Contenedor de mezcla' : `${containerCount} contenedores de mezcla`}
                       </span>
                       <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="font-mono text-base font-black text-primary">
-                          {(batchTargetKg / containerCount).toFixed(2)}
+                          {batchTargetKg.toFixed(2)}
                         </span>
                         <span className="text-xs font-bold text-muted-foreground">Kg c/u</span>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0 border-l border-border/60 pl-3">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block leading-tight">
+                      <span className="text-sm font-bold text-muted-foreground block leading-tight">
                         Lote Total
                       </span>
                       <span className="font-mono text-sm font-black text-foreground mt-0.5 block">
-                        {batchTargetKg} Kg
+                        {totalBatchKg} Kg
                       </span>
                     </div>
                   </div>
 
                   {/* Fila 3: Botones de acceso rápido (Grid de 3 columnas para ajuste perfecto) */}
                   <div className="space-y-1.5 pt-1 border-t border-border/50">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="flex items-center justify-between text-sm font-bold text-muted-foreground">
                       <span>Presets Rápidos:</span>
                       <span className="font-mono text-primary font-black">
                         {containerCount} {containerCount === 1 ? 'Contenedor' : 'Contenedores'}
@@ -924,7 +983,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             key={num}
                             type="button"
                             onClick={() => setContainerCount(num)}
-                            className={`h-9 flex items-center justify-center gap-1.5 text-xs font-mono rounded-lg border transition-all ${
+                            className={`min-h-12 flex items-center justify-center gap-1.5 text-base font-mono rounded-lg border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               isSelected
                                 ? 'bg-primary text-primary-foreground border-primary shadow-xs font-black ring-1 ring-primary/40'
                                 : 'bg-background hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border font-bold'
@@ -944,14 +1003,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
                 <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5 px-0.5">
                   <Icon name="info" size={13} className="text-primary shrink-0" />
-                  <span>El sistema dividirá los {batchTargetKg} kg y generará {containerCount} etiqueta(s) QR.</span>
+                  <span>El sistema preparará {containerCount} lote(s) de {batchTargetKg} kg y generará una etiqueta QR de 500 kg por cada contenedor.</span>
                 </p>
               </div>
 
               {/* 3. Extrusora Destino con Sugerencia Inteligente y Restricciones */}
               <div className="space-y-2.5 pt-3 border-t border-border/60">
                 <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Icon name="precision_manufacturing" size={15} className="text-primary" />
                     <span>Extrusora Destino (Encolado) *</span>
                   </label>
@@ -978,10 +1037,9 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     >
                       {availableExtruders.map((ext: any) => {
                         const isSuggested = suggestedExtruder?.id === ext.id;
-                        const modeLabel = ext.modo_silo ? `[Silo: ${ext.silo?.code || 'PP'}]` : '[Manual]';
                         return (
                           <option key={ext.id} value={ext.id}>
-                            {ext.name} {isSuggested ? '★ [Sugerida]' : ''} — {modeLabel} {ext.type}
+                            {ext.name} {isSuggested ? '★ [Sugerida]' : ''} — {ext.type}
                           </option>
                         );
                       })}
@@ -991,50 +1049,58 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     </div>
                   </div>
                 )}
-
-                {/* Ficha Informativa del Modo Operativo (Silo vs Manual) */}
-                {selectedMachine && (
-                  <div className={`p-3 rounded-xl border space-y-1.5 transition-all ${
-                    isSelectedMachineSilo
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-100'
-                      : 'bg-muted/40 border-border text-foreground'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <Icon name={isSelectedMachineSilo ? 'hub' : 'handyman'} size={15} className={isSelectedMachineSilo ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-500'} />
-                        <span>{isSelectedMachineSilo ? 'Alimentación por Silo Automatizado' : 'Alimentación Manual (Costales)'}</span>
-                      </span>
-                      <Badge variant={isSelectedMachineSilo ? 'success' : 'outline'} className="text-[10px] font-bold font-mono">
-                        {isSelectedMachineSilo ? 'MODO SILO' : 'MODO MANUAL'}
-                      </Badge>
-                    </div>
-
-                    {isSelectedMachineSilo ? (
-                      <div className="text-[11px] space-y-1 text-emerald-800 dark:text-emerald-300">
-                        <p className="font-semibold">
-                          Tolva conectada a <strong className="text-emerald-900 dark:text-emerald-100">{selectedMachine.silo?.name || 'Silo Principal PP'}</strong>
-                          {selectedMachine.silo && (
-                            <span className="font-mono ml-1">
-                              ({Number(selectedMachine.silo.current_stock_kg || 0).toLocaleString()} kg disp. - Lote: {selectedMachine.silo.current_lot_number})
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground font-medium">
-                          Esta orden generará un &quot;QR de Kit de Aditivos&quot; ({effectiveTargetKg.toFixed(2)} kg). El Polipropileno se abastece directo de tolva y se descontará automáticamente en Extrusión.
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground font-medium">
-                        El operador debe solicitar y escanear la mezcla total ({batchTargetKg} kg: PP + Aditivos) surtida en costales.
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
-              {/* 4. Observaciones del Operador */}
+              {/* 4. Silo de Polipropileno (Alimentación Automática a Mezcladora) */}
+              <div className="space-y-2.5 pt-3 border-t border-border/60">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Icon name="propane_tank" size={15} className="text-primary" />
+                    <span>Silos de Polipropileno (Alimentación a Mezcladora) *</span>
+                  </label>
+                  {selectedSilo && (
+                    <Badge
+                      variant={selectedSilo.is_critical_reorder ? 'destructive' : 'success'}
+                      className="text-[10px] font-mono font-bold shrink-0"
+                    >
+                      {selectedSilo.is_critical_reorder ? '⚠️ STOCK CRÍTICO' : '✅ SILO CONECTADO'}
+                    </Badge>
+                  )}
+                </div>
+
+                {silos.length === 0 ? (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
+                    <Icon name="warning" size={16} className="shrink-0" />
+                    <span>No hay Silos registrados en Almacén. Regístralos en Control de Silos.</span>
+                  </div>
+                ) : ppIngredients.map((ingredient: any) => {
+                  const materialId = Number(ingredient.material_id);
+                  const silo = siloForIngredient(ingredient);
+                  const requiredKg = requiredKgPerBatch(ingredient);
+                  const compatibleSilos = silos.filter((item: any) => Number(item.material_id) === materialId);
+                  const sufficient = Boolean(silo && Number(silo.current_stock_kg || 0) >= requiredKg);
+                  return (
+                    <div key={materialId} className={`p-3 rounded-xl border space-y-2 ${sufficient ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/40'}`}>
+                      <div className="grid sm:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] gap-2 items-center">
+                        <div>
+                          <div className="text-xs font-bold text-foreground">{ingredient.material?.name || ingredient.material_name || `PP ${materialId}`}</div>
+                          <div className="text-[11px] text-muted-foreground">Requerido: {requiredKg.toFixed(2)} kg · Inventario independiente del mezclador</div>
+                        </div>
+                        <select required value={siloByMaterial[materialId] || ''} onChange={(event) => setSiloByMaterial((current) => ({ ...current, [materialId]: Number(event.target.value) }))} className="w-full !h-10 bg-background border border-border rounded-lg px-3 text-xs font-semibold text-foreground">
+                          <option value="" disabled>Selecciona silo para este material</option>
+                          {compatibleSilos.map((item: any) => <option key={item.id} value={item.id}>{item.code} · {item.name} · {Number(item.current_stock_kg).toLocaleString()} kg</option>)}
+                        </select>
+                      </div>
+                      {silo && <div className="text-[11px] text-muted-foreground">Lote {silo.current_lot_number || 'S/L'} · Stock {Number(silo.current_stock_kg).toLocaleString()} kg {sufficient ? '· suficiente' : '· insuficiente'}</div>}
+                      {!compatibleSilos.length && <div className="text-[11px] font-bold text-amber-700">No hay un silo registrado para este material. Registra su abastecimiento antes de preparar.</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 5. Observaciones del Operador */}
               <div className="space-y-1.5 pt-3 border-t border-border/60">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <label className="text-sm font-bold text-foreground flex items-center gap-2">
                   <Icon name="edit_note" size={15} className="text-muted-foreground" />
                   <span>Notas / Observaciones del Operador (Opcional)</span>
                 </label>
@@ -1054,16 +1120,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
             <div className="flex justify-between items-center text-xs">
               <span className="text-muted-foreground font-bold flex items-center gap-1.5 uppercase text-[11px] tracking-wider">
                 <Icon name="scale" size={16} className="text-primary" />
-                {isSelectedMachineSilo ? 'Balance de Kit de Aditivos (Modo Silo)' : 'Balance de Carga Total (PP + Aditivos)'}
+                <span>Balance Mezcla Total (Silo PP + Aditivos)</span>
               </span>
               <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
                 isBatchBalanced
                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                  : totalScannedKg > effectiveTargetKg
-                  ? 'bg-red-500/10 text-red-500 border-red-500/30'
                   : 'bg-primary/10 text-primary border-primary/20'
               }`}>
-                {totalScannedKg.toFixed(2)} / {effectiveTargetKg.toFixed(2)} Kg ({progressPercent}%)
+                {(ppRequiredKg + totalScannedNonPpKg).toFixed(2)} / {totalBatchKg.toFixed(2)} Kg ({progressPercent}%)
               </span>
             </div>
             <div className="w-full bg-muted/60 rounded-full h-2.5 overflow-hidden border border-border/40">
@@ -1071,12 +1135,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 className={`h-full transition-all duration-300 ${
                   isBatchBalanced
                     ? 'bg-emerald-500'
-                    : totalScannedKg > effectiveTargetKg
-                    ? 'bg-red-500'
                     : 'bg-primary'
                 }`}
                 style={{ width: `${Math.min(100, progressPercent)}%` }}
               />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground pt-0.5">
+              <span>PP del silo al mezclador: {ppRequiredKg.toFixed(2)} kg</span>
+              <span>Aditivos WIP: {totalScannedNonPpKg.toFixed(2)} / {nonPpRequiredKg.toFixed(2)} kg</span>
             </div>
           </div>
         </div>
@@ -1098,15 +1164,13 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     onClick={() => handleOpenOdcModal('full')}
                     className="gap-1.5 font-black text-xs bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white shadow-xs border border-amber-400/50 transition-all h-8 px-3 whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-auto"
                     title={
-                      isSelectedMachineSilo
-                        ? 'Solicitar el Kit de Aditivos hacia Almacén (el Polipropileno se abastece directo de tolva / Silo)'
-                        : hasSufficientIngredients
+                      hasSufficientIngredients
                         ? 'La fórmula cuenta con insumos suficientes en piso (WIP) para preparar la mezcla'
-                        : 'Solicitar la fórmula completa (batch de 500 kg) como Orden de Consumo hacia Almacén'
+                        : 'Solicitar los aditivos de la fórmula como Orden de Consumo hacia Almacén (el Polipropileno se abastece directo del Silo)'
                     }
                   >
-                    <Icon name={isSelectedMachineSilo ? 'hub' : 'local_shipping'} size={15} />
-                    <span>{isSelectedMachineSilo ? 'Pedir Kit de Aditivos' : 'Pedir Fórmula Completa'}</span>
+                    <Icon name="local_shipping" size={15} />
+                    <span>Pedir Aditivos Faltantes</span>
                   </Button>
                 )}
                 <Button
@@ -1149,14 +1213,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     <tbody className="divide-y divide-border">
                       {formulaItems.map((item: any) => {
                         const dosed = dosedByMaterial[item.material_id] || 0;
-                        const req = Number(item.required_quantity || 0);
+                        const req = requiredKgPerBatch(item);
                         const wip = Number(item.available_wip_kg || 0);
                         const isSufficient = Boolean(item.is_sufficient);
                         const isComplete = Math.abs(dosed - req) < 0.05;
                         const isPartial = dosed > 0 && dosed < req - 0.05;
                         const isExcess = dosed > req + 0.05;
                         const isPp = isPpMaterial(item);
-                        const isSiloItem = isPp && isSelectedMachineSilo;
+                        const isSiloItem = isPp; // Polipropileno siempre se surte desde Silo a Mezcladora
                         const { remainingFifoList, nextFifoSack } = getMaterialFifoState(item.material_id);
 
                         return (
@@ -1166,7 +1230,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                 <span className="font-bold text-foreground text-xs block">{item.material_name}</span>
                                 {isSiloItem && (
                                   <Badge variant="outline" className="font-mono text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-                                    TOLVA SILO
+                                    ALIMENTACIÓN POR SILO
                                   </Badge>
                                 )}
                               </div>
@@ -1179,7 +1243,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                 {isSiloItem ? (
                                   <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1">
                                     <Icon name="hub" size={11} />
-                                    <span>Alimentación por Tolva ({selectedMachine?.silo?.name || 'Silo PP'})</span>
+                                    <span>Tolva directa a Mezcladora ({selectedSilo?.name || 'Silo PP'})</span>
                                   </span>
                                 ) : nextFifoSack ? (
                                   <span
@@ -1210,11 +1274,13 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             <td className="px-3 py-3 text-right whitespace-nowrap w-28">
                               {isSiloItem ? (
                                 <div>
-                                  <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 block">
-                                    Silo {selectedMachine?.silo?.code || 'PP'}
+                                  <span className={`font-mono text-xs font-bold block ${
+                                    hasSufficientPpInSilo ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600'
+                                  }`}>
+                                    {Number(selectedSilo?.current_stock_kg || 0).toLocaleString()} kg
                                   </span>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 block">
-                                    Tolva Auto
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                    En Silo {selectedSilo?.code || 'PP'}
                                   </span>
                                 </div>
                               ) : (
@@ -1235,7 +1301,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             <td className="px-3 py-3 text-right font-mono font-bold whitespace-nowrap w-24">
                               {isSiloItem ? (
                                 <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold font-mono">
-                                  Auto (Silo)
+                                  {req.toFixed(2)} kg (Auto)
                                 </span>
                               ) : (
                                 <span className={
@@ -1253,8 +1319,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             </td>
                             <td className="px-3 py-3 text-center whitespace-nowrap w-28">
                               {isSiloItem ? (
-                                <Badge variant="outline" className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 px-2 py-0.5">
-                                  SILO ACTIVO
+                                <Badge
+                                  variant={hasSufficientPpInSilo ? 'success' : 'destructive'}
+                                  className="text-[10px] font-bold px-2 py-0.5"
+                                >
+                                  {hasSufficientPpInSilo ? '✅ SILO LISTO' : '⚠️ SILO INSUF.'}
                                 </Badge>
                               ) : isComplete ? (
                                 <Badge variant="success" className="text-[10px] font-bold px-2 py-0.5">COMPLETO</Badge>
@@ -1272,10 +1341,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                               {isSiloItem ? (
                                 <div 
                                   className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1.5 rounded-md border border-emerald-500/20"
-                                  title="Alimentación automatizada por Tolva de Silo. Backflushing al reportar piezas en Extrusión."
+                                  title="Alimentación directa por tubería desde el Silo seleccionado hacia la Mezcladora. Sin escaneo de QR."
                                 >
                                   <Icon name="hub" size={13} />
-                                  <span>Backflushing</span>
+                                  <span>Tolva Activa</span>
                                 </div>
                               ) : (
                                 <Button
@@ -1319,7 +1388,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   QRs Hijos Agregados al Lote ({inputs.length})
                 </span>
                 <span className="text-xs font-mono font-bold text-foreground">
-                  Subtotal: <span className="text-primary font-black">{totalScannedKg.toFixed(2)}</span> / {batchTargetKg.toFixed(2)} Kg
+                  Subtotal Aditivos: <span className="text-primary font-black">{totalScannedNonPpKg.toFixed(2)}</span> / {nonPpRequiredKg.toFixed(2)} Kg
                 </span>
               </div>
 
@@ -1379,17 +1448,17 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
           {isBatchBalanced ? (
             <span className="inline-flex items-center gap-1.5 text-emerald-500 font-bold">
               <Icon name="check_circle" size={16} />
-              Batch balanceado ({totalScannedKg.toFixed(2)} Kg) — Listo para {containerCount} contenedor(es) en Extrusora {selectedExtruderId}
+              Mezcla balanceada (500 Kg: Silo PP + Aditivos) — Lista para {containerCount} contenedor(es) en Extrusora {selectedExtruderId}
             </span>
-          ) : totalScannedKg > batchTargetKg ? (
-            <span className="inline-flex items-center gap-1.5 text-red-500 font-bold">
+          ) : !hasSufficientPpInSilo ? (
+            <span className="inline-flex items-center gap-1.5 text-amber-500 font-bold">
               <Icon name="warning" size={16} />
-              Exceso de peso: +{(totalScannedKg - batchTargetKg).toFixed(2)} Kg por encima del objetivo ({batchTargetKg} Kg)
+              Stock insuficiente en Silo {selectedSilo?.name || ''} ({selectedSilo?.current_stock_kg || 0} kg disp. &lt; {ppRequiredKg} kg)
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium">
               <Icon name="info" size={16} className="text-primary" />
-              Faltan {(batchTargetKg - totalScannedKg).toFixed(2)} Kg para completar el lote de {batchTargetKg} Kg
+              Faltan {(nonPpRequiredKg - totalScannedNonPpKg).toFixed(2)} Kg de aditivos escaneados con QR Hijo
             </span>
           )}
         </div>
@@ -1409,7 +1478,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
           <Button
             type="submit"
-            disabled={mutation.isPending || loadingFormulas || inputs.length === 0 || !formulaId || !selectedExtruderId || !hasLinkedActivePti}
+            disabled={mutation.isPending || loadingFormulas || !formulaId || !selectedExtruderId || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
             className="w-full sm:w-auto font-bold text-xs sm:text-sm h-11 px-6 gap-2 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {mutation.isPending ? (

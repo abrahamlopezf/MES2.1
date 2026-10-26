@@ -32,6 +32,8 @@ const supplierRoutes = require('../modules/catalogs/supplier/supplier.routes');
 const extrusionRoutes = require('../modules/extrusion/extrusion.routes');
 const formulasRoutes = require('../modules/formulas/formulas.routes');
 const telaresRoutes = require('../modules/telares/telares.routes');
+const globoRoutes = require('../modules/globo/globo.routes');
+const laminadoRoutes = require('../modules/laminado/laminado.routes');
 
 const router = express.Router();
 
@@ -64,5 +66,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/extrusion', extrusionRoutes);
 router.use('/formulas', formulasRoutes);
 router.use('/telares', telaresRoutes);
+router.use('/globo', globoRoutes);
+router.use('/laminado', laminadoRoutes);
 
 module.exports = router;

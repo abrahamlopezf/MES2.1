@@ -20,6 +20,8 @@ import {
   useDeletePtiProductMutation
 } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
+import { useAuthStore } from '@/store/authStore';
+import { canViewCosts } from '@/utils/authHelpers';
 
 interface MetricCardProps {
   title: string;
@@ -48,11 +50,11 @@ const MetricCard: React.FC<MetricCardProps> = ({
         {renderAnyIcon(icon, { size: 22 })}
       </div>
       <div className="min-w-0 flex-1">
-        <span className="text-[11px] xl:text-xs font-bold text-muted-foreground uppercase tracking-wide block truncate" title={title}>{title}</span>
+        <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide block leading-snug" title={title}>{title}</span>
         <div className={`text-xl sm:text-2xl font-black font-mono leading-tight mt-0.5 ${valueColor}`}>{value}</div>
-        <span className={`text-[11px] font-semibold flex items-center gap-1 mt-0.5 ${subColor || 'text-muted-foreground'}`}>
+        <span className={`text-sm font-semibold flex items-center gap-1 mt-0.5 leading-snug ${subColor || 'text-muted-foreground'}`}>
           {subIcon && renderAnyIcon(subIcon, { size: 14, className: 'shrink-0' })}
-          <span className="truncate" title={subtitle}>{subtitle}</span>
+          <span className="break-words" title={subtitle}>{subtitle}</span>
         </span>
       </div>
     </div>
@@ -60,6 +62,9 @@ const MetricCard: React.FC<MetricCardProps> = ({
 );
 
 export const FormulasPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
+
   // Pestaña activa: 'FORMULAS' o 'PTI_CATALOG'
   const [activeTab, setActiveTab] = useState<'FORMULAS' | 'PTI_CATALOG'>('FORMULAS');
 
@@ -80,8 +85,20 @@ export const FormulasPage: React.FC = () => {
   const [deletingPtiId, setDeletingPtiId] = useState<number | null>(null);
 
   // Queries
-  const { data: formulas = [], isLoading: isFormulasLoading, refetch: refetchFormulas } = useFloorFormulasQuery();
-  const { data: ptiProducts = [], isLoading: isPtiLoading, refetch: refetchPtis } = usePtiProductsQuery({ is_active: 'ALL' });
+  const {
+    data: formulas = [],
+    isLoading: isFormulasLoading,
+    isError: isFormulasError,
+    error: formulasError,
+    refetch: refetchFormulas,
+  } = useFloorFormulasQuery();
+  const {
+    data: ptiProducts = [],
+    isLoading: isPtiLoading,
+    isError: isPtiError,
+    error: ptiError,
+    refetch: refetchPtis,
+  } = usePtiProductsQuery({ is_active: 'ALL' });
 
   // Mutations
   const updatePtiMutation = useUpdatePtiProductMutation();
@@ -119,7 +136,10 @@ export const FormulasPage: React.FC = () => {
     const matchesSearch =
       p.name.toLowerCase().includes(ptiSearchTerm.toLowerCase()) ||
       p.code.toLowerCase().includes(ptiSearchTerm.toLowerCase()) ||
-      (p.specifications && p.specifications.toLowerCase().includes(ptiSearchTerm.toLowerCase()));
+      (p.specifications && p.specifications.toLowerCase().includes(ptiSearchTerm.toLowerCase())) ||
+      (p.tape_type && p.tape_type.toLowerCase().includes(ptiSearchTerm.toLowerCase())) ||
+      (p.color && p.color.toLowerCase().includes(ptiSearchTerm.toLowerCase())) ||
+      String(p.denier ?? '').includes(ptiSearchTerm.trim());
 
     const matchesFormula =
       ptiFormulaFilter === 'ALL' || String(p.formula_id) === ptiFormulaFilter;
@@ -136,21 +156,26 @@ export const FormulasPage: React.FC = () => {
   const totalFormulas = formulas.length;
   const avgCostIndex = formulas.length > 0
     ? (formulas.reduce((acc, f) => acc + (Number(f.cost_index) || 1.15), 0) / formulas.length).toFixed(4)
-    : '1.1500';
-  const avgMixValue = formulas.length > 0
-    ? (formulas.reduce((acc, f) => acc + (Number(f.transformed_mixture_value) || 0), 0) / formulas.length).toFixed(2)
-    : '0.00';
+    : 'Pendiente';
+  const valuedFormulas = formulas.filter((formula) => formula.transformed_mixture_value != null);
+  const avgMixValue = valuedFormulas.length > 0
+    ? (valuedFormulas.reduce((acc, formula) => acc + Number(formula.transformed_mixture_value), 0) / valuedFormulas.length).toFixed(2)
+    : null;
   const totalLinkedPtis = formulas.reduce((acc, f) => acc + (f.ptiProducts?.length || 0), 0);
 
   // Métricas de Catálogo PTI
   const totalPtisCount = ptiProducts.length;
   const activePtisCount = ptiProducts.filter((p) => p.is_active).length;
-  const avgWeightKg = ptiProducts.length > 0
-    ? (ptiProducts.reduce((acc, p) => acc + (Number(p.unit_weight_kg) || 0), 0) / ptiProducts.length).toFixed(3)
-    : '6.800';
-  const avgPriceMxn = ptiProducts.length > 0
-    ? (ptiProducts.reduce((acc, p) => acc + (Number(p.unit_price) || 0), 0) / ptiProducts.length).toFixed(2)
-    : '0.00';
+  const weightedPtis = ptiProducts.filter((p) => p.unit_weight_kg != null && Number(p.unit_weight_kg) > 0);
+  const avgWeightKg = weightedPtis.length > 0
+    ? (weightedPtis.reduce((acc, p) => acc + Number(p.unit_weight_kg), 0) / weightedPtis.length).toFixed(3)
+    : 'Pendiente';
+  const avgPtiCostIndex = ptiProducts.length > 0
+    ? (ptiProducts.reduce((acc, p) => acc + Number(p.transformed_cost_index || 1), 0) / ptiProducts.length).toFixed(4)
+    : '1.0000';
+
+  const getQueryErrorMessage = (error: any) =>
+    error?.response?.data?.message || error?.message || 'No se pudo cargar la información. Revisa la conexión con el servidor.';
 
   // Toggle Activo/Inactivo de un PTI
   const handleTogglePtiActive = async (pti: PtiProduct) => {
@@ -201,12 +226,12 @@ export const FormulasPage: React.FC = () => {
         </div>
 
         {/* TAB SWITCHER INDUSTRIAL */}
-        <div className="flex items-center p-1.5 rounded-xl bg-muted/60 border border-border shrink-0 shadow-sm self-stretch sm:self-auto overflow-x-auto">
+        <div className="grid w-full grid-cols-1 gap-1 p-1.5 rounded-xl bg-muted/60 border border-border shadow-sm xl:w-auto xl:grid-cols-2">
           <button
             type="button"
             data-testid="tab-formulas"
             onClick={() => setActiveTab('FORMULAS')}
-            className={`flex items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-sm font-black whitespace-nowrap transition-all ${
+            className={`flex min-h-12 w-full flex-wrap items-center justify-center gap-2 px-3 py-3 sm:px-4 rounded-lg text-base font-black leading-snug text-center transition-all ${
               activeTab === 'FORMULAS'
                 ? 'bg-card text-primary shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground'
@@ -221,7 +246,7 @@ export const FormulasPage: React.FC = () => {
             type="button"
             data-testid="tab-pti-catalog"
             onClick={() => setActiveTab('PTI_CATALOG')}
-            className={`flex items-center justify-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-sm font-black whitespace-nowrap transition-all ${
+            className={`flex min-h-12 w-full flex-wrap items-center justify-center gap-2 px-3 py-3 sm:px-4 rounded-lg text-base font-black leading-snug text-center transition-all ${
               activeTab === 'PTI_CATALOG'
                 ? 'bg-card text-primary shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground'
@@ -233,6 +258,25 @@ export const FormulasPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {(isFormulasError || isPtiError) && (
+        <Card role="alert" className="border-rose-500/40 bg-rose-500/5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Icon name="warning" size={20} className="mt-0.5 shrink-0 text-rose-600" />
+              <div>
+                <p className="font-bold text-foreground">No se pudo cargar el catálogo</p>
+                {isFormulasError && <p className="mt-1 text-sm text-muted-foreground">Fórmulas: {getQueryErrorMessage(formulasError)}</p>}
+                {isPtiError && <p className="mt-1 text-sm text-muted-foreground">PTI: {getQueryErrorMessage(ptiError)}</p>}
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {isFormulasError && <Button type="button" variant="outline" onClick={() => void refetchFormulas()}>Reintentar fórmulas</Button>}
+              {isPtiError && <Button type="button" variant="outline" onClick={() => void refetchPtis()}>Reintentar PTI</Button>}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* ========================================================= */}
       {/* TAB 1: FÓRMULAS DE EXTRUSIÓN & VALOR DE MEZCLA */}
@@ -250,22 +294,45 @@ export const FormulasPage: React.FC = () => {
               subIcon="check_circle"
               subColor="text-emerald-600"
             />
-            <MetricCard
-              title="Factor de Costo"
-              value={`×${avgCostIndex}`}
-              subtitle="Índice editable por fórmula"
-              icon="auto_awesome"
-              iconBg="bg-purple-500/10 text-purple-600"
-              valueColor="text-purple-600"
-            />
-            <MetricCard
-              title="Valor de Mezcla"
-              value={`$${Number(avgMixValue).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
-              subtitle="Por bache de 500 kg transformado"
-              icon="payments"
-              iconBg="bg-emerald-500/10 text-emerald-600"
-              valueColor="text-emerald-600"
-            />
+            {allowCosts ? (
+              <>
+                <MetricCard
+                  title="Factor de Costo"
+                  value={`×${avgCostIndex}`}
+                  subtitle="Índice editable por fórmula"
+                  icon="auto_awesome"
+                  iconBg="bg-purple-500/10 text-purple-600"
+                  valueColor="text-purple-600"
+                />
+                <MetricCard
+                  title="Valor de Mezcla"
+                  value={avgMixValue == null ? 'Pendiente' : `$${Number(avgMixValue).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+                  subtitle={avgMixValue == null ? 'Faltan costos por lote de uno o más materiales' : `Promedio de ${valuedFormulas.length} fórmulas costeables`}
+                  icon="payments"
+                  iconBg="bg-emerald-500/10 text-emerald-600"
+                  valueColor="text-emerald-600"
+                />
+              </>
+            ) : (
+              <>
+                <MetricCard
+                  title="Recetas Operativas"
+                  value={formulas.filter(f => f.is_active !== false).length}
+                  subtitle="Disponibles en piso de extrusión"
+                  icon="precision_manufacturing"
+                  iconBg="bg-purple-500/10 text-purple-600"
+                  valueColor="text-purple-600"
+                />
+                <MetricCard
+                  title="Tamaño Estándar"
+                  value="500 kg"
+                  subtitle="Capacidad de bache por receta"
+                  icon="scale"
+                  iconBg="bg-emerald-500/10 text-emerald-600"
+                  valueColor="text-emerald-600"
+                />
+              </>
+            )}
             <MetricCard
               title="Carretes Enlazados"
               value={totalLinkedPtis}
@@ -356,9 +423,9 @@ export const FormulasPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredFormulas.map((formula: Formula) => {
                 const costIndex = Number(formula.cost_index) || 1.1500;
-                const rawCost = Number(formula.raw_materials_cost) || 13500.00;
-                const transformedVal = Number(formula.transformed_mixture_value) || (rawCost * costIndex);
-                const suggestedPrice = Number(formula.suggested_pti_unit_price) || 0;
+                const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
+                const transformedVal = formula.transformed_mixture_value == null ? null : Number(formula.transformed_mixture_value);
+                const suggestedPrice = formula.suggested_pti_unit_price == null ? null : Number(formula.suggested_pti_unit_price);
                 const ptiCount = formula.ptiProducts?.length || 0;
 
                 return (
@@ -376,10 +443,10 @@ export const FormulasPage: React.FC = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                              <Badge variant="outline" className="font-mono text-[11px] font-bold">{formula.code}</Badge>
-                              <Badge variant="secondary" className="text-[11px] font-semibold">{formula.batch_size_kg || 500} Kg</Badge>
+                              <Badge variant="outline" className="font-mono text-sm font-bold">{formula.code}</Badge>
+                              <Badge variant="secondary" className="text-sm font-semibold">{formula.batch_size_kg || 500} Kg</Badge>
                             </div>
-                            <h3 className="font-black text-base text-foreground leading-snug line-clamp-2">
+                            <h3 className="font-black text-lg text-foreground leading-snug line-clamp-2">
                               {formula.name}
                             </h3>
                           </div>
@@ -387,42 +454,44 @@ export const FormulasPage: React.FC = () => {
                       </div>
 
                       {/* METADATA RÁPIDA */}
-                      <div className="flex items-center justify-between text-xs text-muted-foreground font-medium pt-2 border-t border-border/50">
-                        <span className="flex items-center gap-1.5 truncate">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-muted-foreground font-medium pt-2 border-t border-border/50">
+                        <span className="flex min-w-0 items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
-                          <span className="truncate">{getTargetMachine(formula)}</span>
+                          <span className="break-words">{getTargetMachine(formula)}</span>
                         </span>
-                        <span className="shrink-0 font-mono text-[11px]">
+                        <span className="font-mono">
                           {formula.expected_yield_pieces} pzas ({formula.expected_yield_kg || 490} kg)
                         </span>
                       </div>
 
                       {/* BLOQUE ECONÓMICO */}
-                      <div className="p-3 rounded-xl bg-muted/40 border border-border grid grid-cols-3 gap-2 mt-auto">
-                        <div className="text-left">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase block truncate">Insumos Base</span>
-                          <span className="text-xs font-mono font-bold text-foreground block truncate">
-                            ${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
+                      {allowCosts && (
+                        <div className="p-3 rounded-xl bg-muted/40 border border-border grid grid-cols-3 gap-2 mt-auto">
+                          <div className="text-left">
+                            <span className="text-sm font-bold text-muted-foreground uppercase block leading-snug">Insumos Base</span>
+                            <span className="text-sm font-mono font-bold text-foreground block break-words">
+                              {rawCost == null ? 'Pendiente de costeo' : `$${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+                            </span>
+                          </div>
 
-                        <div className="text-center px-1 border-x border-border">
-                          <span className="text-[10px] font-bold text-primary uppercase block">Factor</span>
-                          <Badge variant="default" className="bg-primary/15 text-primary border-primary/30 font-mono font-black text-[11px] px-1.5 py-0">
-                            ×{costIndex.toFixed(4)}
-                          </Badge>
-                        </div>
+                          <div className="text-center px-1 border-x border-border">
+                            <span className="text-sm font-bold text-primary uppercase block">Factor</span>
+                            <Badge variant="default" className="bg-primary/15 text-primary border-primary/30 font-mono font-black text-sm px-1.5 py-0">
+                              ×{costIndex.toFixed(4)}
+                            </Badge>
+                          </div>
 
-                        <div className="text-right">
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase block truncate">Transformada</span>
-                          <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 block truncate">
-                            ${transformedVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-mono block truncate">
-                            ~${suggestedPrice.toFixed(2)}/pza
-                          </span>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 uppercase block leading-snug">Transformada</span>
+                            <span className="text-sm font-mono font-black text-emerald-600 dark:text-emerald-400 block break-words">
+                              {transformedVal == null ? 'Pendiente' : `$${transformedVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+                            </span>
+                            <span className="text-sm text-muted-foreground font-mono block break-words">
+                              {suggestedPrice == null ? 'Precio sugerido pendiente' : `~$${suggestedPrice.toFixed(2)}/pza`}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* FOOTER CON BOTONES DE ACCIÓN */}
@@ -430,7 +499,7 @@ export const FormulasPage: React.FC = () => {
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="gap-1.5 font-bold text-xs flex-1 h-8"
+                        className="min-h-12 flex-1 gap-1.5 text-base font-bold"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedFormulaDetails(formula);
@@ -444,7 +513,8 @@ export const FormulasPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="font-bold text-xs px-2.5 h-8 text-muted-foreground hover:text-foreground"
+                          aria-label={`Editar factor de ${formula.name}`}
+                          className="min-h-12 min-w-12 px-3 font-bold text-base text-muted-foreground hover:text-foreground"
                           title="Editar Factor Índice"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -475,8 +545,70 @@ export const FormulasPage: React.FC = () => {
               </div>
 
               <div className="px-4 sm:px-5 pb-5 pt-2">
-                <div className="w-full pb-2 overflow-x-auto">
-                  <table className="w-full table-fixed border-separate border-spacing-0">
+                <div className="grid gap-3 lg:hidden">
+                  {filteredFormulas.map((formula: Formula) => {
+                    const ptiCount = formula.ptiProducts?.length || 0;
+
+                    return (
+                      <article key={formula.id} className="rounded-xl border border-border bg-background p-4">
+                        <p className="break-words font-mono text-sm font-bold text-primary">{formula.code}</p>
+                        <h4 className="mt-1 text-lg font-bold leading-snug text-foreground">{formula.name}</h4>
+
+                        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-3 text-base">
+                          <div className="col-span-2">
+                            <dt className="text-sm font-semibold text-muted-foreground">Máquina destino</dt>
+                            <dd className="mt-0.5 break-words font-medium text-foreground">{getTargetMachine(formula)}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-semibold text-muted-foreground">Tamaño del lote</dt>
+                            <dd className="mt-0.5 font-mono font-bold text-foreground">{formula.batch_size_kg || 500} kg</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-semibold text-muted-foreground">Rendimiento esperado</dt>
+                            <dd className="mt-0.5 font-mono font-bold text-foreground">{formula.expected_yield_pieces} pzas</dd>
+                            <dd className="text-sm text-muted-foreground">{formula.expected_yield_kg || 490} kg</dd>
+                          </div>
+                          <div className="col-span-2">
+                            <dt className="text-sm font-semibold text-muted-foreground">Carretes PTI vinculados</dt>
+                            <dd className="mt-0.5 font-medium text-foreground">
+                              {ptiCount > 0 ? `${ptiCount} PTI enlazado${ptiCount !== 1 ? 's' : ''}` : 'Sin carretes vinculados'}
+                            </dd>
+                          </div>
+                        </dl>
+
+                        <div className="mt-4 grid grid-cols-1 gap-2 border-t border-border pt-3 sm:grid-cols-2">
+                          <Button
+                            variant="secondary"
+                            className="min-h-12 w-full gap-2 text-base font-bold"
+                            onClick={() => setSelectedFormulaDetails(formula)}
+                          >
+                            <Icon name="description" size={18} />
+                            Detalles
+                          </Button>
+                          <PermissionGate permission="extrusion.formulas.manage">
+                            <Button
+                              variant="outline"
+                              aria-label={`Editar factor de ${formula.name}`}
+                              className="min-h-12 w-full gap-2 text-base font-bold"
+                              onClick={() => setEditingFormula(formula)}
+                            >
+                              <Icon name="edit" size={18} />
+                              Editar factor
+                            </Button>
+                          </PermissionGate>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <div
+                  role="region"
+                  aria-label="Tabla de carretes y bobinas PTI. Desplázate horizontalmente para ver todas las columnas."
+                  tabIndex={0}
+                  className="hidden w-full overflow-x-auto pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:block"
+                >
+                  <table className="w-full min-w-[1310px] table-fixed border-separate border-spacing-0">
                     <thead>
                       <tr>
                         <th className="w-[13%] rounded-l-xl bg-secondary px-3 py-3 text-center text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
@@ -633,20 +765,31 @@ export const FormulasPage: React.FC = () => {
             />
             <MetricCard
               title="Peso Promedio"
-              value={`${avgWeightKg} kg`}
+              value={avgWeightKg === 'Pendiente' ? avgWeightKg : `${avgWeightKg} kg`}
               subtitle="Factor para báscula de piso"
               icon="scale"
               iconBg="bg-blue-500/10 text-blue-600"
               valueColor="text-blue-600"
             />
-            <MetricCard
-              title="Precio Promedio"
-              value={`$${Number(avgPriceMxn).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
-              subtitle="Valor unitario para Racks/WIP"
-              icon="payments"
-              iconBg="bg-emerald-500/10 text-emerald-600"
-              valueColor="text-emerald-600"
-            />
+            {allowCosts ? (
+              <MetricCard
+                title="Índice transformado PTI"
+                value={`×${avgPtiCostIndex}`}
+                subtitle="Multiplicador aplicado al costo/kg de mezcla"
+                icon="payments"
+                iconBg="bg-emerald-500/10 text-emerald-600"
+                valueColor="text-emerald-600"
+              />
+            ) : (
+              <MetricCard
+                title="PTIs Calibrados"
+                value={ptiProducts.filter((p) => p.tape_width_mm && p.denier).length}
+                subtitle="Fichas con denier y ancho asignado"
+                icon="tune"
+                iconBg="bg-emerald-500/10 text-emerald-600"
+                valueColor="text-emerald-600"
+              />
+            )}
           </div>
 
           {/* BARRA DE FILTROS & BOTÓN NUEVO PTI */}
@@ -744,32 +887,147 @@ export const FormulasPage: React.FC = () => {
               </div>
 
               <div className="px-4 sm:px-5 pb-5 pt-2">
-                <div className="w-full pb-2 overflow-x-auto">
+                <div className="grid gap-3 lg:hidden">
+                  {filteredPtis.map((pti: PtiProduct) => (
+                    <article key={pti.id} className="rounded-xl border border-border bg-background p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="break-words font-mono text-sm font-bold text-primary">{pti.code}</p>
+                          <h4 className="mt-1 text-lg font-bold leading-snug text-foreground">{pti.name}</h4>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            aria-label={`Acciones para ${pti.name}`}
+                            className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <span className="text-2xl font-bold leading-none" aria-hidden="true">&#8942;</span>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 font-medium">
+                            <PermissionGate permission="extrusion.formulas.manage">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingPti(pti);
+                                  setIsPtiModalOpen(true);
+                                }}
+                                className="min-h-12 cursor-pointer py-3"
+                              >
+                                <Icon name="edit" size={18} className="mr-2 text-primary" />
+                                <span>Editar Carrete</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleTogglePtiActive(pti)}
+                                className="min-h-12 cursor-pointer py-3"
+                              >
+                                <Icon name="power_settings_new" size={18} className={`mr-2 ${pti.is_active ? 'text-amber-500' : 'text-emerald-500'}`} />
+                                <span>{pti.is_active ? 'Desactivar PTI' : 'Activar PTI'}</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={deletingPtiId === pti.id}
+                                onClick={() => handleDeletePti(pti)}
+                                className="min-h-12 cursor-pointer py-3 text-red-600 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-900/20"
+                              >
+                                <Icon name="delete" size={18} className="mr-2" />
+                                <span>Eliminar Carrete</span>
+                              </DropdownMenuItem>
+                            </PermissionGate>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-3 text-base">
+                        <div className="col-span-2 rounded-lg border border-border bg-muted/30 p-3">
+                          <dt className="text-sm font-bold uppercase text-muted-foreground">Ficha técnica del catálogo</dt>
+                          <dd className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <span><strong>Extrusora:</strong> {pti.extrusion_machine_number ? `#${pti.extrusion_machine_number}` : '—'}</span>
+                            <span><strong>Tipo:</strong> {pti.tape_type || '—'}</span>
+                            <span className="col-span-2 break-words"><strong>Color:</strong> {pti.color || '—'}</span>
+                            <span><strong>Denier:</strong> {pti.denier ?? '—'}</span>
+                            <span><strong>Cintas:</strong> {pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`}</span>
+                            <span><strong>Ancho:</strong> {pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</span>
+                            {allowCosts && <span><strong>Índice PTI:</strong> ×{Number(pti.transformed_cost_index || 1).toFixed(4)}</span>}
+                          </dd>
+                        </div>
+                        <div className="col-span-2">
+                          <dt className="text-sm font-semibold text-muted-foreground">Fórmula enlazada</dt>
+                          <dd className="mt-0.5 break-words font-medium text-foreground">
+                            {pti.formula ? (
+                              <>
+                                {pti.formula.name}
+                                <span className="mt-0.5 block font-mono text-sm text-muted-foreground">
+                                  {pti.formula.code}{allowCosts ? ` · ×${Number(pti.formula.cost_index || 1.15).toFixed(2)}` : ''}
+                                </span>
+                              </>
+                            ) : pti.formula_id ? `Fórmula #${pti.formula_id}` : 'Sin fórmula enlazada'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-semibold text-muted-foreground">Peso unitario</dt>
+                          <dd className="mt-0.5 font-mono font-bold text-foreground">{pti.unit_weight_kg == null ? 'Pendiente de captura' : `${Number(pti.unit_weight_kg).toFixed(3)} kg`}</dd>
+                        </div>
+                        {allowCosts && (
+                          <div>
+                            <dt className="text-sm font-semibold text-muted-foreground">Precio unitario</dt>
+                            <dd className="mt-0.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">${Number(pti.unit_price).toFixed(2)}</dd>
+                          </div>
+                        )}
+                        <div className="col-span-2">
+                          <dt className="text-sm font-semibold text-muted-foreground">Especificaciones</dt>
+                          <dd className="mt-0.5 break-words text-foreground">{pti.specifications || <span className="italic text-muted-foreground">Sin ficha técnica</span>}</dd>
+                        </div>
+                      </dl>
+
+                      <div className="mt-4 border-t border-border pt-3">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePtiActive(pti)}
+                          aria-label={`${pti.is_active ? 'Desactivar' : 'Activar'} PTI ${pti.code}`}
+                          title={pti.is_active ? 'Desactivar producto' : 'Activar producto'}
+                          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-border px-4 text-base font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <Badge
+                            variant={pti.is_active ? 'default' : 'secondary'}
+                            className={`text-sm font-bold ${pti.is_active ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : ''}`}
+                          >
+                            {pti.is_active ? 'ACTIVO' : 'INACTIVO'}
+                          </Badge>
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden w-full pb-2 overflow-x-auto lg:block">
                   <table className="w-full table-fixed border-separate border-spacing-0">
                     <thead>
                       <tr>
-                        <th className="w-[13%] rounded-l-xl bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[120px] rounded-l-xl bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Código / SKU
                         </th>
-                        <th className="w-[18%] bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[180px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Carrete / Bobina
                         </th>
-                        <th className="w-[18%] bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[240px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                          Ficha de cinta
+                        </th>
+                        <th className="w-[190px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Fórmula Enlazada
                         </th>
-                        <th className="w-[17%] bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[180px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Especificaciones
                         </th>
-                        <th className="w-[9%] bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[110px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Peso Unit.
                         </th>
-                        <th className="w-[9%] bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
-                          Precio Unit.
-                        </th>
-                        <th className="w-[8%] bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        {allowCosts && (
+                          <th className="w-[110px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                            Precio Unit.
+                          </th>
+                        )}
+                        <th className="w-[100px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Estado
                         </th>
-                        <th className="w-[8%] rounded-r-xl bg-secondary px-2 py-3 text-center text-xs font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[80px] rounded-r-xl bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Acciones
                         </th>
                       </tr>
@@ -789,6 +1047,13 @@ export const FormulasPage: React.FC = () => {
                             </span>
                           </td>
 
+                          <td className="border-b border-border/50 px-2.5 py-2.5 align-middle text-xs text-muted-foreground">
+                            <span className="block font-semibold text-foreground">{pti.tape_type || 'Tipo pendiente'} · Ext. {pti.extrusion_machine_number ?? '—'}</span>
+                            <span className="mt-1 block break-words" title={pti.color || ''}>Color: {pti.color || '—'}</span>
+                            <span className="mt-1 block font-mono">{pti.denier == null ? '—' : `${pti.denier} D`} · {pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`} cintas · {pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</span>
+                            {allowCosts && <span className="mt-1 block font-mono font-bold text-purple-600">Índice PTI ×{Number(pti.transformed_cost_index || 1).toFixed(4)}</span>}
+                          </td>
+
                           <td className="border-b border-border/50 px-2.5 py-2.5 align-middle">
                             {pti.formula ? (
                               <div className="flex flex-col gap-0.5">
@@ -797,8 +1062,12 @@ export const FormulasPage: React.FC = () => {
                                 </span>
                                 <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
                                   <span>{pti.formula.code}</span>
-                                  <span>•</span>
-                                  <span className="text-purple-600 font-bold">×{Number(pti.formula.cost_index || 1.15).toFixed(2)}</span>
+                                  {allowCosts && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-purple-600 font-bold">×{Number(pti.formula.cost_index || 1.15).toFixed(2)}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             ) : (
@@ -821,23 +1090,26 @@ export const FormulasPage: React.FC = () => {
                           </td>
 
                           <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono font-bold text-foreground whitespace-nowrap text-xs">
-                            {Number(pti.unit_weight_kg).toFixed(3)} kg
+                            {pti.unit_weight_kg == null ? 'Pendiente' : `${Number(pti.unit_weight_kg).toFixed(3)} kg`}
                           </td>
 
-                          <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap text-xs">
-                            ${Number(pti.unit_price).toFixed(2)}
-                          </td>
+                          {allowCosts && (
+                            <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap text-xs">
+                              ${Number(pti.unit_price).toFixed(2)}
+                            </td>
+                          )}
 
                           <td className="border-b border-border/50 px-3 py-2.5 align-middle text-center">
                             <button
                               type="button"
                               onClick={() => handleTogglePtiActive(pti)}
                               title={pti.is_active ? 'Click para desactivar' : 'Click para activar'}
-                              className="inline-flex cursor-pointer"
+                              aria-label={`${pti.is_active ? 'Desactivar' : 'Activar'} PTI ${pti.code}`}
+                              className="inline-flex min-h-11 min-w-[100px] items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               <Badge
                                 variant={pti.is_active ? 'default' : 'secondary'}
-                                className={`text-[11px] font-bold cursor-pointer transition-all ${
+                                className={`text-sm font-bold cursor-pointer transition-all ${
                                   pti.is_active
                                     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
                                     : 'opacity-70 hover:opacity-100'
@@ -850,7 +1122,7 @@ export const FormulasPage: React.FC = () => {
 
                           <td className="border-b border-border/50 px-2 py-2 align-middle text-center" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
-                              <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
+                              <DropdownMenuTrigger aria-label={`Acciones para ${pti.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
                                 <span className="sr-only">Abrir menú</span>
                                 <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
                               </DropdownMenuTrigger>

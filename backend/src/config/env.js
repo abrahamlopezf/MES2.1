@@ -1,6 +1,11 @@
+// Forzar zona horaria oficial del sistema a CDMX (CST / UTC-6)
+process.env.TZ = process.env.TZ || 'America/Mexico_City';
 require('dotenv').config();
 
 const env = {
+  timezone: process.env.TIMEZONE || 'America/Mexico_City',
+  timezoneStandard: process.env.TIMEZONE_STANDARD_CODE || 'CST',
+  utcOffset: process.env.UTC_OFFSET || '-06:00',
   nodeEnv: process.env.NODE_ENV || 'development',
 
   isProduction:
@@ -26,7 +31,7 @@ const env = {
     secret:
       process.env.JWT_SECRET || 'development_secret',
 
-    expiresIn: '12h',
+    expiresIn: process.env.JWT_EXPIRES_IN || '12h',
   },
 };
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CapabilityRegistry } from '../../../core/platform/CapabilityRegistry/CapabilityRegistry';
-import { EventBus } from '../../../core/platform/EventBus/EventBus';
-import { createWorkflow } from '../../../core/runtime/WorkflowEngine/createWorkflow';
-import { MES_EVENTS } from '../../../core/platform/EventBus/DomainEvents';
+import { CapabilityRegistry } from '../../core/platform/CapabilityRegistry/CapabilityRegistry';
+import { EventBus } from '../../core/platform/EventBus/EventBus';
+import { createWorkflow } from '../../core/runtime/WorkflowEngine/createWorkflow';
+import { MES_EVENTS } from '../../core/platform/EventBus/DomainEvents';
 
 /**
  * Pruebas de Integración del Runtime Completo
@@ -10,7 +10,7 @@ import { MES_EVENTS } from '../../../core/platform/EventBus/DomainEvents';
  */
 describe('Runtime Integration', () => {
   beforeEach(() => {
-    CapabilityRegistry.registry.clear();
+    CapabilityRegistry.capabilities.clear();
     EventBus.listeners.clear();
   });
 
@@ -36,7 +36,7 @@ describe('Runtime Integration', () => {
       workspace: () => null
     });
 
-    const capability = CapabilityRegistry.resolve('INTEGRATION_TEST');
+    const capability = CapabilityRegistry.getCapability('INTEGRATION_TEST');
     expect(capability).toBeDefined();
 
     // 3. Suscribirse al EventBus

@@ -27,6 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'FK a la fórmula asociada a la mezcla',
       },
+      process_preparation_id: { type: DataTypes.INTEGER, allowNull: true },
       priority: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -42,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
-        comment: 'Indica si la mezcla es un kit de solo aditivos procesado con alimentación de Silo',
+        comment: 'Campo legado; las preparaciones actuales son mezclas completas y el PP del silo queda trazado en sus entradas.',
       },
       notes: {
         type: DataTypes.TEXT,

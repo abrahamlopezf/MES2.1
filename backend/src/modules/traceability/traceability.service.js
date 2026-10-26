@@ -569,11 +569,67 @@ const scanQrCode = async ({ scannedCode, user }) => {
         })
         : [];
 
+    const genealogyLinkInclude = (direction) => [
+        {
+            model: db.TraceableItem,
+            as: direction === 'parents' ? 'parent_traceable_item' : 'child_traceable_item',
+            attributes: ['id', 'item_type', 'status', 'quantity_current', 'unit', 'product_name', 'reference_folio'],
+            required: false,
+        },
+        {
+            model: db.QrCode,
+            as: direction === 'parents' ? 'parent_qr_code' : 'child_qr_code',
+            attributes: ['id', 'qr_code', 'status'],
+            required: false,
+        },
+    ];
+    const genealogyType = (type) => ({
+        RAW_MATERIAL_LOT: 'Materia Prima',
+        PREPARED_MIX: 'Mezcla Preparada',
+        INTERMEDIATE_PRODUCT: 'Producto Intermedio',
+        FINISHED_PRODUCT: 'Producto Terminado',
+        SCRAP: 'Merma/Scrap',
+    }[type] || type || 'Producto');
+    const buildGenealogyNode = async (link, direction, depth = 0, ancestry = new Set()) => {
+        const isParent = direction === 'parents';
+        const item = link[isParent ? 'parent_traceable_item' : 'child_traceable_item'];
+        const code = link[isParent ? 'parent_qr_code' : 'child_qr_code'];
+        const itemId = Number(item?.id || (isParent ? link.parent_traceable_item_id : link.child_traceable_item_id));
+        const path = new Set(ancestry);
+        if (itemId) path.add(itemId);
+        const nestedLinks = depth >= 8 || !itemId ? [] : await db.TraceabilityLink.findAll({
+            where: isParent
+                ? { child_traceable_item_id: itemId }
+                : { parent_traceable_item_id: itemId },
+            include: genealogyLinkInclude(isParent ? 'parents' : 'children'),
+            order: [['created_at', 'ASC']],
+            limit: 100,
+        });
+        const nestedNodes = [];
+        for (const nestedLink of nestedLinks) {
+            const nestedItem = nestedLink[isParent ? 'parent_traceable_item' : 'child_traceable_item'];
+            const nestedId = Number(nestedItem?.id || (isParent ? nestedLink.parent_traceable_item_id : nestedLink.child_traceable_item_id));
+            if (!path.has(nestedId)) nestedNodes.push(await buildGenealogyNode(nestedLink, direction, depth + 1, path));
+        }
+        return {
+            id: String(link.id),
+            qrId: code?.qr_code || `QR #${isParent ? link.parent_qr_code_id : link.child_qr_code_id}`,
+            type: genealogyType(item?.item_type),
+            status: item?.status || code?.status || 'DESCONOCIDO',
+            quantity: `${Number(link.quantity_used || 0).toFixed(3)} ${link.unit || item?.unit || 'KG'}`,
+            children: nestedNodes,
+            link_type: link.link_type,
+            quantity_generated: link.quantity_generated,
+            scrap_quantity: link.scrap_quantity,
+        };
+    };
+
     const parentLinks = traceableItem
         ? await db.TraceabilityLink.findAll({
             where: {
                 child_traceable_item_id: traceableItem.id,
             },
+            include: genealogyLinkInclude('parents'),
             order: [['created_at', 'DESC']],
             limit: 10,
         })
@@ -584,6 +640,7 @@ const scanQrCode = async ({ scannedCode, user }) => {
             where: {
                 parent_traceable_item_id: traceableItem.id,
             },
+            include: genealogyLinkInclude('children'),
             order: [['created_at', 'DESC']],
             limit: 10,
         })
@@ -655,26 +712,8 @@ const scanQrCode = async ({ scannedCode, user }) => {
             performed_at: movement.performed_at,
         })),
         traceability_links: {
-            parents: parentLinks.map((link) => ({
-                id: link.id,
-                parent_traceable_item_id: link.parent_traceable_item_id,
-                parent_qr_code_id: link.parent_qr_code_id,
-                link_type: link.link_type,
-                quantity_used: link.quantity_used,
-                quantity_generated: link.quantity_generated,
-                scrap_quantity: link.scrap_quantity,
-                unit: link.unit,
-            })),
-            children: childLinks.map((link) => ({
-                id: link.id,
-                child_traceable_item_id: link.child_traceable_item_id,
-                child_qr_code_id: link.child_qr_code_id,
-                link_type: link.link_type,
-                quantity_used: link.quantity_used,
-                quantity_generated: link.quantity_generated,
-                scrap_quantity: link.scrap_quantity,
-                unit: link.unit,
-            })),
+            parents: await Promise.all(parentLinks.map((link) => buildGenealogyNode(link, 'parents'))),
+            children: await Promise.all(childLinks.map((link) => buildGenealogyNode(link, 'children'))),
         },
         traceability_events: traceabilityEvents.map(evt => ({
             id: evt.id,

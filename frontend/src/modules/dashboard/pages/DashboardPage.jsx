@@ -18,6 +18,11 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../core/api/apiClient';
 import { WarehouseDashboard } from '../../warehouse/presentation/pages/WarehouseDashboard';
 import { ExtrusionDashboard } from '../../production/presentation/pages/ExtrusionDashboard';
+import { TelaresDashboard } from '../../telares/presentation/pages/TelaresDashboard';
+import GloboWipPage from '../../globo/pages/GloboWipPage';
+import LaminadoWipPage from '../../laminado/pages/LaminadoWipPage';
+import { isSupervisorUser, getUserAreaCode } from '../../../utils/authHelpers';
+
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-MX', {
@@ -33,25 +38,25 @@ const ExecutiveKpiCard = ({ title, value, isCurrency, unit = '', colorClass, ico
   return (
     <Card 
       onClick={onClick}
-      className={`flex flex-col justify-between p-5 shadow-sm border-b-4 ${colorClass} relative overflow-hidden min-h-[140px] ${onClick ? 'cursor-pointer hover:opacity-95 transition-all' : ''}`}
+      className={`flex flex-col justify-between p-5 shadow-sm border-b-4 ${colorClass} relative overflow-hidden min-h-[156px] ${onClick ? 'cursor-pointer hover:opacity-95 transition-all' : ''}`}
     >
       <div className="absolute -right-4 -bottom-4 opacity-10 pointer-events-none">
         {Icon && <Icon className="w-24 h-24" />}
       </div>
       <div>
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <p className="text-foreground opacity-70 text-xs font-bold uppercase tracking-wider line-clamp-1 relative z-10">
+          <p className="text-foreground text-base leading-snug font-bold relative z-10">
             {title}
           </p>
           {Icon && <Icon className="size-4 text-muted-foreground opacity-60 shrink-0" />}
         </div>
-        <p className="text-2xl 2xl:text-3xl font-black text-foreground tracking-tight relative z-10 truncate" title={isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}>
+        <p className="text-2xl 2xl:text-3xl font-black text-foreground tracking-tight leading-tight tabular-nums relative z-10 break-words" title={isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}>
           {isCurrency ? formatCurrency(value) : new Intl.NumberFormat('en-US').format(value)}
           {unit && !isCurrency && <span className="text-lg font-bold text-muted-foreground ml-1">{unit}</span>}
         </p>
       </div>
       {subtitle && (
-        <p className="text-[11px] font-semibold text-muted-foreground relative z-10 truncate mt-2">
+        <p className="text-sm leading-snug font-semibold text-muted-foreground relative z-10 mt-3">
           {subtitle}
         </p>
       )}
@@ -104,10 +109,20 @@ const DashboardPage = () => {
     refetchInterval: 30000,
   });
 
-  // Roles operativos van a su pantalla correspondiente
+  // Roles operativos y supervisores van a su dashboard operativo correspondiente (sin costos)
   if (!isExecutive) {
-    if (roleCode === 'SUPERVISOR_EXTRUSION' || roleCode === 'ADMIN_EXT' || user?.area?.code === 'EXTRUSION' || user?.area?.id === 2) {
+    const userArea = getUserAreaCode(user);
+    if (userArea === 'EXTRUSION') {
       return <ExtrusionDashboard />;
+    }
+    if (userArea === 'GLOBO') {
+      return <GloboWipPage />;
+    }
+    if (userArea === 'LAMINADO') {
+      return <LaminadoWipPage />;
+    }
+    if (userArea === 'TELARES') {
+      return <TelaresDashboard />;
     }
     return <WarehouseDashboard />;
   }
@@ -263,21 +278,21 @@ const DashboardPage = () => {
 
       {/* TOP KPIs - Reflejo Real de Almacén y Finanzas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <ExecutiveKpiCard 
-          title="Valor Total de Inventarios" 
-          value={currentInventoryValue} 
-          isCurrency={true} 
-          colorClass="border-blue-500"
-          icon={PackageCheck}
-          subtitle="Inventario activo en almacén general"
-        />
-        <ExecutiveKpiCard 
+        <ExecutiveKpiCard
           title="Pérdidas Consolidadas" 
           value={totalLoss} 
           isCurrency={true} 
           colorClass="border-red-500" 
           icon={AlertCircle}
           subtitle={`${kpisFin.totalLossQty || 0} unidades en merma, scrap y bajas`}
+        />
+        <ExecutiveKpiCard
+          title="Valor Total de Inventarios"
+          value={currentInventoryValue}
+          isCurrency={true}
+          colorClass="border-blue-500"
+          icon={PackageCheck}
+          subtitle="Inventario activo en almacén general"
         />
         <ExecutiveKpiCard 
           title="Capital Total Invertido" 
@@ -315,7 +330,7 @@ const DashboardPage = () => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                 <XAxis dataKey="mes" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis yAxisId="left" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
-                <YAxis yAxisId="right" orientation="right" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
+                <YAxis yAxisId="right" orientation="right" width={64} stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(val)}`} />
                 <RechartsTooltip 
                   contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
                   itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}

@@ -86,6 +86,7 @@ db.MaterialConsumptionItem = initMaterialConsumptionItemModel(sequelize, DataTyp
 db.ConsumptionOrder = initConsumptionOrderModel(sequelize, DataTypes);
 db.ConsumptionOrderItem = initConsumptionOrderItemModel(sequelize, DataTypes);
 db.WipInventory = initWipInventoryModel(sequelize, DataTypes);
+db.SystemSetting = require('../../modules/telares/models/systemSetting.model')(sequelize, DataTypes);
 db.WasteRequest = require('../../modules/warehouse/wasteRequest.model')(sequelize);
 
 db.QrAreaAssignment = initQrAreaAssignmentModel(sequelize, DataTypes);
@@ -322,6 +323,10 @@ db.InventoryMovement.belongsTo(db.Location, {
   foreignKey: 'from_location_id',
   as: 'fromLocation',
 });
+
+db.InventoryMovement.belongsTo(db.Area, { foreignKey: 'area_id', as: 'costArea' });
+db.InventoryMovement.belongsTo(db.ConsumptionOrder, { foreignKey: 'consumption_order_id', as: 'consumptionOrder' });
+db.InventoryMovement.belongsTo(db.ConsumptionOrderItem, { foreignKey: 'consumption_order_item_id', as: 'consumptionOrderItem' });
 
 db.Inventory.hasMany(db.InventoryMovement, {
   foreignKey: 'inventory_id',
@@ -619,6 +624,10 @@ db.ProcessFormula.belongsTo(db.Area, {
 });
 
 // ProcessPreparation -> Inputs
+db.ProcessPreparation.belongsTo(db.ProcessFormula, {
+  foreignKey: 'formula_id',
+  as: 'formula',
+});
 db.ProcessPreparation.hasMany(db.ProcessPreparationInput, {
   foreignKey: 'preparation_id',
   as: 'inputs',
@@ -627,7 +636,6 @@ db.ProcessPreparationInput.belongsTo(db.ProcessPreparation, {
   foreignKey: 'preparation_id',
   as: 'preparation',
 });
-
 /* =========================
    EXTRUSION MODULE
 ========================= */
@@ -646,6 +654,20 @@ db.Formula_Ingredients = db.FormulaIngredient; // Alias for requirement compatib
 db.PtiRack = initPtiRackModel(sequelize, DataTypes);
 db.ExtruderQueue = initExtruderQueueModel(sequelize, DataTypes);
 db.ExtrusionScrapLog = initExtrusionScrapLogModel(sequelize, DataTypes);
+db.ExtrusionTransition = require('../../modules/extrusion/models/extrusionTransition.model')(sequelize, DataTypes);
+db.ExtrusionProductionEntry = require('../../modules/extrusion/models/extrusionProductionEntry.model')(sequelize, DataTypes);
+db.ExtrusionScrapAdjustment = require('../../modules/extrusion/models/extrusionScrapAdjustment.model')(sequelize, DataTypes);
+db.ExtrusionShiftClosure = require('../../modules/extrusion/models/extrusionShiftClosure.model')(sequelize, DataTypes);
+db.ExtrusionProductionAdjustment = sequelize.define('ExtrusionProductionAdjustment', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  production_entry_id: { type: DataTypes.INTEGER, allowNull: false },
+  previous_pieces: { type: DataTypes.INTEGER, allowNull: false },
+  corrected_pieces: { type: DataTypes.INTEGER, allowNull: false },
+  previous_weight_kg: { type: DataTypes.DECIMAL(12, 3), allowNull: false },
+  corrected_weight_kg: { type: DataTypes.DECIMAL(12, 3), allowNull: false },
+  correction_reason: { type: DataTypes.TEXT, allowNull: false },
+  corrected_by: { type: DataTypes.INTEGER, allowNull: true },
+}, { tableName: 'extrusion_production_adjustments', timestamps: true, createdAt: true, updatedAt: false, underscored: true });
 db.Silo = initSiloModel(sequelize, DataTypes);
 db.Extruder = initExtruderModel(sequelize, DataTypes);
 db.ExtruderFormula = initExtruderFormulaModel(sequelize, DataTypes);
@@ -654,16 +676,6 @@ db.ExtruderFormula = initExtruderFormulaModel(sequelize, DataTypes);
 db.Silo.belongsTo(db.Material, {
   foreignKey: 'material_id',
   as: 'material',
-});
-
-// Extruder -> Silo
-db.Extruder.belongsTo(db.Silo, {
-  foreignKey: 'silo_id',
-  as: 'silo',
-});
-db.Silo.hasMany(db.Extruder, {
-  foreignKey: 'silo_id',
-  as: 'extruders',
 });
 
 // Extruder <-> Formula (Compatibility Matrix)
@@ -724,6 +736,79 @@ db.ExtruderQueue.belongsTo(db.ConsumptionOrder, {
   as: 'consumptionOrder',
 });
 
+db.ExtruderQueue.belongsTo(db.ProcessPreparation, {
+  foreignKey: 'process_preparation_id',
+  as: 'preparation',
+});
+db.ProcessPreparation.hasMany(db.ExtruderQueue, {
+  foreignKey: 'process_preparation_id',
+  as: 'extrusionQueues',
+});
+db.ProcessPreparation.hasMany(db.ExtrusionProductionEntry, {
+  foreignKey: 'process_preparation_id',
+  as: 'productionEntries',
+});
+db.ExtrusionProductionEntry.belongsTo(db.ProcessPreparation, {
+  foreignKey: 'process_preparation_id',
+  as: 'preparation',
+});
+db.ExtrusionProductionEntry.belongsTo(db.ExtruderQueue, {
+  foreignKey: 'queue_id',
+  as: 'queue',
+});
+db.ExtruderQueue.hasMany(db.ExtrusionProductionEntry, {
+  foreignKey: 'queue_id',
+  as: 'productionEntries',
+});
+db.Extruder.hasMany(db.ExtrusionProductionEntry, {
+  foreignKey: 'extruder_id',
+  as: 'productionEntries',
+});
+db.ExtrusionProductionEntry.belongsTo(db.Extruder, {
+  foreignKey: 'extruder_id',
+  as: 'extruder',
+});
+db.PtiRack.hasMany(db.ExtrusionProductionEntry, {
+  foreignKey: 'rack_id',
+  as: 'productionEntries',
+});
+db.ExtrusionProductionEntry.belongsTo(db.PtiRack, {
+  foreignKey: 'rack_id',
+  as: 'rack',
+});
+db.ExtrusionProductionEntry.hasMany(db.ExtrusionProductionAdjustment, {
+  foreignKey: 'production_entry_id',
+  as: 'adjustments',
+});
+db.ExtrusionProductionAdjustment.belongsTo(db.ExtrusionProductionEntry, {
+  foreignKey: 'production_entry_id',
+  as: 'productionEntry',
+});
+db.Extruder.hasMany(db.ExtrusionTransition, { foreignKey: 'extruder_id', as: 'transitions' });
+db.ExtrusionTransition.belongsTo(db.Extruder, { foreignKey: 'extruder_id', as: 'extruder' });
+db.ExtrusionTransition.belongsTo(db.ExtruderQueue, { foreignKey: 'from_queue_id', as: 'fromQueue' });
+db.ExtrusionTransition.belongsTo(db.ExtruderQueue, { foreignKey: 'to_queue_id', as: 'toQueue' });
+db.Extruder.hasMany(db.ExtrusionShiftClosure, { foreignKey: 'extruder_id', as: 'shiftClosures' });
+db.ExtrusionShiftClosure.belongsTo(db.Extruder, { foreignKey: 'extruder_id', as: 'extruder' });
+db.PtiRack.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
+db.ExtrusionProductionEntry.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
+db.ExtrusionTransition.hasMany(db.ExtrusionScrapLog, {
+  foreignKey: 'transition_id',
+  as: 'scrapItems',
+});
+db.ExtrusionScrapLog.belongsTo(db.ExtrusionTransition, {
+  foreignKey: 'transition_id',
+  as: 'transition',
+});
+db.ExtrusionScrapLog.hasMany(db.ExtrusionScrapAdjustment, {
+  foreignKey: 'scrap_log_id',
+  as: 'adjustments',
+});
+db.ExtrusionScrapAdjustment.belongsTo(db.ExtrusionScrapLog, {
+  foreignKey: 'scrap_log_id',
+  as: 'scrap',
+});
+
 // ExtrusionScrapLog -> User
 db.ExtrusionScrapLog.belongsTo(db.User, {
   foreignKey: 'logged_by',
@@ -752,9 +837,18 @@ db.PtiProduct.belongsTo(db.Material, {
   as: 'material',
 });
 
+db.PtiProduct.hasMany(db.ExtrusionProductionEntry, {
+  foreignKey: 'pti_product_id',
+  as: 'productionEntries',
+});
+db.ExtrusionProductionEntry.belongsTo(db.PtiProduct, {
+  foreignKey: 'pti_product_id',
+  as: 'ptiProduct',
+});
+
 // PtiRack -> PtiProduct
 db.PtiRack.belongsTo(db.PtiProduct, {
-  foreignKey: 'current_pti_type_id',
+  foreignKey: 'current_pti_product_id',
   as: 'currentPtiProduct',
 });
 
@@ -766,14 +860,23 @@ const initProductionBomModel = require('../../modules/telares/models/productionB
 const initProductionBomItemModel = require('../../modules/telares/models/productionBomItem.model');
 const initLoomRunModel = require('../../modules/telares/models/loomRun.model');
 const initViajeroRollModel = require('../../modules/telares/models/viajeroRoll.model');
+const initViajeroRollOperatorSegmentModel = require('../../modules/telares/models/viajeroRollOperatorSegment.model');
 const initViajeroRoutingLogModel = require('../../modules/telares/models/viajeroRoutingLog.model');
 const initLoomBackflushConsumptionModel = require('../../modules/telares/models/loomBackflushConsumption.model');
 
 db.Loom = initLoomModel(sequelize, DataTypes);
+db.LoomPtiWip = require('../../modules/telares/models/loomPtiWip.model')(sequelize, DataTypes);
+db.Loom.belongsTo(db.Subarea, { foreignKey: 'subarea_id', as: 'subarea' });
+db.Loom.hasMany(db.LoomPtiWip, { foreignKey: 'loom_id', as: 'ptiWipItems' });
+db.LoomPtiWip.belongsTo(db.Loom, { foreignKey: 'loom_id', as: 'loom' });
+db.LoomPtiWip.belongsTo(db.PtiProduct, { foreignKey: 'pti_product_id', as: 'ptiProduct' });
+db.LoomPtiWip.belongsTo(db.PtiRack, { foreignKey: 'source_rack_id', as: 'sourceRack' });
+db.LoomPtiWip.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
 db.ProductionBom = initProductionBomModel(sequelize, DataTypes);
 db.ProductionBomItem = initProductionBomItemModel(sequelize, DataTypes);
 db.LoomRun = initLoomRunModel(sequelize, DataTypes);
 db.ViajeroRoll = initViajeroRollModel(sequelize, DataTypes);
+db.ViajeroRollOperatorSegment = initViajeroRollOperatorSegmentModel(sequelize, DataTypes);
 db.ViajeroRoutingLog = initViajeroRoutingLogModel(sequelize, DataTypes);
 db.LoomBackflushConsumption = initLoomBackflushConsumptionModel(sequelize, DataTypes);
 
@@ -802,6 +905,8 @@ db.ViajeroRoll.belongsTo(db.LoomRun, { foreignKey: 'run_id', as: 'run' });
 db.ViajeroRoll.belongsTo(db.Loom, { foreignKey: 'loom_id', as: 'loom' });
 db.ViajeroRoll.belongsTo(db.ProductionBom, { foreignKey: 'bom_id', as: 'bom' });
 db.ViajeroRoll.belongsTo(db.User, { foreignKey: 'operator_id', as: 'operator' });
+db.ViajeroRoll.belongsTo(db.User, { foreignKey: 'shift_supervisor_id', as: 'shiftSupervisor' });
+db.ViajeroRoll.hasMany(db.ViajeroRollOperatorSegment, { foreignKey: 'viajero_roll_id', as: 'operatorSegments' });
 db.ViajeroRoll.hasMany(db.ViajeroRoutingLog, { foreignKey: 'viajero_roll_id', as: 'routingLogs' });
 db.ViajeroRoll.hasMany(db.LoomBackflushConsumption, { foreignKey: 'viajero_roll_id', as: 'consumptions' });
 
@@ -815,5 +920,34 @@ db.LoomBackflushConsumption.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_rol
 db.LoomBackflushConsumption.belongsTo(db.LoomRun, { foreignKey: 'loom_run_id', as: 'run' });
 db.LoomBackflushConsumption.belongsTo(db.PtiRack, { foreignKey: 'rack_id', as: 'rack' });
 db.LoomBackflushConsumption.belongsTo(db.PtiProduct, { foreignKey: 'pti_product_id', as: 'ptiProduct' });
+db.LoomBackflushConsumption.belongsTo(db.LoomPtiWip, { foreignKey: 'source_loom_wip_item_id', as: 'sourceWipItem' });
+
+db.ViajeroRollOperatorSegment.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id', as: 'roll' });
+db.ViajeroRollOperatorSegment.belongsTo(db.User, { foreignKey: 'operator_id', as: 'operator' });
+db.ViajeroRollOperatorSegment.belongsTo(db.User, { foreignKey: 'recorded_by', as: 'recordedBy' });
+
+// Preparation input lineage associations. Keep these after all referenced models are initialized.
+db.ProcessPreparationInput.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+db.ProcessPreparationInput.belongsTo(db.Lote, { foreignKey: 'source_lote_id', as: 'sourceLot' });
+db.ProcessPreparationInput.belongsTo(db.Silo, { foreignKey: 'source_silo_id', as: 'sourceSilo' });
+db.ProcessPreparationInput.belongsTo(db.QrCode, { foreignKey: 'source_qr_code_id', as: 'sourceQrCode' });
+db.ProcessPreparationInput.belongsTo(db.TraceableItem, { foreignKey: 'source_traceable_item_id', as: 'sourceTraceableItem' });
+
+// ============================================
+// GLOBO Y LAMINADO SPECIFICATIONS & CATALOGS
+// ============================================
+db.GloboSpecification = require('../../modules/globo/models/globoSpecification.model')(sequelize, DataTypes);
+db.GloboSpecificationMaterial = require('../../modules/globo/models/globoSpecificationMaterial.model')(sequelize, DataTypes);
+db.LaminadoSpecification = require('../../modules/laminado/models/laminadoSpecification.model')(sequelize, DataTypes);
+db.LaminadoSpecificationMaterial = require('../../modules/laminado/models/laminadoSpecificationMaterial.model')(sequelize, DataTypes);
+
+db.GloboSpecification.hasMany(db.GloboSpecificationMaterial, { foreignKey: 'globo_spec_id', as: 'materials' });
+db.GloboSpecificationMaterial.belongsTo(db.GloboSpecification, { foreignKey: 'globo_spec_id', as: 'specification' });
+db.GloboSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+
+db.LaminadoSpecification.hasMany(db.LaminadoSpecificationMaterial, { foreignKey: 'laminado_spec_id', as: 'materials' });
+db.LaminadoSpecificationMaterial.belongsTo(db.LaminadoSpecification, { foreignKey: 'laminado_spec_id', as: 'specification' });
+db.LaminadoSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
 
 module.exports = db;
+

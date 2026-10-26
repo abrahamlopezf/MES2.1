@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSmartScanner } from './useSmartScanner';
+import { useAuthStore } from '@/store/authStore';
 import { QrCode, X, Camera, Keyboard } from 'lucide-react';
-import { useAuth } from './AuthContext';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
 
 export const GlobalScannerModal: React.FC = () => {
@@ -10,7 +10,7 @@ export const GlobalScannerModal: React.FC = () => {
   const [qrCode, setQrCode] = useState('');
   const [showCamera, setShowCamera] = useState(true);
   const { handleScan } = useSmartScanner();
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   
   const [isRendered, setIsRendered] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
@@ -87,6 +87,9 @@ export const GlobalScannerModal: React.FC = () => {
         
         {/* Content */}
         <div className="p-6 bg-background flex flex-col items-center">
+          <p className="mb-4 text-center text-xs text-muted-foreground">
+            Los racks PTI se reconocen automáticamente: Extrusión registra las bobinas y Telares solicita su transferencia al telar destino.
+          </p>
           
           {/* Cámara Box */}
           <div className="w-full aspect-square bg-card border-4 border-dashed border-border rounded-xl overflow-hidden relative shadow-inner mb-6">

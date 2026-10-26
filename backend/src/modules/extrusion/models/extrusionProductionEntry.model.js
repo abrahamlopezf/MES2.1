@@ -1,0 +1,28 @@
+module.exports = (sequelize, DataTypes) => sequelize.define(
+  'ExtrusionProductionEntry',
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    process_preparation_id: { type: DataTypes.INTEGER, allowNull: true },
+    queue_id: { type: DataTypes.INTEGER, allowNull: true },
+    extruder_id: { type: DataTypes.INTEGER, allowNull: false },
+    destination_subarea_id: { type: DataTypes.INTEGER, allowNull: true },
+    mixture_qr: { type: DataTypes.STRING(120), allowNull: false },
+    rack_id: { type: DataTypes.INTEGER, allowNull: false },
+    pti_product_id: { type: DataTypes.INTEGER, allowNull: false },
+    pti_color_snapshot: { type: DataTypes.STRING(240), allowNull: true },
+    pieces: { type: DataTypes.INTEGER, allowNull: false },
+    net_weight_kg: { type: DataTypes.DECIMAL(12, 3), allowNull: false },
+    weight_source: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'ESTIMADO' },
+    mixture_cost_per_kg: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+    transformed_cost_index_snapshot: { type: DataTypes.DECIMAL(8, 4), allowNull: true },
+    pti_transformed_cost_per_kg: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+    production_value: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
+    recorded_by: { type: DataTypes.INTEGER, allowNull: true },
+    recorded_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    voided_at: { type: DataTypes.DATE, allowNull: true },
+    voided_by: { type: DataTypes.INTEGER, allowNull: true },
+    void_reason: { type: DataTypes.TEXT, allowNull: true },
+    notes: { type: DataTypes.TEXT, allowNull: true },
+  },
+  { tableName: 'extrusion_production_entries', timestamps: true, underscored: true }
+);

@@ -42,9 +42,15 @@ const UsersPage: React.FC = () => {
   });
 
   const { user: currentUser, hasPermission } = useAuthStore();
-  const isSuperAdmin = currentUser?.role?.code === 'SUPERADMIN';
-  const isSupervisor = currentUser?.role?.code === 'SUPERVISOR';
-  const canViewRoles = hasPermission('roles.read');
+  const currentRoleCode = (currentUser?.role?.code || '').toUpperCase();
+  const isSuperAdmin = currentRoleCode === 'SUPERADMIN';
+  const isSupervisor = currentRoleCode === 'SUPERVISOR';
+  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(currentRoleCode) ||
+                          currentUser?.area?.code === 'ALMACEN' ||
+                          currentUser?.area?.code === 'ALM';
+  const isExtrusionAdmin = ['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(currentRoleCode) ||
+                          currentUser?.area?.code === 'EXTRUSION';
+  const canViewRoles = !isWarehouseUser && !isExtrusionAdmin && hasPermission('roles.read');
   
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -68,12 +74,55 @@ const UsersPage: React.FC = () => {
     roles = roles.filter((r: any) => r.code === 'EMPLEADO' || r.code?.includes('EMPLEADO'));
   }
 
+  if (isWarehouseUser) {
+    roles = roles.filter((r: any) => 
+      r.code === 'ADMIN_ALM' || 
+      r.code === 'WAREHOUSEMAN' || 
+      r.name?.toUpperCase().includes('ALMAC') ||
+      r.area?.code === 'ALMACEN' ||
+      r.area?.code === 'ALM' ||
+      Number(r.area_id || r.area?.id) === 1
+    );
+  }
+
+  if (isExtrusionAdmin) {
+    roles = roles.filter((r: any) => 
+      r.code === 'ADMIN_EXT' || 
+      r.code === 'ADMIN_EXTRUSION' || 
+      r.code === 'SUPERVISOR_EXTRUSION' || 
+      r.code === 'OPERADOR_EXTRUSION' || 
+      r.name?.toUpperCase().includes('EXTRUSI') ||
+      r.area?.code === 'EXTRUSION' ||
+      Number(r.area_id || r.area?.id) === 2
+    );
+  }
+
   const filteredUsers = useMemo(() => {
     return users
       .filter((user) => {
         // Ocultar usuarios que sean SuperAdmin si el usuario actual no lo es
         const userIsSuperAdmin = user.rolNombre.toUpperCase().includes('SUPERADMIN');
         if (!isSuperAdmin && userIsSuperAdmin) return false;
+
+        // Para usuarios de Almacén (ADMIN_ALM), solo se mostrarán los que son de almacén
+        if (isWarehouseUser) {
+          const areaUpper = (user.areaNombre || '').toUpperCase();
+          const rolUpper = (user.rolNombre || '').toUpperCase();
+          const isFromAlm = areaUpper.includes('ALMAC') || 
+                            areaUpper === 'ALM' || 
+                            rolUpper.includes('ALMAC') || 
+                            rolUpper.includes('WAREHOUSE');
+          if (!isFromAlm) return false;
+        }
+
+        // Para usuarios de Extrusión (ADMIN_EXT), solo se mostrarán los que son de extrusión
+        if (isExtrusionAdmin) {
+          const areaUpper = (user.areaNombre || '').toUpperCase();
+          const rolUpper = (user.rolNombre || '').toUpperCase();
+          const isFromExt = areaUpper.includes('EXTRUSI') || 
+                            rolUpper.includes('EXTRUSI');
+          if (!isFromExt) return false;
+        }
 
         const searchableText = [
           user.nombres,
@@ -95,7 +144,7 @@ const UsersPage: React.FC = () => {
         return matchesSearch && matchesRole && matchesStatus;
       })
       .sort((a, b) => Number(a.id) - Number(b.id));
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter, isWarehouseUser, isSuperAdmin]);
 
   const groupedUsers = useMemo(() => {
     const groups: Record<string, User[]> = {};

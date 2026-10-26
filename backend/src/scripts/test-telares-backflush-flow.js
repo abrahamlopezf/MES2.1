@@ -84,13 +84,26 @@ async function runTest() {
     const metersToProduce = 500;
     const weightToProduce = 35.0; // 35 kg
     const rackQtyBefore = Number(ptiRack.current_quantity);
+    const testSupervisor = await db.User.findOne({ where: { username: 'sup_tel_1150' } });
+    const testOperator = await db.User.findOne({ where: { username: 'op_tel_1200' } });
+    if (!testSupervisor || !testOperator) throw new Error('Se requieren usuarios activos de prueba de Telares.');
 
     console.log(`\n--- Reportando Rollo de ${metersToProduce}m (${weightToProduce} kg) ---`);
     const finishResult = await telaresService.finishRollAndBackflush({
       run_id: run.id,
       meters: metersToProduce,
       weight_kg: weightToProduce,
-      operator_id: 1,
+      operator_id: testOperator.id,
+      recorded_by: testSupervisor.id,
+      shift_supervisor_id: testSupervisor.id,
+      operator_segments: [{
+        operator_id: testOperator.id,
+        shift_number: 1,
+        meters_start: 0,
+        meters_end: metersToProduce,
+        weight_start_kg: 0,
+        weight_end_kg: weightToProduce,
+      }],
       notes: 'Rollo terminado prueba QA'
     });
 

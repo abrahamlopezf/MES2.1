@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { useAuthStore } from '../../../../store/authStore';
+import { canViewCosts as checkCanViewCosts } from '@/utils/authHelpers';
 import {
   usePtiRacksQuery,
   useFloorFormulasQuery,
@@ -9,9 +11,9 @@ import {
   useCreatePtiRackMutation,
   useExtrusionValuationQuery,
   useUpdatePtiRackPriceMutation,
-  usePtiProductsQuery
+  usePtiProductsQuery,
+  useExtrusionWipQuery
 } from '../../hooks/useExtrusionFloorQueries';
-import { useMaterialsQuery } from '../../../materials/hooks/useMaterialsQueries';
 import { PtiIngressPresenter } from '../presenters/PtiIngressPresenter';
 import {
   PtiRack,
@@ -22,6 +24,8 @@ import {
 } from '../../types/extrusion.types';
 
 export const PtiIngressContainer: React.FC = () => {
+  const { user } = useAuthStore();
+  const canViewCosts = checkCanViewCosts(user);
   const {
     data: racks = [],
     isLoading: isRacksLoading,
@@ -40,14 +44,12 @@ export const PtiIngressContainer: React.FC = () => {
     refetch: refetchQueues
   } = useExtruderQueuesQuery();
 
-  const { data: materialsData } = useMaterialsQuery({ pageSize: 100 });
-  const materials = materialsData?.items || [];
-
   const { data: ptiProducts = [] } = usePtiProductsQuery({ is_active: true });
+  const { data: extrusionWip = null, refetch: refetchExtrusionWip } = useExtrusionWipQuery();
 
   // Puntos 3, 3.2: Valorización Total en Extrusión con índice de costo editable
   const [costIndex, setCostIndex] = useState<number>(1.15);
-  const { data: valuation = null, refetch: refetchValuation } = useExtrusionValuationQuery(costIndex);
+  const { data: valuation = null, refetch: refetchValuation } = useExtrusionValuationQuery(costIndex, canViewCosts);
 
   const scanMutation = useScanRackPtiMutation();
   const createRackMutation = useCreatePtiRackMutation();
@@ -58,7 +60,7 @@ export const PtiIngressContainer: React.FC = () => {
       await createRackMutation.mutateAsync(payload);
       toast.success(`Rack ${payload.rack_code} creado exitosamente.`);
       refetchRacks();
-      refetchValuation();
+      if (canViewCosts) refetchValuation();
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al registrar el rack.';
       toast.error(msg);
@@ -66,12 +68,12 @@ export const PtiIngressContainer: React.FC = () => {
     }
   };
 
-  const handleUpdateRackPrice = async (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number }) => {
+  const handleUpdateRackPrice = async (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number | null }) => {
     try {
       await updatePriceMutation.mutateAsync({ rackId, payload });
       toast.success('Precio y peso del Rack actualizados con éxito.');
       refetchRacks();
-      refetchValuation();
+      if (canViewCosts) refetchValuation();
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al actualizar el rack.';
       toast.error(msg);
@@ -92,6 +94,8 @@ export const PtiIngressContainer: React.FC = () => {
 
   const [scrapWeightKg, setScrapWeightKg] = useState<string>('');
   const [scrapReason, setScrapReason] = useState<string>('ARRANQUE_EXTRUSORA');
+  const [scrapColor, setScrapColor] = useState<string>('');
+  const [shiftCode, setShiftCode] = useState('TURNO_1');
   const [notes, setNotes] = useState<string>('');
   const [lastBackflushingResult, setLastBackflushingResult] = useState<BackflushingResult | null>(null);
 
@@ -144,9 +148,8 @@ export const PtiIngressContainer: React.FC = () => {
   // Si el rack ya tiene un material asignado, sincronizar la sugerencia
   React.useEffect(() => {
     if (selectedRack && selectedRack.current_pti_type_id && selectedRack.status !== 'VACIO') {
-      const matchingProduct = ptiProducts.find(
-        (p) => p.material_id === selectedRack.current_pti_type_id || p.id === selectedRack.current_pti_type_id
-      );
+      const matchingProduct = ptiProducts.find((p) => p.id === selectedRack.current_pti_product_id)
+        || ptiProducts.find((p) => p.material_id === selectedRack.current_pti_type_id || p.id === selectedRack.current_pti_type_id);
       if (matchingProduct) {
         setSelectedPtiMaterialId(matchingProduct.id);
       } else {
@@ -174,14 +177,19 @@ export const PtiIngressContainer: React.FC = () => {
 
   // Fórmula activa según el QR de mezcla
   const selectedFormula: Formula | null = useMemo(() => {
-    if (!mixtureQr) return formulas[0] || null;
+    if (!mixtureQr) return null;
     const cleanMix = mixtureQr.trim();
     const active = activeQueues.find((q) => q.consumption_order_qr_id === cleanMix);
     if (active && active.formula) {
       return active.formula;
     }
-    return formulas[0] || null;
-  }, [mixtureQr, activeQueues, formulas]);
+    return null;
+  }, [mixtureQr, activeQueues]);
+  const compatiblePtiProducts = useMemo(() => {
+    if (!selectedFormula) return [];
+    return ptiProducts.filter((product) => Number(product.formula_id) === Number(selectedFormula.id)
+      || Number(selectedFormula.output_pti_id || 0) === Number(product.id));
+  }, [ptiProducts, selectedFormula]);
 
   // Regla 6: Peso teórico por pieza = batch_size_kg / expected_yield_pieces
   const theoreticalWeightPerPiece: number = useMemo(() => {
@@ -192,14 +200,16 @@ export const PtiIngressContainer: React.FC = () => {
   }, [selectedFormula]);
 
   // Punto 5: Peso unitario del rack y cálculo de piezas desde báscula
-  const rackUnitWeight = Number(selectedRack?.unit_weight_kg) || Number(selectedPtiProduct?.unit_weight_kg) || 6.800;
+  const rackUnitWeight = Number(selectedRack?.unit_weight_kg) || Number(selectedPtiProduct?.unit_weight_kg) || 0;
   const computedPiecesFromScale = useMemo(() => {
     const w = Number(scaleWeightKg);
     if (isNaN(w) || w <= 0) return 0;
-    return Math.max(1, Math.round(w / rackUnitWeight));
+    return rackUnitWeight > 0 ? Math.max(1, Math.round(w / rackUnitWeight)) : 0;
   }, [scaleWeightKg, rackUnitWeight]);
 
-  const pieces = ingressMode === 'WEIGHT' ? computedPiecesFromScale : (Number(quantityPieces) || 0);
+  const pieces = ingressMode === 'WEIGHT'
+    ? (rackUnitWeight > 0 ? computedPiecesFromScale : Number(quantityPieces) || 0)
+    : (Number(quantityPieces) || 0);
 
   // Materia prima teórica total
   const estimatedRawMaterialConsumedKg: number = useMemo(() => {
@@ -216,29 +226,47 @@ export const PtiIngressContainer: React.FC = () => {
 
   // Regla 5: Validar incompatibilidad de condicionamiento del rack
   const isPtiMismatched: boolean = useMemo(() => {
+    if (!selectedFormula || !selectedPtiProduct) return true;
+    const linkedToFormula = Number(selectedPtiProduct.formula_id) === Number(selectedFormula.id)
+      || Number(selectedFormula.output_pti_id || 0) === Number(selectedPtiProduct.id);
+    if (!linkedToFormula) return true;
     if (!selectedRack || selectedRack.status === 'VACIO' || !selectedRack.current_pti_type_id) {
       return false;
     }
     if (!selectedPtiMaterialId) return false;
+    if (Number(selectedRack.current_quantity || 0) > 0 && selectedRack.current_pti_product_id
+      && Number(selectedRack.current_pti_product_id) !== Number(selectedPtiProduct.id)) return true;
+    if (Number(selectedRack.current_quantity || 0) > 0 && !selectedRack.current_pti_product_id) return true;
     const effectiveMatId = selectedPtiProduct?.material_id || Number(selectedPtiMaterialId);
     return (
       Number(selectedRack.current_pti_type_id) !== Number(selectedPtiMaterialId) &&
       Number(selectedRack.current_pti_type_id) !== Number(effectiveMatId)
     );
-  }, [selectedRack, selectedPtiMaterialId, selectedPtiProduct]);
+  }, [selectedRack, selectedPtiMaterialId, selectedPtiProduct, selectedFormula]);
 
   const mismatchErrorMessage = useMemo(() => {
-    if (!isPtiMismatched || !selectedRack) return '';
-    const name = selectedRack.currentPtiType?.name || `PTI #${selectedRack.current_pti_type_id}`;
-    return `El Rack ${selectedRack.rack_code} está condicionado para '${name}'. No es posible ingresar el PTI seleccionado (#${selectedPtiMaterialId}).`;
-  }, [isPtiMismatched, selectedRack, selectedPtiMaterialId]);
+    if (!isPtiMismatched) return '';
+    if (!selectedFormula) return 'Selecciona una mezcla activa para identificar su fórmula y color.';
+    if (!selectedPtiProduct) return 'Selecciona un PTI activo enlazado a la fórmula ' + selectedFormula.name + '.';
+    if (Number(selectedPtiProduct.formula_id || 0) !== Number(selectedFormula.id)
+      && Number(selectedFormula.output_pti_id || 0) !== Number(selectedPtiProduct.id)) {
+      return 'El PTI ' + selectedPtiProduct.code + ' (' + (selectedPtiProduct.color || 'color sin definir') + ') no está enlazado a la fórmula ' + selectedFormula.name + '.';
+    }
+    if (!selectedRack) return '';
+    if (Number(selectedRack.current_quantity || 0) > 0 && !selectedRack.current_pti_product_id) {
+      return 'Este rack contiene bobinas antiguas sin identificación exacta de PTI/color. Debe vaciarse antes de recibir nueva producción.';
+    }
+    const name = selectedRack.currentPtiProduct
+      ? selectedRack.currentPtiProduct.name + ' · ' + (selectedRack.currentPtiProduct.color || 'color no definido')
+      : selectedRack.currentPtiType?.name || ('PTI #' + selectedRack.current_pti_type_id);
+    return 'El Rack ' + selectedRack.rack_code + ' está condicionado para ' + name + '. No es posible ingresar el PTI seleccionado (#' + selectedPtiMaterialId + ').';
+  }, [isPtiMismatched, selectedRack, selectedPtiMaterialId, selectedFormula, selectedPtiProduct]);
 
   const handleSelectRackFromGrid = (rack: PtiRack) => {
     setRackQr(rack.qr_code);
     if (rack.current_pti_type_id && rack.status !== 'VACIO') {
-      const matchingProduct = ptiProducts.find(
-        (p) => p.material_id === rack.current_pti_type_id || p.id === rack.current_pti_type_id
-      );
+      const matchingProduct = ptiProducts.find((p) => p.id === rack.current_pti_product_id)
+        || ptiProducts.find((p) => p.material_id === rack.current_pti_type_id || p.id === rack.current_pti_type_id);
       if (matchingProduct) {
         setSelectedPtiMaterialId(matchingProduct.id);
       } else {
@@ -275,6 +303,11 @@ export const PtiIngressContainer: React.FC = () => {
       return;
     }
 
+    if (ingressMode === 'PIECES' && rackUnitWeight <= 0) {
+      toast.error('Este PTI no tiene peso unitario definido. Usa báscula y captura el número de bobinas para calibrar el rack.');
+      return;
+    }
+
     if (isCapacityExceeded) {
       toast.error('Capacidad Excedida: El rack no puede almacenar esa cantidad.');
       return;
@@ -285,16 +318,18 @@ export const PtiIngressContainer: React.FC = () => {
         rack_qr: rackQr.trim(),
         pti_material_id: Number(selectedPtiMaterialId),
         mixture_qr: mixtureQr ? mixtureQr.trim() : undefined,
-        scrap_weight_kg: Number(scrapWeightKg) > 0 ? Number(scrapWeightKg) : undefined,
+        estimated_scrap_weight_kg: Number(scrapWeightKg) > 0 ? Number(scrapWeightKg) : undefined,
         scrap_reason: Number(scrapWeightKg) > 0 ? scrapReason : undefined,
+        scrap_category: 'OPERATIVA',
+        scrap_color: Number(scrapWeightKg) > 0 ? (scrapColor.trim() || selectedPtiProduct?.color || undefined) : undefined,
+        shift_code: shiftCode,
         notes: notes ? notes.trim() : undefined
       };
 
       if (ingressMode === 'WEIGHT') {
         payload.weight_kg = Number(scaleWeightKg);
-      } else {
-        payload.quantity = pieces;
       }
+      payload.quantity = pieces;
 
       if (Number(unitPrice) > 0) {
         payload.unit_price = Number(unitPrice);
@@ -314,7 +349,7 @@ export const PtiIngressContainer: React.FC = () => {
       setScrapWeightKg('');
       setNotes('');
       refetchMassBalance();
-      refetchValuation();
+      if (canViewCosts) refetchValuation();
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al registrar el ingreso en el Rack.';
       toast.error(msg);
@@ -326,7 +361,8 @@ export const PtiIngressContainer: React.FC = () => {
     refetchFormulas();
     refetchQueues();
     refetchMassBalance();
-    refetchValuation();
+    if (canViewCosts) refetchValuation();
+    refetchExtrusionWip();
   };
 
   return (
@@ -334,8 +370,7 @@ export const PtiIngressContainer: React.FC = () => {
       racks={racks}
       formulas={formulas}
       activeQueues={activeQueues}
-      materials={materials}
-      ptiProducts={ptiProducts}
+      ptiProducts={compatiblePtiProducts}
       isLoading={isRacksLoading || isFormulasLoading || isQueuesLoading}
       onRefresh={handleRefresh}
       mixtureQr={mixtureQr}
@@ -357,6 +392,10 @@ export const PtiIngressContainer: React.FC = () => {
       onScrapWeightKgChange={setScrapWeightKg}
       scrapReason={scrapReason}
       onScrapReasonChange={setScrapReason}
+      scrapColor={scrapColor}
+      onScrapColorChange={setScrapColor}
+      shiftCode={shiftCode}
+      onShiftCodeChange={setShiftCode}
       notes={notes}
       onNotesChange={setNotes}
       selectedRack={selectedRack}
@@ -375,6 +414,8 @@ export const PtiIngressContainer: React.FC = () => {
       onCreateRack={handleCreateRack}
       isCreatingRack={createRackMutation.isPending}
       valuation={valuation}
+      canViewCosts={canViewCosts}
+      extrusionWip={extrusionWip}
       costIndex={costIndex}
       onCostIndexChange={setCostIndex}
       onUpdateRackPrice={handleUpdateRackPrice}

@@ -8,44 +8,7 @@ import { PageContainer, BottomNavigation, FAB, Icon } from '../../design-system'
 import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../../store/authStore';
-
-// Mini avatar for nav — initials or photo
-const AVATAR_COLORS = [
-  'bg-violet-600', 'bg-blue-600', 'bg-emerald-600',
-  'bg-rose-600', 'bg-amber-600', 'bg-cyan-600',
-];
-const getAvatarColor = (name) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-};
-
-const MiniAvatar = ({ user, size = 24, ring = false }) => {
-  const first = user?.first_name?.[0] ?? '';
-  const last  = user?.last_name?.[0]  ?? '';
-  const initials = `${first}${last}`.toUpperCase() || '?';
-  const color = getAvatarColor(`${user?.first_name ?? ''}${user?.last_name ?? ''}`);
-  const dim = `${size}px`;
-  if (user?.avatar_url) {
-    return (
-      <img
-        src={user.avatar_url}
-        alt={initials}
-        style={{ width: dim, height: dim }}
-        className={`rounded-full object-cover ${ring ? 'ring-2 ring-primary/40' : ''}`}
-        onError={(e) => { e.target.style.display = 'none'; }}
-      />
-    );
-  }
-  return (
-    <div
-      style={{ width: dim, height: dim, fontSize: size < 28 ? '10px' : '13px' }}
-      className={`${color} rounded-full flex items-center justify-center font-black text-white ${ring ? 'ring-2 ring-primary/40' : ''}`}
-    >
-      {initials}
-    </div>
-  );
-};
+import { UserAvatar } from '../ui/UserAvatar';
 
 const AppLayout = () => {
   const location = useLocation();
@@ -56,12 +19,24 @@ const AppLayout = () => {
     navigate(path);
   };
 
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRole) || 
+                          user?.area?.code === 'ALMACEN' || 
+                          user?.area?.code === 'ALM';
+
   const navItems = [
     {
       icon: <Icon name="home" size={24} />,
       label: 'Home',
       onClick: () => handleNav('/dashboard'),
       isActive: location.pathname === '/dashboard' || location.pathname === '/',
+      show: true
+    },
+    {
+      icon: <Icon name="qr_code_scanner" size={24} />,
+      label: 'Escanear',
+      onClick: () => window.dispatchEvent(new CustomEvent('open-scanner')),
+      isActive: false,
       show: true
     },
     {
@@ -76,7 +51,7 @@ const AppLayout = () => {
       label: 'Áreas',
       onClick: () => handleNav('/areas'),
       isActive: location.pathname.startsWith('/areas'),
-      show: true
+      show: !isWarehouseUser && ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole)
     },
     /* {
       icon: <Icon name="group" size={24} />,
@@ -86,7 +61,14 @@ const AppLayout = () => {
       show: useAuthStore().hasPermission('users.read')
     }, */
     {
-      icon: <MiniAvatar user={user} size={26} />,
+      icon: (
+        <UserAvatar
+          name={String(user?.id ?? user?.username ?? '')}
+          label={`${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Usuario'}
+          src={user?.avatar_url}
+          size={26}
+        />
+      ),
       label: 'Perfil',
       onClick: () => handleNav('/profile'),
       isActive: location.pathname.startsWith('/profile'),
@@ -144,21 +126,13 @@ const AppLayout = () => {
       <GlobalScannerModal />
 
       {/* FAB: Global Scanner Trigger */}
-      <div className="fixed bottom-[90px] lg:bottom-8 right-4 lg:right-8 z-40 group">
-        {/* Animated Glow/Pulse ring behind the button */}
-        <div 
-          className="absolute inset-0 bg-primary/30 rounded-full animate-ping opacity-50 group-hover:bg-primary/50 transition-colors duration-500"
-          style={{ animationDuration: '3s' }}
-        ></div>
-        
+      <div className="hidden lg:block fixed bottom-8 right-8 z-40">
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-          className="relative w-16 h-16 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.24)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 border-[3px] border-background overflow-hidden"
+          aria-label="Abrir escáner global"
+          className="h-16 w-16 rounded-full border-2 border-background bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors duration-150"
         >
-          {/* Shine effect on hover */}
-          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
-          
-          <Icon name="qr_code_scanner" size={28} className="drop-shadow-md text-primary-foreground" />
+          <Icon name="qr_code_scanner" size={28} />
         </button>
       </div>
 

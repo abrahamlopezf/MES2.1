@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { Button, Input, Badge, Icon } from '@/design-system';
 import { useCreatePtiProductMutation, useUpdatePtiProductMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
+import { useAuthStore } from '@/store/authStore';
+import { canViewCosts } from '@/utils/authHelpers';
 
 interface PtiProductModalProps {
   isOpen: boolean;
@@ -18,6 +20,8 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
   pti,
   formulas
 }) => {
+  const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
   const isEditing = Boolean(pti);
 
   const [name, setName] = useState('');
@@ -187,7 +191,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                 <option value="">-- Sin enlazar (puedes hacerlo desde Editar Fórmula) --</option>
                 {availableFormulas.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.code} - {f.name} (Índice: ×{Number(f.cost_index || 1.15).toFixed(2)})
+                    {f.code} - {f.name}{allowCosts ? ` (Índice: ×${Number(f.cost_index || 1.15).toFixed(2)})` : ''}
                   </option>
                 ))}
               </select>
@@ -196,15 +200,23 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
               {selectedFormula && (
                 <div className="p-3 rounded-lg bg-background border border-border/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div>
-                    <span className="font-bold text-foreground block">
-                      Mezcla: ${Number(selectedFormula.transformed_mixture_value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-                    </span>
-                    <span className="text-muted-foreground">
-                      Factor: ×{Number(selectedFormula.cost_index || 1.15).toFixed(4)} • Rendimiento: {selectedFormula.expected_yield_pieces} pzas
-                    </span>
+                    {allowCosts ? (
+                      <>
+                        <span className="font-bold text-foreground block">
+                          Mezcla: ${Number(selectedFormula.transformed_mixture_value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                        </span>
+                        <span className="text-muted-foreground">
+                          Factor: ×{Number(selectedFormula.cost_index || 1.15).toFixed(4)} • Rendimiento: {selectedFormula.expected_yield_pieces} pzas
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground font-semibold">
+                        Rendimiento calibrado: {selectedFormula.expected_yield_pieces} pzas ({selectedFormula.expected_yield_kg || 490} kg)
+                      </span>
+                    )}
                   </div>
 
-                  {selectedFormula.suggested_pti_unit_price !== undefined && selectedFormula.suggested_pti_unit_price > 0 && (
+                  {allowCosts && selectedFormula.suggested_pti_unit_price !== undefined && selectedFormula.suggested_pti_unit_price > 0 && (
                     <Button
                       type="button"
                       variant="outline"
@@ -252,7 +264,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
             </div>
 
             {/* PESO Y PRECIO UNITARIOS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 ${allowCosts ? 'sm:grid-cols-2' : ''} gap-4`}>
               <div className="p-3.5 rounded-xl bg-card border border-border space-y-1.5">
                 <label className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <Icon name="scale" size={15} className="text-primary" />
@@ -272,24 +284,26 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-card border border-border space-y-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                  <Icon name="payments" size={15} className="text-emerald-500" />
-                  Precio Unitario ($ MXN) *
-                </label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
-                  className="font-mono font-bold text-lg text-emerald-600 dark:text-emerald-400 bg-background"
-                  required
-                />
-                <span className="text-[11px] text-muted-foreground block">
-                  Valor asignado a los Racks de piso e inventario en proceso (WIP).
-                </span>
-              </div>
+              {allowCosts && (
+                <div className="p-3.5 rounded-xl bg-card border border-border space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                    <Icon name="payments" size={15} className="text-emerald-500" />
+                    Precio Unitario ($ MXN) *
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={unitPrice}
+                    onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
+                    className="font-mono font-bold text-lg text-emerald-600 dark:text-emerald-400 bg-background"
+                    required
+                  />
+                  <span className="text-[11px] text-muted-foreground block">
+                    Valor asignado a los Racks de piso e inventario en proceso (WIP).
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* ESPECIFICACIONES TÉCNICAS */}

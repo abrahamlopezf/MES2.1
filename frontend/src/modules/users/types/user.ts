@@ -20,6 +20,7 @@ export interface UserDTO {
   last_name: string;
   email: string;
   username: string;
+  avatar_url?: string | null;
   numero_nomina: string;
   telefono?: string;
   is_active: boolean;
@@ -32,6 +33,7 @@ export interface User {
   nombres: string;
   apellidos: string;
   username: string;
+  avatarUrl?: string | null;
   numeroNomina: string;
   correo: string;
   telefono: string;

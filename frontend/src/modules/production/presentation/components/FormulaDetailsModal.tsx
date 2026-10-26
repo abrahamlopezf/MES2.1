@@ -15,6 +15,8 @@ import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { useUpdateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
 import { useMaterialsQuery } from '@/modules/materials/hooks/useMaterialsQueries';
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
+import { useAuthStore } from '@/store/authStore';
+import { canViewCosts } from '@/utils/authHelpers';
 
 interface FormulaDetailsModalProps {
   isOpen: boolean;
@@ -42,16 +44,19 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   onRequestMix,
   onOpenCreatePti
 }) => {
+  const { user } = useAuthStore();
+  const allowCosts = canViewCosts(user);
+
   if (!isOpen || !formula) return null;
 
   const costIndex = Number(formula.cost_index) || 1.1500;
-  const rawCost = Number(formula.raw_materials_cost) || 13500.00;
-  const transformedVal = Number(formula.transformed_mixture_value) || (rawCost * costIndex);
-  const suggestedPrice = Number(formula.suggested_pti_unit_price) || 0;
+  const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
+  const transformedVal = formula.transformed_mixture_value == null ? null : Number(formula.transformed_mixture_value);
+  const suggestedPrice = formula.suggested_pti_unit_price == null ? null : Number(formula.suggested_pti_unit_price);
   const expectedYieldPieces = Number(formula.expected_yield_pieces) || 0;
   const expectedYieldKg = Number(formula.expected_yield_kg) || 0;
   const batchSizeKg = Number(formula.batch_size_kg) || 500;
-  const costPerKg = batchSizeKg > 0 ? (transformedVal / batchSizeKg).toFixed(2) : '0.00';
+  const costPerKg = transformedVal == null ? null : (batchSizeKg > 0 ? (transformedVal / batchSizeKg).toFixed(2) : null);
 
   // Edición inline de ingredientes
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
@@ -269,33 +274,33 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER DEL MODAL */}
-        <div className="flex flex-row items-center justify-between border-b border-border bg-card py-4 px-6 shrink-0">
+        <div className="flex flex-row items-start justify-between gap-3 border-b border-border bg-card py-4 px-4 sm:px-6 shrink-0">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
               <Icon name="science" size={24} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <CardTitle className="text-xl font-black text-foreground truncate">
+                <CardTitle className="text-lg sm:text-xl font-black leading-snug text-foreground whitespace-normal break-words">
                   {formula.name}
                 </CardTitle>
-                <Badge variant="outline" className="font-mono text-xs font-bold">
+                <Badge variant="outline" className="font-mono text-sm font-bold">
                   {formula.code}
                 </Badge>
-                <Badge variant="secondary" className="text-xs font-semibold">
+                <Badge variant="secondary" className="text-sm font-semibold">
                   {batchSizeKg} Kg Lote
                 </Badge>
                 {formula.is_active ? (
-                  <Badge variant="default" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold">
+                  <Badge variant="default" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-sm font-bold">
                     ACTIVA
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-sm">
                     INACTIVA
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium mt-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground font-medium mt-1">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
                   <span>{getTargetMachine()}</span>
@@ -310,7 +315,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 h-9 w-9 ml-2 flex items-center justify-center"
+            aria-label="Cerrar detalle de fórmula"
+            className="rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 h-12 w-12 flex items-center justify-center"
           >
             <Icon name="close" size={20} />
           </Button>
@@ -319,91 +325,93 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
         {/* CONTENIDO SCROLLEABLE */}
         <CardContent className="p-6 space-y-6 overflow-y-auto flex-1 bg-background">
           {/* SECCIÓN ECONÓMICA: INSUMOS BASE, FACTOR ÍNDICE Y MEZCLA TRANSFORMADA */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-black text-foreground text-xs uppercase tracking-wider flex items-center gap-2">
-                <Icon name="auto_awesome" size={16} className="text-primary" />
-                Valorización Económica del Bache ({batchSizeKg} Kg)
-              </h4>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                Costo calculado por transformación industrial
-              </span>
+          {allowCosts && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-black text-foreground text-base uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="auto_awesome" size={16} className="text-primary" />
+                  Valorización Económica del Bache ({batchSizeKg} Kg)
+                </h4>
+                <span className="text-sm text-muted-foreground font-medium">
+                  Costo calculado por transformación industrial
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                {/* 1. INSUMOS BASE */}
+                <div className="p-4 rounded-xl bg-card border border-border flex flex-col justify-between shadow-xs">
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider block">
+                    Insumos Base
+                  </span>
+                  <div className="my-2">
+                    <div className="text-2xl font-black font-mono text-foreground">
+                      {rawCost == null ? 'Pendiente de costeo' : `$${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground block">
+                      Costo neto formulación
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground font-medium pt-2 border-t border-border/60">
+                    Materia prima directa {batchSizeKg} kg
+                  </div>
+                </div>
+
+                {/* 2. FACTOR ÍNDICE */}
+                <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20 flex flex-col justify-between shadow-xs">
+                  <span className="text-sm font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
+                    Factor Índice
+                  </span>
+                  <div className="my-2">
+                    <div className="text-2xl font-black font-mono text-purple-600 dark:text-purple-400">
+                      ×{costIndex.toFixed(4)}
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground block">
+                      Multiplicador operativo
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground font-medium pt-2 border-t border-purple-500/20">
+                    Energía, M.O. y calibración
+                  </div>
+                </div>
+
+                {/* 3. MEZCLA TRANSFORMADA */}
+                <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-col justify-between shadow-xs">
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                    Mezcla Transformada
+                  </span>
+                  <div className="my-2">
+                    <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                      {transformedVal == null ? 'Pendiente' : `$${transformedVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground block">
+                      Valor total del bache
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground font-medium pt-2 border-t border-emerald-500/20 font-mono">
+                    {costPerKg == null ? 'Costo/kg pendiente' : `$${costPerKg} MXN / kg`}
+                  </div>
+                </div>
+
+                {/* 4. PRECIO SUGERIDO PTI */}
+                <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 flex flex-col justify-between shadow-xs">
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
+                    Costo Sugerido PTI
+                  </span>
+                  <div className="my-2">
+                    <div className="text-2xl font-black font-mono text-blue-600 dark:text-blue-400">
+                      {suggestedPrice == null ? 'Pendiente' : `~$${suggestedPrice.toFixed(2)}`}
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground block">
+                      Por pieza esperada
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground font-medium pt-2 border-t border-blue-500/20">
+                    Base ~{expectedYieldPieces} piezas/lote
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              {/* 1. INSUMOS BASE */}
-              <div className="p-4 rounded-xl bg-card border border-border flex flex-col justify-between shadow-xs">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                  Insumos Base
-                </span>
-                <div className="my-2">
-                  <div className="text-2xl font-black font-mono text-foreground">
-                    ${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </div>
-                  <span className="text-[11px] font-medium text-muted-foreground block">
-                    Costo neto formulación
-                  </span>
-                </div>
-                <div className="text-[10px] text-muted-foreground font-medium pt-2 border-t border-border/60">
-                  Materia prima directa {batchSizeKg} kg
-                </div>
-              </div>
-
-              {/* 2. FACTOR ÍNDICE */}
-              <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20 flex flex-col justify-between shadow-xs">
-                <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
-                  Factor Índice
-                </span>
-                <div className="my-2">
-                  <div className="text-2xl font-black font-mono text-purple-600 dark:text-purple-400">
-                    ×{costIndex.toFixed(4)}
-                  </div>
-                  <span className="text-[11px] font-medium text-muted-foreground block">
-                    Multiplicador operativo
-                  </span>
-                </div>
-                <div className="text-[10px] text-muted-foreground font-medium pt-2 border-t border-purple-500/20">
-                  Energía, M.O. y calibración
-                </div>
-              </div>
-
-              {/* 3. MEZCLA TRANSFORMADA */}
-              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-col justify-between shadow-xs">
-                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                  Mezcla Transformada
-                </span>
-                <div className="my-2">
-                  <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
-                    ${transformedVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </div>
-                  <span className="text-[11px] font-medium text-muted-foreground block">
-                    Valor total del bache
-                  </span>
-                </div>
-                <div className="text-[10px] text-muted-foreground font-medium pt-2 border-t border-emerald-500/20 font-mono">
-                  ${costPerKg} MXN / kg
-                </div>
-              </div>
-
-              {/* 4. PRECIO SUGERIDO PTI */}
-              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 flex flex-col justify-between shadow-xs">
-                <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
-                  Costo Sugerido PTI
-                </span>
-                <div className="my-2">
-                  <div className="text-2xl font-black font-mono text-blue-600 dark:text-blue-400">
-                    ~${suggestedPrice.toFixed(2)}
-                  </div>
-                  <span className="text-[11px] font-medium text-muted-foreground block">
-                    Por pieza esperada
-                  </span>
-                </div>
-                <div className="text-[10px] text-muted-foreground font-medium pt-2 border-t border-blue-500/20">
-                  Base ~{expectedYieldPieces} piezas/lote
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* ESPECIFICACIÓN DE INGREDIENTES Y COMPOSICIÓN */}
           <div className="space-y-3">
@@ -429,7 +437,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 font-bold text-xs border-primary/30 text-primary hover:bg-primary/10 self-start sm:self-auto"
+                    className="min-h-12 gap-2 px-4 font-bold text-base border-primary/30 text-primary hover:bg-primary/10 self-start sm:self-auto"
                     onClick={() => setIsEditingIngredients(true)}
                   >
                     <Icon name="edit" size={14} />
@@ -442,7 +450,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       size="sm"
                       onClick={handleCancelEdit}
                       disabled={updateMutation.isPending}
-                      className="gap-1 font-bold text-xs text-muted-foreground"
+                      className="min-h-12 gap-2 px-4 font-bold text-base text-muted-foreground"
                     >
                       <Icon name="undo" size={14} />
                       Cancelar
@@ -452,7 +460,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       size="sm"
                       onClick={handleSaveIngredients}
                       disabled={updateMutation.isPending}
-                      className="gap-1.5 font-bold text-xs"
+                      className="min-h-12 gap-2 px-4 font-bold text-base"
                     >
                       {updateMutation.isPending ? (
                         <>
@@ -471,17 +479,68 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
               </PermissionGate>
             </div>
 
+            {/* Tarjetas legibles para tablet y móvil */}
+            <div className="space-y-3 md:hidden">
+              {(isEditingIngredients ? draftIngredients : ingredients).map((item: any, idx: number) => {
+                const material = availableMaterials.find((candidate) => candidate.id === (isEditingIngredients ? item.material_id : item.material_id));
+                const name = item.material?.name || material?.name || `Material #${item.material_id}`;
+                return (
+                  <section key={idx} className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-xs">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-1 text-sm font-semibold text-muted-foreground">Material / resina</p>
+                        {isEditingIngredients ? (
+                          <select value={item.material_id} onChange={(e) => handleMaterialChange(idx, Number(e.target.value))}
+                            aria-label={`Material de ingrediente ${idx + 1}`}
+                            className="min-h-12 w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary outline-none">
+                            <option value={0}>Selecciona material</option>
+                            {availableMaterials.map((m) => <option key={m.id} value={m.id}>{m.code ? `[${m.code}] ` : ''}{m.name}</option>)}
+                          </select>
+                        ) : <p className="text-lg font-bold text-foreground">{name}</p>}
+                      </div>
+                      {isEditingIngredients && <Button type="button" variant="ghost" size="icon" aria-label={`Eliminar ${name}`}
+                        className="min-h-12 min-w-12 shrink-0 text-destructive focus-visible:ring-2 focus-visible:ring-primary"
+                        onClick={() => handleRemoveRow(idx)} disabled={draftIngredients.length <= 1}><Icon name="delete" size={20} /></Button>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-1 text-sm font-semibold text-muted-foreground">Cantidad (kg)
+                        {isEditingIngredients ? <Input type="number" step="0.01" min="0" value={item.quantity}
+                          aria-label={`Cantidad de ${name}`} onChange={(e) => handleQuantityChange(idx, parseFloat(e.target.value) || 0)} className="min-h-12 text-base font-mono font-bold" />
+                          : <span className="block text-lg font-bold text-foreground">{Number(item.quantity || item.weight_kg || 0).toFixed(2)} kg</span>}
+                      </label>
+                      <label className="space-y-1 text-sm font-semibold text-muted-foreground">% composición
+                        {isEditingIngredients ? <Input type="number" step="0.01" min="0" max="100" value={item.percentage}
+                          aria-label={`Porcentaje de ${name}`} onChange={(e) => handlePercentageChange(idx, parseFloat(e.target.value) || 0)} className="min-h-12 text-base font-mono font-bold" />
+                          : <span className="block text-lg font-bold text-foreground">{Number(item.percentage || 0).toFixed(2)}%</span>}
+                      </label>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                      <span className="text-sm font-semibold text-muted-foreground">Restricción M4</span>
+                      {isEditingIngredients ? <button type="button" onClick={() => handleToggleRestrictedM4(idx)}
+                        aria-label={`Cambiar restricción M4 de ${name}`} className="min-h-12 rounded-lg px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                        {item.is_restricted_on_machine_4 ? <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
+                          : <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400">PERMITIDO</Badge>}
+                      </button> : item.is_restricted_on_machine_4 ? <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
+                        : <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400">PERMITIDO</Badge>}
+                    </div>
+                  </section>
+                );
+              })}
+              {isEditingIngredients && <Button type="button" variant="outline" onClick={handleAddRow}
+                className="min-h-12 w-full gap-2 border-dashed text-base font-bold text-primary"><Icon name="add" size={18} />Agregar Material</Button>}
+            </div>
+
             {/* TABLA: MODO LECTURA O MODO EDICIÓN */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+            <div className="hidden rounded-xl border border-border bg-card overflow-hidden shadow-xs md:block">
               <Table className="w-full">
                 <TableHeader className="bg-muted/50">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="font-bold text-xs uppercase">Material / Resina</TableHead>
-                    <TableHead className="font-bold text-xs uppercase text-right w-36">Cantidad (Kg)</TableHead>
-                    <TableHead className="font-bold text-xs uppercase text-right w-32">% Composición</TableHead>
-                    <TableHead className="font-bold text-xs uppercase text-center w-36">Restricción M4</TableHead>
+                    <TableHead className="font-bold text-sm uppercase">Material / Resina</TableHead>
+                    <TableHead className="font-bold text-sm uppercase text-right w-36">Cantidad (Kg)</TableHead>
+                    <TableHead className="font-bold text-sm uppercase text-right w-32">% Composición</TableHead>
+                    <TableHead className="font-bold text-sm uppercase text-center w-36">Restricción M4</TableHead>
                     {isEditingIngredients && (
-                      <TableHead className="font-bold text-xs uppercase text-center w-14">Acción</TableHead>
+                          <TableHead className="font-bold text-sm uppercase text-center w-14">Acción</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -496,7 +555,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                           <select
                             value={item.material_id}
                             onChange={(e) => handleMaterialChange(idx, Number(e.target.value))}
-                            className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
+                            className="w-full min-h-12 bg-background border border-border rounded-lg px-3 py-2 text-base font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary outline-none"
                           >
                             <option value={0}>-- Selecciona Material --</option>
                             {availableMaterials.map((m) => (
@@ -516,9 +575,9 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                               min="0"
                               value={item.quantity}
                               onChange={(e) => handleQuantityChange(idx, parseFloat(e.target.value) || 0)}
-                              className="w-24 text-right font-mono font-bold text-xs h-8"
+                              className="w-28 min-h-12 text-right font-mono font-bold text-base"
                             />
-                            <span className="text-xs text-muted-foreground font-semibold">kg</span>
+                            <span className="text-base text-muted-foreground font-semibold">kg</span>
                           </div>
                         </TableCell>
 
@@ -532,9 +591,9 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                               max="100"
                               value={item.percentage}
                               onChange={(e) => handlePercentageChange(idx, parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right font-mono font-semibold text-xs h-8"
+                              className="w-24 min-h-12 text-right font-mono font-semibold text-base"
                             />
-                            <span className="text-xs text-muted-foreground font-semibold">%</span>
+                            <span className="text-base text-muted-foreground font-semibold">%</span>
                           </div>
                         </TableCell>
 
@@ -543,14 +602,15 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleToggleRestrictedM4(idx)}
-                            className="inline-flex items-center justify-center transition-transform active:scale-95"
+                            aria-label={`Cambiar restricción de máquina 4 para ${availableMaterials.find((material) => material.id === item.material_id)?.name || 'ingrediente'}`}
+                            className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-lg px-2 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           >
                             {item.is_restricted_on_machine_4 ? (
-                              <Badge variant="destructive" className="text-[10px] cursor-pointer hover:opacity-80">
+                              <Badge variant="destructive" className="text-sm cursor-pointer hover:opacity-80">
                                 PROHIBIDO M4
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 cursor-pointer hover:bg-emerald-500/10">
+                              <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400 border-emerald-500/40 cursor-pointer hover:bg-emerald-500/10">
                                 PERMITIDO
                               </Badge>
                             )}
@@ -563,10 +623,11 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg flex items-center justify-center"
+                            className="min-h-12 min-w-12 text-destructive hover:bg-destructive/10 rounded-lg flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary"
                             onClick={() => handleRemoveRow(idx)}
                             disabled={draftIngredients.length <= 1}
                             title="Eliminar ingrediente"
+                            aria-label="Eliminar ingrediente"
                           >
                             <Icon name="delete" size={16} />
                           </Button>
@@ -589,9 +650,9 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                           </TableCell>
                           <TableCell className="text-center py-2.5">
                             {ing.is_restricted_on_machine_4 ? (
-                              <Badge variant="destructive" className="text-[10px]">PROHIBIDO M4</Badge>
+                              <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">PERMITIDO</Badge>
+                              <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400 border-emerald-500/40">PERMITIDO</Badge>
                             )}
                           </TableCell>
                         </TableRow>
@@ -616,7 +677,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={handleAddRow}
-                          className="gap-1.5 font-bold text-xs border-dashed text-primary hover:bg-primary/10"
+                          className="min-h-12 gap-2 px-4 font-bold text-base border-dashed text-primary hover:bg-primary/10"
                         >
                           <Icon name="add" size={14} />
                           Agregar Material
@@ -657,13 +718,13 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                   ) : (
                     // FOOTER EN MODO LECTURA
                     <TableRow className="hover:bg-transparent">
-                      <TableCell className="text-foreground uppercase text-xs">Costo Base de Materiales</TableCell>
+                      <TableCell className="text-foreground uppercase text-xs">{allowCosts ? 'Costo Base de Materiales' : 'Total Formulación'}</TableCell>
                       <TableCell className="text-right font-mono text-primary font-black">
                         {batchSizeKg}.00 kg
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">100.00%</TableCell>
                       <TableCell className="text-right font-mono text-emerald-600 font-black">
-                        ${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        {allowCosts ? (rawCost == null ? 'Pendiente de costeo' : `$${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`) : '—'}
                       </TableCell>
                     </TableRow>
                   )}
@@ -695,11 +756,20 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       <span className="font-bold text-sm text-foreground block truncate">{p.name}</span>
                       <span className="font-mono text-xs text-muted-foreground block truncate">{p.code}</span>
                       <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground font-medium">
-                        <span>Peso: <strong className="text-foreground">{Number(p.unit_weight_kg).toFixed(3)} kg</strong></span>
-                        <span>•</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                          ${Number(p.unit_price).toFixed(2)} MXN
-                        </span>
+                        <span>Peso: <strong className="text-foreground">{p.unit_weight_kg == null ? 'Pendiente' : `${Number(p.unit_weight_kg).toFixed(3)} kg`}</strong></span>
+                        {allowCosts && (
+                          <>
+                            <span>•</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                              ${Number(p.unit_price).toFixed(2)} MXN
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                        <span className="font-semibold text-foreground">Ext. {p.extrusion_machine_number ?? '—'} · {p.tape_type || 'Tipo pendiente'}</span>
+                        <span className="block break-words">Color: {p.color || '—'}</span>
+                        <span className="block font-mono">{p.denier == null ? '—' : `${p.denier} D`} · {p.tape_count == null ? '—' : `${p.tape_count} ±${p.tape_count_tolerance ?? 10}`} cintas · {p.tape_width_mm == null ? '—' : `${Number(p.tape_width_mm)} mm`}{allowCosts ? ` · índice ×${Number(p.transformed_cost_index || 1).toFixed(4)}` : ''}</span>
                       </div>
                     </div>
                     <Badge variant={p.is_active ? 'default' : 'secondary'} className="text-[10px] shrink-0">

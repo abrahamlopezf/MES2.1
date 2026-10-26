@@ -56,7 +56,7 @@ const LoginPage = () => {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background p-4">
+    <main className="min-h-dvh flex items-start sm:items-center justify-center bg-background p-4 sm:p-6">
       <Card className="w-full max-w-md shadow-lg border-border">
         {reason === 'multidevice' && (
           <div className="p-4 bg-danger/10 text-danger border-b border-danger/20 text-sm font-medium text-center">
@@ -99,7 +99,7 @@ const LoginPage = () => {
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
-                          placeholder="Ingresa tu usuario o número de nómina"
+                          placeholder="Usuario o número de nómina"
                           autoComplete="username"
                           disabled={mutation.isPending}
                           className="!pl-10"
@@ -123,7 +123,7 @@ const LoginPage = () => {
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Escribe tu contraseña"
+                          placeholder="Contraseña"
                           autoComplete="current-password"
                           disabled={mutation.isPending}
                           className="!pl-10 !pr-10"
@@ -131,7 +131,7 @@ const LoginPage = () => {
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none flex items-center justify-center"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md flex items-center justify-center"
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

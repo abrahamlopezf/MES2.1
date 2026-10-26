@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { RuntimeProvider } from '../../../core/runtime/RuntimeProvider/RuntimeProvider';
-import { EventBus } from '../../../core/platform/EventBus/EventBus';
-import { CapabilityRegistry } from '../../../core/platform/CapabilityRegistry/CapabilityRegistry';
-import { MES_EVENTS } from '../../../core/platform/EventBus/DomainEvents';
-import { ScannerService, MockScannerAdapter } from '../../../core/platform/Scanner/ScannerAdapter';
+import { RuntimeProvider } from '../../core/runtime/RuntimeProvider/RuntimeProvider';
+import { EventBus } from '../../core/platform/EventBus/EventBus';
+import { CapabilityRegistry } from '../../core/platform/CapabilityRegistry/CapabilityRegistry';
+import { MES_EVENTS } from '../../core/platform/EventBus/DomainEvents';
+import { ScannerService, MockScannerAdapter } from '../../core/platform/Scanner/ScannerAdapter';
 
 /**
  * Workspace Harness

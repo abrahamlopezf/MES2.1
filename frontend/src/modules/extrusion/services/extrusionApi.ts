@@ -51,6 +51,33 @@ export const extrusionApi = {
     return response.data.data;
   },
 
+  getExtrusionWip: async (): Promise<any> => {
+    const response = await axiosClient.get('/extrusion/wip/inventory');
+    return response.data.data;
+  },
+
+  getScrapLogs: async (params?: Record<string, string | number | boolean>): Promise<any[]> => {
+    const response = await axiosClient.get('/extrusion/scrap-logs', { params });
+    return response.data.data;
+  },
+
+  closeShift: async (payload: {
+    extruder_id: number;
+    shift_date: string;
+    shift_code: string;
+    actual_scrap_weight_kg?: number;
+    grouped_weighings?: Array<{ category: string; color?: string | null; source_lote_id?: number | null; actual_weight_kg: number }>;
+    notes?: string;
+  }): Promise<any> => {
+    const response = await axiosClient.post('/extrusion/shifts/close', payload);
+    return response.data.data;
+  },
+
+  adjustProductionEntry: async (id: number, payload: { pieces: number; net_weight_kg: number; correction_reason: string }): Promise<any> => {
+    const response = await axiosClient.patch(`/extrusion/production/${id}`, payload);
+    return response.data.data;
+  },
+
   registerScrap: async (payload: {
     extruder_id: number;
     mixture_qr_id?: string;
@@ -62,7 +89,7 @@ export const extrusionApi = {
     return response.data.data;
   },
 
-  updatePtiRackPrice: async (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number }): Promise<PtiRack> => {
+  updatePtiRackPrice: async (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number | null }): Promise<PtiRack> => {
     const response = await axiosClient.put(`/extrusion/racks/${rackId}/price`, payload);
     return response.data.data;
   },

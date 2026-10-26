@@ -26,7 +26,6 @@ import {
   PtiRack,
   Formula,
   BackflushingResult,
-  MaterialRef,
   ExtruderQueue,
   MassBalanceData,
   ExtrusionValuation,
@@ -44,12 +43,14 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
+import { ExtrusionShiftClosurePanel } from './ExtrusionShiftClosurePanel';
+import { ProductionReconciliationPanel } from './ProductionReconciliationPanel';
+import { PtiCatalogPanel } from './PtiCatalogPanel';
 
 export interface PtiIngressPresenterProps {
   racks: PtiRack[];
   formulas: Formula[];
   activeQueues: ExtruderQueue[];
-  materials?: MaterialRef[];
   ptiProducts?: PtiProduct[];
   isLoading: boolean;
   onRefresh: () => void;
@@ -74,6 +75,10 @@ export interface PtiIngressPresenterProps {
   onScrapWeightKgChange: (val: string) => void;
   scrapReason: string;
   onScrapReasonChange: (val: string) => void;
+  scrapColor: string;
+  onScrapColorChange: (val: string) => void;
+  shiftCode: string;
+  onShiftCodeChange: (val: string) => void;
   notes: string;
   onNotesChange: (val: string) => void;
   // Computed validations
@@ -95,9 +100,11 @@ export interface PtiIngressPresenterProps {
   isCreatingRack?: boolean;
   // Valorización y Edición de Precios
   valuation?: ExtrusionValuation | null;
+  canViewCosts: boolean;
+  extrusionWip?: { total_kg: number; items: any[]; mixtures?: any[]; mixtures_total_kg?: number; mixtures_total_value?: number } | null;
   costIndex: number;
   onCostIndexChange: (val: number) => void;
-  onUpdateRackPrice: (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number }) => Promise<void>;
+  onUpdateRackPrice: (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number | null }) => Promise<void>;
   isUpdatingRackPrice: boolean;
 }
 
@@ -105,7 +112,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   racks,
   formulas,
   activeQueues,
-  materials = [],
   ptiProducts = [],
   isLoading,
   onRefresh,
@@ -128,6 +134,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   onScrapWeightKgChange,
   scrapReason,
   onScrapReasonChange,
+  scrapColor,
+  onScrapColorChange,
+  shiftCode,
+  onShiftCodeChange,
   notes,
   onNotesChange,
   selectedRack,
@@ -146,13 +156,17 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   onCreateRack,
   isCreatingRack = false,
   valuation,
+  canViewCosts,
+  extrusionWip,
   costIndex,
   onCostIndexChange,
   onUpdateRackPrice,
   isUpdatingRackPrice,
 }) => {
   // Pestaña Activa: INGRESS (Operador), RACKS (Mapa de piso), BALANCE (Auditoría/Finanzas)
-  const [activeTab, setActiveTab] = React.useState<'INGRESS' | 'RACKS' | 'BALANCE'>('INGRESS');
+  const [activeTab, setActiveTab] = React.useState<'INGRESS' | 'RACKS' | 'CATALOG' | 'BALANCE'>('INGRESS');
+  const selectedPtiProduct = ptiProducts.find((product) => product.id === Number(selectedPtiMaterialId));
+  const knownPtiUnitWeight = Number(selectedRack?.unit_weight_kg || selectedPtiProduct?.unit_weight_kg || 0);
 
   // Filtros de Racks en Pestaña 2
   const [rackFilter, setRackFilter] = React.useState<'ALL' | 'VACIO' | 'DISPONIBLE' | 'LLENO'>('ALL');
@@ -193,7 +207,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     e.stopPropagation();
     setEditingRack(rack);
     setEditUnitPrice((rack.unit_price || 0).toString());
-    setEditUnitWeightKg((rack.unit_weight_kg || 6.8).toString());
+    setEditUnitWeightKg(rack.unit_weight_kg == null ? '' : String(rack.unit_weight_kg));
     setIsEditRackModalOpen(true);
   };
 
@@ -203,7 +217,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     try {
       await onUpdateRackPrice(editingRack.id, {
         unit_price: Number(editUnitPrice) || 0,
-        unit_weight_kg: Number(editUnitWeightKg) || 6.8
+        unit_weight_kg: editUnitWeightKg === '' ? null : Number(editUnitWeightKg)
       });
       setIsEditRackModalOpen(false);
       setEditingRack(null);
@@ -253,14 +267,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       return true;
     });
   }, [racks, rackFilter, rackSearch]);
-
-  const ptiOptions = materials.length > 0
-    ? materials
-    : [
-        { id: 1212, name: 'CINTA AMARILLA' },
-        { id: 1213, name: 'CINTA BLANCA' },
-        { id: 1238, name: 'POLIPROPILENO (B)' },
-      ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6 pb-32">
@@ -320,7 +326,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {/* SELECTOR DE PESTAÑAS INDUSTRIALES (GRANDES Y TÁCTILES) */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
         {/* Tab 1: Terminal de Ingreso */}
         <button
           type="button"
@@ -365,6 +371,20 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               Disponibilidad física
             </span>
           </div>
+        </button>
+
+        {/* Catálogo de perfiles técnicos de PTI */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('CATALOG')}
+          className={`flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'CATALOG'
+              ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          }`}
+        >
+          <Layers className="h-5 w-5 shrink-0" />
+          <div className="text-left"><span className="block leading-tight">Catálogo PTI</span><span className="text-[10px] font-semibold opacity-85 normal-case block">Perfiles de cinta y costeo</span></div>
         </button>
 
         {/* Tab 3: Balance y Finanzas */}
@@ -476,6 +496,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                         <div className="text-[11px] text-muted-foreground font-bold truncate">
                           {q.formula?.code || 'Fórmula'} • {q.formula?.name || ''}
                         </div>
+                        <div className="text-[11px] text-muted-foreground truncate">Color PTI: {[...new Set((q.formula?.ptiProducts || []).filter((pti) => pti.is_active && pti.color).map((pti) => pti.color))].join(', ') || 'sin PTI enlazado'}</div>
                       </button>
                     );
                   })}
@@ -507,7 +528,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 <div className="p-3 bg-muted/30 border border-border rounded-xl flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-primary shrink-0" />
-                    <span>Fórmula: <strong className="text-foreground">{selectedFormula.name}</strong></span>
+                    <span>Fórmula: <strong className="text-foreground">{selectedFormula.name}</strong><span className="block text-muted-foreground">Color(es) PTI: {[...new Set((selectedFormula.ptiProducts || []).filter((pti) => pti.is_active && pti.color).map((pti) => pti.color))].join(', ') || 'sin PTI enlazado'}</span></span>
                   </div>
                   <div className="font-mono text-muted-foreground">
                     Peso Teórico: <strong className="text-primary">{theoreticalWeightPerPiece} kg/pza</strong>
@@ -625,7 +646,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 {selectedRack && selectedRack.status !== 'VACIO' && selectedRack.currentPtiType ? (
                   <div className="p-3 bg-muted/30 border border-border rounded-xl flex items-center justify-between text-xs font-bold">
                     <span className="text-foreground">
-                      {selectedRack.currentPtiType.name} (Fijado por el rack)
+                      {selectedRack.currentPtiProduct?.name || selectedRack.currentPtiType.name} · Color {selectedRack.currentPtiProduct?.color || 'por identificar'} (Fijado por el rack)
                     </span>
                     <Badge variant="outline" className="text-[10px] font-mono">
                       Bloqueado por Condicionamiento
@@ -641,15 +662,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     {ptiProducts.length > 0 ? (
                       ptiProducts.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.code} - {p.name} ({Number(p.unit_weight_kg).toFixed(2)} kg, ${Number(p.unit_price).toFixed(2)} MXN)
+                          {p.code} - {p.name} · Color: {p.color || 'sin definir'} ({p.unit_weight_kg == null ? 'peso pendiente' : `${Number(p.unit_weight_kg).toFixed(2)} kg`}, índice ×{Number(p.transformed_cost_index || 1).toFixed(2)})
                         </option>
                       ))
                     ) : (
-                      ptiOptions.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.name}
-                        </option>
-                      ))
+                      <option value="" disabled>La fórmula activa no tiene un PTI enlazado. Completa el enlace en el catálogo de fórmulas.</option>
                     )}
                   </select>
                 )}
@@ -756,9 +773,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   <div className="p-3 bg-muted/20 border border-border rounded-xl text-xs font-bold text-muted-foreground flex justify-between items-center">
                     <span>Peso total estimado en báscula:</span>
                     <strong className="font-mono text-foreground text-sm">
-                      {((Number(quantityPieces) || 0) * (selectedRack?.unit_weight_kg || 6.8)).toFixed(2)} KG
+                      {knownPtiUnitWeight > 0 ? `${((Number(quantityPieces) || 0) * knownPtiUnitWeight).toFixed(2)} KG` : 'Peso unitario pendiente'}
                     </strong>
                   </div>
+                  {knownPtiUnitWeight <= 0 && <p className="text-xs text-amber-700 dark:text-amber-300">El documento del cliente no especifica el peso de bobina. Usa báscula y captura peso total y piezas para calibrar el rack.</p>}
                 </div>
               ) : (
                 /* Input Modo 2: Peso en Báscula */
@@ -785,12 +803,17 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
                   <div className="p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-between text-xs font-bold text-foreground">
                     <span>
-                      Peso unitario: <strong>{selectedRack?.unit_weight_kg || 6.8} kg/pza</strong>
+                      Peso unitario: <strong>{knownPtiUnitWeight > 0 ? `${knownPtiUnitWeight} kg/pza` : 'Pendiente; captura también las piezas'}</strong>
                     </span>
-                    <span className="text-primary font-mono font-black text-sm">
+                    {knownPtiUnitWeight > 0 && <span className="text-primary font-mono font-black text-sm">
                       → Equivale a: {computedPiecesFromScale} bobinas
-                    </span>
+                    </span>}
                   </div>
+                  {knownPtiUnitWeight <= 0 && (
+                    <label className="block space-y-1 text-xs font-bold">BOBINAS CONTADAS
+                      <Input type="number" min="1" step="1" value={quantityPieces} onChange={(event) => onQuantityPiecesChange(event.target.value)} placeholder="Número de bobinas" />
+                    </label>
+                  )}
                 </div>
               )}
             </div>
@@ -821,7 +844,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[11px] font-bold uppercase text-muted-foreground">
-                        Merma / Scrap Operativo (Kg)
+                        Merma / Scrap Operativo Estimado (Kg)
                       </label>
                       <Input
                         type="number"
@@ -851,6 +874,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       </select>
                     </div>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase text-muted-foreground">Color del scrap para clasificación</label>
+                    <Input value={scrapColor} onChange={(e) => onScrapColorChange(e.target.value)} placeholder="Ej. natural, azul, negro" className="text-xs h-10 border" />
+                  </div>
+                  <label className="block space-y-1 text-[11px] font-bold uppercase text-muted-foreground">Turno<select value={shiftCode} onChange={(event) => onShiftCodeChange(event.target.value)} className="w-full h-10 rounded-lg border border-border bg-background px-3 text-foreground"><option>TURNO_1</option><option>TURNO_2</option><option>TURNO_3</option></select></label>
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold uppercase text-muted-foreground">
@@ -1033,15 +1061,16 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     </div>
 
                     {/* Datos Financieros */}
-                    <div className="grid grid-cols-2 gap-2 text-xs font-bold pt-1">
-                      <div>
+                    <div className={`grid ${canViewCosts ? 'grid-cols-3' : 'grid-cols-1'} gap-2 text-xs font-bold pt-1`}>
+                      {canViewCosts && <div>
                         <span className="text-muted-foreground text-[10px] block">Precio / Pza:</span>
                         <span className="font-mono text-foreground">${rack.unit_price || 0} MXN</span>
-                      </div>
+                      </div>}
                       <div>
                         <span className="text-muted-foreground text-[10px] block">Peso / Pza:</span>
-                        <span className="font-mono text-foreground">{rack.unit_weight_kg || 6.8} kg</span>
+                        <span className="font-mono text-foreground">{rack.unit_weight_kg == null ? 'Pendiente' : `${rack.unit_weight_kg} kg`}</span>
                       </div>
+                      {canViewCosts && <div><span className="text-muted-foreground text-[10px] block">Costo transformado:</span><span className="font-mono text-foreground">{rack.unit_cost_per_kg == null ? 'Pendiente' : `$${Number(rack.unit_cost_per_kg).toFixed(4)}/kg`}</span></div>}
                     </div>
                   </div>
 
@@ -1058,16 +1087,16 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       <span>{isLleno ? 'Rack Lleno' : 'Usar este Rack'}</span>
                     </Button>
 
-                    <Button
+                    {canViewCosts && <Button
                       type="button"
                       size="sm"
                       variant="outline"
                       onClick={(e) => handleOpenEditRack(rack, e)}
                       className="h-9 px-2.5 text-xs font-bold border-border"
-                      title="Editar precio y peso por bobina"
+                      title="Editar precio histórico y peso por bobina"
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                    </Button>
+                    </Button>}
                   </div>
                 </div>
               );
@@ -1076,13 +1105,16 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
         </div>
       )}
 
+      {activeTab === 'CATALOG' && <PtiCatalogPanel />}
+
       {/* ========================================================= */}
       {/* VISTA 3: BALANCE DE MASA Y AUDITORÍA FINANCIERA (SUPERVISOR) */}
       {/* ========================================================= */}
       {activeTab === 'BALANCE' && (
         <div className="space-y-6 animate-in fade-in duration-150">
+          <ExtrusionShiftClosurePanel />
           {/* Sección 1: Valorización Financiera en Extrusión (WIP) */}
-          {valuation && (
+          {canViewCosts && valuation && (
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-4">
                 <div className="flex items-center gap-3">
@@ -1152,6 +1184,42 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             </div>
           )}
 
+          {extrusionWip && (
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+                <div>
+                  <h2 className="text-base font-black uppercase text-foreground">WIP disponible en Extrusión</h2>
+                  <p className="text-xs font-semibold text-muted-foreground">Material recibido de almacén y mezcla preparada aún disponible.</p>
+                </div>
+                <Badge variant="outline" className="font-mono font-black">{Number(extrusionWip.total_kg || 0).toFixed(2)} kg materia prima</Badge>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-xs font-black uppercase text-muted-foreground">Mezclas</h3>
+                  {(extrusionWip.mixtures || []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay mezcla preparada pendiente de consumo.</p>
+                  ) : (extrusionWip.mixtures || []).map((mix: any) => (
+                    <div key={mix.id} className="flex items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-xs">
+                      <div><strong className="font-mono">{mix.folio}</strong><div className="text-muted-foreground">{mix.formula || 'Fórmula'} · {mix.status}</div></div>
+                      <div className="text-right font-mono font-bold">{Number(mix.remaining_kg).toFixed(2)} kg{canViewCosts && mix.remaining_value != null && <div className="text-muted-foreground">${Number(mix.remaining_value).toFixed(2)}</div>}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xs font-black uppercase text-muted-foreground">Materiales por lote</h3>
+                  {(extrusionWip.items || []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay material en WIP.</p>
+                  ) : (extrusionWip.items || []).map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-xs">
+                      <div><strong>{item.material?.name || 'Material'}</strong><div className="text-muted-foreground">Lote {item.lote?.folio || 'sin lote'} · {item.qr_code || 'sin QR'}</div></div>
+                      <div className="text-right font-mono font-bold">{Number(item.amount_kg).toFixed(2)} kg{canViewCosts && item.value != null && <div className="text-muted-foreground">${Number(item.value).toFixed(2)}</div>}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Sección 2: Balance de Masa (Golden Rules #2 y #6) */}
           {massBalance && (
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
@@ -1186,7 +1254,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 text-xs">
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
                   <span className="text-[10px] font-bold text-muted-foreground block uppercase">Batch Entrante</span>
                   <span className="font-mono font-black text-foreground text-base">
@@ -1194,7 +1262,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   </span>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Total Merma / Scrap</span>
+                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Merma de mezcla</span>
                   <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-base">
                     {Number(massBalance.total_scrap_kg).toFixed(2)} kg
                   </span>
@@ -1202,11 +1270,17 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     ({Number(massBalance.scrap_percentage).toFixed(2)}% del lote)
                   </span>
                 </div>
+                {Number(massBalance.purge_material_scrap_kg || 0) > 0 && <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
+                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Merma de material de purga</span>
+                  <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-base">{Number(massBalance.purge_material_scrap_kg).toFixed(3)} kg</span>
+                  {canViewCosts && <span className="text-[10px] font-bold text-muted-foreground block">Costo de lote: ${Number(massBalance.purge_material_scrap_cost || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                </div>}
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Producto Útil Estimado</span>
+                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Bobinas esperadas / registradas</span>
                   <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-base">
-                    {Number(massBalance.estimated_useful_kg).toFixed(2)} kg
+                    {massBalance.expected_output_pieces == null ? `${Number(massBalance.estimated_useful_kg).toFixed(2)} kg útiles` : `${massBalance.expected_output_pieces} / ${Number(massBalance.good_output_pieces || 0)} pzas`}
                   </span>
+                  <span className="text-[10px] font-bold text-muted-foreground block">Producto registrado: {Number(massBalance.good_output_kg || 0).toFixed(2)} kg</span>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
                   <span className="text-[10px] font-bold text-muted-foreground block uppercase">Rendimiento (Yield)</span>
@@ -1214,6 +1288,13 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     {Number(massBalance.estimated_yield_percentage).toFixed(2)}%
                   </span>
                 </div>
+                {canViewCosts && <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
+                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Valor de PTI producido</span>
+                  <span className="font-mono font-black text-foreground text-base">
+                    {massBalance.pti_output_cost == null ? 'Pendiente de costo' : `$${Number(massBalance.pti_output_cost).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  </span>
+                  <span className="text-[10px] font-bold text-muted-foreground block">Costo transformado × índice del PTI</span>
+                </div>}
               </div>
 
               {massBalance.scrap_details?.length > 0 && (
@@ -1227,7 +1308,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                         key={scrap.id}
                         className="px-2.5 py-1 bg-muted/60 rounded-lg border border-border text-xs font-mono font-bold"
                       >
-                        {scrap.reason}: <strong>{scrap.scrap_weight_kg} kg</strong>
+                        {scrap.category || scrap.reason} · {scrap.color || 'sin color'}: <strong>{Number(scrap.actual_weight_kg ?? scrap.estimated_weight_kg ?? scrap.scrap_weight_kg).toFixed(3)} kg</strong>{scrap.actual_weight_method === 'PESAJE_AGREGADO_PROPORCIONAL' ? ' (asignación proporcional)' : ''}
                       </span>
                     ))}
                   </div>
@@ -1235,6 +1316,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               )}
             </div>
           )}
+
+          {massBalance && <ProductionReconciliationPanel mixtureQr={massBalance.mixture_qr} entries={massBalance.production_entries || []} />}
 
           {/* Sección 3: Último Resultado de Backflushing */}
           {lastBackflushingResult && (

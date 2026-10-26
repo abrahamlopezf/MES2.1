@@ -1,3 +1,5 @@
+// Forzar zona horaria oficial del sistema a CDMX (CST / UTC-6)
+process.env.TZ = 'America/Mexico_City';
 require("dotenv").config();
 
 const app = require("./app");

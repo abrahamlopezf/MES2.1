@@ -19,6 +19,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      source_loom_wip_item_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       pti_product_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -43,6 +47,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      unit_cost_per_kg_snapshot: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+      material_cost_mxn: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
+      transformation_index_snapshot: { type: DataTypes.DECIMAL(8, 4), allowNull: true },
+      transformed_cost_mxn: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
       created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,

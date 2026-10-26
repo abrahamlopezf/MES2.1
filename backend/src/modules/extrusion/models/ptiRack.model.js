@@ -22,6 +22,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'ID del material de PTI que condiciona el rack exclusivamente',
       },
+      current_pti_product_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Producto PTI exacto que condiciona el rack, incluyendo fórmula y color.',
+      },
+      destination_subarea_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Subárea de Telares a la que se destina el PTI de este rack',
+      },
       current_quantity: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
@@ -53,11 +63,45 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 0.00,
         comment: 'Precio unitario por bobina PTI almacenada en el rack (editable por el usuario)',
       },
+      unit_cost_per_kg: {
+        type: DataTypes.DECIMAL(14, 6),
+        allowNull: true,
+        comment: 'Costo transformado promedio ponderado por kilogramo del PTI almacenado.',
+      },
       unit_weight_kg: {
         type: DataTypes.DECIMAL(10, 3),
-        allowNull: false,
-        defaultValue: 6.800,
+        allowNull: true,
+        defaultValue: null,
         comment: 'Peso unitario estándar por bobina PTI en kg (para conversión peso <-> piezas)',
+      },
+      container_type: {
+        type: DataTypes.STRING(30),
+        allowNull: false,
+        defaultValue: 'RACK',
+        comment: 'Tipo de contenedor: CARRITO (transporte) o RACK (estático)',
+      },
+      tare_weight_kg: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: null,
+        comment: 'Tara medida del contenedor en kg; nula mientras no se confirme.',
+      },
+      net_weight_kg: {
+        type: DataTypes.VIRTUAL,
+        get() {
+          const qty = Number(this.getDataValue('current_quantity') || 0);
+          const unitW = Number(this.getDataValue('unit_weight_kg') || 0);
+          return Number((qty * unitW).toFixed(2));
+        },
+      },
+      gross_weight_kg: {
+        type: DataTypes.VIRTUAL,
+        get() {
+          const tare = Number(this.getDataValue('tare_weight_kg') || 0);
+          const qty = Number(this.getDataValue('current_quantity') || 0);
+          const unitW = Number(this.getDataValue('unit_weight_kg') || 0);
+          return Number((tare + (qty * unitW)).toFixed(2));
+        },
       },
       total_value: {
         type: DataTypes.VIRTUAL,
@@ -80,6 +124,8 @@ module.exports = (sequelize, DataTypes) => {
           if (qty <= 0) {
             rack.current_quantity = 0;
             rack.current_pti_type_id = null;
+            rack.current_pti_product_id = null;
+            rack.destination_subarea_id = null;
             rack.status = 'VACIO';
           } else if (qty >= maxCap) {
             rack.status = 'LLENO';

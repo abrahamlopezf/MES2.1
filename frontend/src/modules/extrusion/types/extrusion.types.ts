@@ -22,9 +22,9 @@ export interface Formula {
   description?: string;
   batch_size_kg: number;
   cost_index?: number;
-  raw_materials_cost?: number;
-  transformed_mixture_value?: number;
-  suggested_pti_unit_price?: number;
+  raw_materials_cost?: number | null;
+  transformed_mixture_value?: number | null;
+  suggested_pti_unit_price?: number | null;
   expected_yield_pieces: number;
   expected_yield_kg: number;
   allowed_extruders?: number[];
@@ -40,8 +40,16 @@ export interface PtiProduct {
   code: string;
   name: string;
   specifications?: string;
-  unit_weight_kg: number;
+  unit_weight_kg: number | null;
   unit_price: number;
+  extrusion_machine_number: number | null;
+  tape_type: string | null;
+  color: string | null;
+  denier: number | null;
+  tape_count: number | null;
+  tape_count_tolerance: number;
+  tape_width_mm: number | null;
+  transformed_cost_index: number;
   formula_id: number | null;
   material_id?: number | null;
   is_active: boolean;
@@ -55,7 +63,16 @@ export interface CreatePtiProductPayload {
   code?: string;
   name: string;
   specifications?: string;
-  unit_weight_kg?: number;
+  extrusion_machine_number?: number;
+  tape_type?: string;
+  color?: string;
+  denier?: number;
+  tape_count?: number;
+  tape_count_tolerance?: number;
+  tape_width_mm?: number;
+  transformed_cost_index?: number;
+  unit_weight_kg?: number | null;
+  unit_cost_per_kg?: number | null;
   unit_price?: number;
   formula_id?: number | null;
   material_id?: number | null;
@@ -66,9 +83,17 @@ export interface UpdatePtiProductPayload {
   code?: string;
   name?: string;
   specifications?: string;
-  unit_weight_kg?: number;
+  extrusion_machine_number?: number | null;
+  tape_type?: string | null;
+  color?: string | null;
+  denier?: number | null;
+  tape_count?: number | null;
+  tape_count_tolerance?: number;
+  tape_width_mm?: number | null;
+  transformed_cost_index?: number;
+  unit_weight_kg?: number | null;
   unit_price?: number;
-  formula_id?: number;
+  formula_id?: number | null;
   material_id?: number | null;
   is_active?: boolean;
 }
@@ -90,6 +115,7 @@ export interface PtiRack {
   rack_code: string;
   qr_code: string;
   current_pti_type_id: number | null;
+  current_pti_product_id?: number | null;
   current_quantity: number;
   min_capacity: number;
   max_capacity: number;
@@ -97,8 +123,11 @@ export interface PtiRack {
   currentPtiType?: MaterialRef | null;
   notes?: string;
   unit_price?: number;
-  unit_weight_kg?: number;
+  unit_weight_kg?: number | null;
+  unit_cost_per_kg?: number | null;
   total_value?: number;
+  transformed_cost_value?: number | null;
+  currentPtiProduct?: PtiProduct | null;
 }
 
 export type QueueStatus = 'EN_ESPERA' | 'ACTIVA' | 'PAUSADA' | 'COMPLETADA' | 'CANCELADA';
@@ -111,6 +140,7 @@ export interface ExtruderQueue {
   priority: number;
   status: QueueStatus;
   notes?: string;
+  container_remaining_quantity_kg?: number | null;
   formula?: Formula;
   created_at?: string;
   updated_at?: string;
@@ -126,6 +156,7 @@ export interface ExtruderMachineInfo {
 export interface MachineQueueGroup {
   machine: ExtruderMachineInfo;
   active: ExtruderQueue | null;
+  active_formula_group?: { formula_id: number; formula_name: string | null; batch_count: number; quantity_kg: number; mixture_qrs: string[] } | null;
   paused: ExtruderQueue[];
   waiting: ExtruderQueue[];
   total_in_queue: number;
@@ -154,7 +185,10 @@ export interface ScanRackPtiResponse {
 
 export interface SwitchQueuePriorityPayload {
   queue_id: number;
+  prioritize_formula_id?: number;
   scrap_weight_kg?: number;
+  scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; shift_code?: string; notes?: string }[];
+  shift_code?: string;
 }
 
 export interface EnqueueMixPayload {
@@ -173,7 +207,10 @@ export interface ScanRackPtiPayload {
   unit_price?: number;
   mixture_qr?: string;
   scrap_weight_kg?: number;
+  estimated_scrap_weight_kg?: number;
+  scrap_category?: string;
   scrap_reason?: string;
+  scrap_color?: string;
   notes?: string;
 }
 
@@ -190,6 +227,19 @@ export interface ScrapDetail {
 export interface MassBalanceData {
   mixture_qr: string;
   batch_size_kg: number;
+  good_output_kg?: number;
+  good_output_pieces?: number;
+  good_output_cost?: number | null;
+  pti_output_cost?: number | null;
+  estimated_useful_kg: number;
+  estimated_yield_percentage: number;
+  expected_output_kg?: number;
+  expected_output_pieces?: number | null;
+  output_piece_variance?: number | null;
+  remaining_mixture_kg?: number;
+  unexplained_variance_kg?: number;
+  production_entries?: any[];
+  scrap_logs?: any[];
   total_scrap_kg: number;
   scrap_percentage: number;
   estimated_useful_kg: number;
@@ -235,6 +285,7 @@ export interface MixtureTransitionPayload {
   from_mixture_qr?: string;
   to_mixture_qr?: string;
   transition_scrap_kg: number;
+  scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; notes?: string }[];
   last_pti_quantity?: number;
   first_pti_quantity?: number;
   reason?: string;

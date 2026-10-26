@@ -34,12 +34,6 @@ module.exports = {
       material_id: {
         type: Sequelize.INTEGER,
         allowNull: true,
-        references: {
-          model: 'materials',
-          key: 'id',
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT',
       },
       product_name: {
         type: Sequelize.STRING(180),

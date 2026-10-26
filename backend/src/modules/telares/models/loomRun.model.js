@@ -47,6 +47,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 1500.00,
       },
+      weight_planned_kg: {
+        type: DataTypes.DECIMAL(12, 3),
+        allowNull: true,
+        comment: 'Peso objetivo ingresado para la corrida, cuando se solicita producir por peso.',
+      },
       meters_produced: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,

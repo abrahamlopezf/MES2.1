@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
 import { useAuthStore } from '../../../store/authStore';
+import { UserAvatar } from '../../../components/ui/UserAvatar';
 import { BrowserNotificationBanner } from '../../../core/notifications/BrowserNotificationBanner';
 import { sendBrowserNotification } from '../../../core/notifications/browserNotifications';
 
@@ -131,29 +132,16 @@ export const NotificationCenter = () => {
         {/* Avatar — desktop only */}
         <button
           onClick={() => navigate('/profile')}
-          className="hidden md:flex items-center justify-center pl-2 pr-2 py-2 hover:bg-secondary/60 transition-colors h-full border-r border-border"
+          className="hidden md:flex min-h-12 min-w-12 items-center justify-center px-2 py-1.5 hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors h-full border-r border-border"
           title="Mi Perfil"
+          aria-label="Abrir mi perfil"
         >
-          {user?.avatar_url ? (
-            <img
-              src={user.avatar_url}
-              alt="perfil"
-              className="w-7 h-7 rounded-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          ) : (
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center font-black text-white text-[10px]"
-              style={{ background: (() => {
-                const name = `${user?.first_name ?? ''}${user?.last_name ?? ''}`;
-                const colors = ['#7c3aed','#2563eb','#059669','#e11d48','#d97706','#0891b2'];
-                let h = 0; for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-                return colors[Math.abs(h) % colors.length];
-              })() }}
-            >
-              {`${user?.first_name?.[0] ?? ''}${user?.last_name?.[0] ?? ''}`.toUpperCase() || '?'}
-            </div>
-          )}
+          <UserAvatar
+            name={String(user?.id ?? user?.username ?? '')}
+            label={`${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Usuario'}
+            src={user?.avatar_url}
+            size={34}
+          />
         </button>
 
         {/* Bell button */}

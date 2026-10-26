@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
 import AppLayout from "../components/layout/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -44,7 +44,7 @@ import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
 import ExtrusionBoardContainer from '../modules/extrusion/presentation/containers/ExtrusionBoardContainer';
 import PtiIngressContainer from '../modules/extrusion/presentation/containers/PtiIngressContainer';
-import { SuperAdminRoute, ExtrusionRoute, TelaresRoute } from './SuperAdminRoute';
+import { SuperAdminRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
 
 // Telares & Ruteo (Fase Escalonada)
@@ -52,6 +52,12 @@ import TelaresTerminalPage from '../modules/telares/presentation/pages/TelaresTe
 import RoutingStationTerminalPage from '../modules/telares/presentation/pages/RoutingStationTerminalPage';
 import ViajeroTrackerPage from '../modules/telares/presentation/pages/ViajeroTrackerPage';
 import TelaresCatalogPage from '../modules/telares/presentation/pages/TelaresCatalogPage';
+import TelaresOperatorsPage from '../modules/telares/presentation/pages/TelaresOperatorsPage';
+import TelaresDashboard from '../modules/telares/presentation/pages/TelaresDashboard';
+import GloboCatalogPage from '../modules/globo/pages/GloboCatalogPage';
+import GloboWipPage from '../modules/globo/pages/GloboWipPage';
+import LaminadoCatalogPage from '../modules/laminado/pages/LaminadoCatalogPage';
+import LaminadoWipPage from '../modules/laminado/pages/LaminadoWipPage';
 
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
@@ -63,6 +69,7 @@ import { MermaScrapPage } from '../modules/warehouse/presentation/pages/MermaScr
 import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/ConsumptionOrdersPage';
 import { AreaInventoryPage } from '../modules/warehouse/presentation/pages/AreaInventoryPage';
 import { WarehouseReportsPage } from '../modules/warehouse/presentation/pages/WarehouseReportsPage';
+import { SilosManagementPage } from '../modules/warehouse/presentation/pages/SilosManagementPage';
 
 export const router = createBrowserRouter([
   {
@@ -95,31 +102,59 @@ export const router = createBrowserRouter([
           },
           {
             path: '/users',
-            element: <UsersPage />,
+            element: (
+              <SuperAdminRoute>
+                <UsersPage />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/admin',
-            element: <Navigate to="/users" replace />,
+            element: (
+              <SuperAdminRoute>
+                <Navigate to="/users" replace />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/usuarios',
-            element: <Navigate to="/users" replace />,
+            element: (
+              <SuperAdminRoute>
+                <Navigate to="/users" replace />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/gestor-usuarios',
-            element: <Navigate to="/users" replace />,
+            element: (
+              <SuperAdminRoute>
+                <Navigate to="/users" replace />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/roles',
-            element: <RolesPage />,
+            element: (
+              <SuperAdminRoute>
+                <RolesPage />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/areas',
-            element: <AreasPage />,
+            element: (
+              <SuperAdminRoute>
+                <AreasPage />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/areas/:group',
-            element: <AreasPage />,
+            element: (
+              <SuperAdminRoute>
+                <AreasPage />
+              </SuperAdminRoute>
+            ),
           },
           {
             path: '/profile',
@@ -127,7 +162,11 @@ export const router = createBrowserRouter([
           },
           {
             path: '/materials',
-            element: <MaterialsLayout />,
+            element: (
+              <WarehouseRoute>
+                <MaterialsLayout />
+              </WarehouseRoute>
+            ),
             children: [
               {
                 index: true,
@@ -225,56 +264,104 @@ export const router = createBrowserRouter([
           },
           {
             path: '/production',
-            element: <ExtrusionRoute />,
+            element: <Outlet />,
             children: [
               {
                 path: 'machines',
-                element: <MachinesPage />
+                element: (
+                  <ExtrusionRoute>
+                    <MachinesPage />
+                  </ExtrusionRoute>
+                )
               },
               {
                 path: 'formulas',
-                element: <FormulasPage />
+                element: (
+                  <ExtrusionRoute>
+                    <FormulasPage />
+                  </ExtrusionRoute>
+                )
               },
               {
                 path: 'stations',
-                element: <WorkStationTerminalPage />
+                element: (
+                  <ExtrusionRoute>
+                    <WorkStationTerminalPage />
+                  </ExtrusionRoute>
+                )
               },
               {
                 path: 'mixing',
-                element: <MixingTerminalPage />
+                element: (
+                  <ExtrusionRoute>
+                    <MixingTerminalPage />
+                  </ExtrusionRoute>
+                )
               },
               {
                 path: 'extrusion',
-                element: <ExtrusionTerminalPage />
+                element: (
+                  <ExtrusionRoute>
+                    <ExtrusionTerminalPage />
+                  </ExtrusionRoute>
+                )
               },
               {
                 path: 'extrusion/rack/new',
-                element: <ExtrusionTerminalPage />
+                element: (
+                  <ExtrusionRoute>
+                    <ExtrusionTerminalPage />
+                  </ExtrusionRoute>
+                )
               },
               {
                 path: 'andon',
-                element: <AndonBoardPage />
+                element: (
+                  <ExtrusionRoute>
+                    <AndonBoardPage />
+                  </ExtrusionRoute>
+                )
               },
               // Telares y Estaciones de Ruteo
               {
                 path: 'telares',
-                element: <TelaresTerminalPage />
+                element: (
+                  <TelaresRoute>
+                    <TelaresTerminalPage />
+                  </TelaresRoute>
+                )
               },
               {
                 path: 'laminado',
-                element: <RoutingStationTerminalPage stationNameOverride="LAMINADO" />
+                element: (
+                  <LaminadoRoute>
+                    <RoutingStationTerminalPage stationNameOverride="LAMINADO" />
+                  </LaminadoRoute>
+                )
               },
               {
                 path: 'globo',
-                element: <RoutingStationTerminalPage stationNameOverride="GLOBO" />
+                element: (
+                  <GloboRoute>
+                    <RoutingStationTerminalPage stationNameOverride="GLOBO" />
+                  </GloboRoute>
+                )
               },
               {
                 path: 'corte',
-                element: <RoutingStationTerminalPage stationNameOverride="CORTE" />
+                element: (
+                  <TelaresRoute>
+                    <RoutingStationTerminalPage stationNameOverride="CORTE" />
+                  </TelaresRoute>
+                )
               },
               {
                 path: 'viajero-tracker',
-                element: <ViajeroTrackerPage />
+                element: (
+                  <TelaresRoute>
+                    <ViajeroTrackerPage />
+                  </TelaresRoute>
+                )
               }
             ]
           },
@@ -292,12 +379,49 @@ export const router = createBrowserRouter([
             element: <Navigate to="/production/globo" replace />
           },
           {
+            path: '/telares/dashboard',
+            element: <TelaresRoute><TelaresDashboard /></TelaresRoute>
+          },
+          {
+            path: '/production/telares-dashboard',
+            element: <TelaresRoute><TelaresDashboard /></TelaresRoute>
+          },
+          {
             path: '/telares/catalogos',
             element: <TelaresRoute><TelaresCatalogPage /></TelaresRoute>
+          },
+          {
+            path: '/telares/operadores',
+            element: <TelaresRoute><TelaresOperatorsPage /></TelaresRoute>
+          },
+          {
+            path: '/telares/viajero',
+            element: <Navigate to="/production/viajero-tracker" replace />
+          },
+          {
+            path: '/globo/catalogos',
+            element: <GloboRoute><GloboCatalogPage /></GloboRoute>
+          },
+          {
+            path: '/globo/wip',
+            element: <GloboRoute><GloboWipPage /></GloboRoute>
+          },
+          {
+            path: '/laminado/catalogos',
+            element: <LaminadoRoute><LaminadoCatalogPage /></LaminadoRoute>
+          },
+          {
+            path: '/laminado/wip',
+            element: <LaminadoRoute><LaminadoWipPage /></LaminadoRoute>
+          },
+          {
+            path: '/viajero',
+            element: <Navigate to="/production/viajero-tracker" replace />
           },
           // Warehouse
           {
             path: '/warehouse',
+            element: <WarehouseRoute><Outlet /></WarehouseRoute>,
             children: [
               {
                 path: 'receive',
@@ -311,10 +435,6 @@ export const router = createBrowserRouter([
                 path: 'inventory',
                 element: <WarehouseInventoryPage />
               },
-              /* {
-                path: 'area-inventory',
-                element: <AreaInventoryPage />
-              }, */
               {
                 path: 'materials/:materialId/lotes',
                 element: <MaterialLotesPage />
@@ -336,8 +456,16 @@ export const router = createBrowserRouter([
                 element: <ConsumptionOrdersPage />
               },
               {
+                path: 'silos',
+                element: <SilosManagementPage />
+              },
+              {
                 path: 'reports',
-                element: <WarehouseReportsPage />
+                element: (
+                  <AdminAlmRoute>
+                    <WarehouseReportsPage />
+                  </AdminAlmRoute>
+                )
               }
             ]
           }

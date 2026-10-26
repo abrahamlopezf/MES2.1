@@ -11,6 +11,7 @@ export const userAdapter = {
       nombres: dto.first_name || '',
       apellidos: dto.last_name || '',
       username: dto.username || '',
+      avatarUrl: dto.avatar_url || null,
       numeroNomina: dto.numero_nomina || '', 
       correo: dto.email || '',
       telefono: dto.telefono || '',

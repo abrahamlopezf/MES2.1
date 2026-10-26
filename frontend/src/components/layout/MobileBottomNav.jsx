@@ -3,7 +3,11 @@ import { useAuthStore } from '../../store/authStore';
 import { renderAnyIcon } from '../../design-system';
 
 const MobileBottomNav = () => {
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user } = useAuthStore();
+  const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRole) || 
+                          user?.area?.code === 'ALMACEN' || 
+                          user?.area?.code === 'ALM';
 
   const items = [
     {
@@ -51,7 +55,12 @@ const MobileBottomNav = () => {
   ];
 
   const visibleItems = items
-    .filter((item) => hasPermission(item.permission))
+    .filter((item) => {
+      if (isWarehouseUser && ['/roles', '/areas', '/reports'].includes(item.path)) {
+        return false;
+      }
+      return hasPermission(item.permission);
+    })
     .sort((a, b) => a.priority - b.priority)
     .slice(0, 5);
 

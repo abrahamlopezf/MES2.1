@@ -26,17 +26,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'ACTIVE',
       },
-      modo_silo: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-        comment: 'Toggle híbrido: true = alimentación automatizada por Silo; false = alimentación manual por costales',
-      },
-      silo_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: 'FK al silo asignado cuando opera en modo_silo',
-      },
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

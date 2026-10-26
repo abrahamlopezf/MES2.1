@@ -1,3 +1,6 @@
+// Forzar zona horaria oficial del sistema a CDMX (CST / UTC-6)
+process.env.TZ = process.env.TZ || 'America/Mexico_City';
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");

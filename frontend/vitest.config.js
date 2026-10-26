@@ -1,8 +1,19 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(process.cwd(), './src'),
+      '@app': path.resolve(process.cwd(), './src/app'),
+      '@core': path.resolve(process.cwd(), './src/core'),
+      '@shared': path.resolve(process.cwd(), './src/shared'),
+      '@modules': path.resolve(process.cwd(), './src/modules'),
+    },
+    extensions: ['.mjs', '.js', '.mts', '.ts', '.tsx', '.jsx', '.json'],
+  },
   test: {
     globals: true,
     environment: 'jsdom',

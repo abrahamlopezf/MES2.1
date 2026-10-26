@@ -64,10 +64,18 @@ export function QRWorkspace({ data, onActionClick }: QRWorkspaceProps) {
           <h3 className="text-sm font-black uppercase tracking-widest text-muted mb-6 border-b border-border pb-2">Trazabilidad (Genealogía)</h3>
           {data.traceability.parents.length > 0 || data.traceability.children.length > 0 ? (
             <div className="space-y-6">
-              {data.traceability.parents.map(parent => (
-                <GenealogyTree key={parent.id} data={parent} />
-              ))}
-              {/* Omitimos children por brevedad en la demo, se podría expandir */}
+              {data.traceability.parents.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Materiales y procesos de origen</p>
+                  {data.traceability.parents.map(parent => <GenealogyTree key={parent.id} data={parent} />)}
+                </div>
+              )}
+              {data.traceability.children.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Salidas generadas</p>
+                  {data.traceability.children.map(child => <GenealogyTree key={child.id} data={child} />)}
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-muted text-sm font-medium">Sin trazabilidad registrada.</p>

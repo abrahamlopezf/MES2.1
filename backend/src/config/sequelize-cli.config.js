@@ -1,7 +1,9 @@
+process.env.TZ = process.env.TZ || 'America/Mexico_City';
 require('dotenv').config();
 
 const common = {
   dialect: 'postgres',
+  timezone: 'America/Mexico_City',
   migrationStorageTableName: 'sequelize_meta',
   seederStorage: 'sequelize',
   seederStorageTableName: 'sequelize_data',

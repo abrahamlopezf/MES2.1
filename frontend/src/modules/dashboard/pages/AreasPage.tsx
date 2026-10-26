@@ -185,10 +185,10 @@ export const AreasPage: React.FC = () => {
                     <area.icon size={24} className="sm:size-7" strokeWidth={2.5} />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <h3 className="font-bold text-base sm:text-lg text-foreground tracking-tight truncate">
+                    <h3 className="font-bold text-base sm:text-lg text-foreground tracking-tight leading-snug break-words">
                       {area.title}
                     </h3>
-                    <p className="text-xs font-medium text-muted-foreground truncate mt-0.5">
+                    <p className="text-sm leading-snug font-medium text-muted-foreground mt-1 break-words">
                       {area.description}
                     </p>
                   </div>

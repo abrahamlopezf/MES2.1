@@ -215,3 +215,26 @@ body.global-modal-open #root * {
   user-select: none;
   vertical-align: middle;
 }
+@media print {
+  body.pti-rack-qr-printing * {
+    visibility: hidden !important;
+  }
+
+  body.pti-rack-qr-printing .pti-rack-printable,
+  body.pti-rack-qr-printing .pti-rack-printable * {
+    visibility: visible !important;
+  }
+
+  body.pti-rack-qr-printing .pti-rack-printable {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    width: 100% !important;
+    min-height: 100% !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #0f172a !important;
+    background: #fff !important;
+  }
+}

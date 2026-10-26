@@ -7,9 +7,21 @@ const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
 const validate = require('../../middlewares/validation.middleware');
 
+const { isSupervisor } = require('../../shared/security/accessRules');
+
 const router = express.Router();
 
 router.use(authMiddleware);
+
+router.use((req, res, next) => {
+  if (isSupervisor(req.user)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Los supervisores no tienen acceso a la gestión de roles.',
+    });
+  }
+  next();
+});
 
 router.get(
   '/',

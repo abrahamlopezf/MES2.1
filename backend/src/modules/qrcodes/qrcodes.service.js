@@ -12,6 +12,7 @@ const {
 const {
   isAdmin,
   isSuperadmin,
+  isSupervisor,
   throwHttpError,
 } = require('../../shared/security/accessRules');
 
@@ -64,7 +65,23 @@ const assertCanUseArea = async (areaId, currentUser, transaction = null) => {
 const getQrVisibilityWhere = (currentUser) => {
   if (canManageAllAreas(currentUser)) return {};
 
+  // El supervisor solo puede ver los lotes de QR creados por él
+  if (isSupervisor(currentUser)) {
+    return {
+      created_by: currentUser.id,
+    };
+  }
+
   const userAreaId = getUserAreaId(currentUser);
+  const roleCode = (currentUser?.role?.code || '').toUpperCase();
+
+
+  // Para usuarios de Almacén (ADMIN_ALM / WAREHOUSEMAN), SOLO mostrar los QR asignados a Almacén
+  if (roleCode === 'ADMIN_ALM' || roleCode === 'WAREHOUSEMAN' || Number(userAreaId) === 1) {
+    return {
+      assigned_area_id: userAreaId || 1,
+    };
+  }
 
   if (!userAreaId) {
     return {
@@ -256,13 +273,14 @@ const generateQrBatch = async (payload, currentUser) => {
       if (area) assignedAreaId = area.id;
     }
 
-    if (!canManageAllAreas(currentUser)) {
+    if (!canManageAllAreas(currentUser) || isSupervisor(currentUser)) {
       assignedAreaId = getUserAreaId(currentUser);
 
       if (!assignedAreaId) {
         throwHttpError('Tu usuario no tiene un área asignada para generar QR.', 403);
       }
     }
+
 
     if (!assignedAreaId) {
       throwHttpError('Debes seleccionar un área para generar los códigos QR.', 400);
@@ -509,6 +527,13 @@ const getQrBatchById = async (batchId, currentUser) => {
   }
 
   const plainBatch = batch.get({ plain: true });
+
+  if (isSupervisor(currentUser)) {
+    const creatorId = plainBatch.created_by?.id || plainBatch.created_by;
+    if (creatorId && Number(creatorId) !== Number(currentUser.id)) {
+      throwHttpError('Solo puedes consultar los lotes creados por ti.', 403);
+    }
+  }
   
   const available_quantity = batch.codes ? batch.codes.filter(c => (c.status === QR_STATUS.UNASSIGNED || c.status === QR_STATUS.ASSIGNED) && c.is_active).length : 0;
   const tokens = batch.codes ? batch.codes.map(c => ({

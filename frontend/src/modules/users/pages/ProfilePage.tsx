@@ -9,46 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import api from '@/api/axiosClient';
-
-// ── Avatar component ─────────────────────────────────────────────────────────
-const AVATAR_COLORS = [
-  'bg-violet-600', 'bg-blue-600', 'bg-emerald-600',
-  'bg-rose-600', 'bg-amber-600', 'bg-cyan-600',
-];
-
-const getAvatarColor = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-};
-
-const UserAvatar: React.FC<{
-  firstName: string;
-  lastName: string;
-  avatarUrl?: string | null;
-  size?: 'lg' | 'sm';
-}> = ({ firstName, lastName, avatarUrl, size = 'lg' }) => {
-  const initials = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
-  const color = getAvatarColor(`${firstName}${lastName}`);
-  const dim = size === 'lg' ? 'w-24 h-24 text-3xl' : 'w-10 h-10 text-sm';
-
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={`${firstName} ${lastName}`}
-        className={`${dim} rounded-full object-cover ring-4 ring-primary/20`}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-      />
-    );
-  }
-
-  return (
-    <div className={`${dim} ${color} rounded-full flex items-center justify-center font-black text-white ring-4 ring-primary/20`}>
-      {initials || '?'}
-    </div>
-  );
-};
+import { UserAvatar as SharedUserAvatar } from '../../../components/ui/UserAvatar';
 
 const ProfilePage: React.FC = () => {
   const { user, logout, initializeAuth } = useAuthStore() as any;
@@ -163,15 +124,17 @@ const ProfilePage: React.FC = () => {
           {/* ── Avatar section ─────────────────────────────────────── */}
           <div className="flex flex-col items-center mb-6 gap-2">
             <div className="relative group">
-              <UserAvatar
-                firstName={user?.first_name || ''}
-                lastName={user?.last_name || ''}
-                avatarUrl={displayAvatar}
-                size="lg"
+              <SharedUserAvatar
+                name={String(user?.id ?? user?.username ?? '')}
+                label={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Usuario'}
+                src={displayAvatar}
+                size={104}
               />
               <button
+                type="button"
                 onClick={() => setIsEditingAvatar(true)}
-                className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                aria-label="Cambiar imagen de perfil"
+                className="absolute inset-0 flex items-center justify-center rounded-[1.15rem] bg-black/55 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary"
                 title="Cambiar foto"
               >
                 <Camera size={22} className="text-white" />
@@ -198,14 +161,14 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => setAvatarInput(e.target.value)}
                 className="text-sm"
               />
-              {avatarInput && (
-                <img
-                  src={avatarInput}
-                  alt="Preview"
-                  className="w-16 h-16 rounded-full object-cover mx-auto ring-2 ring-primary/30"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              <div className="flex justify-center py-1">
+                <SharedUserAvatar
+                  name={String(user?.id ?? user?.username ?? '')}
+                  label={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Usuario'}
+                  src={avatarInput || null}
+                  size={64}
                 />
-              )}
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
