@@ -14,7 +14,7 @@ const router = express.Router();
 const authenticate = authMiddleware.authenticate || authMiddleware.authMiddleware || authMiddleware;
 const authorizePermission = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
 const validateRequest = validationMiddleware.validateRequest || validationMiddleware;
-const authorizeWarehouseReports = roleMiddleware('ADMIN_ALM');
+const authorizeWarehouseReports = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN');
 
 router.use(authenticate);
 
@@ -106,7 +106,7 @@ router.get(
 
 router.post(
   '/inventory/dispose',
-  roleMiddleware('ADMIN_ALM'),
+  roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN'),
   warehouseController.disposeLotes
 );
 
@@ -124,7 +124,7 @@ router.get(
 
 router.post(
   '/inventory/dispose-resolve/:id',
-  roleMiddleware('ADMIN_ALM'),
+  roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN'),
   warehouseController.resolveWasteRequest
 );
 
@@ -169,7 +169,7 @@ router.post(
 
 router.post(
   '/inventory/manual-entry',
-  roleMiddleware('ADMIN_ALM'),
+  roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN'),
   warehouseController.manualEntry
 );
 

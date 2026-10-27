@@ -26,7 +26,7 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
   const { confirm } = useConfirmAction();
   
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
-  const isAdminAlm = ['ADMIN_ALM', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
+  const isAdminAlm = ['ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
 
   const isResolutionMode = !!resolutionRequestId;
   const canDirectDispose = isAdminAlm && (hasPermission('warehouse.waste') || hasPermission('warehouse.dispose'));

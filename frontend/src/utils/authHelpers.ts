@@ -80,6 +80,19 @@ export const canManageUsers = (user: any): boolean => {
 
 export const getUserAreaCode = (user: any): string => {
   if (!user) return '';
+  const roleCode = String(
+    typeof user?.role === 'string'
+      ? user.role
+      : user?.role?.code || user?.role?.name || ''
+  ).toUpperCase();
+
+  // A role with an explicit area is authoritative if the user's cached area is stale.
+  if (roleCode.includes('GLOBO')) return 'GLOBO';
+  if (roleCode.includes('LAMINADO')) return 'LAMINADO';
+  if (roleCode.includes('TELARES') || roleCode.startsWith('ADMIN_TEL')) return 'TELARES';
+  if (roleCode.includes('EXTRUSION') || roleCode === 'ADMIN_EXT') return 'EXTRUSION';
+  if (roleCode.includes('ALMACEN') || roleCode.includes('ALM') || roleCode === 'WAREHOUSEMAN') return 'ALMACEN';
+
   const areaCode = String(user?.area?.code || user?.role?.area?.code || '').toUpperCase();
   if (areaCode) return areaCode;
 
@@ -90,30 +103,18 @@ export const getUserAreaCode = (user: any): string => {
   if (areaId === 4) return 'LAMINADO';
   if (areaId === 5) return 'GLOBO';
 
-  const roleCode = String(
-    typeof user?.role === 'string'
-      ? user.role
-      : user?.role?.code || user?.role?.name || ''
-  ).toUpperCase();
-
-  if (roleCode.includes('EXTRUSION') || roleCode === 'ADMIN_EXT') return 'EXTRUSION';
-  if (roleCode.includes('TELARES')) return 'TELARES';
-  if (roleCode.includes('ALMACEN') || roleCode.includes('ALM')) return 'ALMACEN';
-  if (roleCode.includes('LAMINADO')) return 'LAMINADO';
-  if (roleCode.includes('GLOBO')) return 'GLOBO';
   return '';
 };
 
 export const getUserAreaId = (user: any): number | null => {
   if (!user) return null;
-  const id = user?.area?.id || user?.areaId || user?.role?.area?.id || user?.role?.area_id;
-  if (id) return Number(id);
-
   const areaCode = getUserAreaCode(user);
   if (areaCode === 'ALMACEN') return 1;
   if (areaCode === 'EXTRUSION') return 2;
   if (areaCode === 'TELARES') return 3;
   if (areaCode === 'LAMINADO') return 4;
   if (areaCode === 'GLOBO') return 5;
+  const id = user?.area?.id || user?.areaId || user?.role?.area?.id || user?.role?.area_id;
+  if (id) return Number(id);
   return null;
 };

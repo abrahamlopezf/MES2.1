@@ -79,7 +79,7 @@ export const MachinesPage = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6 pb-32 lg:pr-24">
+    <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6 pb-32 lg:pr-24">
       {/* Encabezado */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>

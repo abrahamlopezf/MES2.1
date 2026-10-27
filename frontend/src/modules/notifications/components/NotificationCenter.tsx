@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Check, ShieldAlert, Info, AlertTriangle, UserPlus, UserMinus, X, ArrowLeft } from 'lucide-react';
+import { Bell, Check, ShieldAlert, Info, AlertTriangle, UserPlus, UserMinus, X, ArrowLeft, ArrowRight, Loader2, LogOut, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
@@ -14,7 +14,7 @@ export const NotificationCenter = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ALL');
 
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   const { data: notifications = [], isLoading } = useNotifications();
   const { data: unreadCount = 0 } = useUnreadCount();
@@ -126,108 +126,179 @@ export const NotificationCenter = () => {
   return (
     <>
       {/* Top-right pill: avatar (md+) + bell */}
-      <div className="fixed top-4 right-4 z-[50]">
-        <div className="flex items-center gap-0 bg-card border border-border rounded-full shadow-md overflow-hidden">
-
-        {/* Avatar — desktop only */}
-        <button
-          onClick={() => navigate('/profile')}
-          className="hidden md:flex min-h-12 min-w-12 items-center justify-center px-2 py-1.5 hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors h-full border-r border-border"
-          title="Mi Perfil"
-          aria-label="Abrir mi perfil"
-        >
-          <UserAvatar
-            name={String(user?.id ?? user?.username ?? '')}
-            label={`${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Usuario'}
-            src={user?.avatar_url}
-            size={34}
-          />
-        </button>
-
-        {/* Bell button */}
+      <div className="fixed top-2 right-2 z-[50] sm:top-4 sm:right-4">
+        {/* Profile and notifications share one desktop menu trigger. */}
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className={`relative p-3 transition-colors flex items-center justify-center group ${isDropdownOpen ? 'bg-secondary/80' : 'hover:bg-secondary/60'}`}
-          title="Notificaciones"
+          aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
+          aria-expanded={isDropdownOpen}
+          aria-controls="notification-dropdown"
+          data-ignore-accessibility-min-height="true"
+          className={`flex h-12 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-lg shadow-black/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDropdownOpen ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/25 hover:bg-secondary/40'}`}
+          title="Perfil y notificaciones"
         >
-          <Bell className={`w-6 h-6 transition-colors ${isDropdownOpen ? 'text-primary' : 'text-foreground group-hover:text-primary'}`} />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive border-2 border-background text-destructive-foreground rounded-full text-[10px] font-black flex items-center justify-center shadow-sm">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
+          <span className="hidden size-10 shrink-0 items-center justify-center md:flex">
+            <UserAvatar
+              name={String(user?.id ?? user?.username ?? '')}
+              label={`${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Usuario'}
+              src={user?.avatar_url}
+              size={32}
+            />
+          </span>
+          <span className={`relative flex size-10 shrink-0 items-center justify-center rounded-full transition-colors ${isDropdownOpen ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary'}`}>
+            {isDropdownOpen ? <X size={32} /> : <Bell size={32} />}
+            {unreadCount > 0 && (
+              <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-destructive px-1 text-[9px] font-bold leading-none text-destructive-foreground shadow-sm">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </span>
         </button>
-        </div>
 
         {/* Invisible Overlay to close dropdown */}
         {isDropdownOpen && (
-          <div 
+          <button
+            type="button"
             className="fixed inset-0 z-40"
+            aria-label="Cerrar notificaciones"
             onClick={() => setIsDropdownOpen(false)}
           />
         )}
 
         {/* Dropdown Menu */}
         {isDropdownOpen && (
-          <div className="absolute top-[110%] right-0 mt-2 w-80 sm:w-96 bg-card border border-border shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="font-bold text-foreground">Recientes</h3>
+          <section
+            id="notification-dropdown"
+            aria-label="Notificaciones recientes"
+            className="absolute right-0 top-[calc(100%+0.75rem)] z-50 flex max-h-[min(76dvh,38rem)] w-[min(24rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 animate-in fade-in slide-in-from-top-2 duration-200 sm:w-96 md:w-[min(30rem,calc(100vw-2rem))]"
+          >
+            <div className="hidden shrink-0 border-b border-border bg-background p-4 md:block">
+              <div className="flex items-center gap-3">
+                <UserAvatar
+                  name={String(user?.id ?? user?.username ?? '')}
+                  label={`${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || 'Usuario'}
+                  src={user?.avatar_url}
+                  size={40}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-foreground">
+                    {`${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim() || user?.username || 'Usuario'}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {user?.role?.name ?? user?.role?.code ?? 'Cuenta de usuario'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    navigate('/profile');
+                  }}
+                  className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <UserRound className="size-4" />
+                  Mi perfil
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    void logout();
+                  }}
+                  className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <LogOut className="size-4" />
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3.5">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Bell className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-bold text-foreground">Notificaciones</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {unreadCount > 0 ? `${unreadCount} pendiente${unreadCount === 1 ? '' : 's'}` : 'Estás al día'}
+                  </p>
+                </div>
+              </div>
               {unreadCount > 0 && (
-                <span className="bg-destructive/10 text-destructive text-xs font-bold px-2 py-0.5 rounded-full border border-destructive/20">
-                  {unreadCount} Nuevas
-                </span>
+                <button
+                  type="button"
+                  onClick={handleMarkAllAsRead}
+                  disabled={markAllAsReadMutation.isPending}
+                  className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {markAllAsReadMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                  <span>Leer todo</span>
+                </button>
               )}
             </div>
-            <div className="p-3 border-b border-border bg-card">
+            <div className="shrink-0 border-b border-border px-3 py-2.5">
               <BrowserNotificationBanner compact={true} />
             </div>
-            <div className="max-h-[350px] overflow-y-auto divide-y divide-border">
-              {notifications.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground text-sm">
-                  No tienes notificaciones
+            <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto overscroll-contain">
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm font-medium text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                  Cargando notificaciones
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="flex flex-col items-center px-5 py-9 text-center">
+                  <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-secondary/70 text-muted-foreground">
+                    <Bell className="size-5" />
+                  </span>
+                  <p className="text-sm font-semibold text-foreground">Sin notificaciones nuevas</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Aquí aparecerán las novedades del sistema.</p>
                 </div>
               ) : (
                 notifications.slice(0, 3).map((n: any) => (
-                  <div 
+                  <button
+                    type="button"
                     key={n.id} 
                     onClick={() => {
                       handleActionClick(n);
                       setIsDropdownOpen(false);
                     }}
-                    className={`p-4 flex gap-3 transition-colors cursor-pointer ${n.is_read ? 'bg-background hover:bg-muted/30' : 'bg-primary/5 hover:bg-primary/10'}`}
+                    className={`flex w-full gap-3 px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${n.is_read || n.read_at ? 'bg-card hover:bg-secondary/50' : 'bg-primary/[0.04] hover:bg-primary/[0.08]'}`}
                   >
-                    <div className="shrink-0 mt-0.5">
-                      <div className="scale-75 origin-top-left">
+                    <span className={`mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl ${n.is_read || n.read_at ? 'bg-secondary/70' : 'bg-primary/10'}`}>
+                      <span className="scale-[0.6]">
                         {getIcon(n.type)}
-                      </div>
-                    </div>
+                      </span>
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <h4 className={`text-sm font-bold truncate ${n.is_read ? 'text-foreground' : 'text-primary'}`}>
-                        {n.title}
+                      <h4 className={`truncate text-sm font-semibold ${n.is_read || n.read_at ? 'text-foreground' : 'text-primary'}`}>
+                        {n.title || 'Notificación del sistema'}
                       </h4>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {n.message}
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {n.message ? n.message.split('?')[0] : ''}
                       </p>
-                      <span className="text-[10px] font-medium text-muted-foreground/70 mt-2 block">
-                        {(n.created_at || n.createdAt) ? new Date(n.created_at || n.createdAt).toLocaleString() : 'Fecha desconocida'}
+                      <span className="mt-2 block text-[11px] font-medium text-muted-foreground">
+                        {(n.created_at || n.createdAt) ? new Date(n.created_at || n.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Fecha desconocida'}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
-            <div className="p-3 border-t border-border bg-muted/10">
+            <div className="shrink-0 border-t border-border bg-secondary/20 p-3">
               <button 
                 onClick={() => {
                   setIsDropdownOpen(false);
                   setIsOpen(true);
                 }}
-                className="w-full py-2.5 bg-background border border-border rounded-xl text-sm font-bold text-foreground hover:bg-muted hover:text-primary transition-colors flex justify-center items-center gap-2"
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Ver Todas las Notificaciones
+                Ver todas las notificaciones
+                <ArrowRight className="size-4" />
               </button>
             </div>
-          </div>
+          </section>
         )}
       </div>
 

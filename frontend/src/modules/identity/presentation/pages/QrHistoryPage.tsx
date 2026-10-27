@@ -6,7 +6,7 @@ import { QrCode, Search, History, AlertTriangle } from 'lucide-react';
 import { Badge } from '../../../../design-system';
 import { useAuthStore } from '../../../../store/authStore';
 
-import { isSupervisorUser } from '../../../../utils/authHelpers';
+import { isAdminUser, isSupervisorUser } from '../../../../utils/authHelpers';
 
 const fetchInactiveQrs = async () => {
   const response = await axiosClient.get('/qr/codes', {
@@ -25,8 +25,9 @@ const fetchInactiveQrs = async () => {
 export function QrHistoryPage() {
   const { user } = useAuthStore();
   const userRoleCode = (user?.role?.code || '').toUpperCase();
+  const isGlobalAdmin = isAdminUser(user);
   const isSupervisor = isSupervisorUser(user);
-  const isWarehouseUser = !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
+  const isWarehouseUser = !isGlobalAdmin && !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
                           user?.area?.code === 'ALMACEN' || 
                           user?.area?.code === 'ALM');
 

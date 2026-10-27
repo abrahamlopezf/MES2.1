@@ -67,10 +67,18 @@ async function runFullLineExtrusionTest() {
 
   // 1. VERIFICAR MATERIALES DE FÓRMULA BLANCA EXTRUSORA 4
   console.log('\n--- PASO 1: Identificar Materiales del Catálogo de Almacén ---');
-  const matPpa = await Material.findOne({ where: { name: 'POLIPROPILENO (A)' } });
-  const matCarb = await Material.findOne({ where: { name: 'CARBONATO DE CALCIO' } });
-  const matMbBco = await Material.findOne({ where: { name: 'MASTERBATCH BLANCO' } });
-  const matUv = await Material.findOne({ where: { name: 'CONCENTRADO UVPP20' } });
+  const formula4 = await Formula.findOne({
+    where: { code: 'F-EXT-4-BLANCA', is_active: true },
+    include: [{ model: require('../database/models').FormulaIngredient, as: 'ingredients', include: [{ model: Material, as: 'material' }] }],
+  });
+  if (!formula4?.ingredients?.length || !formula4.output_pti_id) {
+    throw new Error('La fórmula activa F-EXT-4-BLANCA debe incluir ingredientes y un PTI de salida.');
+  }
+  const materialForIngredient = (name) => formula4.ingredients.find((item) => item.material?.name === name)?.material;
+  const matPpa = materialForIngredient('POLIPROPILENO (A)');
+  const matCarb = materialForIngredient('CARBONATO DE CALCIO');
+  const matMbBco = materialForIngredient('MASTERBATCH BLANCO');
+  const matUv = materialForIngredient('CONCENTRADO UVPP20');
   const matPpb = await Material.findOne({ where: { name: 'POLIPROPILENO (B)' } });
 
   if (!matPpa || !matCarb || !matMbBco || !matUv) {
@@ -149,9 +157,6 @@ async function runFullLineExtrusionTest() {
 
   // 3. GENERAR ORDEN DE CONSUMO DESDE EXTRUSIÓN
   console.log('\n--- PASO 3: Supervisor de Extrusión genera Orden de Consumo a Almacén ---');
-  const formula4 = await ProcessFormula.findOne({ where: { code: 'F-EXT-4-BLANCA' } });
-  if (!formula4) throw new Error('Fórmula F-EXT-4-BLANCA no encontrada.');
-
   const order = await consumptionOrderService.createOrder({
     requested_by: userId,
     requesting_area_id: 2, // Extrusión
@@ -170,30 +175,39 @@ async function runFullLineExtrusionTest() {
   
   // Cambiar estado a PREPARANDO
   await consumptionOrderService.updateOrderStatus(order.uuid, 'PREPARANDO', userId);
-
-  // Surtir PP-A
-  await consumptionOrderService.scanFulfillmentItem(order.uuid, qrPpa.qr_code, userId);
-  console.log(`  ✓ Suministrado PP-A: 485.60 kg escaneando QR ${qrPpa.qr_code}`);
-
-  // Surtir Carbonato
-  await consumptionOrderService.scanFulfillmentItem(order.uuid, qrCarb.qr_code, userId);
-  console.log(`  ✓ Suministrado Carbonato: 4.20 kg escaneando QR ${qrCarb.qr_code}`);
-
-  // Surtir Masterbatch Blanco
-  await consumptionOrderService.scanFulfillmentItem(order.uuid, qrMbBco.qr_code, userId);
-  console.log(`  ✓ Suministrado Masterbatch Blanco: 6.00 kg escaneando QR ${qrMbBco.qr_code}`);
-
-  // Surtir UV
-  await consumptionOrderService.scanFulfillmentItem(order.uuid, qrUv.qr_code, userId);
-  console.log(`  ✓ Suministrado UV: 4.20 kg escaneando QR ${qrUv.qr_code}`);
+  // Surtir por escaneo el lote realmente reservado en cada renglón FIFO.
+  // Una línea de fórmula puede dividirse entre varios lotes del mismo material.
+  const allocatedItems = await ConsumptionOrderItem.findAll({
+    where: { order_id: order.id },
+    include: [{ model: Lote, as: 'lote', include: [{ model: QrCode, as: 'qr_code' }] }],
+    order: [['id', 'ASC']],
+  });
+  for (const item of allocatedItems) {
+    const lotQr = item.lote?.qr_code?.qr_code || item.lote?.folio;
+    if (!lotQr) throw new Error(`El lote ${item.lote_id} de la ODC no tiene QR ni folio escaneable.`);
+    await consumptionOrderService.scanFulfillmentItem(order.uuid, lotQr, userId);
+    console.log(`  ✓ Surtido ${item.requested_quantity} kg del material ${item.material_id} escaneando ${lotQr}`);
+  }
 
   // Verificar estado de la orden
   const completedOrder = await ConsumptionOrder.findByPk(order.id);
   console.log(`  ✓ Estado final de la Orden de Consumo: ${completedOrder.status}`);
 
   // Verificar que el material llegó al WIP de Extrusión
-  const wipPpa = await WipInventory.findOne({ where: { qr_code_id: qrPpa.id, area_id: 2 } });
+  const orderItems = await ConsumptionOrderItem.findAll({
+    where: { order_id: order.id },
+    include: [{ model: QrCode, as: 'child_qr' }],
+    order: [['id', 'ASC']],
+  });
+  if (orderItems.some((item) => Number(item.fulfilled_quantity) + 0.0005 < Number(item.requested_quantity))) {
+    throw new Error('La ODC quedó parcialmente surtida; no debe continuar a producción.');
+  }
+  const ppaOrderItem = orderItems.find((item) => Number(item.material_id) === Number(matPpa.id));
+  const wipPpa = await WipInventory.findOne({ where: { qr_code_id: ppaOrderItem?.child_qr_id, area_id: 2 } });
   console.log(`  ✓ Inventario WIP Extrusión confirmado: PP-A disponible = ${wipPpa?.amount} kg`);
+  if (!wipPpa || Math.abs(Number(wipPpa.amount) - 485.6) > 0.001) {
+    throw new Error('El WIP de Extrusión debe contener exactamente los 485.60 kg surtidos, ligados al QR hijo del lote.');
+  }
 
   // 5. CONTROL DE MEZCLA EN EXTRUSIÓN
   console.log('\n--- PASO 5: Control de Mezcla en Extrusión (Mix Control de 500 kg) ---');
@@ -205,10 +219,7 @@ async function runFullLineExtrusionTest() {
     area_id: 2, // Extrusión
     notes: 'Control de mezcla 500kg para Extrusora 4',
     inputs: [
-      { qr_code: qrPpa.qr_code, quantity: 485.60 },
-      { qr_code: qrCarb.qr_code, quantity: 4.20 },
-      { qr_code: qrMbBco.qr_code, quantity: 6.00 },
-      { qr_code: qrUv.qr_code, quantity: 4.20 },
+      ...orderItems.map((item) => ({ qr_code: item.child_qr?.qr_code, quantity: Number(item.fulfilled_quantity) })),
     ],
   };
 
@@ -254,34 +265,44 @@ async function runFullLineExtrusionTest() {
     notes: 'Prioridad alta - Mezcla 500kg Blanca'
   });
   console.log(`  ✓ Mezcla encolada en Extrusora 4: ID Cola #${queueItem.id}, Estatus: ${queueItem.status}`);
+  const queueActivation = await extrusionService.switchQueuePriority({
+    extruder_id: 4,
+    target_queue_id: queueItem.id,
+    scrap_items: [{
+      category: 'MEZCLA_ANTERIOR',
+      estimated_weight_kg: 3,
+      reason: 'INTERRUPCION_QA',
+      notes: 'Merma estimada de transición durante priorización de QA',
+    }],
+    userId,
+    notes: 'Priorización con clasificación de merma de transición para QA integral',
+  });
+  if (queueActivation.active_queue?.status !== 'ACTIVA') {
+    throw new Error('La mezcla de prueba debe activarse antes de registrar producción en rack PTI.');
+  }
 
   // 7. TRANSFORMACIÓN EN CINTA / BOBINAS EN RACK PTI CON QR
   console.log('\n--- PASO 7: Transformación a Bobinas de Cinta y Asignación a Rack PTI con QR ---');
   
   // Buscar o crear Rack PTI
-  let rack = await PtiRack.findOne({ where: { rack_code: 'RACK-TEST-LINE' } });
-  if (!rack) {
-    const rackQr = await getVirginQr('QR-RACK-LINE');
-    rack = await PtiRack.create({
-      rack_code: 'RACK-TEST-LINE',
-      qr_code: rackQr.qr_code,
-      max_capacity: 100,
-      current_quantity: 0,
-      status: 'VACIO',
-      location_name: 'Piso Extrusión - Salida Ext 4'
-    });
-  } else {
-    rack.current_quantity = 0;
-    rack.status = 'VACIO';
-    rack.current_pti_type_id = null;
-    await rack.save();
-  }
+  const rackQr = await getVirginQr('QR-RACK-LINE');
+  const outputPti = await require('../database/models').PtiProduct.findByPk(formula4.output_pti_id);
+  const rack = await PtiRack.create({
+    rack_code: `RACK-TEST-LINE-${Date.now()}`,
+    qr_code: rackQr.qr_code,
+    max_capacity: 100,
+    current_quantity: 0,
+    unit_weight_kg: Number(outputPti?.unit_weight_kg) || 5,
+    status: 'VACIO',
+    location_name: 'Piso Extrusión - Salida Ext 4'
+  });
 
   // Inyectar 80 bobinas de cinta al Rack PTI escaneando su QR, registrando 15.00 kg de merma/scrap en el arranque
   const rackScanResult = await extrusionService.scanRackPti({
     rack_qr: rack.qr_code,
-    pti_material_id: matPpa.id, // PTI cinta tipo PP-A
-    quantity: 80,
+    pti_material_id: formula4.output_pti_id,
+    quantity: 60,
+    unit_weight_kg: Number(outputPti?.unit_weight_kg) || 5,
     mixture_qr: mixDestQr.qr_code,
     scrap_weight_kg: 15.00,
     scrap_reason: 'ARRANQUE_EXTRUSORA',

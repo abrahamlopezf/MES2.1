@@ -45,7 +45,7 @@ import {
 
 export const WarehouseReportsPage: React.FC = () => {
   const { user } = useAuthStore();
-  const allowedRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM'];
+  const allowedRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM', 'ADMIN_ALMACEN'];
   const userRole = user?.role?.code || '';
   const hasAccess = allowedRoles.includes(userRole);
 

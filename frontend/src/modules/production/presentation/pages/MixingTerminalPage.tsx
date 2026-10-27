@@ -127,7 +127,7 @@ export const MixingTerminalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
+      <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
       {/* Header Banner Estandarizado */}
       <section className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:px-6 sm:py-4 w-full shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

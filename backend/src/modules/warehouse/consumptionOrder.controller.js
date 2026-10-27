@@ -55,7 +55,7 @@ exports.getOrders = async (req, res) => {
 
     // Restricción por rol: Si no es admin global o admin de almacén, solo puede ver las ODC creadas por él o para su área
     const roleCode = req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '');
-    const isGlobalOrWarehouseAdmin = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM'].includes(roleCode);
+    const isGlobalOrWarehouseAdmin = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode);
     const userAreaId = req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id;
 
     if (!isGlobalOrWarehouseAdmin) {

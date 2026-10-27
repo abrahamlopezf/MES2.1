@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Button, Icon } from '../../../../design-system';
 import { useAuthStore } from '../../../../store/authStore';
+import { isAdminUser } from '../../../../utils/authHelpers';
 
 const SESSION_KEY = 'extrusion_machine_session';
 const NINE_HOURS_MS = 9 * 60 * 60 * 1000;
@@ -15,7 +16,7 @@ export const ExtruderSelectionModal = () => {
   // 1. User belongs to Extrusion area
   // 2. User is NOT an Admin (ADMIN_EXT, ADMIN_GRAL, SUPERADMIN)
   const isExtrusionUser = user?.area?.code === 'EXTRUSION' || user?.area?.name === 'EXTRUSIÓN';
-  const isAdmin = user?.role?.code === 'ADMIN_EXT' || user?.role?.code === 'ADMIN_GRAL' || user?.role?.code === 'SUPERADMIN';
+  const isAdmin = ['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(user?.role?.code) || isAdminUser(user);
   const isExtrusionSupervisor = user?.role?.code === 'SUPERVISOR_EXTRUSION';
   
   useEffect(() => {

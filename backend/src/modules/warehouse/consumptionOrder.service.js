@@ -192,7 +192,7 @@ class ConsumptionOrderService {
     });
   }
 
-  async ensureChildQrsForOrder(orderId, requestingAreaId, transaction = null) {
+  async ensureChildQrsForOrder(orderId, requestingAreaId, transaction = null, createdBy = 1) {
     const { ConsumptionOrderItem, Lote, QrCode, QrBatch } = require('../../database/models');
     const { Op } = require('sequelize');
 
@@ -220,7 +220,7 @@ class ConsumptionOrderService {
         batch_number: 'BATCH-ORD-AUTO',
         total_qrs: 10000,
         type: 'CONSUMPTION_ORDER',
-        created_by: 1
+        created_by: createdBy
       }, { transaction });
     }
 
@@ -258,9 +258,9 @@ class ConsumptionOrderService {
         batch_id: batch.id,
         purpose: 'WIP_PROCESS_INPUT',
         assigned_area_id: requestingAreaId || 2,
-        status: 'IN_WIP',
-        created_by: 1,
-        is_active: true
+          status: 'RESERVED_ORDER',
+          created_by: createdBy,
+          is_active: false
       }, { transaction });
 
       item.child_qr_id = childQr.id;
@@ -271,13 +271,12 @@ class ConsumptionOrderService {
     }
   }
 
-  async getOrderDetails(uuid) {
-    const rawOrder = await ConsumptionOrder.findOne({ where: { uuid } });
+  async getOrderDetails(uuid, transaction = null) {
+    const rawOrder = await ConsumptionOrder.findOne({ where: { uuid }, transaction });
     if (!rawOrder) return null;
 
-    // Asegurar que ningún lote asignado quede sin su QR hijo
-    await this.ensureChildQrsForOrder(rawOrder.id, rawOrder.requesting_area_id);
-
+    // Reading order details must stay side-effect free. Legacy rows without a
+    // child QR are prepared when the order enters PREPARANDO, not by a GET.
     const order = await ConsumptionOrder.findOne({
       where: { uuid },
       include: [
@@ -308,7 +307,8 @@ class ConsumptionOrderService {
             }
           ]
         }
-      ]
+      ],
+      transaction,
     });
     
     if (!order) return null;
@@ -356,7 +356,8 @@ class ConsumptionOrderService {
             available_amount: { [Op.gt]: 0 }
           },
           include: [{ model: QrCode, as: 'qr_code', attributes: ['qr_code'] }],
-          order: [['created_at', 'ASC']]
+          order: [['created_at', 'ASC']],
+          transaction,
         });
 
         for (const lot of availableLots) {
@@ -403,7 +404,8 @@ class ConsumptionOrderService {
       const { Role } = require('../../database/models');
       const adminAlmUser = await User.findOne({
         include: [{ model: Role, as: 'role', where: { code: 'ADMIN_ALM' }, attributes: ['code', 'name'] }],
-        attributes: ['id', 'first_name', 'last_name', 'email', 'username']
+        attributes: ['id', 'first_name', 'last_name', 'email', 'username'],
+        transaction,
       });
       if (adminAlmUser) {
         plainOrder.admin_alm = {
@@ -422,6 +424,10 @@ class ConsumptionOrderService {
   async updateOrderStatus(uuid, status, resolved_by, transaction = null) {
     const order = await ConsumptionOrder.findOne({ where: { uuid }, transaction });
     if (!order) throw new Error('Orden no encontrada');
+
+    if (status === 'PREPARANDO') {
+      await this.ensureChildQrsForOrder(order.id, order.requesting_area_id, transaction, resolved_by);
+    }
 
     order.status = status;
     if (status === 'PREPARANDO' || status === 'SURTIDA' || status === 'CANCELADA') {
@@ -461,6 +467,7 @@ class ConsumptionOrderService {
     order.items = await ConsumptionOrderItem.findAll({
       where: { order_id: order.id },
       include: [{ model: Lote, as: 'lote' }],
+      order: [['id', 'ASC']],
       transaction,
       lock: { level: transaction.LOCK.UPDATE, of: ConsumptionOrderItem },
     });
@@ -488,7 +495,7 @@ class ConsumptionOrderService {
     const isProcessArea = PROCESS_AREAS.includes(areaCode);
 
     // Buscar items pendientes en la orden para ESTE material
-    const itemsPending = order.items.filter(item => 
+    const itemsPending = order.items.filter(item =>
       Number(item.material_id) === Number(scannedLote.material_id) &&
       Number(item.fulfilled_quantity) < Number(item.requested_quantity)
     );
@@ -497,7 +504,12 @@ class ConsumptionOrderService {
       throw new Error('Esta orden ya no requiere más de este material.');
     }
 
-    const itemToFulfill = itemsPending[0];
+    // Prefer the exact FIFO reservation for this scanned lot. Falling back to
+    // another pending line is allowed for substitutions, but must not steal a
+    // different lot's reservation when an exact match exists.
+    let itemToFulfill = itemsPending.find((item) => Number(item.lote_id) === Number(scannedLote.id)) ||
+      itemsPending.find((item) => item.lote_id == null) ||
+      itemsPending[0];
     const originallyAssignedLotId = itemToFulfill.lote_id == null ? null : Number(itemToFulfill.lote_id);
     const pendingQty = Number(itemToFulfill.requested_quantity) - Number(itemToFulfill.fulfilled_quantity);
     const qtyToTake = Math.min(pendingQty, Number(scannedLote.available_amount));
@@ -519,6 +531,13 @@ class ConsumptionOrderService {
       itemToFulfill.lote_id = scannedLote.id;
       itemToFulfill.lote = scannedLote;
       itemToFulfill.fulfilled_quantity = qtyToTake;
+    } else if (Number(itemToFulfill.lote_id) === Number(scannedLote.id)) {
+      // Repeated scans from the same lot belong to the same fulfillment line.
+      itemToFulfill.fulfilled_quantity = Number(itemToFulfill.fulfilled_quantity) + qtyToTake;
+      await ConsumptionOrderItem.update(
+        { fulfilled_quantity: itemToFulfill.fulfilled_quantity },
+        { where: { id: itemToFulfill.id }, transaction }
+      );
     } else {
       const alreadyFulfilled = Number(itemToFulfill.fulfilled_quantity);
       await ConsumptionOrderItem.update(
@@ -526,7 +545,7 @@ class ConsumptionOrderService {
         { where: { id: itemToFulfill.id }, transaction }
       );
       
-      const newItem = await ConsumptionOrderItem.create({
+      itemToFulfill = await ConsumptionOrderItem.create({
         order_id: order.id,
         material_id: itemToFulfill.material_id,
         lote_id: scannedLote.id,
@@ -534,13 +553,7 @@ class ConsumptionOrderService {
         fulfilled_quantity: qtyToTake,
         unit_id: itemToFulfill.unit_id || (isProcessArea ? 4 : null)
       }, { transaction });
-
-      itemToFulfill.id = newItem.id;
-      itemToFulfill.lote_id = scannedLote.id;
       itemToFulfill.lote = scannedLote;
-      itemToFulfill.child_qr_id = newItem.child_qr_id || null;
-      itemToFulfill.requested_quantity = pendingQty;
-      itemToFulfill.fulfilled_quantity = qtyToTake;
     }
 
     // Clasificar la salida para separar el valor transferido al WIP del gasto
@@ -843,17 +856,20 @@ class ConsumptionOrderService {
     }
 
     // Revisar si ya están todos surtidos
-    const allItemsFulfilled = order.items.every(item => {
-      // Evaluamos en memoria con el cambio recién hecho
-      const currentFulfilled = item.id === itemToFulfill.id ? itemToFulfill.fulfilled_quantity : item.fulfilled_quantity;
-      return Number(currentFulfilled) >= Number(item.requested_quantity);
+    const persistedItems = await ConsumptionOrderItem.findAll({
+      where: { order_id: order.id },
+      attributes: ['requested_quantity', 'fulfilled_quantity'],
+      transaction,
     });
+    const allItemsFulfilled = persistedItems.length > 0 && persistedItems.every((item) =>
+      Number(item.fulfilled_quantity) + 0.0005 >= Number(item.requested_quantity)
+    );
 
     if (allItemsFulfilled) {
       await this.updateOrderStatus(uuid, 'SURTIDA', resolved_by, transaction);
     }
 
-    return this.getOrderDetails(uuid);
+    return this.getOrderDetails(uuid, transaction);
   }
 
   async cancelOrder(uuid, reason, operatorId, existingTransaction = null) {

@@ -1,17 +1,22 @@
 const express = require('express');
 const laminadoController = require('./laminado.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
-const roleMiddleware = require('../../middlewares/role.middleware');
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 // Catálogo de Especificaciones
-const areaView = roleMiddleware('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO');
-const areaAdmin = roleMiddleware('ADMIN_LAMINADO');
-const areaProcess = roleMiddleware('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO');
-const supervisorOrAdmin = roleMiddleware('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO');
+// This area guard deliberately does not inherit the global-admin bypass in roleMiddleware.
+const areaRoles = (...allowedRoles) => (req, res, next) => {
+  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
+  if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode) || allowedRoles.includes(roleCode)) return next();
+  return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Laminado.' });
+};
+const areaView = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO');
+const areaAdmin = areaRoles('ADMIN_LAMINADO');
+const areaProcess = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO');
+const supervisorOrAdmin = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO');
 
 router.get('/specifications', areaView, (req, res, next) => laminadoController.getSpecifications(req, res, next));
 router.get('/specifications/:id', areaView, (req, res, next) => laminadoController.getSpecificationById(req, res, next));

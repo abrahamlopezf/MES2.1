@@ -15,13 +15,10 @@ export const SuperAdminRoute: React.FC<{ children?: React.ReactNode }> = ({ chil
 };
 
 export const ExtrusionRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const { user, hasPermission } = useAuthStore();
-  
-  if (isAdminUser(user)) {
-    return children ? <>{children}</> : <Outlet />;
-  }
+  const { user } = useAuthStore();
 
   const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode)) return children ? <>{children}</> : <Outlet />;
   if (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode)) {
     return children ? <>{children}</> : <Outlet />;
   }
@@ -42,9 +39,7 @@ export const ExtrusionRoute: React.FC<{ children?: React.ReactNode }> = ({ child
     return <Navigate to="/dashboard" replace />;
   }
 
-  const isAllowed = 
-    userArea === 'EXTRUSION' ||
-    (typeof hasPermission === 'function' && hasPermission('extrusion.view'));
+  const isAllowed = userArea === 'EXTRUSION';
 
   if (!isAllowed) {
     return <Navigate to="/dashboard" replace />;
@@ -54,13 +49,10 @@ export const ExtrusionRoute: React.FC<{ children?: React.ReactNode }> = ({ child
 };
 
 export const TelaresRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const { user, hasPermission } = useAuthStore();
-
-  if (isAdminUser(user)) {
-    return children ? <>{children}</> : <Outlet />;
-  }
+  const { user } = useAuthStore();
 
   const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode)) return children ? <>{children}</> : <Outlet />;
   if (['ADMIN_TELARES', 'ADMIN_TEL'].includes(roleCode)) {
     return children ? <>{children}</> : <Outlet />;
   }
@@ -74,7 +66,7 @@ export const TelaresRoute: React.FC<{ children?: React.ReactNode }> = ({ childre
 
   // Un supervisor de cualquier otra área NO puede acceder a Telares
   if (isSupervisor) {
-    if (!['TELARES', 'LAMINADO', 'GLOBO'].includes(userArea)) {
+    if (userArea !== 'TELARES') {
       return <Navigate to="/dashboard" replace />;
     }
     return children ? <>{children}</> : <Outlet />;
@@ -84,9 +76,7 @@ export const TelaresRoute: React.FC<{ children?: React.ReactNode }> = ({ childre
     return <Navigate to="/dashboard" replace />;
   }
 
-  const isAllowed = 
-    ['TELARES', 'LAMINADO', 'GLOBO', 'CORTE'].includes(userArea) ||
-    (typeof hasPermission === 'function' && (hasPermission('telares.view') || hasPermission('production.view')));
+  const isAllowed = ['TELARES', 'CORTE'].includes(userArea);
 
   if (!isAllowed) {
     return <Navigate to="/dashboard" replace />;
@@ -101,7 +91,8 @@ const AreaProductionRoute: React.FC<{ area: 'GLOBO' | 'LAMINADO'; children?: Rea
   const allowedRoles = area === 'GLOBO'
     ? ['ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO']
     : ['ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'];
-  if (isAdminUser(user) || allowedRoles.includes(roleCode)) return children ? <>{children}</> : <Outlet />;
+  if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode)) return children ? <>{children}</> : <Outlet />;
+  if (allowedRoles.includes(roleCode)) return children ? <>{children}</> : <Outlet />;
   return <Navigate to="/dashboard" replace />;
 };
 

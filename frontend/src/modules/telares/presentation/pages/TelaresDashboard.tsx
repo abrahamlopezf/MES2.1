@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../../../store/authStore';
 import { useThemeStore } from '../../../../store/themeStore';
-import { canViewCosts } from '../../../../utils/authHelpers';
+import { canViewCosts, isAdminUser } from '../../../../utils/authHelpers';
 import { telaresApi } from '../../services/telaresApi';
 import { LoomWipItem, AvailableCart } from '../../types/telares.types';
 import { Button } from '../../../../components/ui/button';
@@ -23,7 +23,7 @@ export const TelaresDashboard: React.FC = () => {
   const isDark = theme === 'dark';
   const allowCosts = canViewCosts(user);
   const roleCode = String(typeof user?.role === 'string' ? user.role : user?.role?.code || user?.role?.name || '').toUpperCase();
-  const isSuperAdmin = roleCode === 'SUPERADMIN';
+  const canChangeTransferMode = isAdminUser(user);
 
   // Tab filter: 'ALL' | 'CIRCULAR' | 'BANDA' | 'LOADED'
   const [filterType, setFilterType] = useState<'ALL' | 'CIRCULAR' | 'BANDA' | 'LOADED'>('ALL');
@@ -164,7 +164,7 @@ export const TelaresDashboard: React.FC = () => {
   };
 
   const handleToggleTransferMode = () => {
-    if (!isSuperAdmin || transferModeMutation.isPending) return;
+    if (!canChangeTransferMode || transferModeMutation.isPending) return;
     const nextMode = transferMode === 'RACK_PARTIAL' ? 'CART_FULL' : 'RACK_PARTIAL';
     const action = nextMode === 'CART_FULL'
       ? 'activar transferencia de carritos completos y bloquear traspasos parciales'
@@ -198,13 +198,13 @@ export const TelaresDashboard: React.FC = () => {
 
         {/* BOTÓN PRINCIPAL DE ASIGNACIÓN ATÓMICA DE CARRITO */}
         <div className="flex flex-wrap items-center gap-2">
-          {isSuperAdmin && (
+          {canChangeTransferMode && (
             <Button
               type="button"
               variant="outline"
               onClick={handleToggleTransferMode}
               disabled={transferModeMutation.isPending || isLoading}
-              title="Solo Superadmin puede cambiar la política global de transferencia de PTI"
+              title="Solo administradores globales pueden cambiar la política de transferencia de PTI"
               className="h-11 px-3 border-amber-500/50 font-bold text-xs"
             >
               <ShieldAlert className="h-4 w-4 mr-1.5 text-amber-600" />
@@ -230,7 +230,7 @@ export const TelaresDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
-      {modeUpdateError && isSuperAdmin && (
+      {modeUpdateError && canChangeTransferMode && (
         <div role="alert" className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-700 dark:text-rose-300">
           {modeUpdateError}
         </div>

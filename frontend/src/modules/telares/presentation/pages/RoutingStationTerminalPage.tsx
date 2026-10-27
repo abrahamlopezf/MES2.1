@@ -149,16 +149,16 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
     <div className="min-h-screen bg-slate-900 text-slate-100 p-3 sm:p-6 space-y-6">
       {/* 1. Header de Estación */}
       <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-4 sm:p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 border-2 border-slate-700 shadow-md">
             {stationIcons[currentStation] || <Layers className="h-8 w-8 text-blue-400" />}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="break-words text-xl font-black uppercase tracking-tight text-white sm:text-3xl">
                 Estación de {currentStation}
               </h1>
-              <Badge className="bg-emerald-600 text-white font-bold text-xs">ENRUTAMIENTO ACTIVO</Badge>
+              <Badge className="max-w-full whitespace-normal bg-emerald-600 text-xs font-bold leading-tight text-white">ENRUTAMIENTO ACTIVO</Badge>
             </div>
             <p className="text-sm font-semibold text-slate-300">
               Validación Estricta de QR Viajero y Enrutamiento Secuencial
@@ -173,10 +173,10 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
           </div>
 
           {/* Acciones Rápidas de ODC para esta estación */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row">
             <Button
               onClick={() => setIsOdcModalOpen(true)}
-              className="flex-1 sm:flex-initial h-11 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+              className="flex h-11 w-full flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 sm:w-auto sm:flex-initial"
             >
               <PackagePlus className="h-4 w-4" />
               Solicitar ODC {currentStation}
@@ -184,7 +184,7 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
             <Button
               onClick={() => navigate(`/warehouse/orders?area_id=${areaId}&area_name=${currentStation}`)}
               variant="outline"
-              className="flex-1 sm:flex-initial h-11 px-3 border-slate-700 bg-slate-900 text-slate-300 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-slate-800"
+              className="flex h-11 w-full flex-1 items-center justify-center gap-1.5 rounded-xl border-slate-700 bg-slate-900 px-3 text-xs font-bold text-slate-300 hover:bg-slate-800 sm:w-auto sm:flex-initial"
             >
               <ClipboardList className="h-4 w-4 text-blue-400" />
               Ver ODCs

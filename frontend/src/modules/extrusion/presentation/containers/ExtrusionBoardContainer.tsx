@@ -57,6 +57,7 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [targetQueue, setTargetQueue] = useState<ExtruderQueue | null>(null);
   const [activeQueue, setActiveQueue] = useState<ExtruderQueue | null>(null);
+  const [scannedPausedQr, setScannedPausedQr] = useState<string | null>(null);
   const [prioritizeFormulaId, setPrioritizeFormulaId] = useState<number | null>(null);
   const [scrapAnteriorWeight, setScrapAnteriorWeight] = useState('');
   const [scrapNuevaWeight, setScrapNuevaWeight] = useState('');
@@ -107,6 +108,7 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const handleOpenSwitchModal = (target: ExtruderQueue, active: ExtruderQueue | null, formulaId?: number) => {
     setTargetQueue(target);
     setActiveQueue(active);
+    setScannedPausedQr(null);
     setPrioritizeFormulaId(formulaId ?? null);
     setScrapAnteriorWeight('');
     setScrapNuevaWeight('');
@@ -118,10 +120,28 @@ export const ExtrusionBoardContainer: React.FC = () => {
     setIsSwitchModalOpen(true);
   };
 
+  const handleScanPausedQr = (scannedCode: string, expectedQueue: ExtruderQueue) => {
+    const normalizedCode = String(scannedCode || '').trim().toUpperCase();
+    if (!normalizedCode || normalizedCode !== String(expectedQueue.consumption_order_qr_id).trim().toUpperCase()) {
+      toast.error('El QR escaneado no corresponde a esta mezcla pausada. Verifica la etiqueta y la extrusora.');
+      return;
+    }
+    const machineGroup = queues.find((group) => group.machine.id === expectedQueue.extruder_id);
+    const currentPaused = machineGroup?.paused.find((queue) => queue.id === expectedQueue.id);
+    if (!currentPaused) {
+      toast.error('Esta mezcla ya no está pausada en esa extrusora. Actualiza el tablero y vuelve a escanear.');
+      return;
+    }
+    handleOpenSwitchModal(currentPaused, machineGroup?.active || null);
+    setScannedPausedQr(normalizedCode);
+    toast.success(`QR verificado: ${normalizedCode}. Revisa la transición y confirma para reanudar.`);
+  };
+
   const handleCloseSwitchModal = () => {
     setIsSwitchModalOpen(false);
     setTargetQueue(null);
     setActiveQueue(null);
+    setScannedPausedQr(null);
     setPrioritizeFormulaId(null);
     setScrapAnteriorWeight('');
     setScrapNuevaWeight('');
@@ -136,12 +156,17 @@ export const ExtrusionBoardContainer: React.FC = () => {
     const nextScrap = Number(scrapNuevaWeight) || 0;
     const mixedScrap = Number(scrapMixtaWeight) || 0;
     const purge = Number(purgeWeight) || 0;
+    const requiresTransitionScrap = Boolean(activeQueue && targetQueue.status !== 'ACTIVA');
     if ([previousScrap, nextScrap, mixedScrap, purge].some((weight) => !Number.isFinite(weight) || weight < 0)) {
       toast.error('Los pesos de merma deben ser números iguales o mayores a cero.');
       return;
     }
-    if (previousScrap <= 0 && nextScrap <= 0 && mixedScrap <= 0 && purge <= 0) {
+    if (requiresTransitionScrap && previousScrap <= 0 && nextScrap <= 0 && mixedScrap <= 0 && purge <= 0) {
       toast.error('Registra la merma estimada de cada origen y/o el material de purga.');
+      return;
+    }
+    if (targetQueue.status === 'PAUSADA' && scannedPausedQr !== String(targetQueue.consumption_order_qr_id).trim().toUpperCase()) {
+      toast.error('Escanea el QR original de la mezcla pausada antes de confirmar su reanudación.');
       return;
     }
     if (purge > 0 && (!purgeMaterialId || !purgeLoteId)) {
@@ -178,14 +203,15 @@ export const ExtrusionBoardContainer: React.FC = () => {
     try {
       await switchMutation.mutateAsync({
         queue_id: targetQueue.id,
+        ...(targetQueue.status === 'PAUSADA' ? { scanned_qr: scannedPausedQr || undefined } : {}),
         ...(prioritizeFormulaId == null ? {} : { prioritize_formula_id: prioritizeFormulaId }),
         scrap_items: scrapItems,
         shift_code: shiftCode
       });
 
-      toast.success(
-        'Transición completada: ' + targetQueue.consumption_order_qr_id + ' activada. Merma estimada total: ' + (previousScrap + nextScrap + mixedScrap + purge) + ' kg.'
-      );
+      toast.success(targetQueue.status === 'PAUSADA'
+        ? `${targetQueue.consumption_order_qr_id} reanudada en la extrusora ${targetQueue.extruder_id}.${activeQueue ? ' Transición registrada.' : ' No había otra mezcla activa.'}`
+        : `${targetQueue.consumption_order_qr_id} activada. Merma estimada total: ${previousScrap + nextScrap + mixedScrap + purge} kg.`);
       handleCloseSwitchModal();
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al realizar el cambio de prioridad.';
@@ -282,9 +308,11 @@ export const ExtrusionBoardContainer: React.FC = () => {
       shiftCode={shiftCode}
       onShiftCodeChange={setShiftCode}
       onOpenSwitchModal={handleOpenSwitchModal}
+      onScanPausedQr={handleScanPausedQr}
       onCloseSwitchModal={handleCloseSwitchModal}
       onConfirmSwitch={handleConfirmSwitch}
       isSwitching={switchMutation.isPending}
+      resumeQrVerified={Boolean(targetQueue?.status === 'PAUSADA' && scannedPausedQr === String(targetQueue?.consumption_order_qr_id || '').trim().toUpperCase())}
       isEnqueueModalOpen={isEnqueueModalOpen}
       selectedMachineId={selectedMachineId}
       enqueueForm={enqueueForm}

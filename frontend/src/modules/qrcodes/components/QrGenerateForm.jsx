@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
+import { isAdminUser } from '../../../utils/authHelpers';
 
 const QrGenerateForm = ({
   areas = [],
@@ -13,7 +14,7 @@ const QrGenerateForm = ({
   onSubmit,
   onCancel,
 }) => {
-  const isGeneralAdmin = currentUser?.role?.code === 'ADMIN' || currentUser?.role?.code === 'SUPERADMIN';
+  const isGeneralAdmin = isAdminUser(currentUser);
   const shouldLockArea = !isGeneralAdmin;
 
   const [formData, setFormData] = useState({

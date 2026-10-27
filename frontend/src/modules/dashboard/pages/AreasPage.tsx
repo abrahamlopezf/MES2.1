@@ -10,6 +10,7 @@ import {
   BarChart3,
   AlertTriangle,
   MonitorPlay,
+  Wind,
   Boxes,
   ClipboardList,
   Beaker,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
+import { isAdminUser } from '../../../utils/authHelpers';
 
 export const AreasPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ export const AreasPage: React.FC = () => {
   const { hasPermission, hasAnyPermission, user } = useAuthStore() as any;
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isGlobalAdmin = isAdminUser(user);
 
   const allAreas = [
     { 
@@ -66,14 +69,55 @@ export const AreasPage: React.FC = () => {
       description: 'Líneas, Racks y Mezclado', 
       icon: Factory,
       gradient: 'from-amber-500/20 to-orange-500/20 text-amber-500',
-      allowedRoles: ['SUPERADMIN'],
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
       children: [
-        { id: 'tablero_colas', title: 'Tablero de Colas', description: 'Monitoreo de producción', icon: MonitorPlay, path: '/extrusion/board', allowedRoles: ['SUPERADMIN'], permission: 'extrusion.view' },
-        { id: 'rack_ingress', title: 'Ingreso PTI a Racks', description: 'Asignación de racks en piso', icon: Boxes, path: '/extrusion/rack-ingress', allowedRoles: ['SUPERADMIN'], permission: 'extrusion.view' },
+        { id: 'tablero_colas', title: 'Tablero de Colas', description: 'Monitoreo de producción', icon: MonitorPlay, path: '/extrusion/board', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'], permission: 'extrusion.view' },
+        { id: 'rack_ingress', title: 'Ingreso PTI a Racks', description: 'Asignación de racks en piso', icon: Boxes, path: '/extrusion/rack-ingress', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'], permission: 'extrusion.view' },
         { id: 'formulas', title: 'Fórmulas y Recetas', description: 'Catálogo y especificaciones', icon: ClipboardList, path: '/production/formulas', permission: 'extrusion.formulas.view' },
         { id: 'maquinas', title: 'Máquinas Extrusoras', description: 'Monitoreo de líneas', icon: Factory, path: '/production/machines', permission: 'extrusion.view' },
         { id: 'mezclado', title: 'Centro de Mezclado', description: 'Tinas y preparación WIP', icon: Beaker, path: '/production/mixing', permission: 'extrusion.wip.manage' },
         { id: 'andon', title: 'Tablero Andon', description: 'Alertas y eventos de paro', icon: AlertTriangle, path: '/production/andon', permission: 'extrusion.view' },
+      ]
+    },
+    {
+      id: 'telares',
+      title: 'Piso de Telares',
+      description: 'Telares, operadores y ruteo de producción',
+      icon: Factory,
+      gradient: 'from-cyan-500/20 to-sky-500/20 text-cyan-600',
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      children: [
+        { id: 'telares_terminal', title: 'Terminal de Telares', description: 'Operación de producción', icon: Factory, path: '/production/telares', permission: '' },
+        { id: 'telares_dashboard', title: 'Tablero de Telares', description: 'Estado de producción', icon: MonitorPlay, path: '/telares/dashboard', permission: '' },
+        { id: 'telares_catalog', title: 'Catálogo de Telares', description: 'Configuración de máquinas', icon: Package, path: '/telares/catalogos', permission: '' },
+        { id: 'telares_operators', title: 'Operadores', description: 'Personal asignado a telares', icon: Users, path: '/telares/operadores', permission: '' },
+        { id: 'corte_terminal', title: 'Estación de Corte', description: 'Operación y ruteo de corte', icon: Layers, path: '/production/corte', permission: '' },
+      ]
+    },
+    {
+      id: 'laminado',
+      title: 'Piso de Laminado',
+      description: 'Estación, catálogo y trabajo en proceso',
+      icon: Layers,
+      gradient: 'from-violet-500/20 to-purple-500/20 text-violet-600',
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      children: [
+        { id: 'laminado_station', title: 'Estación de Laminado', description: 'Operación de producción', icon: Layers, path: '/production/laminado', permission: '' },
+        { id: 'laminado_wip', title: 'Trabajo en Proceso', description: 'Tablero operativo de Laminado', icon: MonitorPlay, path: '/laminado/wip', permission: '' },
+        { id: 'laminado_catalog', title: 'Catálogo de Laminado', description: 'Especificaciones del proceso', icon: Package, path: '/laminado/catalogos', permission: '' },
+      ]
+    },
+    {
+      id: 'globo',
+      title: 'Piso de Globo',
+      description: 'Estación, catálogo y trabajo en proceso',
+      icon: Wind,
+      gradient: 'from-amber-500/20 to-orange-500/20 text-amber-600',
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      children: [
+        { id: 'globo_station', title: 'Estación de Globo', description: 'Operación de producción', icon: Wind, path: '/production/globo', permission: '' },
+        { id: 'globo_wip', title: 'Trabajo en Proceso', description: 'Tablero operativo de Globo', icon: MonitorPlay, path: '/globo/wip', permission: '' },
+        { id: 'globo_catalog', title: 'Catálogo de Globo', description: 'Especificaciones del proceso', icon: Package, path: '/globo/catalogos', permission: '' },
       ]
     },
     { 
@@ -104,6 +148,7 @@ export const AreasPage: React.FC = () => {
 
   // Helper de comprobación de permisos y roles
   const checkAccess = (item: any) => {
+    if (isGlobalAdmin) return true;
     if (item.hiddenRoles && item.hiddenRoles.includes(userRole)) return false;
     if (item.allowedRoles && !item.allowedRoles.includes(userRole)) return false;
     if (!item.permission || item.permission === '') return true;

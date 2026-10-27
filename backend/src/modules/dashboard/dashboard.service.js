@@ -3,6 +3,54 @@ const { Op } = require('sequelize');
 const DashboardMapper = require('./dashboard.mapper');
 
 class DashboardService {
+  static async getAreaOperationsOverview(currentUser) {
+    const readSafely = async (load, map) => {
+      try {
+        return map(await load());
+      } catch (error) {
+        console.warn('[DashboardService] No se pudo resumir un área:', error.message);
+        return { available: false };
+      }
+    };
+
+    const [extrusion, telares, globo, laminado] = await Promise.all([
+      readSafely(
+        () => require('../extrusion/extrusion.service').getExtrusionWip({ includeFinancials: false }),
+        (wip) => ({ available: true, wip_kg: wip.total_kg, material_items: wip.items.length, mixtures_kg: wip.mixtures_total_kg, active_mixtures: wip.mixtures.length })
+      ),
+      readSafely(
+        () => require('../telares/telares.service').getWipSummary(currentUser),
+        (wip) => ({ available: true, ...wip.macro })
+      ),
+      readSafely(
+        () => require('../globo/globo.service').getWipSummary(currentUser),
+        (wip) => ({
+          available: true,
+          rolls_in_floor: wip.macro.total_rolls_in_floor,
+          rolls_incoming: wip.macro.total_rolls_incoming,
+          meters_in_floor: wip.macro.total_meters_in_floor,
+          fabric_kg: wip.macro.total_weight_fabric_kg,
+          materials_kg: wip.macro.total_warehouse_materials_kg,
+          transformed_recently: wip.recent_transformed.length,
+        })
+      ),
+      readSafely(
+        () => require('../laminado/laminado.service').getWipSummary(currentUser),
+        (wip) => ({
+          available: true,
+          rolls_in_floor: wip.macro.total_rolls_in_floor,
+          rolls_incoming: wip.macro.total_rolls_incoming,
+          meters_in_floor: wip.macro.total_meters_in_floor,
+          fabric_kg: wip.macro.total_weight_fabric_kg,
+          materials_kg: wip.macro.total_warehouse_materials_kg,
+          transformed_recently: wip.recent_transformed.length,
+        })
+      ),
+    ]);
+
+    return { extrusion, telares, globo, laminado, refreshed_at: new Date().toISOString() };
+  }
+
   /**
    * Obtiene el payload del Dashboard Operativo.
    * NOTA: Actualmente se está utilizando MOCK DATA porque los modelos 

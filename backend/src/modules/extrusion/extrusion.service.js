@@ -1,6 +1,16 @@
 const { sequelize, ProcessFormula, ProcessFormulaItem, ProcessPreparation, ProcessPreparationInput, WipInventory, QrCode, QrBatch, TraceabilityEvent, TraceabilityMovement, TraceabilityLink, Lote, Area, TraceableItem, Material } = require('../../database/models');
 
 class ExtrusionService {
+  validatePausedQueueScan(targetQueue, scannedQr) {
+    if (targetQueue?.status !== 'PAUSADA') return true;
+    const expected = String(targetQueue.consumption_order_qr_id || '').trim().toUpperCase();
+    const scanned = String(scannedQr || '').trim().toUpperCase();
+    if (!expected || scanned !== expected) {
+      throw Object.assign(new Error('Para reanudar una mezcla pausada debes escanear el QR original del contenedor.'), { statusCode: 400 });
+    }
+    return true;
+  }
+
   async reconcilePurgeMaterialStock({ loteId, quantityDelta, userId, transaction, reason }) {
     const delta = Number(quantityDelta);
     if (!Number.isFinite(delta) || Math.abs(delta) < 0.0005) return;
@@ -1235,7 +1245,7 @@ class ExtrusionService {
   /**
    * Cambia la prioridad de una mezcla, pausando la activa y registrando merma de purga.
    */
-  async switchQueuePriority({ extruder_id, target_queue_id, queue_id, prioritize_formula_id, scrap_items = [], shift_code, notes, userId }) {
+  async switchQueuePriority({ extruder_id, target_queue_id, queue_id, scanned_qr, prioritize_formula_id, scrap_items = [], shift_code, notes, userId }) {
     const targetId = Number(target_queue_id || queue_id);
     if (!targetId) {
       const error = new Error('ID de la mezcla en cola a priorizar es obligatorio.');
@@ -1262,6 +1272,7 @@ class ExtrusionService {
         error.statusCode = 409;
         throw error;
       }
+      this.validatePausedQueueScan(targetQueue, scanned_qr);
 
       const formula = await Formula.findByPk(targetQueue.formula_id, {
         include: [
@@ -1526,16 +1537,16 @@ class ExtrusionService {
   }
 
   async completeQueueIfDepleted(queue, preparation, containerTraceable, transaction) {
-    if (!queue || queue.status === 'COMPLETADA') return false;
+    if (!queue || queue.status === 'COMPLETADA') return { completed: false, reason: 'ALREADY_COMPLETED' };
     if (!containerTraceable && preparation?.id) {
       const { ExtruderQueue } = require('../../database/models');
       const siblings = await ExtruderQueue.count({ where: { process_preparation_id: preparation.id }, transaction });
-      if (siblings > 1) return false;
+      if (siblings > 1) return { completed: false, reason: 'PREPARATION_HAS_OTHER_CONTAINERS' };
     }
     const remainingKg = containerTraceable
       ? Number(containerTraceable.quantity_current)
       : preparation?.remaining_quantity_kg == null ? null : Number(preparation.remaining_quantity_kg);
-    if (remainingKg == null || remainingKg > 0.001) return false;
+    if (remainingKg == null || remainingKg > 0.001) return { completed: false, reason: 'MIX_REMAINS' };
 
     const { Op } = require('sequelize');
     const { ExtrusionScrapLog, TraceableItem } = require('../../database/models');
@@ -1549,7 +1560,7 @@ class ExtrusionService {
       },
       transaction,
     });
-    if (pendingScrap > 0) return false;
+    if (pendingScrap > 0) return { completed: false, reason: 'SCRAP_WEIGHING_PENDING' };
 
     queue.status = 'COMPLETADA';
     await queue.save({ transaction });
@@ -1557,7 +1568,28 @@ class ExtrusionService {
       containerTraceable.status = 'FINALIZADO';
       await containerTraceable.save({ transaction });
     }
-    return true;
+
+    const { ExtruderQueue } = require('../../database/models');
+    const anotherActiveQueue = await ExtruderQueue.findOne({
+      where: { extruder_id: queue.extruder_id, status: 'ACTIVA' },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    let nextQueue = null;
+    if (!anotherActiveQueue) {
+      nextQueue = await ExtruderQueue.findOne({
+        where: { extruder_id: queue.extruder_id, status: 'EN_ESPERA' },
+        order: [['priority', 'DESC'], ['created_at', 'ASC'], ['id', 'ASC']],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (nextQueue) {
+        nextQueue.status = 'ACTIVA';
+        await nextQueue.save({ transaction });
+      }
+    }
+
+    return { completed: true, completed_queue: queue, next_queue: nextQueue };
   }
 
   async scanRackPti({
@@ -1964,7 +1996,7 @@ class ExtrusionService {
         }, { transaction: t });
       }
 
-      await this.completeQueueIfDepleted(queueItem, preparation, containerTraceable, t);
+      const queueCompletion = await this.completeQueueIfDepleted(queueItem, preparation, containerTraceable, t);
 
       return {
         message: `Ingreso registrado: ${pieces} piezas almacenadas en ${rack.rack_code}.${scaleWeight ? ` (Báscula: ${scaleWeight} kg @ ${rackUnitWeight} kg/pza).` : ''}${scrapKg > 0 ? ` Merma: ${scrapKg} kg.` : ''}${siloDeductionResult ? ` Silo ${siloDeductionResult.silo_code}: -${siloDeductionResult.deducted_kg} kg.` : ''}`,
@@ -1987,6 +2019,7 @@ class ExtrusionService {
         silo_deduction: siloDeductionResult,
         production_entry: productionEntry,
         scrap_logged: scrapLog,
+        queue_completion: queueCompletion,
         destination_subarea: destinationSubareaId ? { id: destinationSubareaId, name: 'TELARES BANDA' } : { id: null, name: 'TELARES' },
       };
     });
@@ -2814,12 +2847,17 @@ class ExtrusionService {
           reason: `Merma de purga extrusión (${scrapLog.id})`,
         });
       }
-      await this.completeQueueIfDepleted(queue, prep, containerTraceable, transaction);
-      return scrapLog;
+      const queueCompletion = await this.completeQueueIfDepleted(queue, prep, containerTraceable, transaction);
+      return { scrap_log: scrapLog, queue_completion: queueCompletion };
     });
 
-    const balance = log.from_mixture_qr_id === 'MATERIAL_PURGA' ? null : await this.getMassBalance(log.from_mixture_qr_id);
-    return { message: `Merma de ${effectiveWeight} kg registrada correctamente.`, scrap_log: log, mass_balance: balance };
+    const balance = log.scrap_log.from_mixture_qr_id === 'MATERIAL_PURGA' ? null : await this.getMassBalance(log.scrap_log.from_mixture_qr_id);
+    return {
+      message: `Merma de ${effectiveWeight} kg registrada correctamente.`,
+      scrap_log: log.scrap_log,
+      mass_balance: balance,
+      queue_completion: log.queue_completion,
+    };
   }
 
   async adjustScrapWeight({ scrap_log_id, actual_weight_kg, correction_reason, userId }) {

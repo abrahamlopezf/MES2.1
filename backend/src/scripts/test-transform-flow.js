@@ -55,6 +55,9 @@ async function testTransformFlow() {
   console.log(`  Permitido en Laminado: ${scanLamEarly.is_allowed}`);
   console.log(`  Error code: ${scanLamEarly.error_code}`);
   console.log(`  Mensaje: ${scanLamEarly.message}`);
+  if (scanLamEarly.is_allowed || scanLamEarly.error_code !== 'OUT_OF_SEQUENCE') {
+    throw new Error('Laminado debe bloquear el rollo antes de completar Globo.');
+  }
 
   // 3. Probar escaneo en GLOBO (debe PERMITIRSE)
   console.log('\n--- Test 3: Escaneo autorizado en GLOBO ---');
@@ -62,6 +65,9 @@ async function testTransformFlow() {
   console.log(`  Permitido en Globo: ${scanGlobo.is_allowed}`);
   console.log(`  Preview nuevo QR: ${scanGlobo.preview_new_qr}`);
   console.log(`  Especificaciones compatibles: ${scanGlobo.compatible_specifications?.length}`);
+  if (!scanGlobo.is_allowed || !scanGlobo.compatible_specifications?.length) {
+    throw new Error(`Globo no autorizó el QR o no encontró una receta compatible: ${scanGlobo.message}`);
+  }
 
   // 4. Probar evaluación de materiales en Globo
   console.log('\n--- Test 4: Evaluación de materiales en GLOBO ---');
@@ -81,6 +87,9 @@ async function testTransformFlow() {
     currentUser: { role: { name: 'SUPERADMIN' } },
     notes: 'Transformación exitosa en prueba operacional',
   });
+  if (!transformGloboRes.success || !transformGloboRes.new_qr_code || transformGloboRes.new_qr_code === testRoll.qr_code) {
+    throw new Error('La transformación de Globo debe emitir un QR nuevo y confirmar el cambio de etapa.');
+  }
   console.log(`  Transformación en Globo: ${transformGloboRes.success ? 'EXITOSA' : 'FALLIDA'}`);
   console.log(`  Nuevo QR asignado: ${transformGloboRes.new_qr_code}`);
   console.log(`  Nueva etapa actual: ${transformGloboRes.roll.current_stage}`);
@@ -93,10 +102,17 @@ async function testTransformFlow() {
   console.log(`  Permitido en Laminado: ${scanLamAfterGlobo.is_allowed}`);
   console.log(`  Mensaje: ${scanLamAfterGlobo.message}`);
   console.log(`  Preview nuevo QR: ${scanLamAfterGlobo.preview_new_qr}`);
+  if (!scanLamAfterGlobo.is_allowed || !scanLamAfterGlobo.compatible_specifications?.length) {
+    throw new Error(`Laminado no autorizó el QR de salida de Globo: ${scanLamAfterGlobo.message}`);
+  }
 
   // 7. Ejecutar transformación en LAMINADO
   console.log('\n--- Test 7: Ejecución de Transformación en LAMINADO ---');
-  const lamSpec = await LaminadoSpecification.findOne({ where: { is_active: true } });
+  // Pick a recipe compatible with the roll's current stage and BOM. The first
+  // active recipe in code order may intentionally reject Globo output.
+  const lamAssessment = await laminadoService.assessRollMaterials({ roll_id: testRoll.id });
+  const lamSpec = await LaminadoSpecification.findByPk(lamAssessment.specification.id);
+  if (!lamSpec) throw new Error('La evaluación de Laminado no devolvió una receta compatible.');
   const transformLamRes = await laminadoService.transformRoll({
     roll_id: testRoll.id,
     specification_id: lamSpec.id,
@@ -106,6 +122,9 @@ async function testTransformFlow() {
     currentUser: { role: { name: 'SUPERADMIN' } },
     notes: 'Recubrimiento PEBD completado en prueba operacional',
   });
+  if (!transformLamRes.success || transformLamRes.new_qr_code !== scanLamAfterGlobo.preview_new_qr) {
+    throw new Error('Laminado debe completar la transformación y asignar el QR previsto para la siguiente etapa.');
+  }
   console.log(`  Transformación en Laminado: ${transformLamRes.success ? 'EXITOSA' : 'FALLIDA'}`);
   console.log(`  Nuevo QR asignado: ${transformLamRes.new_qr_code}`);
   console.log(`  Nueva etapa actual: ${transformLamRes.roll.current_stage}`);

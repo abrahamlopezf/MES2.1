@@ -25,6 +25,7 @@ import { laminadoApi } from '../services/laminadoApi';
 import { telaresApi } from '../../telares/services/telaresApi';
 import axiosClient from '../../../api/axiosClient';
 import { LaminadoSpecification } from '../types/laminado.types';
+import { groupIdenticalRecipeLines } from '../../../shared/utils/groupIdenticalRecipeLines';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { toast } from 'sonner';
@@ -372,9 +373,9 @@ export const LaminadoCatalogPage: React.FC = () => {
                 isDark ? 'bg-slate-900 border-slate-800 hover:border-amber-500/50' : 'bg-white border-slate-200 hover:border-amber-400'
               } shadow-sm`}
             >
-              <div className="flex justify-between items-start gap-3 mb-3">
-                <div>
-                  <div className="flex items-center gap-2">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-sm px-2.5 py-0.5 rounded font-black bg-amber-500/10 text-amber-500 border border-amber-500/30">
                       {spec.code}
                     </span>
@@ -401,12 +402,12 @@ export const LaminadoCatalogPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleOpenEdit(spec)}
-                    className="h-8 px-2.5 text-xs font-semibold"
+                    className="min-h-10 min-w-0 flex-1 whitespace-normal px-2.5 text-xs font-semibold sm:flex-initial"
                   >
                     <Edit2 className="h-3.5 w-3.5 mr-1" />
                     Editar
@@ -415,7 +416,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => toggleMutation.mutate(spec.id)}
-                    className={`h-8 px-2.5 text-xs font-semibold ${
+                    className={`min-h-10 min-w-0 flex-1 whitespace-normal px-2.5 text-xs font-semibold sm:flex-initial ${
                       spec.is_active ? 'text-amber-500 hover:bg-amber-500/10' : 'text-emerald-500 hover:bg-emerald-500/10'
                     }`}
                   >
@@ -425,7 +426,7 @@ export const LaminadoCatalogPage: React.FC = () => {
               </div>
 
               {/* Strip Datos Clave */}
-              <div className="grid grid-cols-3 gap-2 my-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-800/60 text-xs">
+              <div className="my-3 grid grid-cols-1 gap-2 rounded-lg bg-slate-100 p-3 text-xs sm:grid-cols-3 dark:bg-slate-800/60">
                 <div>
                   <span className="text-slate-500 block">Producto Salida:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
@@ -483,16 +484,21 @@ export const LaminadoCatalogPage: React.FC = () => {
 
                 <div className="space-y-1">
                   {spec.materials && spec.materials.length > 0 ? (
-                    spec.materials.map((m, i) => (
+                    groupIdenticalRecipeLines(spec.materials).map(({ line: m, count, totalQuantity }) => (
                       <div
-                        key={i}
-                        className="flex justify-between items-center text-xs p-1.5 rounded bg-blue-500/5 border border-blue-500/20"
+                        key={`${m.material_id}-${m.quantity}-${m.unit}-${m.notes ?? ''}`}
+                        className="flex min-w-0 flex-col gap-1 rounded border border-blue-500/20 bg-blue-500/5 p-1.5 text-xs sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        <span className="min-w-0 break-words font-semibold text-slate-700 dark:text-slate-300">
                           {m.material?.name || `Material #${m.material_id}`}
+                          {count > 1 && (
+                            <span className="ml-1 text-[10px] font-normal text-slate-500">
+                              · {count} renglones idénticos
+                            </span>
+                          )}
                         </span>
-                        <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
-                          {m.quantity} {m.unit}
+                        <span className="shrink-0 font-mono font-bold text-blue-600 dark:text-blue-400">
+                          {count > 1 ? totalQuantity.toFixed(3) : m.quantity} {m.unit}
                         </span>
                       </div>
                     ))

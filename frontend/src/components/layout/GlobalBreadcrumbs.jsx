@@ -1,110 +1,153 @@
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { ChevronRight, Home } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '../../design-system';
 
 const ROUTE_DICTIONARY = {
-  portal: 'Portal Admin',
-  usuarios: 'Usuarios',
-  
-  identity: 'Identidad',
-  generate: 'Generar Lotes',
-  requests: 'Peticiones',
-  print: 'Impresión',
-  custody: 'Custodia',
+  admin: 'Administración',
+  areas: 'Áreas',
+  almacen: 'Almacén',
+  'area-inventory': 'Inventario por área',
+  andon: 'Andon',
   batches: 'Lotes',
-  tokens: 'Tokens',
-  
-  traceability: 'Trazabilidad',
-  ledger: 'Libro Mayor',
-  genealogy: 'Genealogía',
-  
-  production: 'Producción',
-  mixing: 'Mezclado',
+  board: 'Tablero operativo',
+  brands: 'Marcas',
+  catalogos: 'Catálogos',
+  categories: 'Categorías',
+  codes: 'Códigos',
+  corte: 'Corte',
+  custody: 'Custodia',
   extrusion: 'Extrusión',
-  board: 'Tablero Operativo',
+  families: 'Familias',
   formulas: 'Fórmulas',
-  'rack-ingress': 'Ingreso a Racks',
-  rack: 'Racks',
+  genealogy: 'Genealogía',
+  generate: 'Generar lotes',
+  globo: 'Globo',
+  identity: 'Identidad',
+  inventory: 'Inventario',
+  laminado: 'Laminado',
+  ledger: 'Libro mayor',
+  list: 'Listado',
+  locations: 'Ubicaciones',
+  machines: 'Máquinas',
+  materials: 'Materiales',
+  mixing: 'Mezclado',
+  'merma-scrap': 'Merma y scrap',
   new: 'Nuevo',
   orders: 'Órdenes',
-  stations: 'Estaciones',
-  runs: 'Corridas',
-  machines: 'Máquinas Extrusoras',
-  
-  warehouse: 'Almacén',
-  almacen: 'Almacén',
+  operators: 'Operadores',
+  print: 'Impresión',
+  production: 'Producción',
+  profile: 'Perfil',
+  qrcodes: 'Historial de códigos QR',
+  rack: 'Rack',
+  'rack-ingress': 'Ingreso a racks',
+  racks: 'Racks',
   receive: 'Recepción',
-  inventory: 'Inventario',
-  'merma-scrap': 'Merma y Scrap',
-  
-  areas: 'Áreas',
-  admin: 'Gestor de Usuarios',
+  requests: 'Solicitudes',
+  runs: 'Corridas',
+  silos: 'Silos',
+  stations: 'Estaciones',
+  suppliers: 'Proveedores',
+  tags: 'Etiquetas',
+  telares: 'Telares',
+  tokens: 'Códigos QR',
+  traceability: 'Trazabilidad',
+  types: 'Tipos',
+  units: 'Unidades',
+  usuarios: 'Usuarios',
+  'viajero-tracker': 'Seguimiento de viajero',
+  warehouse: 'Almacén',
 };
 
-const getTranslatedSegment = (segment) => {
+const isRecordId = (segment) =>
+  /^\d+$/.test(segment) || /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(segment);
+
+const getSegmentLabel = (segment, previousSegment) => {
+  if (isRecordId(segment)) {
+    if (previousSegment === 'materials') return 'Material';
+    if (previousSegment === 'lotes') return 'Detalle de lote';
+    if (previousSegment === 'areas') return 'Área';
+    return 'Detalle';
+  }
+
   return ROUTE_DICTIONARY[segment.toLowerCase()] || segment.charAt(0).toUpperCase() + segment.slice(1);
 };
 
-export const GlobalBreadcrumbs = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  
-  // No mostrar migas de pan en el dashboard o ruta raíz
-  if (location.pathname === '/' || location.pathname === '/dashboard') {
-    return null;
+const getBreadcrumbPath = (segments, index) => {
+  if (segments[0] === 'warehouse' && ['materials', 'lotes'].includes(segments[1]) && index === 1) {
+    return '/warehouse/inventory';
   }
 
-  // Segmentar la ruta ignorando cadenas vacías
-  const pathnames = location.pathname.split('/').filter((x) => x);
+  if (segments[0] === 'identity' && index === 0) return '/identity/generate';
+  return `/${segments.slice(0, index + 1).join('/')}`;
+};
 
-  // Si no hay segmentos, tampoco mostrar (aunque ya cubrimos '/' arriba)
-  if (pathnames.length === 0) return null;
+export const GlobalBreadcrumbs = () => {
+  const { pathname } = useLocation();
+  const pathnames = pathname.split('/').filter(Boolean);
+
+  if (pathnames.length === 0 || pathname === '/dashboard') return null;
 
   return (
-    <div className="w-full bg-background border-b border-border sticky top-0 z-40">
-      <div className="max-w-full px-4 md:px-6 py-2.5 flex items-center overflow-x-auto custom-scrollbar whitespace-nowrap">
-        {/* Hamburger Menu (Mobile Only) */}
-        <button 
+    <div className="sticky top-0 z-40 w-full min-w-0 border-b border-border bg-background">
+      <div className="flex min-h-12 items-center gap-2 px-3 py-2 pr-16 sm:px-5 sm:pr-20 lg:px-6 lg:pr-6">
+        <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
-          className="lg:hidden text-foreground hover:text-primary transition-colors mr-2.5 p-1 rounded-lg bg-secondary/50 border border-border shrink-0 flex items-center justify-center h-8 w-8"
-          aria-label="Abrir Menú de Navegación"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/50 text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          aria-label="Abrir menú de navegación"
           title="Menú"
         >
           <Icon name="menu" size={20} />
         </button>
 
-        {/* Botón de volver genérico */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors mr-3 shrink-0 flex items-center"
-        >
-          Volver
-        </button>
-        
-        <span className="text-border mx-2 shrink-0">|</span>
+        <nav className="min-w-0 flex-1" aria-label="Ruta de navegación">
+          <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+            <li className="flex shrink-0 items-center">
+              <Link
+                to="/dashboard"
+                aria-label="Inicio"
+                title="Inicio"
+                className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Home size={17} aria-hidden="true" />
+              </Link>
+            </li>
+            {pathnames.map((segment, index) => {
+              const isCurrent = index === pathnames.length - 1;
+              const path = getBreadcrumbPath(pathnames, index);
+              const label = getSegmentLabel(segment, pathnames[index - 1]);
+              const showOnMobile = index === 0 || isCurrent;
 
-        <nav className="flex items-center text-sm" aria-label="Breadcrumb">
-          {pathnames.map((value, index) => {
-            const isLast = index === pathnames.length - 1;
-            const to = `/${pathnames.slice(0, index + 1).join('/')}`;
-            const label = getTranslatedSegment(value);
-
-            return (
-              <div key={to} className="flex items-center shrink-0">
-                {isLast ? (
-                  <span className="text-muted-foreground font-medium" aria-current="page">
-                    {label}
-                  </span>
-                ) : (
-                  <>
-                    <Link to={to} className="text-blue-500 hover:text-blue-600 transition-colors">
+              return (
+                <li
+                  key={path}
+                  className={`flex min-w-0 items-center gap-1.5 ${showOnMobile ? '' : 'hidden lg:flex'}`}
+                >
+                  <ChevronRight size={15} className="shrink-0 text-muted-foreground/70" aria-hidden="true" />
+                  {isCurrent && pathnames.length > 2 && (
+                    <span className="px-1 text-muted-foreground lg:hidden" aria-hidden="true">…</span>
+                  )}
+                  {isCurrent ? (
+                    <span
+                      className="min-w-0 truncate px-1 font-semibold text-foreground"
+                      aria-current="page"
+                      title={label}
+                    >
+                      {label}
+                    </span>
+                  ) : (
+                    <Link
+                      to={path}
+                      className="max-w-40 truncate rounded-md px-1 py-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      title={label}
+                    >
                       {label}
                     </Link>
-                    <Icon name="chevron_right" size={16} className="mx-1 text-muted-foreground/60 shrink-0" />
-                  </>
-                )}
-              </div>
-            );
-          })}
+                  )}
+                </li>
+              );
+            })}
+          </ol>
         </nav>
       </div>
     </div>

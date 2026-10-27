@@ -82,7 +82,11 @@ export const extrusionApi = {
     extruder_id: number;
     mixture_qr_id?: string;
     scrap_weight_kg: number;
+    actual_weight_kg?: number;
+    estimated_weight_kg?: number;
     reason: string;
+    category?: string;
+    shift_code?: string;
     notes?: string;
   }): Promise<any> => {
     const response = await axiosClient.post('/extrusion/scrap', payload);

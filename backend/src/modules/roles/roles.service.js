@@ -4,6 +4,7 @@ const { Role, Permission, User, sequelize } = require('../../database/models');
 const {
   SUPERADMIN_ROLE_CODE,
   isSuperadmin,
+  isAdmin,
   throwHttpError,
 } = require('../../shared/security/accessRules');
 
@@ -55,7 +56,7 @@ const getRoleWhereForActor = (currentUser) => {
     },
   };
 
-  const isGlobal = role.area_id === null && role.subarea_id === null;
+  const isGlobal = isAdmin(currentUser) || (role.area_id === null && role.subarea_id === null);
   if (!isGlobal) {
     where.area_id = role.area_id;
     if (role.subarea_id !== null) {

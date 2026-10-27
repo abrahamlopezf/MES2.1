@@ -18,7 +18,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission, user } = useAuthStore();
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
-  const isAdminAlm = ['ADMIN_ALM', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
+  const isAdminAlm = ['ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
   const [family, setFamily] = useState('');
@@ -221,8 +221,8 @@ export const WarehouseInventoryPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  data?.items?.map((item: any) => (
-                    <tr key={item.material_id} className="group hover:bg-muted/20 transition-colors">
+                  data?.items?.map((item: any, index: number) => (
+                    <tr key={item.material_id ?? item.material?.id ?? item.material?.internal_code ?? `inventory-${index}`} className="group hover:bg-muted/20 transition-colors">
                       <td className="border-b border-border/50 px-4 py-3 align-middle font-bold text-foreground">
                         {item.material?.name || '---'}
                       </td>
@@ -279,8 +279,10 @@ export const WarehouseInventoryPage: React.FC = () => {
                 No se encontraron unidades en stock.
               </div>
             ) : (
-              data?.items?.map((item: any) => (
-                <div key={item.material_id} className="bg-card rounded-xl p-4 border border-border shadow-sm flex flex-col gap-3">
+              data?.items?.map((item: any, index: number) => {
+                const materialId = item.material_id ?? item.material?.id;
+                const itemKey = materialId ?? item.material?.internal_code ?? `inventory-${index}`;
+                return <div key={itemKey} className="bg-card rounded-xl p-4 border border-border shadow-sm flex flex-col gap-3">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-foreground text-sm leading-tight truncate" title={item.material?.name}>
@@ -313,15 +315,15 @@ export const WarehouseInventoryPage: React.FC = () => {
                       variant="ghost" 
                       size="sm" 
                       className="w-full text-muted-foreground hover:text-foreground hover:bg-secondary/20 flex justify-between items-center px-2 py-1.5 h-auto"
-                      onClick={() => setExpandedCardId(expandedCardId === item.material_id ? null : item.material_id)}
+                      onClick={() => setExpandedCardId(expandedCardId === itemKey ? null : itemKey)}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider">Acciones</span>
-                      {expandedCardId === item.material_id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      {expandedCardId === itemKey ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </Button>
                     
-                    {expandedCardId === item.material_id && (
+                    {expandedCardId === itemKey && (
                       <div className="flex flex-col gap-2 pb-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <Button variant="outline" size="sm" className="w-full justify-start h-10 bg-secondary/5" onClick={() => navigate(`/warehouse/materials/${item.material_id}/lotes`)}>
+                        <Button variant="outline" size="sm" className="w-full justify-start h-10 bg-secondary/5" onClick={() => navigate(`/warehouse/materials/${materialId}/lotes`)}>
                           <Layers size={16} className="mr-2 text-muted-foreground" /> Ver lotes
                         </Button>
                         <Button variant="secondary" size="sm" className="w-full justify-start h-10" onClick={() => setSelectedInfoItem(item)}>
@@ -335,8 +337,8 @@ export const WarehouseInventoryPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                </div>
-              ))
+                </div>;
+              })
             )}
           </div>
           

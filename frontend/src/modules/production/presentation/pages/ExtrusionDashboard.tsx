@@ -7,7 +7,7 @@ export const ExtrusionDashboard = () => {
   const { user } = useAuthStore();
 
   return (
-    <main className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
+    <main className="extrusion-workspace min-h-screen bg-background p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
         <header className="space-y-2">
           <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
@@ -33,7 +33,7 @@ export const ExtrusionDashboard = () => {
 
         <section aria-labelledby="operations-title" className="space-y-3">
           <h2 id="operations-title" className="text-xl font-black text-foreground">Ir a operación</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Card className="border-border shadow-sm">
               <CardContent className="flex h-full flex-col items-start gap-4 p-5 sm:p-6">
                 <Icon name="view_kanban" size={28} className="text-primary" />

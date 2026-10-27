@@ -43,3 +43,45 @@ a:focus {
   outline: 3px solid rgba(31, 58, 95, 0.35);
   outline-offset: 3px;
 }
+
+.extrusion-workspace .text-xs,
+.extrusion-workspace [class~="text-[10px]"],
+.extrusion-workspace [class~="text-[11px]"] {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.extrusion-workspace.min-h-screen {
+  min-height: auto;
+}
+
+.extrusion-workspace[class~="pb-32"] {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 767px) {
+  .extrusion-workspace[class~="gap-6"] {
+    gap: 1rem;
+  }
+
+  .extrusion-workspace[class~="p-4"] {
+    padding-inline: 0.875rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .extrusion-ingress-flow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1.25rem;
+  }
+
+  .extrusion-ingress-flow > * + * {
+    margin-block-start: 0;
+  }
+
+  .extrusion-ingress-step--count {
+    grid-column: 1 / -1;
+  }
+}

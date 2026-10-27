@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { renderAnyIcon } from '../../design-system';
+import { isAdminUser } from '../../utils/authHelpers';
 
 const MobileBottomNav = () => {
   const { hasPermission, user } = useAuthStore();
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
-  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRole) || 
+  const isWarehouseUser = !isAdminUser(user) && (['ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN'].includes(userRole) ||
                           user?.area?.code === 'ALMACEN' || 
-                          user?.area?.code === 'ALM';
+                          user?.area?.code === 'ALM');
 
   const items = [
     {

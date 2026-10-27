@@ -141,6 +141,7 @@ export interface ExtruderQueue {
   status: QueueStatus;
   notes?: string;
   container_remaining_quantity_kg?: number | null;
+  preparation?: { id: number; remaining_quantity_kg: number | null } | null;
   formula?: Formula;
   created_at?: string;
   updated_at?: string;
@@ -181,10 +182,19 @@ export interface ScanRackPtiResponse {
   message: string;
   rack: PtiRack;
   backflushing: BackflushingResult | null;
+  queue_completion?: QueueCompletion | null;
+}
+
+export interface QueueCompletion {
+  completed: boolean;
+  reason?: string;
+  completed_queue?: ExtruderQueue;
+  next_queue?: ExtruderQueue | null;
 }
 
 export interface SwitchQueuePriorityPayload {
   queue_id: number;
+  scanned_qr?: string;
   prioritize_formula_id?: number;
   scrap_weight_kg?: number;
   scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; shift_code?: string; notes?: string }[];

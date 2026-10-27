@@ -24,7 +24,7 @@ export function PrintBatchPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
-      <h2 className="text-2xl font-bold text-slate-800">Pipeline de Impresión</h2>
+      <h2 className="text-2xl font-bold text-foreground">Pipeline de Impresión</h2>
       
       <form onSubmit={handlePrint} className="bg-white p-6 rounded-lg shadow border border-slate-200 space-y-4">
         <div>
@@ -34,7 +34,7 @@ export function PrintBatchPage() {
             value={batchId}
             onChange={(e) => setBatchId(e.target.value)}
             placeholder="Ej. BATCH-0001"
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full bg-white text-slate-900 placeholder:text-slate-500 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             required
           />
         </div>
@@ -44,7 +44,7 @@ export function PrintBatchPage() {
           <select 
             value={templateId}
             onChange={(e) => setTemplateId(e.target.value)}
-            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full bg-white text-slate-900 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="TEMPLATE_QR_01">Etiqueta QR Producción (ZPL)</option>
             <option value="TEMPLATE_BARCODE_02">Código de Barras Cajas (TSPL)</option>

@@ -243,7 +243,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
           >
             <Menu size={20} />
           </button>
-          <div className="flex flex-col gap-0.5">
+          <div className="min-w-0 flex-1 flex flex-col gap-0.5 pr-12 sm:pr-0">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
               Monitor de Almacén <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Operaciones y Stock</span>
             </h1>

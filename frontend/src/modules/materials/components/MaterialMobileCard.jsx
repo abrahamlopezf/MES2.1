@@ -2,6 +2,7 @@ import { Boxes, Edit3, Layers3, Ruler, ShieldAlert } from 'lucide-react';
 
 import { Button, Badge, Card, CardContent } from '../../../design-system';
 import { getMaterialUnitLabel } from '../constants/materialsUi';
+import { getMaterialTagKey } from '../utils/recordKeys';
 import MaterialTypeBadge from './MaterialTypeBadge';
 
 const MaterialMobileCard = ({
@@ -30,9 +31,9 @@ const MaterialMobileCard = ({
                 {material.is_active ? 'Activo' : 'Inactivo'}
               </Badge>
 
-              {material.tags && material.tags.length > 0 && material.tags.map(tag => (
+              {material.tags && material.tags.length > 0 && material.tags.map((tag, index) => (
                 <div
-                  key={tag.id}
+                  key={getMaterialTagKey(tag, index)}
                   className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/60 bg-secondary/30 text-[11px] font-bold text-muted-foreground whitespace-nowrap shadow-sm"
                 >
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color || '#e2e8f0' }} />

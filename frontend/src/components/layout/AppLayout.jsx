@@ -9,6 +9,7 @@ import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../../store/authStore';
 import { UserAvatar } from '../ui/UserAvatar';
+import { isAdminUser } from '../../utils/authHelpers';
 
 const AppLayout = () => {
   const location = useLocation();
@@ -20,9 +21,10 @@ const AppLayout = () => {
   };
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
-  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRole) || 
+  const isGlobalAdmin = isAdminUser(user);
+  const isWarehouseUser = !isGlobalAdmin && (['ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN'].includes(userRole) ||
                           user?.area?.code === 'ALMACEN' || 
-                          user?.area?.code === 'ALM';
+                          user?.area?.code === 'ALM');
 
   const navItems = [
     {
@@ -51,7 +53,7 @@ const AppLayout = () => {
       label: 'Áreas',
       onClick: () => handleNav('/areas'),
       isActive: location.pathname.startsWith('/areas'),
-      show: !isWarehouseUser && ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole)
+      show: isGlobalAdmin && !isWarehouseUser
     },
     /* {
       icon: <Icon name="group" size={24} />,

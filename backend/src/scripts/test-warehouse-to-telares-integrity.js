@@ -86,10 +86,38 @@ async function testWarehouseToTelares() {
   });
   assert(formula?.ingredients?.length, 'no se encontró la fórmula blanca de Extrusora 4 y sus componentes');
   // Resolve every fixed fixture before creating orders or consuming QA inventory.
-  const bom = await db.ProductionBom.findByPk(14);
-  assert(bom?.is_active, 'no se encontró el BOM QA activo (ID 14)');
-  const rack = await db.PtiRack.findOne({ where: { rack_code: 'DEMO-EXT-RACK-01' } });
-  assert(rack && Number(rack.current_quantity) === 0, 'se requiere el rack local DEMO-EXT-RACK-01 vacío');
+  const extrusionPti = await db.PtiProduct.findByPk(formula.output_pti_id);
+  assert(extrusionPti?.is_active, 'el PTI de salida de la fórmula debe estar activo');
+  // Existing Telares catalog fixtures do not necessarily consume the output
+  // PTI of the extrusion formula. Create a QA-only BOM to test the real handoff.
+  const bom = await telaresService.saveBom({
+    code: `QA-E2E-${Date.now()}`,
+    name: 'QA Extrusión a Telares Globo y Laminado',
+    output_product_name: 'QA rollo de tela',
+    target_width_cm: 50,
+    target_weight_g_per_m: 65,
+    warp_density: 10,
+    weft_density: 10,
+    expected_output_quantity: 1,
+    expected_output_unit: 'ROLLO',
+    standard_output_meters: 1000,
+    default_route: ['TELARES', 'GLOBO', 'LAMINADO', 'CORTE'],
+    ounces_yd2: 5.0,
+    weft_denier: String(extrusionPti.denier || 1800),
+    warp_denier: String(extrusionPti.denier || 1800),
+    fabric_type: 'TUBULAR',
+    tape_color: extrusionPti.color || 'QA',
+    items: [{
+      pti_product_id: extrusionPti.id,
+      role: 'TRAMA',
+      ratio_percentage: 100,
+      consumption_g_per_m: 65,
+      required_quantity: 65,
+      required_unit: 'KG',
+    }],
+  });
+  const rack = await db.PtiRack.findOne({ where: { current_quantity: 0 }, order: [['id', 'ASC']] });
+  assert(rack?.qr_code, 'se requiere un rack PTI local vacío con QR para la prueba');
   const looms = await db.Loom.findAll({
     where: { is_active: true },
     include: [{ model: db.LoomRun, as: 'runs', where: { status: 'EN_PROCESO' }, required: false }],
@@ -168,12 +196,18 @@ async function testWarehouseToTelares() {
   const activation = await extrusionService.switchQueuePriority({
     extruder_id: 4,
     target_queue_id: queue.id,
+    scrap_items: [{
+      category: 'MEZCLA_ANTERIOR',
+      estimated_weight_kg: 3,
+      reason: 'INTERRUPCION_QA',
+      notes: 'Merma de transición QA clasificada por mezcla de origen',
+    }],
     userId: extrusionSupervisor.id,
-    notes: 'Activación de lote QA',
+    notes: 'Activación de lote QA con clasificación de merma de transición',
   });
   assert(activation.active_queue?.status === 'ACTIVA', 'la mezcla no pasó a ACTIVA en Extrusora 4');
 
-  const pti = await db.PtiProduct.findByPk(formula.output_pti_id);
+  const pti = extrusionPti;
   assert(pti?.is_active && Number(pti.id) === 68, 'falta el PTI activo asociado a la fórmula de salida');
   const production = await extrusionService.scanRackPti({
     rack_qr: rack.qr_code,
@@ -205,19 +239,25 @@ async function testWarehouseToTelares() {
   const finish = await telaresService.finishRollAndBackflush({
     run_id: run.id,
     meters: 50,
-    weight_kg: 5,
+    weight_kg: 3.25,
     operator_id: operator.id,
     recorded_by: supervisor.id,
     shift_supervisor_id: supervisor.id,
     shift_number: 1,
-    operator_segments: [{ operator_id: operator.id, shift_number: 1, meters_start: 0, meters_end: 50, weight_start_kg: 0, weight_end_kg: 5 }],
+    operator_segments: [{ operator_id: operator.id, shift_number: 1, meters_start: 0, meters_end: 50, weight_start_kg: 0, weight_end_kg: 3.25 }],
     notes: 'Rollo de 50 m para validación integral local',
   });
-  assert(finish.backflush.length > 0 && Number(finish.backflush.reduce((sum, row) => sum + Number(row.spools_consumed), 0)) === 1, 'el backflush no consumió exactamente 1 bobina');
+  const expectedSpoolsConsumed = Number((50 * 65 / 1000 / (Number(pti.unit_weight_kg) || 5)).toFixed(3));
+  const actualSpoolsConsumed = Number(finish.backflush.reduce((sum, row) => sum + Number(row.spools_consumed), 0).toFixed(3));
+  assert(finish.backflush.length > 0 && Math.abs(actualSpoolsConsumed - expectedSpoolsConsumed) <= 0.001,
+    `el backflush debía consumir ${expectedSpoolsConsumed} bobinas según 50 m × 65 g/m; registró ${actualSpoolsConsumed}`);
   const afterWip = await db.LoomPtiWip.findByPk(trackedWip.id);
   const afterLoom = await db.Loom.findByPk(loom.id);
-  assert(Number(afterWip.quantity_remaining_spools) === 0, 'el ledger WIP del telar no se descontó');
-  assert(Number(afterLoom.current_spools_count) === 0 && Number(afterLoom.current_wip_kg) === 0, 'los saldos agregados del telar no se reconciliaron tras el backflush');
+  const expectedRemainingSpools = Number((1 - expectedSpoolsConsumed).toFixed(3));
+  assert(Math.abs(Number(afterWip.quantity_remaining_spools) - expectedRemainingSpools) <= 0.001, 'el ledger WIP del telar no refleja el consumo fraccionario calculado');
+  assert(Math.abs(Number(afterLoom.current_spools_count) - expectedRemainingSpools) <= 0.001 &&
+    Math.abs(Number(afterLoom.current_wip_kg) - expectedRemainingSpools * (Number(pti.unit_weight_kg) || 5)) <= 0.005,
+  'los saldos agregados del telar no se reconciliaron tras el backflush');
 
   const invalidScan = await telaresService.validateViajeroScan({ qr_code: finish.roll.qr_code, area_name: 'ALMACEN', operator_id: operator.id });
   assert(invalidScan.is_allowed === false && invalidScan.error_code === 'AREA_NOT_IN_ROUTE', 'el rollo debe bloquearse fuera de su ruta');
@@ -234,7 +274,16 @@ async function testWarehouseToTelares() {
   assert(stageAttempts.filter((result) => result.status === 'rejected').length === 1, 'el segundo avance simultáneo debe bloquearse');
   const rollDetail = await telaresService.getViajeroDetails(finish.roll.qr_code, supervisor);
   assert(rollDetail?.genealogy_tree?.exact_source_entries, 'el rollo viajero debe conservar entradas exactas de Extrusión');
-  assert(rollDetail.genealogy_tree.raw_materials.length === formula.ingredients.length, 'la genealogía del rollo debe llegar a todos los materiales de la mezcla');
+  const expectedMaterialIds = [...new Set(formula.ingredients.map((item) => Number(item.material_id)))].sort((a, b) => a - b);
+  const tracedMaterialIds = [...new Set(rollDetail.genealogy_tree.raw_materials.map((item) => Number(item.material_id)))].sort((a, b) => a - b);
+  const tracedMaterialKg = rollDetail.genealogy_tree.raw_materials.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  assert(JSON.stringify(tracedMaterialIds) === JSON.stringify(expectedMaterialIds), 'la genealogía del rollo debe incluir cada material de la fórmula; un material puede aparecer en varios lotes FIFO');
+  assert(Math.abs(tracedMaterialKg - Number(preparation.total_quantity)) <= 0.05, 'las cantidades de la genealogía deben conciliar con el total de la mezcla');
+  const operatorSegments = rollDetail.operatorSegments || rollDetail.operator_segments || [];
+  assert(operatorSegments.length === 1, 'el QR viajero debe incluir el segmento del operador por turno');
+  assert(Number(operatorSegments[0].meters_start) === 0 && Number(operatorSegments[0].meters_end) === 50 &&
+    Number(operatorSegments[0].shift_number) === 1 && Number(operatorSegments[0].operator_id) === Number(operator.id),
+  'el QR viajero debe conservar operador, turno y rango exacto de metros');
   assert(rollDetail.current_stage === 'GLOBO' && rollDetail.next_allowed_stage === 'LAMINADO', 'el QR viajero no avanzó correctamente por su ruta');
 
   const movementCount = await db.InventoryMovement.count({ where: { consumption_order_id: order.id } });

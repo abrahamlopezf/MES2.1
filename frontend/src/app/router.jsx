@@ -46,6 +46,7 @@ import ExtrusionBoardContainer from '../modules/extrusion/presentation/container
 import PtiIngressContainer from '../modules/extrusion/presentation/containers/PtiIngressContainer';
 import { SuperAdminRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
+import PermissionRoute from './PermissionRoute';
 
 // Telares & Ruteo (Fase Escalonada)
 import TelaresTerminalPage from '../modules/telares/presentation/pages/TelaresTerminalPage';
@@ -213,29 +214,29 @@ export const router = createBrowserRouter([
           // Rutas de Identity Center
           {
             path: '/identity/generate',
-            element: <GenerateBatchPage />,
+            element: <PermissionRoute permissions={['qr.create', 'qr.generate']}><GenerateBatchPage /></PermissionRoute>,
           },
           {
             path: '/identity/requests',
-            element: <IdentityRequestsPage />,
+            element: <PermissionRoute permissions={['qr.assign']}><IdentityRequestsPage /></PermissionRoute>,
           },
           {
             path: '/identity/print',
-            element: <PrintBatchPage />,
+            element: <PermissionRoute permissions={['qr.read', 'qr.create', 'qr.generate']}><PrintBatchPage /></PermissionRoute>,
           },
           {
             path: '/identity/custody',
-            element: <IdentityCustodyPage />,
+            element: <PermissionRoute permissions={['qr.assign']}><IdentityCustodyPage /></PermissionRoute>,
           },
           // Trazabilidad
           {
             path: '/traceability/genealogy',
-            element: <TraceabilityTreePage />,
+            element: <PermissionRoute permissions={['qr.read']}><TraceabilityTreePage /></PermissionRoute>,
           },
           // Historial de QRs (Identity)
           {
             path: '/qrcodes',
-            element: <QrHistoryPage />,
+            element: <PermissionRoute permissions={['qr.read', 'qr.history.read', 'qr.events.read']}><QrHistoryPage /></PermissionRoute>,
           },
           // Rutas de Extrusión
           {
@@ -266,6 +267,7 @@ export const router = createBrowserRouter([
             path: '/production',
             element: <Outlet />,
             children: [
+              { index: true, element: <Navigate to="/dashboard" replace /> },
               {
                 path: 'machines',
                 element: (
@@ -423,6 +425,7 @@ export const router = createBrowserRouter([
             path: '/warehouse',
             element: <WarehouseRoute><Outlet /></WarehouseRoute>,
             children: [
+              { index: true, element: <Navigate to="/warehouse/inventory" replace /> },
               {
                 path: 'receive',
                 element: (

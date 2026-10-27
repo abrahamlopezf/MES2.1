@@ -16,6 +16,7 @@ import { getRolesRequest } from '../../roles/services/rolesApi';
 import { includesNormalized } from '@/utils/filters';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { useAuthStore } from '@/store/authStore';
+import { isAdminUser } from '@/utils/authHelpers';
 
 import UserForm from '../components/UserForm';
 import UsersGrid from '../components/UsersTable';
@@ -43,13 +44,14 @@ const UsersPage: React.FC = () => {
 
   const { user: currentUser, hasPermission } = useAuthStore();
   const currentRoleCode = (currentUser?.role?.code || '').toUpperCase();
+  const isGlobalAdmin = isAdminUser(currentUser);
   const isSuperAdmin = currentRoleCode === 'SUPERADMIN';
   const isSupervisor = currentRoleCode === 'SUPERVISOR';
-  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(currentRoleCode) ||
+  const isWarehouseUser = !isGlobalAdmin && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(currentRoleCode) ||
                           currentUser?.area?.code === 'ALMACEN' ||
-                          currentUser?.area?.code === 'ALM';
-  const isExtrusionAdmin = ['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(currentRoleCode) ||
-                          currentUser?.area?.code === 'EXTRUSION';
+                          currentUser?.area?.code === 'ALM');
+  const isExtrusionAdmin = !isGlobalAdmin && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(currentRoleCode) ||
+                          currentUser?.area?.code === 'EXTRUSION');
   const canViewRoles = !isWarehouseUser && !isExtrusionAdmin && hasPermission('roles.read');
   
   const [searchParams, setSearchParams] = useSearchParams();
@@ -144,7 +146,7 @@ const UsersPage: React.FC = () => {
         return matchesSearch && matchesRole && matchesStatus;
       })
       .sort((a, b) => Number(a.id) - Number(b.id));
-  }, [users, searchTerm, roleFilter, statusFilter, isWarehouseUser, isSuperAdmin]);
+  }, [users, searchTerm, roleFilter, statusFilter, isWarehouseUser, isExtrusionAdmin, isSuperAdmin]);
 
   const groupedUsers = useMemo(() => {
     const groups: Record<string, User[]> = {};

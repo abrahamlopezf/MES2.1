@@ -1,6 +1,7 @@
 import { Edit3, ShieldAlert, Settings } from 'lucide-react';
 
 import { Button } from '../../../design-system';
+import { getMaterialKey, getMaterialTagKey } from '../utils/recordKeys';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,8 +73,8 @@ const MaterialsTable = ({
           <p className="rounded-xl border border-border bg-card p-6 text-center text-base text-muted-foreground">
             No hay materiales para mostrar.
           </p>
-        ) : materials.map((material) => (
-          <article key={material.id} className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4">
+        ) : materials.map((material, index) => (
+          <article key={getMaterialKey(material, index)} className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-muted-foreground">{renderTextWithBr(material.family?.code)}</p>
@@ -90,8 +91,8 @@ const MaterialsTable = ({
               <h3 className="text-base leading-snug font-bold text-foreground break-words">{stripBr(material.name)}</h3>
               {material.tags && material.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {material.tags.map((tag) => (
-                    <span key={tag.id} className="inline-flex items-center gap-2 rounded-full border border-border px-2.5 py-1 text-sm font-semibold text-foreground">
+                  {material.tags.map((tag, index) => (
+                    <span key={getMaterialTagKey(tag, index)} className="inline-flex items-center gap-2 rounded-full border border-border px-2.5 py-1 text-sm font-semibold text-foreground">
                       <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: tag.color || '#e2e8f0' }} />
                       {tag.name}
                     </span>
@@ -145,8 +146,8 @@ const MaterialsTable = ({
         </thead>
 
         <tbody className="mt-2">
-          {materials.map((material) => (
-            <tr key={material.id} className="group hover:bg-secondary/20 transition-colors">
+          {materials.map((material, index) => (
+            <tr key={getMaterialKey(material, index)} className="group hover:bg-secondary/20 transition-colors">
               <td className="border-b border-border/50 px-3 py-3.5 align-middle">
                 <span className="font-bold text-base text-foreground">
                   {renderTextWithBr(material.family?.code)}
@@ -166,9 +167,9 @@ const MaterialsTable = ({
                   </span>
                   {material.tags && material.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-0.5">
-                      {material.tags.map(tag => (
+                      {material.tags.map((tag, index) => (
                         <div
-                          key={tag.id}
+                          key={getMaterialTagKey(tag, index)}
                           className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/60 bg-secondary/30 text-[11px] font-bold text-muted-foreground whitespace-nowrap shadow-sm"
                         >
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color || '#e2e8f0' }} />

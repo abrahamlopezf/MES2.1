@@ -161,13 +161,14 @@ const normalizeCategoriesResponse = (response) => {
   };
 };
 
-export const useMaterialsQuery = (filters) => {
+export const useMaterialsQuery = (filters, options = {}) => {
   return useQuery({
     queryKey: materialQueryKeys.list(filters),
     queryFn: async () => {
       const response = await getMaterialsRequest(buildMaterialParams(filters));
       return normalizeMaterialsResponse(response);
     },
+    enabled: options.enabled ?? true,
   });
 };
 

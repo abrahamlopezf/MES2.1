@@ -270,9 +270,8 @@ exports.getPtiTransferMode = async (req, res, next) => {
 
 exports.updatePtiTransferMode = async (req, res, next) => {
   try {
-    const roleCode = req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '');
-    if (roleCode !== 'SUPERADMIN') {
-      return res.status(403).json({ success: false, message: 'Solo Superadmin puede cambiar el modo de transferencia de PTI.' });
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'Solo los administradores globales pueden cambiar el modo de transferencia de PTI.' });
     }
     const result = await telaresService.setPtiTransferMode(req.body?.transfer_mode, req.user?.id);
     res.json({ success: true, ...result });

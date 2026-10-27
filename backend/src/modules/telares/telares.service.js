@@ -1566,7 +1566,7 @@ class TelaresService {
         operator_id: operator_id || null,
         action: 'BLOQUEO_RUTEO_INVALIDO',
         notes: `Intento de escaneo no autorizado en ${targetArea}. Ruta oficial: ${route.join(' -> ')}`,
-      }, ...(transaction ? { transaction } : {}));
+      }, transaction ? { transaction } : {});
 
       return {
         is_allowed: false,
@@ -1590,7 +1590,7 @@ class TelaresService {
         operator_id: operator_id || null,
         action: 'BLOQUEO_RUTEO_INVALIDO',
         notes: `Intento de salto de etapa a ${targetArea}. Se requería antes: ${roll.next_allowed_stage}`,
-      }, ...(transaction ? { transaction } : {}));
+      }, transaction ? { transaction } : {});
 
       return {
         is_allowed: false,

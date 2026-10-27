@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../identity/presentation/context/AuthContext';
 import {
@@ -20,6 +20,7 @@ import {
   useEnqueueMixMutation,
   useScanRackPtiMutation,
   useCreatePtiRackMutation,
+  useRegisterScrapMutation,
 } from '../../../extrusion/hooks/useExtrusionFloorQueries';
 import { toast } from 'sonner';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
@@ -93,6 +94,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const enqueueMutation = useEnqueueMixMutation();
   const scanRackMutation = useScanRackPtiMutation();
   const createRackMutation = useCreatePtiRackMutation();
+  const registerScrapMutation = useRegisterScrapMutation();
 
   // Estados de Control de Máquina Seleccionada
   const [selectedMachineId, setSelectedMachineId] = useState<number>(initialMachineId);
@@ -100,6 +102,9 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [feedQr, setFeedQr] = useState(feedQrFromUrl);
   const [selectedRecipeId, setSelectedRecipeId] = useState<number | ''>('');
   const [selectedQueueToSwitch, setSelectedQueueToSwitch] = useState<number | ''>('');
+  const [isFinishingMix, setIsFinishingMix] = useState(false);
+  const [finishMixWeight, setFinishMixWeight] = useState('');
+  const [finishMixNotes, setFinishMixNotes] = useState('');
 
   // Estados de Registro Directo de Carretes en Rack PTI (Sin QR Virgen)
   const [rackId, setRackId] = useState('QR-RACK-004');
@@ -132,6 +137,30 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
   const activeQueue = currentGroup?.active || null;
   const waitingQueues = currentGroup?.waiting || [];
+  const lastActiveQueueRef = useRef<{ machineId: number; queueId: number | null; qr: string | null }>({
+    machineId: selectedMachineId,
+    queueId: null,
+    qr: null,
+  });
+
+  // Confirma visualmente los cambios de cola aunque el cierre lo haya disparado otro usuario o un evento de piso.
+  useEffect(() => {
+    const previous = lastActiveQueueRef.current;
+    if (previous.machineId !== selectedMachineId) {
+      lastActiveQueueRef.current = { machineId: selectedMachineId, queueId: activeQueue?.id ?? null, qr: activeQueue?.consumption_order_qr_id ?? null };
+      return;
+    }
+    if (previous.queueId && previous.queueId !== activeQueue?.id) {
+      toast.success(activeQueue
+        ? `Mezcla ${previous.qr} terminada. Siguiente mezcla ${activeQueue.consumption_order_qr_id} activa automáticamente; no requiere escaneo del supervisor.`
+        : `Mezcla ${previous.qr} terminada. No hay mezclas pendientes en esta extrusora.`);
+    }
+    if (activeQueue) {
+      lastActiveQueueRef.current = { machineId: selectedMachineId, queueId: activeQueue.id, qr: activeQueue.consumption_order_qr_id };
+    } else if (previous.machineId !== selectedMachineId) {
+      lastActiveQueueRef.current = { machineId: selectedMachineId, queueId: null, qr: null };
+    }
+  }, [activeQueue?.id, activeQueue?.consumption_order_qr_id, selectedMachineId]);
 
   // Sincronizar máquina inicial si existe en los datos
   useEffect(() => {
@@ -493,6 +522,44 @@ export const ExtrusionTerminalPage: React.FC = () => {
     }
   };
 
+  const handleFinishMix = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeQueue) return;
+    const remaining = Number(activeQueue.container_remaining_quantity_kg ?? activeQueue.preparation?.remaining_quantity_kg);
+    const measured = Number(finishMixWeight);
+    if (!Number.isFinite(remaining) || remaining <= 0) {
+      toast.error('No hay saldo positivo disponible para registrar como remanente. Actualiza la cola.');
+      return;
+    }
+    if (!Number.isFinite(measured) || measured <= 0 || measured > remaining + 0.001) {
+      toast.error(`Ingresa el peso real del remanente, mayor a 0 y no superior a ${remaining.toFixed(3)} kg.`);
+      return;
+    }
+    try {
+      const result = await registerScrapMutation.mutateAsync({
+        extruder_id: selectedMachineId,
+        mixture_qr_id: activeQueue.consumption_order_qr_id,
+        scrap_weight_kg: measured,
+        actual_weight_kg: measured,
+        reason: 'CIERRE_FINAL_MEZCLA',
+        category: 'FIN_DE_MEZCLA',
+        notes: finishMixNotes.trim() || 'Remanente pesado al finalizar la mezcla desde Terminal de Extrusión.',
+      });
+      if (result.queue_completion?.completed) {
+        toast.success(`Remanente de ${measured.toFixed(3)} kg registrado. Actualizando el estado de la cola…`);
+      } else {
+        toast.warning('El remanente se registró, pero la mezcla sigue activa porque aún conserva saldo. Registra el saldo restante o continúa produciendo.');
+      }
+      setIsFinishingMix(false);
+      setFinishMixWeight('');
+      setFinishMixNotes('');
+      await refetchQueues();
+      await refetchRacks();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'No se pudo finalizar la mezcla.');
+    }
+  };
+
   // Manejador: Crear / Inicializar Nuevo Rack
   const handleRegisterRack = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,7 +588,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
   // =========================================================
   if (isNewRackRoute) {
     return (
-      <div className="min-h-screen p-4 sm:p-6 bg-background flex flex-col gap-5 pb-24">
+      <div className="extrusion-workspace min-h-screen p-4 sm:p-6 bg-background flex flex-col gap-5 pb-24">
         {/* Banner Superior */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-4 sm:px-6 sm:py-4">
           <div className="flex items-center justify-between gap-4">
@@ -652,7 +719,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
   // VISTA 2: Terminal de Control Operativo en Piso
   // =========================================================
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
+    <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
       {/* Header Banner Estandarizado */}
       <section className="bg-card rounded-xl border border-border shadow-sm p-4 sm:px-6 sm:py-3.5 w-full shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -837,6 +904,50 @@ export const ExtrusionTerminalPage: React.FC = () => {
                       </span>
                     </div>
                   </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-500/20 pt-3">
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Saldo de mezcla: </span>
+                      <strong className="font-mono text-foreground">
+                        {activeQueue.container_remaining_quantity_kg != null
+                          ? Number(activeQueue.container_remaining_quantity_kg).toFixed(3)
+                          : activeQueue.preparation?.remaining_quantity_kg != null
+                            ? Number(activeQueue.preparation.remaining_quantity_kg).toFixed(3)
+                            : 'Sin dato'} kg
+                      </strong>
+                      <span className="block text-[10px] text-muted-foreground">Al llegar a cero, el sistema termina esta mezcla y activa la siguiente automáticamente.</span>
+                    </div>
+                    {!isFinishingMix && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                        const balance = activeQueue.container_remaining_quantity_kg ?? activeQueue.preparation?.remaining_quantity_kg;
+                        setFinishMixWeight(balance == null ? '' : Number(balance).toFixed(3));
+                        setIsFinishingMix(true);
+                      }} className="border-amber-500/50 text-amber-600 hover:bg-amber-500/10">
+                        <Icon name="check_circle" size={15} />
+                        Finalizar mezcla
+                      </Button>
+                    )}
+                  </div>
+                  {isFinishingMix && (
+                    <form onSubmit={handleFinishMix} className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+                      <div className="text-xs text-foreground">
+                        Pesa el remanente de la tolva y regístralo como scrap de cierre. Esto conserva el balance y la trazabilidad; al agotarse el saldo la cola activa la siguiente mezcla sin escanear otro QR.
+                      </div>
+                      <label className="block space-y-1 text-xs font-bold">
+                        Peso real del remanente (kg) *
+                        <Input type="number" min="0.001" step="0.001" max={activeQueue.container_remaining_quantity_kg ?? activeQueue.preparation?.remaining_quantity_kg ?? undefined} value={finishMixWeight} onChange={(event) => setFinishMixWeight(event.target.value)} required />
+                      </label>
+                      <label className="block space-y-1 text-xs font-bold">
+                        Nota de cierre (opcional)
+                        <Input value={finishMixNotes} onChange={(event) => setFinishMixNotes(event.target.value)} placeholder="Motivo o referencia del cierre" />
+                      </label>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIsFinishingMix(false)} disabled={registerScrapMutation.isPending}>Cancelar</Button>
+                        <Button type="submit" size="sm" disabled={registerScrapMutation.isPending}>
+                          {registerScrapMutation.isPending ? 'Registrando…' : 'Confirmar cierre y avanzar cola'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleStartExtrusion} className="space-y-4">

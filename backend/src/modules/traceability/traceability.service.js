@@ -51,6 +51,7 @@ const toNumber = (value) => {
 
 const getUserRoleName = (user) => {
     return (
+        user?.role?.code ||
         user?.role?.name ||
         user?.role_name ||
         user?.role ||
@@ -73,7 +74,7 @@ const getUserAreaId = (user) => {
 const isPrivilegedUser = (user) => {
     const roleName = getUserRoleName(user);
 
-    return ['SUPERADMIN', 'ADMIN'].includes(roleName);
+    return ['SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(roleName);
 };
 
 const mapAction = (key, label, description, priority = 'secondary') => ({

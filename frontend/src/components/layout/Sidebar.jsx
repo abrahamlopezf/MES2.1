@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { useUsersQuery } from "../../modules/users/hooks/useUsers";
 import { Icon, renderAnyIcon } from "../../design-system";
-import { isSupervisorUser, getUserAreaCode } from "../../utils/authHelpers";
+import { isAdminUser, isSupervisorUser, getUserAreaCode, ADMIN_ROLES } from "../../utils/authHelpers";
 
 const menuGroups = [
   {
@@ -11,7 +11,7 @@ const menuGroups = [
     path: "/globo/wip",
     icon: "air",
     permission: "",
-    allowedRoles: ["ADMIN_GENERAL", "ADMIN_GRAL", "ADMIN", "SUPERADMIN", "SUPERVISOR_GLOBO"],
+    allowedRoles: ["ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO"],
     isGroup: false
   },
   {
@@ -19,7 +19,7 @@ const menuGroups = [
     path: "/laminado/wip",
     icon: "layers",
     permission: "",
-    allowedRoles: ["ADMIN_GENERAL", "ADMIN_GRAL", "ADMIN", "SUPERADMIN", "SUPERVISOR_LAMINADO"],
+    allowedRoles: ["ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO"],
     isGroup: false
   },
   {
@@ -27,7 +27,7 @@ const menuGroups = [
     path: "/dashboard",
     icon: "dashboard",
     permission: ["dashboard.read", "warehouse.dashboard.view"],
-    hiddenRoles: ["SUPERVISOR_GLOBO", "SUPERVISOR_LAMINADO"],
+    hiddenRoles: ["SUPERVISOR_GLOBO", "SUPERVISOR_LAMINADO", "OPERADOR_GLOBO", "OPERADOR_LAMINADO"],
     isGroup: false
   },
   {
@@ -64,7 +64,7 @@ const menuGroups = [
         onClick: () => window.dispatchEvent(new Event('open-scanner')), 
         icon: "move_to_inbox", 
         permission: "inventory.receive",
-        allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM"]
+        allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM", "ADMIN_ALMACEN"]
       },
       { label: "Inventario", path: "/warehouse/inventory", icon: "inventory", permission: "inventory.view" },
       // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: "layers", permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
@@ -76,7 +76,7 @@ const menuGroups = [
         path: "/warehouse/reports", 
         icon: "bar_chart", 
         permission: "", 
-        allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM"] 
+        allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM", "ADMIN_ALMACEN"]
       }
     ]
   },
@@ -84,7 +84,7 @@ const menuGroups = [
     label: "Extrusión",
     icon: "precision_manufacturing",
     permission: "extrusion.view",
-    allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"],
+    allowedRoles: ["ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION", "OPERADOR_EXTRUSION"],
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN"],
     isGroup: true,
     children: [
@@ -101,6 +101,7 @@ const menuGroups = [
     label: "Telares",
     icon: "factory",
     permission: "",
+    allowedRoles: ["ADMIN_TELARES", "ADMIN_TEL", "SUPERVISOR_TELARES", "OPERADOR_TELARES"],
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN", "ADMIN_EXT", "ADMIN_EXTRUSION", "ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO"],
     isGroup: true,
     children: [
@@ -115,11 +116,12 @@ const menuGroups = [
     label: "Laminado",
     icon: "layers",
     permission: "",
+    allowedRoles: ["ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO"],
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN", "ADMIN_EXT", "ADMIN_EXTRUSION"],
     isGroup: true,
     children: [
-      { label: "Catálogo de Laminado", path: "/laminado/catalogos", icon: "menu_book", permission: "", allowedRoles: ["ADMIN_GENERAL", "ADMIN_GRAL", "ADMIN", "SUPERADMIN", "ADMIN_LAMINADO"] },
-      { label: "Estación de Laminado", path: "/production/laminado", icon: "layers", permission: "", allowedRoles: ["ADMIN_GENERAL", "ADMIN_GRAL", "ADMIN", "SUPERADMIN", "ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO"] },
+      { label: "Catálogo de Laminado", path: "/laminado/catalogos", icon: "menu_book", permission: "", allowedRoles: ["ADMIN_LAMINADO"] },
+      { label: "Estación de Laminado", path: "/production/laminado", icon: "layers", permission: "", allowedRoles: ["ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO"] },
       { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=4&area_name=Laminado", icon: "assignment", permission: "" }
     ]
   },
@@ -127,11 +129,12 @@ const menuGroups = [
     label: "Globo",
     icon: "air",
     permission: "",
+    allowedRoles: ["ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO"],
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN", "ADMIN_EXT", "ADMIN_EXTRUSION", "ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO"],
     isGroup: true,
     children: [
-      { label: "Catálogo de Globo", path: "/globo/catalogos", icon: "menu_book", permission: "", allowedRoles: ["ADMIN_GENERAL", "ADMIN_GRAL", "ADMIN", "SUPERADMIN", "ADMIN_GLOBO"] },
-      { label: "Estación de Globo", path: "/production/globo", icon: "air", permission: "", allowedRoles: ["ADMIN_GENERAL", "ADMIN_GRAL", "ADMIN", "SUPERADMIN", "ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO"] },
+      { label: "Catálogo de Globo", path: "/globo/catalogos", icon: "menu_book", permission: "", allowedRoles: ["ADMIN_GLOBO"] },
+      { label: "Estación de Globo", path: "/production/globo", icon: "air", permission: "", allowedRoles: ["ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO"] },
       { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=5&area_name=Globo", icon: "assignment", permission: "" }
     ]
   },
@@ -140,6 +143,7 @@ const menuGroups = [
     path: "/production/viajero-tracker",
     icon: "qr_code_scanner",
     permission: "",
+    allowedRoles: ["ADMIN_TELARES", "ADMIN_TEL", "SUPERVISOR_TELARES", "OPERADOR_TELARES"],
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN", "ADMIN_EXT", "ADMIN_EXTRUSION"],
     isGroup: false
   }
@@ -151,15 +155,23 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
   const [isOpen, setIsOpen] = useState(
     item.children?.some(child => location.pathname.includes(child.path)) || false
   );
+  const hasActiveChild = item.children?.some(child =>
+    location.pathname === child.path || location.pathname.startsWith(`${child.path}/`)
+  );
+
+  useEffect(() => {
+    if (hasActiveChild) setIsOpen(true);
+  }, [hasActiveChild, location.pathname]);
 
   let hasAccess = Array.isArray(item.permission)
     ? hasAnyPermission(item.permission)
     : hasPermission(item.permission);
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
   const isHiddenForRole = item.hiddenRoles?.some(r => r.toUpperCase() === userRole);
-  const isAllowedRole = !item.allowedRoles || item.allowedRoles.some(r => r.toUpperCase() === userRole);
-  if (!hasAccess || isHiddenForRole || !isAllowedRole) return null;
+  const isAllowedRole = isGlobalAdmin || !item.allowedRoles || item.allowedRoles.some(r => r.toUpperCase() === userRole);
+  if ((!hasAccess && !isGlobalAdmin) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
 
   if (!item.isGroup) {
     return (
@@ -171,20 +183,20 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
             onMobileClick();
           }
         }}
-        className={({ isActive }) =>
-          `flex items-center ${isCollapsed ? 'justify-center w-12 h-12 p-0 mx-auto' : 'justify-between px-4 py-3'} rounded-lg transition-colors border-l-4 ${
+          className={({ isActive }) =>
+          `relative flex min-h-11 items-center ${isCollapsed ? 'justify-center w-12 h-12 p-0 mx-auto' : 'justify-between px-3.5 py-2.5'} rounded-xl transition-colors border-l-2 ${
             isActive
-              ? "bg-primary/10 text-primary border-primary font-bold"
-              : "text-foreground hover:bg-secondary/50 border-transparent hover:border-border/50"
+              ? "bg-primary/10 text-primary border-primary font-semibold"
+              : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground border-transparent"
           }`
         }
       >
-        <div className={`flex items-center min-w-0 ${isCollapsed ? 'justify-center w-full' : 'gap-4'}`}>
+        <div className={`flex items-center min-w-0 ${isCollapsed ? 'justify-center w-full' : 'gap-3.5'}`}>
           {renderAnyIcon(item.icon, {
-            size: 24,
+            size: 21,
             className: `shrink-0 ${location.pathname === item.path ? "text-primary" : "text-muted-foreground"}`
           })}
-          {!isCollapsed && <span className="min-w-0 whitespace-normal break-words leading-snug">{item.label}</span>}
+          {!isCollapsed && <span className="min-w-0 whitespace-normal break-words text-sm leading-snug">{item.label}</span>}
         </div>
         {!isCollapsed && item.path === '/users' && pendingUsersCount > 0 && (
           <span className="bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full">
@@ -199,7 +211,7 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
     );
   }
 
-  const isActiveGroup = item.children?.some(child => location.pathname === child.path);
+  const isActiveGroup = hasActiveChild;
   const groupId = `nav-group-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
   const handleGroupClick = () => {
@@ -219,18 +231,18 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
         aria-expanded={isOpen}
         aria-controls={groupId}
         title={isCollapsed ? item.label : undefined}
-        className={`flex items-center text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isCollapsed ? 'justify-center w-12 h-12 p-0 mx-auto' : 'justify-between px-4 py-3'} rounded-lg transition-colors border-l-4 ${
+        className={`flex min-h-11 items-center text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isCollapsed ? 'lg:justify-center lg:w-12 lg:h-12 lg:min-h-0 lg:p-0 lg:mx-auto' : 'justify-between px-3.5 py-2.5'} rounded-xl transition-colors border-l-2 ${
           isActiveGroup
-            ? "bg-secondary text-primary border-primary/50 font-bold"
-            : "text-foreground hover:bg-secondary/50 border-transparent hover:border-border/50"
+            ? "bg-primary/10 text-primary border-primary font-semibold"
+            : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground border-transparent"
         }`}
       >
-        <div className={`flex items-center min-w-0 ${isCollapsed ? 'justify-center w-full' : 'gap-4'}`}>
+        <div className={`flex items-center min-w-0 ${isCollapsed ? 'lg:justify-center lg:w-full' : 'gap-3.5'}`}>
           {renderAnyIcon(item.icon, {
-            size: 24,
+            size: 21,
             className: `shrink-0 ${isActiveGroup ? "text-primary" : "text-muted-foreground"}`
           })}
-          {!isCollapsed && <span className="min-w-0 whitespace-normal break-words leading-snug">{item.label}</span>}
+          <span className={`min-w-0 whitespace-normal break-words leading-snug ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
         </div>
         {!isCollapsed && (
           <Icon name={isOpen ? "expand_more" : "chevron_right"} size={20} className="shrink-0 text-muted-foreground" />
@@ -238,20 +250,21 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
       </button>
 
       {isOpen && !isCollapsed && (
-        <div id={groupId} className="flex flex-col ml-8 gap-1 mt-1 border-l border-border pl-2">
+        <div id={groupId} className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-3 lg:ml-5">
           {item.children?.map(child => {
             const hasChildAccess = Array.isArray(child.permission)
               ? hasAnyPermission(child.permission)
               : hasPermission(child.permission);
+            const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
             const isHiddenForRole = child.hiddenRoles?.some(r => r.toUpperCase() === userRole);
-            const isAllowedRole = !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
-            if (!hasChildAccess || isHiddenForRole || !isAllowedRole) return null;
+            const isAllowedRole = isGlobalAdmin || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
+            if ((!hasChildAccess && !isGlobalAdmin) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
             if (child.onClick) {
               return (
                 <button
                   key={child.label}
                   onClick={child.onClick}
-                  className="flex min-h-12 items-center gap-3 px-3 py-3 rounded-md transition-colors text-base text-muted-foreground hover:bg-secondary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 w-full text-left"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {renderAnyIcon(child.icon, { size: 20, className: "shrink-0" })}
                   <span>{child.label}</span>
@@ -268,11 +281,11 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
                     onMobileClick();
                   }
                 }}
-                className={({ isActive }) =>
-                  `flex min-h-12 items-center gap-3 px-3 py-3 rounded-md transition-colors text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={({ isActive }) =>
+                  `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     isActive
-                      ? "bg-primary/10 text-primary font-bold"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
                   }`
                 }
               >
@@ -296,27 +309,44 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(
     localStorage.getItem('sidebarCollapsed') === 'true'
   );
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  const isCompact = isCollapsed && isDesktop;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const updateViewport = (event) => setIsDesktop(event.matches);
+    setIsDesktop(mediaQuery.matches);
+    mediaQuery.addEventListener('change', updateViewport);
+    return () => mediaQuery.removeEventListener('change', updateViewport);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', isCollapsed.toString());
   }, [isCollapsed]);
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isExecutive = isAdminUser(user);
   const isSupervisor = isSupervisorUser(user);
   const userArea = getUserAreaCode(user);
 
-  const isWarehouseUser = !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRole) || 
+  const isWarehouseUser = !isExecutive && !isSupervisor && (['ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN'].includes(userRole) ||
                           user?.area?.code === 'ALMACEN' || 
                           user?.area?.code === 'ALM');
 
-  const isExtrusionAdmin = !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRole) || 
+  const isExtrusionAdmin = !isExecutive && !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRole) ||
                            (userArea === 'EXTRUSION' && (userRole.startsWith('ADMIN') || userRole.includes('ADMIN'))));
 
-  const isTelaresAdmin = !isSupervisor && (['ADMIN_TELARES', 'ADMIN_TEL'].includes(userRole) || 
+  const isTelaresAdmin = !isExecutive && !isSupervisor && (['ADMIN_TELARES', 'ADMIN_TEL'].includes(userRole) ||
                          (userArea === 'TELARES' && (userRole.startsWith('ADMIN') || userRole.includes('ADMIN'))));
 
   const visibleMenuGroups = menuGroups
     .filter(group => {
+      // El dashboard principal de SUPERADMIN y ADMIN_GRAL es ejecutivo; no mostrarles
+      // accesos directos duplicados a los dashboards operativos de Globo y Laminado.
+      if (isExecutive && ['Dashboard operativo de Globo', 'Dashboard operativo de Laminado'].includes(group.label)) {
+        return false;
+      }
+
       // 1. REGLA ESTRICTA SUPERVISORES:
       // - NUNCA tiene acceso a Gestión de Usuarios
       // - Solo tiene acceso a su propia área (las demás áreas/procesos ocultos)
@@ -399,28 +429,28 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
     <aside
       className={`
         fixed lg:relative top-0 left-0 bottom-0 z-40
-        ${isCollapsed ? 'w-[80px]' : 'w-[280px]'} h-full flex-shrink-0 flex flex-col justify-between overflow-hidden
+        w-[280px] ${isCompact ? 'lg:w-[80px]' : 'lg:w-[280px]'} h-full flex-shrink-0 flex flex-col justify-between overflow-hidden
         bg-card border-r border-border
-        transition-all duration-300 ease-in-out shadow-md lg:shadow-none group
+        transition-[width,transform] duration-200 ease-out shadow-md lg:shadow-none group
         ${mobileIsOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
     >
       <div className="flex flex-col h-full w-full relative">
         {/* Logo Section */}
-        <div className={`h-20 flex items-center shrink-0 border-b border-border ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
+        <div className={`h-[72px] flex items-center shrink-0 border-b border-border ${isCompact ? 'justify-center px-0' : 'justify-between px-4'}`}>
           
           <div 
-            className={`flex items-center min-w-0 ${isCollapsed ? 'cursor-pointer w-10 h-10 group/logo' : ''}`}
-            onClick={() => isCollapsed && setIsCollapsed(false)}
-            title={isCollapsed ? "Expandir menú" : undefined}
+            className={`flex items-center min-w-0 ${isCompact ? 'cursor-pointer w-10 h-10 group/logo' : ''}`}
+            onClick={() => isCompact && setIsCollapsed(false)}
+            title={isCompact ? "Expandir menú" : undefined}
           >
-            <div className={`w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-300 ${!isCollapsed ? 'hover:rotate-6' : ''} relative overflow-hidden`}>
-              <span className={`text-primary-foreground font-bold text-xl leading-none transition-opacity duration-300 ${isCollapsed ? 'group-hover/logo:opacity-0' : ''}`}>TF</span>
-              {isCollapsed && (
+            <div className={`w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 shadow-sm ${isCompact ? '' : 'hover:rotate-3'} relative overflow-hidden`}>
+              <span className={`text-primary-foreground font-bold text-xl leading-none ${isCompact ? 'group-hover/logo:opacity-0' : ''}`}>TF</span>
+              {isCompact && (
                 <Icon name="dock_to_left" size={22} className="absolute inset-0 m-auto text-primary-foreground opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300" />
               )}
             </div>
-            {!isCollapsed && (
+            {!isCompact && (
               <div className="ml-3 flex flex-col whitespace-nowrap animate-in fade-in duration-300 overflow-hidden">
                 <span className="font-bold text-lg text-foreground tracking-tight truncate">TraceFlow</span>
                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">Industrial Core</span>
@@ -428,25 +458,35 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
             )}
           </div>
 
-          {!isCollapsed && (
+          {!isCompact && (
             <button
               onClick={() => setIsCollapsed(true)}
-              className="hidden lg:flex p-1.5 ml-2 flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-secondary/80 rounded-md transition-colors"
+              className="hidden lg:flex p-2 ml-2 flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               title="Ocultar menú"
+              aria-label="Contraer menú"
             >
               <Icon name="dock_to_left" size={22} />
             </button>
           )}
+          <button
+            onClick={() => setMobileIsOpen(false)}
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+            aria-label="Cerrar menú de navegación"
+            title="Cerrar menú"
+          >
+            <Icon name="close" size={20} />
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 py-6 ${isCollapsed ? 'px-2' : 'px-4'} flex flex-col gap-2 overflow-y-auto custom-scrollbar`}>
+        <nav className={`flex-1 overflow-y-auto custom-scrollbar py-4 ${isCompact ? 'px-2' : 'px-3'} flex flex-col gap-1.5`} aria-label="Navegación principal">
+          {!isCompact && <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">Navegación</p>}
           {visibleMenuGroups.map((group, index) => (
             <SidebarItem 
               key={index} 
               item={group} 
               pendingUsersCount={pendingUsersCount} 
-              isCollapsed={isCollapsed}
+              isCollapsed={isCompact}
               onExpand={() => setIsCollapsed(false)}
               onMobileClick={() => setMobileIsOpen(false)}
             />
@@ -454,14 +494,15 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
         </nav>
 
         {/* Logout Bottom */}
-        <div className="p-4 shrink-0 border-t border-border">
+        <div className="shrink-0 border-t border-border p-3">
           <button
             onClick={logout}
-            title={isCollapsed ? "Cerrar Sesión" : undefined}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-3' : 'gap-4 px-4 py-3'} rounded-lg text-danger hover:bg-danger/10 transition-colors font-bold`}
+            title={isCompact ? "Cerrar Sesión" : undefined}
+            aria-label="Cerrar sesión"
+            className={`w-full flex min-h-11 items-center ${isCompact ? 'justify-center p-3' : 'gap-3.5 px-3.5 py-2.5'} rounded-xl text-danger hover:bg-danger/10 transition-colors font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
           >
             <Icon name="logout" size={24} className="shrink-0" />
-            {!isCollapsed && <span className="whitespace-nowrap">Cerrar Sesión</span>}
+            {!isCompact && <span className="whitespace-nowrap text-sm">Cerrar sesión</span>}
           </button>
         </div>
       </div>

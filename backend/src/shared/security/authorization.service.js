@@ -1,4 +1,5 @@
 const { Role } = require('../../database/models');
+const { isAdmin } = require('./accessRules');
 
 /**
  * Servicio de Autorización Centralizado
@@ -26,7 +27,7 @@ class AuthorizationService {
     }
 
     // 2. Verificación de Ámbito (Scope)
-    const isActorGlobal = actorRole.area_id === null && actorRole.subarea_id === null;
+    const isActorGlobal = isAdmin({ role: actorRole }) || (actorRole.area_id === null && actorRole.subarea_id === null);
     if (isActorGlobal) {
       return true; // Usuario global (ej. SUPERADMIN) tiene acceso a todas las áreas
     }

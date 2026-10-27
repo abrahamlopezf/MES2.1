@@ -8,7 +8,7 @@ import {
 import { 
   AlertCircle, PackageCheck, DollarSign, Activity, 
   TrendingUp, Settings2, Boxes, ArrowRight, ShieldCheck, 
-  Layers, Package, AlertTriangle, Menu
+  Layers, Package, AlertTriangle, Menu, Factory, Wind
 } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -72,7 +72,7 @@ const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState('EXECUTIVE'); // 'EXECUTIVE' | 'WAREHOUSE'
 
   const roleCode = String(typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
-  const isExecutive = ['ADMIN_GRAL', 'ADMIN_GENERAL', 'SUPERADMIN', 'ADMIN'].includes(roleCode);
+  const isExecutive = ['ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'SUPERADMIN'].includes(roleCode);
 
   const axisColor = isDark ? '#e4e4e7' : '#18181b';
   const gridColor = isDark ? '#27272a' : '#e4e4e7';
@@ -104,6 +104,16 @@ const DashboardPage = () => {
       } catch (e) {
         return {};
       }
+    },
+    enabled: isExecutive,
+    refetchInterval: 30000,
+  });
+
+  const { data: areaOverview, isLoading: isLoadingAreaOverview } = useQuery({
+    queryKey: ['dashboard', 'area-overview'],
+    queryFn: async () => {
+      const response = await apiClient.get('/dashboard/area-overview');
+      return response.data?.data || response.data || {};
     },
     enabled: isExecutive,
     refetchInterval: 30000,
@@ -153,7 +163,7 @@ const DashboardPage = () => {
     );
   }
 
-  if (isLoadingFin || isLoadingOp) {
+  if (isLoadingFin || isLoadingOp || isLoadingAreaOverview) {
     return (
       <div className="h-full flex items-center justify-center p-12">
         <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Visión Ejecutiva...</p>
@@ -190,6 +200,41 @@ const DashboardPage = () => {
     { name: 'Capital Invertido Restante', value: remainingInvested, fill: '#10b981' },
   ].filter(d => d.value > 0);
   const hasDistributionData = distributionData.length > 0;
+  const areaCards = [
+    {
+      key: 'extrusion', title: 'Extrusión', icon: Settings2, tone: 'text-indigo-500 bg-indigo-500/10',
+      metrics: (area) => [
+        ['Material en WIP', `${Number(area.wip_kg || 0).toLocaleString('es-MX')} kg`],
+        ['Mezclas disponibles', `${area.active_mixtures || 0} · ${Number(area.mixtures_kg || 0).toLocaleString('es-MX')} kg`],
+      ],
+    },
+    {
+      key: 'telares', title: 'Telares', icon: Factory, tone: 'text-blue-500 bg-blue-500/10',
+      metrics: (area) => [
+        ['WIP en telares', `${Number(area.total_wip_kg || 0).toLocaleString('es-MX')} kg`],
+        ['Telares activos', `${area.total_looms_active || 0} / ${area.total_looms_count || 0}`],
+        ['Ocupación de filetas', `${area.avg_creel_utilization_pct || 0}%`],
+      ],
+    },
+    {
+      key: 'globo', title: 'Globo', icon: Wind, tone: 'text-orange-500 bg-orange-500/10',
+      metrics: (area) => [
+        ['Rollos en proceso', `${area.rolls_in_floor || 0}`],
+        ['Rollos por recibir', `${area.rolls_incoming || 0}`],
+        ['Tela en piso', `${Number(area.fabric_kg || 0).toLocaleString('es-MX')} kg · ${Number(area.meters_in_floor || 0).toLocaleString('es-MX')} m`],
+        ['Materiales en WIP', `${Number(area.materials_kg || 0).toLocaleString('es-MX')} kg`],
+      ],
+    },
+    {
+      key: 'laminado', title: 'Laminado', icon: Layers, tone: 'text-amber-500 bg-amber-500/10',
+      metrics: (area) => [
+        ['Rollos en proceso', `${area.rolls_in_floor || 0}`],
+        ['Rollos por recibir', `${area.rolls_incoming || 0}`],
+        ['Tela en piso', `${Number(area.fabric_kg || 0).toLocaleString('es-MX')} kg · ${Number(area.meters_in_floor || 0).toLocaleString('es-MX')} m`],
+        ['Materiales en WIP', `${Number(area.materials_kg || 0).toLocaleString('es-MX')} kg`],
+      ],
+    },
+  ];
 
   // Nombre y rol del usuario
   const roleLabel = ['ADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL'].includes(roleCode) 
@@ -216,7 +261,7 @@ const DashboardPage = () => {
           >
             <Menu size={20} />
           </button>
-          <div>
+          <div className="min-w-0 flex-1 pr-12 sm:pr-0">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
               Visión Global <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Estado del Sistema</span>
             </h1>
@@ -401,7 +446,7 @@ const DashboardPage = () => {
         <span className="text-xs text-muted-foreground font-medium">Actualizado en tiempo real</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         
         {/* ÁREA: ALMACÉN E INVENTARIOS (TOTALMENTE INTEGRADO CON DATOS REALES) */}
         <Card className="flex flex-col shadow-sm border-l-4 border-blue-500 overflow-hidden hover:shadow-md transition-shadow">
@@ -475,50 +520,45 @@ const DashboardPage = () => {
           </div>
         </Card>
 
-        {/* ÁREA: EXTRUSIÓN */}
-        <Card className="flex flex-col shadow-sm border-l-4 border-indigo-500 overflow-hidden hover:shadow-md transition-shadow">
-          <div className="p-4 border-b border-border bg-secondary/20 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">
-                <Settings2 className="size-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-black text-foreground tracking-tight uppercase">Piso de Extrusión</h2>
-                <p className="text-[10px] font-semibold text-muted-foreground">Métricas de operación y colas</p>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-xs font-bold border-indigo-500/30 text-indigo-500">
-              Operativo
-            </Badge>
-          </div>
-
-          <div className="p-5 flex flex-col gap-4 bg-card justify-between h-full">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-border/50">
-              <div>
-                <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Costo Operativo Estimado</p>
-                <p className="text-2xl font-black text-foreground">{formatCurrency(kpisFin.totalOperatingCost || 4350125)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Base acumulada de operación</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-foreground opacity-70 uppercase tracking-widest mb-1">Eficiencia Promedio (OEE)</p>
-                <p className="text-2xl font-black text-indigo-500">84.5%</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Líneas en operación óptima</p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-secondary/30 rounded-xl border border-border/50 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-foreground">Estado de Colas de Extrusión</p>
-                <p className="text-[10px] text-muted-foreground">Monitoreo y trazabilidad continua</p>
-              </div>
-              <Badge variant="secondary" className="font-bold text-xs">
-                Activo
-              </Badge>
-            </div>
-          </div>
-        </Card>
-
       </div>
+
+      <section aria-labelledby="area-overview-title" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h3 id="area-overview-title" className="text-base font-black text-foreground">Resumen operativo por área</h3>
+            <p className="text-xs text-muted-foreground">WIP, rollos y capacidad reportados por cada área · actualización cada 30 s</p>
+          </div>
+          {areaOverview?.refreshed_at && (
+            <span className="text-xs text-muted-foreground">Actualizado {new Date(areaOverview.refreshed_at).toLocaleTimeString('es-MX')}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
+          {areaCards.map(({ key, title, icon: AreaIcon, tone, metrics }) => {
+            const area = areaOverview?.[key];
+            return (
+              <Card key={key} className="p-4 border border-border/70 shadow-sm min-w-0">
+                <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+                  <span className={`flex size-9 items-center justify-center rounded-lg ${tone}`}><AreaIcon size={18} /></span>
+                  <h4 className="text-sm font-extrabold text-foreground">{title}</h4>
+                  <span className={`ml-auto size-2 rounded-full ${area?.available ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} aria-label={area?.available ? 'Datos disponibles' : 'Datos no disponibles'} />
+                </div>
+                {area?.available ? (
+                  <dl className="pt-2 divide-y divide-border/50">
+                    {metrics(area).map(([label, value]) => (
+                      <div key={label} className="flex items-start justify-between gap-3 py-2">
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
+                        <dd className="text-right text-xs font-bold tabular-nums text-foreground">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="pt-4 text-xs text-muted-foreground">Resumen del área no disponible en este momento.</p>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 };

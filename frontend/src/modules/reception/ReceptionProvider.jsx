@@ -18,7 +18,7 @@ export const ReceptionProvider = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
-  const isAdminAlm = ['ADMIN_ALM', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode);
+  const isAdminAlm = ['ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode);
 
   // 1. Instanciar la Máquina de Estados (aislada de React)
   const workflow = useMemo(() => createWorkflow(ReceptionFSM), []);

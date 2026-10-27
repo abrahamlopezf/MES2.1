@@ -11,15 +11,21 @@ const authorizePermission = permissionMiddleware.authorizePermission || permissi
 
 // Control de acceso: Superadmin, Admin General o roles operativos de extrusión
 const requireExtrusionAccess = (req, res, next) => {
-  const roleCode = req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '');
+  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
   const areaId = req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id;
-  const allowedRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'SUPERVISOR_EXTRUSION', 'SUPERVISOR'];
-  if (allowedRoles.includes(roleCode) || areaId === 2) {
-    return next();
-  }
+  const executiveRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'];
+  const allowedRoles = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'];
+  const otherAreaRoles = [
+    'ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN', 'ADMIN_TELARES', 'ADMIN_TEL',
+    'SUPERVISOR_TELARES', 'OPERADOR_TELARES', 'ADMIN_GLOBO', 'SUPERVISOR_GLOBO',
+    'OPERADOR_GLOBO', 'ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO',
+  ];
+  if (executiveRoles.includes(roleCode)) return next();
+  if (!otherAreaRoles.includes(roleCode)
+    && (allowedRoles.includes(roleCode) || Number(areaId) === 2)) return next();
   return res.status(403).json({
     success: false,
-    message: 'Acceso restringido: El módulo de extrusión requiere permisos de SUPERADMIN, ADMIN_GRAL o SUPERVISOR_EXTRUSION.'
+    message: 'Acceso restringido al personal autorizado de Extrusión.'
   });
 };
 

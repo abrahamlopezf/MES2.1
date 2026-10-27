@@ -27,19 +27,19 @@ const generateBatchSchema = z.object({
 
 type GenerateBatchFormValues = z.infer<typeof generateBatchSchema>;
 
-import { isSupervisorUser } from '../../../../utils/authHelpers';
+import { isAdminUser, isSupervisorUser } from '../../../../utils/authHelpers';
 
 export function GenerateBatchPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const userRoleCode = (user?.role?.code || '').toUpperCase();
-  const isAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(userRoleCode);
+  const isAdmin = isAdminUser(user);
   const isSupervisor = isSupervisorUser(user);
   
-  const isWarehouseUser = !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
+  const isWarehouseUser = !isAdmin && !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
                           user?.area?.code === 'ALMACEN' || 
                           user?.area?.code === 'ALM');
-  const isExtrusionAdmin = !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRoleCode) || 
+  const isExtrusionAdmin = !isAdmin && !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRoleCode) || 
                            user?.area?.code === 'EXTRUSION');
   
   const mutation = useGenerateBatchMutation();

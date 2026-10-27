@@ -212,7 +212,7 @@ export const FormulasPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6 pb-32 lg:pr-24">
+    <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6 pb-32 lg:pr-24">
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-border pb-5">
         <div className="flex-1 min-w-0 max-w-2xl">

@@ -47,23 +47,12 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
 
-  if (!isOpen || !formula) return null;
-
-  const costIndex = Number(formula.cost_index) || 1.1500;
-  const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
-  const transformedVal = formula.transformed_mixture_value == null ? null : Number(formula.transformed_mixture_value);
-  const suggestedPrice = formula.suggested_pti_unit_price == null ? null : Number(formula.suggested_pti_unit_price);
-  const expectedYieldPieces = Number(formula.expected_yield_pieces) || 0;
-  const expectedYieldKg = Number(formula.expected_yield_kg) || 0;
-  const batchSizeKg = Number(formula.batch_size_kg) || 500;
-  const costPerKg = transformedVal == null ? null : (batchSizeKg > 0 ? (transformedVal / batchSizeKg).toFixed(2) : null);
-
   // Edición inline de ingredientes
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [draftIngredients, setDraftIngredients] = useState<DraftIngredient[]>([]);
 
   // Queries y Mutaciones
-  const { data: materialsData, isLoading: isLoadingMaterials } = useMaterialsQuery({ pageSize: 250 });
+  const { data: materialsData, isLoading: isLoadingMaterials } = useMaterialsQuery({ pageSize: 250 }, { enabled: isOpen });
   const rawMaterials = materialsData?.items || [];
   const updateMutation = useUpdateFormulaMutation();
 
@@ -77,7 +66,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
         code: m.internal_code || m.code
       });
     });
-    (formula.ingredients || []).forEach((ing: any) => {
+    (formula?.ingredients || []).forEach((ing: any) => {
       if (ing.material && !map.has(ing.material.id)) {
         map.set(ing.material.id, {
           id: ing.material.id,
@@ -87,7 +76,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
       }
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rawMaterials, formula.ingredients]);
+  }, [rawMaterials, formula?.ingredients]);
 
   // Inicializar borrador al cambiar la fórmula o abrir el modal
   useEffect(() => {
@@ -107,6 +96,19 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
     }
     setIsEditingIngredients(false);
   }, [formula?.id, isOpen]);
+
+  // Todos los Hooks se ejecutan antes de este retorno. El modal permanece montado
+  // en la página y su estado abierto/cerrado cambia sin alterar el orden de Hooks.
+  if (!isOpen || !formula) return null;
+
+  const costIndex = Number(formula.cost_index) || 1.1500;
+  const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
+  const transformedVal = formula.transformed_mixture_value == null ? null : Number(formula.transformed_mixture_value);
+  const suggestedPrice = formula.suggested_pti_unit_price == null ? null : Number(formula.suggested_pti_unit_price);
+  const expectedYieldPieces = Number(formula.expected_yield_pieces) || 0;
+  const expectedYieldKg = Number(formula.expected_yield_kg) || 0;
+  const batchSizeKg = Number(formula.batch_size_kg) || 500;
+  const costPerKg = transformedVal == null ? null : (batchSizeKg > 0 ? (transformedVal / batchSizeKg).toFixed(2) : null);
 
   // Handlers para edición de filas
   const handleMaterialChange = (index: number, newMaterialId: number) => {

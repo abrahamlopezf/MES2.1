@@ -148,7 +148,7 @@ const validateUniqueUserFields = async ({
 };
 
 const buildScopeWhereClause = (actorRole) => {
-  const isGlobal = actorRole.area_id === null && actorRole.subarea_id === null;
+  const isGlobal = isAdmin({ role: actorRole }) || (actorRole.area_id === null && actorRole.subarea_id === null);
   if (isGlobal) {
     return {}; // No filter, can see everyone
   }
@@ -255,7 +255,7 @@ const createUser = async (payload, currentUser) => {
       { transaction }
     );
 
-    const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
+    const isGlobalAdmin = isAdmin(currentUser) || (currentUser.role.area_id === null && currentUser.role.subarea_id === null);
     if (!isGlobalAdmin || isSupervisor) {
       const globalAdmins = await User.findAll({
         include: [{
@@ -326,7 +326,7 @@ const updateUser = async (userId, payload, currentUser) => {
       });
     }
 
-    const isGlobalAdmin = currentUser.role.area_id === null && currentUser.role.subarea_id === null;
+    const isGlobalAdmin = isAdmin(currentUser) || (currentUser.role.area_id === null && currentUser.role.subarea_id === null);
 
     const updateData = {
       first_name: payload.first_name ?? user.first_name,

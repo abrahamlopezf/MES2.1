@@ -45,7 +45,6 @@ import {
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { ExtrusionShiftClosurePanel } from './ExtrusionShiftClosurePanel';
 import { ProductionReconciliationPanel } from './ProductionReconciliationPanel';
-import { PtiCatalogPanel } from './PtiCatalogPanel';
 
 export interface PtiIngressPresenterProps {
   racks: PtiRack[];
@@ -163,8 +162,14 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   onUpdateRackPrice,
   isUpdatingRackPrice,
 }) => {
+  const selectedQueue = activeQueues.find((queue) => queue.consumption_order_qr_id === mixtureQr);
+  const [showActiveQueues, setShowActiveQueues] = React.useState(!selectedQueue);
+  React.useEffect(() => {
+    if (selectedQueue) setShowActiveQueues(false);
+  }, [selectedQueue?.consumption_order_qr_id]);
+
   // Pestaña Activa: INGRESS (Operador), RACKS (Mapa de piso), BALANCE (Auditoría/Finanzas)
-  const [activeTab, setActiveTab] = React.useState<'INGRESS' | 'RACKS' | 'CATALOG' | 'BALANCE'>('INGRESS');
+  const [activeTab, setActiveTab] = React.useState<'INGRESS' | 'RACKS' | 'BALANCE'>('INGRESS');
   const selectedPtiProduct = ptiProducts.find((product) => product.id === Number(selectedPtiMaterialId));
   const knownPtiUnitWeight = Number(selectedRack?.unit_weight_kg || selectedPtiProduct?.unit_weight_kg || 0);
 
@@ -269,7 +274,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   }, [racks, rackFilter, rackSearch]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6 pb-32">
+    <div className="extrusion-workspace p-4 sm:p-6 lg:p-8 max-w-[1500px] mx-auto space-y-6 pb-32">
       {/* ========================================================= */}
       {/* CABECERA PRINCIPAL: ESTACIÓN DE EMPAQUE INTERMEDIO */}
       {/* ========================================================= */}
@@ -326,7 +331,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {/* SELECTOR DE PESTAÑAS INDUSTRIALES (GRANDES Y TÁCTILES) */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
         {/* Tab 1: Terminal de Ingreso */}
         <button
           type="button"
@@ -373,20 +378,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           </div>
         </button>
 
-        {/* Catálogo de perfiles técnicos de PTI */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('CATALOG')}
-          className={`flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all cursor-pointer ${
-            activeTab === 'CATALOG'
-              ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-          }`}
-        >
-          <Layers className="h-5 w-5 shrink-0" />
-          <div className="text-left"><span className="block leading-tight">Catálogo PTI</span><span className="text-[10px] font-semibold opacity-85 normal-case block">Perfiles de cinta y costeo</span></div>
-        </button>
-
         {/* Tab 3: Balance y Finanzas */}
         <button
           type="button"
@@ -411,7 +402,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* VISTA 1: REGISTRO RÁPIDO DE INGRESO (ENFOCADO EN EL OPERADOR) */}
       {/* ========================================================= */}
       {activeTab === 'INGRESS' && (
-        <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-150">
+        <div className="w-full max-w-[1400px] mx-auto space-y-5 animate-in fade-in duration-150">
           {/* Mensaje de Éxito de Backflushing si se acaba de registrar */}
           {lastBackflushingResult && (
             <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 dark:text-emerald-200">
@@ -441,11 +432,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           )}
 
           {/* Formulario Estructurado en 3 Pasos Grandes */}
-          <div className="bg-card border border-border rounded-2xl p-5 sm:p-7 space-y-6 shadow-sm">
+          <div className="extrusion-ingress-flow bg-card border border-border rounded-2xl p-5 sm:p-7 space-y-6 shadow-sm">
             {/* ---------------------------------------------------- */}
             {/* PASO 1: SELECCIONA LA MEZCLA ACTIVA */}
             {/* ---------------------------------------------------- */}
-            <div className="space-y-3 pb-6 border-b border-border">
+            <div className="extrusion-ingress-step space-y-3 pb-6 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">
                   1
@@ -460,16 +451,43 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </div>
               </div>
 
-              {/* Botones Grandes de Extrusoras Activas en Planta */}
+              {/* Selector plegable de mezclas activas en planta */}
               {activeQueues.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <section className="rounded-xl border border-border bg-background/50 overflow-hidden">
+                  <button
+                    type="button"
+                    aria-expanded={showActiveQueues}
+                    aria-controls="active-extrusion-queues"
+                    onClick={() => setShowActiveQueues((isOpen) => !isOpen)}
+                    className="w-full min-h-14 px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-foreground">
+                        {selectedQueue ? `Mezcla seleccionada · Extrusora ${selectedQueue.extruder_id}` : 'Seleccionar mezcla activa'}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground mt-0.5">
+                        {selectedQueue
+                          ? `${selectedQueue.consumption_order_qr_id} · ${selectedQueue.formula?.name || selectedQueue.formula?.code || 'Fórmula'}`
+                          : `${activeQueues.length} ${activeQueues.length === 1 ? 'mezcla disponible' : 'mezclas disponibles'}`}
+                      </span>
+                    </span>
+                    <span className="shrink-0 flex items-center gap-2 text-xs font-bold text-primary">
+                      {showActiveQueues ? 'Ocultar opciones' : 'Cambiar mezcla'}
+                      {showActiveQueues ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </span>
+                  </button>
+
+                  <div id="active-extrusion-queues" hidden={!showActiveQueues} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 pt-1">
                   {activeQueues.map((q) => {
                     const isSelected = mixtureQr === q.consumption_order_qr_id;
                     return (
                       <button
                         key={q.id}
                         type="button"
-                        onClick={() => onSelectQueueFromList(q)}
+                        onClick={() => {
+                          onSelectQueueFromList(q);
+                          setShowActiveQueues(false);
+                        }}
                         className={`p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                           isSelected
                             ? 'border-primary bg-primary/10 shadow-sm ring-1 ring-primary/40'
@@ -500,7 +518,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       </button>
                     );
                   })}
-                </div>
+                  </div>
+                </section>
               ) : (
                 <p className="text-xs text-amber-500 font-bold bg-amber-500/10 p-3 rounded-lg border border-amber-500/30">
                   No hay mezclas activas detectadas en este momento. Introduce el código QR abajo.
@@ -540,7 +559,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             {/* ---------------------------------------------------- */}
             {/* PASO 2: RACK FÍSICO DESTINO */}
             {/* ---------------------------------------------------- */}
-            <div className="space-y-3 pb-6 border-b border-border">
+            <div className="extrusion-ingress-step space-y-3 pb-6 border-b border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">
@@ -676,7 +695,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             {/* ---------------------------------------------------- */}
             {/* PASO 3: CANTIDAD Y BÁSCULA */}
             {/* ---------------------------------------------------- */}
-            <div className="space-y-4 pb-4">
+            <div className="extrusion-ingress-step extrusion-ingress-step--count space-y-4 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">
                   3
@@ -1104,8 +1123,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           </div>
         </div>
       )}
-
-      {activeTab === 'CATALOG' && <PtiCatalogPanel />}
 
       {/* ========================================================= */}
       {/* VISTA 3: BALANCE DE MASA Y AUDITORÍA FINANCIERA (SUPERVISOR) */}

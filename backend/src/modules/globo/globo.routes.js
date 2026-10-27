@@ -1,17 +1,22 @@
 const express = require('express');
 const globoController = require('./globo.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
-const roleMiddleware = require('../../middlewares/role.middleware');
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 // Catálogo de Especificaciones
-const areaView = roleMiddleware('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
-const areaAdmin = roleMiddleware('ADMIN_GLOBO');
-const areaProcess = roleMiddleware('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
-const supervisorOrAdmin = roleMiddleware('ADMIN_GLOBO', 'SUPERVISOR_GLOBO');
+// This area guard deliberately does not inherit the global-admin bypass in roleMiddleware.
+const areaRoles = (...allowedRoles) => (req, res, next) => {
+  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
+  if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode) || allowedRoles.includes(roleCode)) return next();
+  return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Globo.' });
+};
+const areaView = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
+const areaAdmin = areaRoles('ADMIN_GLOBO');
+const areaProcess = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
+const supervisorOrAdmin = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO');
 
 router.get('/specifications', areaView, (req, res, next) => globoController.getSpecifications(req, res, next));
 router.get('/specifications/:id', areaView, (req, res, next) => globoController.getSpecificationById(req, res, next));

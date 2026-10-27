@@ -54,9 +54,11 @@ export interface ExtrusionBoardPresenterProps {
   shiftCode: string;
   onShiftCodeChange: (val: string) => void;
   onOpenSwitchModal: (targetQueue: ExtruderQueue, activeQueue: ExtruderQueue | null, prioritizeFormulaId?: number) => void;
+  onScanPausedQr: (scannedCode: string, expectedQueue: ExtruderQueue) => void;
   onCloseSwitchModal: () => void;
   onConfirmSwitch: () => void;
   isSwitching: boolean;
+  resumeQrVerified: boolean;
   // Modal Enqueue
   isEnqueueModalOpen: boolean;
   selectedMachineId: number;
@@ -117,12 +119,14 @@ const groupQueuesByFormula = (machineQueue: MachineQueueGroup): GroupedFormulaQu
 interface FormulaQueueGroupsProps {
   machineQueue: MachineQueueGroup;
   onOpenSwitchModal: (targetQueue: ExtruderQueue, activeQueue: ExtruderQueue | null, prioritizeFormulaId?: number) => void;
+  onScanPausedQr: (scannedCode: string, expectedQueue: ExtruderQueue) => void;
   onOpenContainerQr?: (qrCodeOrFolio: string) => void;
 }
 
 const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
   machineQueue,
   onOpenSwitchModal,
+  onScanPausedQr,
   onOpenContainerQr,
 }) => {
   const formulaGroups = groupQueuesByFormula(machineQueue);
@@ -207,14 +211,10 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
 
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   {status === 'PAUSADA' && (
-                    <Button
-                      variant="outline"
-                      onClick={() => onOpenSwitchModal(queue, machineQueue.active)}
-                      className="min-h-12 w-full whitespace-normal text-base font-bold sm:flex-1"
-                    >
-                      <ArrowUpCircle className="mr-2 h-5 w-5" />
-                      Reanudar (Purga)
-                    </Button>
+                    <QrScannerButton
+                      title={`Escanear QR de ${queue.consumption_order_qr_id} para reanudar`}
+                      onScan={(code) => onScanPausedQr(code, queue)}
+                    />
                   )}
                   {status === 'EN_ESPERA' && (
                     <Button
@@ -300,9 +300,11 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   shiftCode,
   onShiftCodeChange,
   onOpenSwitchModal,
+  onScanPausedQr,
   onCloseSwitchModal,
   onConfirmSwitch,
   isSwitching,
+  resumeQrVerified,
   isEnqueueModalOpen,
   selectedMachineId,
   enqueueForm,
@@ -322,7 +324,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
     : queues[0]?.machine.id ?? null;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 pb-32 lg:pr-24">
+    <div className="extrusion-workspace p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 pb-32 lg:pr-24">
       {/* Header Industrial */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border-2 border-border p-5 rounded-xl shadow-sm">
         <div className="space-y-1">
@@ -463,6 +465,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 <FormulaQueueGroups
                   machineQueue={group}
                   onOpenSwitchModal={onOpenSwitchModal}
+                  onScanPausedQr={onScanPausedQr}
                   onOpenContainerQr={onOpenContainerQr}
                 />
                 {/* Pie de Columna */}
@@ -495,10 +498,12 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-foreground uppercase">
-                    Interrumpir Mezcla y Priorizar
+                    {targetQueue.status === 'PAUSADA' ? 'Confirmar reanudación de mezcla' : 'Interrumpir Mezcla y Priorizar'}
                   </h3>
                   <p className="text-xs font-bold text-muted-foreground">
-                    Regla Operativa: Registro Obligatorio de Merma de Purga
+                    {targetQueue.status === 'PAUSADA'
+                      ? activeQueue ? 'QR validado. Confirma el cambio y registra la transición de línea.' : 'QR validado. Confirma para reactivar esta mezcla; no hay otra corrida activa.'
+                      : 'Regla Operativa: Registro Obligatorio de Merma de Purga'}
                   </p>
                 </div>
               </div>
@@ -511,6 +516,12 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 ✕
               </Button>
             </div>
+
+            {resumeQrVerified && (
+              <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                QR escaneado y validado para esta extrusora: <span className="font-mono">{targetQueue.consumption_order_qr_id}</span>
+              </div>
+            )}
 
             {/* Comparativa de Mezclas */}
             <div className="space-y-3">
@@ -545,8 +556,8 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
               </div>
             </div>
 
-            {/* Campo Obligatorio de Merma de Transición */}
-            <div className="space-y-2 bg-muted/40 p-4 rounded-xl border-2 border-border">
+            {/* La transición solo genera merma si otra mezcla está activa. */}
+            {activeQueue ? <div className="space-y-2 bg-muted/40 p-4 rounded-xl border-2 border-border">
               <div className="grid gap-3 sm:grid-cols-3">
                 <label className="block space-y-1 text-xs font-bold">
                   <span>Merma estimada de mezcla anterior (kg)</span>
@@ -593,7 +604,11 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
               <p className="text-[11px] font-bold text-muted-foreground leading-tight">
                 Se registra como estimación. El color se toma del PTI enlazado a cada fórmula; la mezcla combinada exige estimar su proporción. Al cierre, el total real se concilia contra el conjunto de eventos.
               </p>
-            </div>
+            </div> : targetQueue.status === 'PAUSADA' ? (
+              <p className="rounded-xl border border-border bg-muted/30 p-3 text-sm font-semibold text-muted-foreground">
+                No se registrará merma de transición porque no hay otra mezcla activa que interrumpir.
+              </p>
+            ) : null}
 
             {/* Botones de Acción */}
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -607,10 +622,10 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
               </Button>
               <Button
                 onClick={onConfirmSwitch}
-                disabled={isSwitching || (Number(scrapAnteriorWeight) <= 0 && Number(scrapNuevaWeight) <= 0 && Number(scrapMixtaWeight) <= 0 && Number(purgeWeight) <= 0)}
+                disabled={isSwitching || (Boolean(activeQueue) && Number(scrapAnteriorWeight) <= 0 && Number(scrapNuevaWeight) <= 0 && Number(scrapMixtaWeight) <= 0 && Number(purgeWeight) <= 0) || (targetQueue.status === 'PAUSADA' && !resumeQrVerified)}
                 className="font-black bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                {isSwitching ? 'Procesando Transición...' : 'Confirmar e Iniciar Nueva Mezcla'}
+                {isSwitching ? 'Procesando Transición...' : targetQueue.status === 'PAUSADA' ? 'Confirmar y reanudar mezcla' : 'Confirmar e Iniciar Nueva Mezcla'}
               </Button>
             </div>
           </div>

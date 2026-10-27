@@ -2,6 +2,7 @@ import { Boxes, FilterX, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../../design-system';
 import MaterialMobileCard from './MaterialMobileCard';
 import MaterialsTable from './MaterialsTable';
+import { getMaterialKey } from '../utils/recordKeys';
 
 const MaterialsListSection = ({
   materials = [],
@@ -76,9 +77,9 @@ const MaterialsListSection = ({
           <>
             {viewMode === 'grid' ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-5">
-                {materials.map((material) => (
+                {materials.map((material, index) => (
                   <MaterialMobileCard
-                    key={material.id}
+                    key={getMaterialKey(material, index)}
                     material={material}
                     canUpdate={canUpdate}
                     canDelete={canDelete}
