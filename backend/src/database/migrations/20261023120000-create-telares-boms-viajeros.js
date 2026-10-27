@@ -2,6 +2,29 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    // This migration references pti_products from several foreign keys and seed
+    // statements. Its dedicated create migration sorts earlier, but some deployed
+    // databases have migration metadata out of sync with the actual schema. Make
+    // the dependency self-healing so the Telares rollout can proceed safely.
+    await queryInterface.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS pti_products (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(60) NOT NULL UNIQUE,
+        name VARCHAR(150) NOT NULL,
+        specifications TEXT,
+        unit_weight_kg DECIMAL(10,3) NOT NULL DEFAULT 6.800,
+        unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        formula_id INTEGER REFERENCES formulas(id) ON UPDATE CASCADE ON DELETE SET NULL,
+        material_id INTEGER REFERENCES materials(id) ON UPDATE CASCADE ON DELETE SET NULL,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pti_products_formula_id
+        ON pti_products (formula_id);
+    `);
+
     // 1. Catálogo de Telares (Máquinas circulares / planas)
     await queryInterface.sequelize.query(`
       CREATE TABLE IF NOT EXISTS looms (
