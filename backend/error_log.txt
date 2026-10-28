@@ -4087,4 +4087,24 @@ notNull Violation: InventoryMovement.performed_by cannot be null
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
     at async ExtrusionService.scanRackPti (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1625:12)
-    at async scanRack (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:132:22)\n\n
+    at async scanRack (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:132:22)\n\n2026-10-28T21:38:08.222Z\nMessage: Falta configurar BANXICO_API_TOKEN para consultar el tipo de cambio oficial.\nStack: Error: Falta configurar BANXICO_API_TOKEN para consultar el tipo de cambio oficial.
+    at Object.getUsdMxnRate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\exchangeRate.service.js:12:25)
+    at getExchangeRate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:102:58)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\role.middleware.js:23:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n2026-10-28T21:38:09.272Z\nMessage: Falta configurar BANXICO_API_TOKEN para consultar el tipo de cambio oficial.\nStack: Error: Falta configurar BANXICO_API_TOKEN para consultar el tipo de cambio oficial.
+    at Object.getUsdMxnRate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\exchangeRate.service.js:12:25)
+    at getExchangeRate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\warehouse\warehouse.controller.js:102:58)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\role.middleware.js:23:12
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)\n\n

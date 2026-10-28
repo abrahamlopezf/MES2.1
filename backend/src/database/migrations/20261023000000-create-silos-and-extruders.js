@@ -64,17 +64,17 @@ module.exports = {
       END $$;
     `);
 
-    // 5. Poblar Silos iniciales
+    // 5. Crear el catálogo de silos vacío. Las existencias, lotes y costos
+    // reales se registran desde Almacén; no sembrar datos operativos ficticios.
     await queryInterface.sequelize.query(`
       INSERT INTO silos (id, code, name, capacity_kg, current_stock_kg, current_lot_number, current_lot_type, unit_cost, is_active, created_at, updated_at)
       VALUES
-        (1, 'SILO-01', 'Silo Principal 1 (PP Resina A)', 40000.00, 28000.00, 'LOTE-SILO-PP-A-01', 'A', 28.5000, true, NOW(), NOW()),
-        (2, 'SILO-02', 'Silo Auxiliar 2 (PP Resina A)', 40000.00, 22000.00, 'LOTE-SILO-PP-A-02', 'A', 28.5000, true, NOW(), NOW()),
-        (3, 'SILO-03', 'Silo 3 (PP Resina B)', 35000.00, 18500.00, 'LOTE-SILO-PP-B-01', 'B', 26.0000, true, NOW(), NOW()),
-        (4, 'SILO-04', 'Silo 4 (PP Resina C)', 30000.00, 12000.00, 'LOTE-SILO-PP-C-01', 'C', 24.5000, true, NOW(), NOW())
+        (1, 'SILO-01', 'Silo Principal 1', 40000.00, 0, NULL, NULL, 0, true, NOW(), NOW()),
+        (2, 'SILO-02', 'Silo Auxiliar 2', 40000.00, 0, NULL, NULL, 0, true, NOW(), NOW()),
+        (3, 'SILO-03', 'Silo 3', 35000.00, 0, NULL, NULL, 0, true, NOW(), NOW()),
+        (4, 'SILO-04', 'Silo 4', 30000.00, 0, NULL, NULL, 0, true, NOW(), NOW())
       ON CONFLICT (code) DO UPDATE SET
-        capacity_kg = EXCLUDED.capacity_kg,
-        current_stock_kg = EXCLUDED.current_stock_kg;
+        capacity_kg = EXCLUDED.capacity_kg;
 
       SELECT setval('silos_id_seq', (SELECT MAX(id) FROM silos));
     `);
