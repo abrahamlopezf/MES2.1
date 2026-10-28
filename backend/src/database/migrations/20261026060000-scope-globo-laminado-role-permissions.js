@@ -3,8 +3,6 @@
 module.exports = {
   up: async (queryInterface) => {
     await queryInterface.sequelize.query(`
-      SELECT setval(pg_get_serial_sequence('role_permissions', 'id'), COALESCE((SELECT MAX(id) FROM role_permissions), 1), (SELECT MAX(id) IS NOT NULL FROM role_permissions));
-
       DELETE FROM role_permissions rp
       USING roles r, permissions p
       WHERE rp.role_id = r.id

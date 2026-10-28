@@ -86,7 +86,6 @@ module.exports = {
       BEGIN
         PERFORM setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1), (SELECT MAX(id) IS NOT NULL FROM roles));
         PERFORM setval(pg_get_serial_sequence('permissions', 'id'), COALESCE((SELECT MAX(id) FROM permissions), 1), (SELECT MAX(id) IS NOT NULL FROM permissions));
-        PERFORM setval(pg_get_serial_sequence('role_permissions', 'id'), COALESCE((SELECT MAX(id) FROM role_permissions), 1), (SELECT MAX(id) IS NOT NULL FROM role_permissions));
 
         SELECT id INTO v_globo_area_id FROM areas WHERE code = 'GLOBO' LIMIT 1;
         SELECT id INTO v_laminado_area_id FROM areas WHERE code = 'LAMINADO' LIMIT 1;
