@@ -150,7 +150,7 @@ class ExtrusionService {
 
       // El silo abastece al mezclador. Su selección es independiente de la
       // extrusora que recibirá después los contenedores preparados.
-      const { Silo } = require('../../database/models');
+      const { Silo, Material } = require('../../database/models');
       const ppIngredients = (formula.ingredients || []).filter(ing => {
         const matName = (ing.material?.name || ing.material_name || '').toUpperCase();
         const matCode = (ing.material?.internal_code || ing.material_code || '').toUpperCase();
@@ -270,14 +270,9 @@ class ExtrusionService {
           if (!targetSilo || !targetSilo.is_active) {
             throw Object.assign(new Error(`El silo ${assignment.silo_id} no existe o está inactivo.`), { statusCode: 400 });
           }
-          if (ppIngredient.material_id && Number(targetSilo.material_id) !== Number(ppIngredient.material_id)) {
-            throw Object.assign(new Error(`El Silo ${targetSilo.code} contiene un material distinto al requerido (${ppIngredient.material?.name || ppIngredient.material_id}).`), { statusCode: 400 });
-          }
-          const siloLotType = String(targetSilo.current_lot_type || '').toUpperCase();
-          const siloLotNumber = String(targetSilo.current_lot_number || '').toUpperCase();
-          if (machineId === 4 && (siloLotType === 'B' || siloLotNumber.includes('PP-B') || siloLotNumber.includes('LOTE-B'))) {
-            throw Object.assign(new Error(`La Extrusora 4 no puede recibir PP tipo B desde el silo ${targetSilo.code}.`), { statusCode: 400 });
-          }
+          // Los tipos históricos A/B/C identifican lotes internos y no son una
+          // restricción de compatibilidad del silo. La regla de compatibilidad de
+          // cada fórmula/extrusora se valida aparte.
           const before = Number(targetSilo.current_stock_kg);
           if (before < deductedKg) {
             throw Object.assign(new Error(`Stock insuficiente en Silo ${targetSilo.code}: requiere ${deductedKg} kg; disponible ${before} kg.`), { statusCode: 400 });
@@ -4182,7 +4177,7 @@ class ExtrusionService {
    * Desactiva / Elimina lógicamente un Silo.
    */
   async deleteSilo(id) {
-    const { Silo } = require('../../database/models');
+    const { Silo, Material } = require('../../database/models');
     const silo = await Silo.findByPk(id);
     if (!silo) {
       const err = new Error(`Silo #${id} no encontrado.`);
@@ -4200,7 +4195,7 @@ class ExtrusionService {
    * Regla de Oro (Zero-Impact en Almacén): No genera etiquetas QR individuales de costales.
    */
   async receiveSiloInvoiceEntry(payload, userId = 1) {
-    const { folio, silo_id, quantity_kg, unit_cost, supplier_id, lot_number, lot_type, notes } = payload;
+    const { folio, silo_id, quantity_kg, unit_cost, supplier_id, lot_number, notes } = payload;
 
     if (!folio || !folio.trim()) {
       const err = new Error('El folio de la factura es obligatorio para registrar el ingreso al Silo.');
@@ -4215,7 +4210,7 @@ class ExtrusionService {
       throw err;
     }
 
-    const { Silo } = require('../../database/models');
+    const { Silo, Material } = require('../../database/models');
 
     return await sequelize.transaction(async (t) => {
       const silo = await Silo.findByPk(silo_id, { transaction: t, lock: t.LOCK.UPDATE });
@@ -4227,10 +4222,23 @@ class ExtrusionService {
       if (!silo.is_active) {
         throw Object.assign(new Error(`El Silo ${silo.code} está inactivo y no puede recibir material.`), { statusCode: 400 });
       }
-      if (silo.material_id && payload.material_id && Number(silo.material_id) !== Number(payload.material_id)) {
-        throw Object.assign(new Error(`El Silo ${silo.code} está asignado a un material distinto del recibido.`), { statusCode: 409 });
-      }
 
+      const receivedMaterialId = Number(payload.material_id || silo.material_id || 0);
+      const material = receivedMaterialId ? await Material.findByPk(receivedMaterialId, { transaction: t }) : null;
+      if (!material) {
+        throw Object.assign(new Error('Selecciona el material de polipropileno recibido.'), { statusCode: 400 });
+      }
+      const materialTags = await material.getTags({ attributes: ['name'], transaction: t });
+      const hasPolypropyleneTag = materialTags.some(({ name }) => {
+        const normalizedName = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        return normalizedName === 'PP' || normalizedName.includes('POLIPROPILENO');
+      });
+      const materialName = String(material.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+      const isPolypropylene = hasPolypropyleneTag || materialName.includes('POLIPROPILENO') || materialName.startsWith('PP ');
+      if (!isPolypropylene) {
+        throw Object.assign(new Error('El material debe tener la etiqueta Polipropileno para ingresar a un silo.'), { statusCode: 400 });
+      }
+      silo.material_id = material.id;
       const initialStock = Number(silo.current_stock_kg);
       const maxCap = Number(silo.capacity_kg);
       const finalStock = initialStock + qty;
@@ -4241,27 +4249,30 @@ class ExtrusionService {
         throw err;
       }
 
-      const receivedLotType = lot_type == null ? null : String(lot_type).trim().toUpperCase();
-      if (receivedLotType && !['A', 'B', 'C'].includes(receivedLotType)) {
-        throw Object.assign(new Error('El tipo de lote del silo debe ser A, B o C.'), { statusCode: 400 });
-      }
-      if (initialStock > 0 && receivedLotType && silo.current_lot_type && receivedLotType !== String(silo.current_lot_type).toUpperCase()) {
-        throw Object.assign(new Error(`No se puede mezclar lote tipo ${receivedLotType} con tipo ${silo.current_lot_type} mientras el silo conserva material.`), { statusCode: 409 });
-      }
       const incomingUnitCost = unit_cost == null || unit_cost === '' ? null : Number(unit_cost);
-      if (incomingUnitCost !== null && (!Number.isFinite(incomingUnitCost) || incomingUnitCost < 0)) {
-        throw Object.assign(new Error('El costo unitario debe ser un número mayor o igual a cero.'), { statusCode: 400 });
+      if (incomingUnitCost !== null && (!Number.isFinite(incomingUnitCost) || incomingUnitCost <= 0)) {
+        throw Object.assign(new Error('El costo unitario debe ser un número mayor a cero.'), { statusCode: 400 });
       }
-      if (incomingUnitCost !== null && finalStock > 0) {
+      const currency = String(payload.currency || 'MXN').toUpperCase();
+      if (!['MXN', 'USD'].includes(currency)) {
+        throw Object.assign(new Error('La moneda de la factura debe ser MXN o USD.'), { statusCode: 400 });
+      }
+      if (incomingUnitCost === null) {
+        throw Object.assign(new Error('El costo unitario de la factura es obligatorio.'), { statusCode: 400 });
+      }
+      const exchange = currency === 'USD'
+        ? await require('../warehouse/exchangeRate.service').getUsdMxnRate()
+        : { rate: 1, date: new Date().toISOString().slice(0, 10), source: 'MXN' };
+      const unitCostMxn = Number((incomingUnitCost * exchange.rate).toFixed(4));
+      if (unitCostMxn !== null && finalStock > 0) {
         const oldCost = Number(silo.unit_cost || 0);
-        silo.unit_cost = Number(((initialStock * oldCost + qty * incomingUnitCost) / finalStock).toFixed(4));
+        silo.unit_cost = Number(((initialStock * oldCost + qty * unitCostMxn) / finalStock).toFixed(4));
       }
       silo.current_stock_kg = Number(finalStock.toFixed(2));
       if (lot_number) {
         const lotNumbers = [...new Set([...(initialStock > 0 ? String(silo.current_lot_number || '').split(',').map((value) => value.trim()).filter(Boolean) : []), lot_number.trim()])];
         silo.current_lot_number = lotNumbers.join(', ').slice(0, 100);
       }
-      if (receivedLotType) silo.current_lot_type = receivedLotType;
       await silo.save({ transaction: t });
 
       const { AuditLog } = require('../../database/models');
@@ -4273,8 +4284,22 @@ class ExtrusionService {
         user_id: userId,
         description: `Ingreso directo por Factura ${folio}: ${qty} kg de PP en Silo ${silo.code}.`,
         before_data: { current_stock_kg: initialStock },
-        after_data: { current_stock_kg: finalStock, current_lot_number: silo.current_lot_number },
-        metadata: { folio, quantity_kg: qty, unit_cost: silo.unit_cost }
+        after_data: { current_stock_kg: finalStock, current_lot_number: silo.current_lot_number, material_id: material.id },
+        metadata: {
+          folio,
+          material_id: material.id,
+          material_name: material.name,
+          polypropylene_tagged: hasPolypropyleneTag,
+          quantity_kg: qty,
+          invoice_currency: currency,
+          invoice_unit_cost: incomingUnitCost,
+          exchange_rate_mxn_per_usd: exchange.rate,
+          exchange_rate_date: exchange.date,
+          exchange_rate_source: exchange.source,
+          unit_cost_mxn_per_kg: unitCostMxn,
+          converted_total_mxn: Number((qty * unitCostMxn).toFixed(2)),
+          silo_average_unit_cost_mxn: silo.unit_cost,
+        }
       }, { transaction: t });
 
       return {
@@ -4288,7 +4313,13 @@ class ExtrusionService {
           current_stock_kg: Number(finalStock.toFixed(2)),
           current_lot_number: silo.current_lot_number,
           current_lot_type: silo.current_lot_type,
-          unit_cost: Number(silo.unit_cost)
+          unit_cost: Number(silo.unit_cost),
+          invoice_currency: currency,
+          invoice_unit_cost: incomingUnitCost,
+          exchange_rate_mxn_per_usd: exchange.rate,
+          exchange_rate_date: exchange.date,
+          unit_cost_mxn_per_kg: unitCostMxn,
+          converted_total_mxn: Number((qty * unitCostMxn).toFixed(2)),
         }
       };
     });

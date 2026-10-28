@@ -216,10 +216,11 @@ router.put(
 // CONTROL Y GESTIÓN DE SILOS EN ALMACÉN
 // ==========================================
 const extrusionController = require('../extrusion/extrusion.controller');
+router.get('/silos/exchange-rate', roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'), warehouseController.getExchangeRate);
 router.get('/silos', extrusionController.getSilos);
 router.post('/silos', extrusionController.createSilo);
 router.put('/silos/:id', extrusionController.updateSilo);
 router.delete('/silos/:id', extrusionController.deleteSilo);
-router.post('/silos/invoice-entry', extrusionController.receiveSiloInvoiceEntry);
+router.post('/silos/invoice-entry', roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'), extrusionController.receiveSiloInvoiceEntry);
 
 module.exports = router;

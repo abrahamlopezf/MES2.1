@@ -97,6 +97,15 @@ const getDashboardMetrics = async (req, res, next) => {
   }
 };
 
+const getExchangeRate = async (req, res, next) => {
+  try {
+    const rate = await require('./exchangeRate.service').getUsdMxnRate();
+    return successResponse(res, 'Tipo de cambio consultado correctamente.', rate);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const manualEntry = async (req, res, next) => {
   try {
     const result = await warehouseService.manualEntry(req.body, req.user);
@@ -241,6 +250,7 @@ module.exports = {
   getNextConsumptionOrderNumber,
   changeLocation,
   getDashboardMetrics,
+  getExchangeRate,
   manualEntry,
   getMermaScrapReport,
   getMermaScrapDetails,

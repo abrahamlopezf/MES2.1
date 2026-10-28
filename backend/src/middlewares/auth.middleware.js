@@ -98,6 +98,20 @@ const authMiddleware = async (req, res, next) => {
       permissions: plainUser.role?.permissions?.map((permission) => permission.code) || [],
     };
 
+    // Desliza la expiración absoluta cuando la sesión está activa. El cliente guarda
+    // este JWT renovado; la sesión por inactividad se controla por separado.
+    const renewedToken = jwt.sign(
+      {
+        sub: user.id,
+        roleCode: user.role?.code,
+        areaId: user.role?.area?.id || null,
+        session_token: user.session_token,
+      },
+      env.jwt.secret,
+      { expiresIn: env.jwt.expiresIn }
+    );
+    res.setHeader('X-Session-Token', renewedToken);
+
     return next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {

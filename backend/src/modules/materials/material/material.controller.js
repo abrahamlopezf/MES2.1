@@ -19,7 +19,7 @@ const create = async (req, res) => {
 };
 
 const update = async (req, res) => {
-  const record = await crudService.update(req.params.uuid, req.body);
+  const record = await crudService.update(req.params.uuid, req.body, { user: req.user });
   return sendSuccess(res, record);
 };
 

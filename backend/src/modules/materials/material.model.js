@@ -70,7 +70,8 @@ module.exports = (sequelize, DataTypes) => {
     ]
   });
 
-  const protectInternalCode = (instanceOrOptions) => {
+  const protectInternalCode = (instanceOrOptions, options = {}) => {
+    if (options.allowInternalCodeUpdate || instanceOrOptions?.allowInternalCodeUpdate) return;
     if (instanceOrOptions && instanceOrOptions.changed && instanceOrOptions.changed('internal_code')) {
       throw new Error("internal_code es inmutable.");
     }
@@ -80,7 +81,7 @@ module.exports = (sequelize, DataTypes) => {
   };
 
   Material.beforeUpdate(protectInternalCode);
-  Material.beforeBulkUpdate(protectInternalCode);
+  Material.beforeBulkUpdate((options) => protectInternalCode(options, options));
 
   Material.associate = (models) => {
     Material.belongsTo(models.MaterialFamily, { foreignKey: 'family_id', as: 'family' });

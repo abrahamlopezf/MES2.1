@@ -13,6 +13,8 @@ export interface ManualEntryBottomSheetPresenterProps {
   materialId: string;
   locationId: string;
   entries: { folio: string; quantity: string; supplier_id: string; unit_cost: string }[];
+  currency: 'MXN' | 'USD';
+  exchangeRate?: { rate: number; date: string; source: string };
   notes: string;
   materials: any[];
   loadingMaterials: boolean;
@@ -30,6 +32,7 @@ export interface ManualEntryBottomSheetPresenterProps {
   onChangeMaterialId: (val: string) => void;
   onChangeLocationId: (val: string) => void;
   onChangeSiloId: (val: string) => void;
+  onChangeCurrency: (val: 'MXN' | 'USD') => void;
   onChangeNotes: (val: string) => void;
   onAddEntry: () => void;
   onUpdateEntry: (index: number, field: string, value: string) => void;
@@ -43,6 +46,8 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   materialId,
   locationId,
   entries,
+  currency,
+  exchangeRate,
   notes,
   materials,
   loadingMaterials,
@@ -58,6 +63,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   onChangeMaterialId,
   onChangeLocationId,
   onChangeSiloId,
+  onChangeCurrency,
   onChangeNotes,
   onAddEntry,
   onUpdateEntry,
@@ -205,6 +211,14 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
             )}
 
             <div className="flex flex-col gap-4 border-t border-border/50 pt-5">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-foreground ml-1">Moneda de factura</label>
+                <select value={currency} onChange={e => onChangeCurrency(e.target.value as 'MXN' | 'USD')} className="h-11 rounded-xl border border-input bg-card px-3 text-sm font-bold text-foreground">
+                  <option value="MXN">MXN · Peso mexicano</option>
+                  <option value="USD">USD · Dólar estadounidense</option>
+                </select>
+                {currency === 'USD' && <p className="text-xs text-muted-foreground ml-1">{exchangeRate?.rate ? `FIX Banco de México: ${exchangeRate.rate} MXN/USD (${exchangeRate.date}). Se conservarán costo USD y su equivalente MXN.` : 'Consultando tipo de cambio FIX de Banco de México…'}</p>}
+              </div>
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-foreground">Entradas (Folio [Opcional] y Cantidad) *</label>
                 <Button 
@@ -288,7 +302,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                     <div className="flex flex-col gap-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Costo Unitario *</label>
-                        <span className="text-[10px] font-medium text-muted-foreground">Moneda local ($)</span>
+                        <span className="text-[10px] font-medium text-muted-foreground">{currency}</span>
                       </div>
                       <input 
                         type="number"

@@ -23,7 +23,13 @@ axiosClient.interceptors.request.use(
 );
 
 axiosClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const renewedToken = response.headers?.['x-session-token'];
+    if (renewedToken && localStorage.getItem('auth_token')) {
+      localStorage.setItem('auth_token', renewedToken);
+    }
+    return response;
+  },
   (error) => {
     const message =
       error.response?.data?.message ||

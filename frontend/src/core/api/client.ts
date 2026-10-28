@@ -21,7 +21,13 @@ apiClient.interceptors.request.use((config) => {
 
 // Interceptor para manejo de errores global (opcional)
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const renewedToken = response.headers?.['x-session-token'];
+    if (renewedToken && localStorage.getItem('auth_token')) {
+      localStorage.setItem('auth_token', renewedToken);
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');

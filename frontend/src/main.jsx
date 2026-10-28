@@ -8,6 +8,7 @@ import { GlobalErrorBoundary } from './core/error/GlobalErrorBoundary';
 
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider } from './modules/identity/presentation/context/AuthContext';
+import SessionActivityGuard from './components/auth/SessionActivityGuard';
 import { ConfirmProvider } from './providers/ConfirmProvider';
 import './index.css';
 import './styles/variables.css';
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AppQueryProvider>
         <AuthProvider>
           <ConfirmProvider>
+            <SessionActivityGuard />
             <RouterProvider router={router} />
             <Toaster />
           </ConfirmProvider>

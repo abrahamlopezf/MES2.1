@@ -67,6 +67,11 @@ module.exports = (sequelize) => {
       type: DataTypes.DECIMAL(12, 4),
       allowNull: true,
     },
+    invoice_currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'MXN' },
+    invoice_unit_cost: { type: DataTypes.DECIMAL(12, 4), allowNull: true },
+    invoice_exchange_rate: { type: DataTypes.DECIMAL(12, 6), allowNull: true },
+    invoice_exchange_rate_date: { type: DataTypes.DATEONLY, allowNull: true },
+    invoice_exchange_rate_source: { type: DataTypes.STRING(120), allowNull: true },
   }, {
     tableName: 'lotes',
     timestamps: true,

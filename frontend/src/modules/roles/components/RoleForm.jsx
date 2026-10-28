@@ -16,29 +16,36 @@ const getInitialFormData = (role) => ({
 
 const MODULE_CATEGORY_MAP = {
   warehouse: 'Almacén e Inventario',
-  Warehouse: 'Almacén e Inventario',
+  almacen: 'Almacén e Inventario',
+  inventario: 'Almacén e Inventario',
   materials: 'Almacén e Inventario',
+  materiales: 'Almacén e Inventario',
   qr: 'Códigos QR y Trazabilidad',
-  QRCodes: 'Códigos QR y Trazabilidad',
+  qrcodes: 'Códigos QR y Trazabilidad',
+  trazabilidad: 'Códigos QR y Trazabilidad',
   users: 'Sistema y Usuarios',
+  usuarios: 'Sistema y Usuarios',
   roles: 'Sistema y Usuarios',
-  System: 'Sistema y Usuarios',
+  system: 'Sistema y Usuarios',
   areas: 'Sistema y Usuarios',
   operations: 'Operaciones y Producción',
   extrusion: 'Extrusión',
-  Extrusion: 'Extrusión',
-  Extrusión: 'Extrusión',
+  formulas: 'Operaciones y Producción',
   globo: 'Globo',
-  Globo: 'Globo',
   laminado: 'Laminado',
-  Laminado: 'Laminado',
-  Formulas: 'Operaciones y Producción',
-  Scrap: 'Mermas y Scrap',
+  scrap: 'Mermas y Scrap',
   reports: 'Reportes y Auditoría',
   dashboard: 'Reportes y Auditoría',
   charts: 'Reportes y Auditoría',
-  Audit: 'Reportes y Auditoría',
+  audit: 'Reportes y Auditoría',
+  auditoria: 'Reportes y Auditoría',
 };
+
+const normalizeModule = (value) => String(value || 'general')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
 
 const getCategoryIcon = (category) => {
   switch (category) {
@@ -58,7 +65,7 @@ const getCategoryIcon = (category) => {
 const groupPermissionsByModule = (permissions = []) => {
   return permissions.reduce((groups, permission) => {
     const rawModule = permission.module || 'general';
-    const category = MODULE_CATEGORY_MAP[rawModule] || 'Otros Permisos';
+    const category = MODULE_CATEGORY_MAP[normalizeModule(rawModule)] || 'Otros Permisos';
 
     if (!groups[category]) {
       groups[category] = [];

@@ -34,20 +34,23 @@ const createSchema = z.object({
 });
 
 const updateSchema = z.object({
+  family_uuid: z.string().uuid().optional(),
+  material_code_uuid: z.string().uuid().optional(),
+  article_code: z.string().min(1).max(50).optional(),
   name: z.string().min(1).max(150).optional(),
   description: z.string().optional().nullable(),
   ranking_id: z.number().int().optional(),
   minimum_stock: z.number().min(0).optional(),
   maximum_stock: z.number().min(0).optional().nullable(),
+  maximum_stock: z.number().min(0).optional().nullable(),
   reorder_point: z.number().min(0).optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional(),
+  is_active: z.boolean().optional(),
   location_uuid: z.string().uuid('UUID de localidad inválido').optional().nullable(),
   type_uuid: z.string().uuid('UUID de tipo inválido').optional().nullable(),
   brand_uuid: z.string().uuid('UUID de marca inválido').optional().nullable(),
   base_unit_uuid: z.union([z.string(), z.number()]).optional().nullable(),
   tags: z.array(z.union([z.string(), z.number()])).optional()
-  // No permitimos actualizar los UUIDs de clasificación (family, code, etc) aquí
-  // para proteger la identidad del Material y su código generado.
 });
 
 const searchSchema = z.object({

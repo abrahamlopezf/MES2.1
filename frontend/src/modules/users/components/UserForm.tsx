@@ -51,6 +51,19 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
   const roleCode = (currentUser?.role?.code || '').toUpperCase();
   const isGeneralAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(roleCode);
   const isSupervisor = ['SUPERVISOR', 'SUPERVISOR_EXTRUSION'].includes(roleCode);
+  const watchedFirstName = form.watch('nombres');
+  const watchedLastName = form.watch('apellidos');
+
+  useEffect(() => {
+    if (isEdit) return;
+    const normalize = (value: string) => (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase();
+    const suggestedUsername = `${normalize(watchedFirstName).slice(0, 3)}${normalize(watchedLastName).slice(0, 3)}`;
+    form.setValue('username', suggestedUsername, { shouldDirty: false, shouldValidate: false });
+  }, [form, isEdit, watchedFirstName, watchedLastName]);
 
   useEffect(() => {
     if (user) {
@@ -216,13 +229,18 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
               />
               <TFInput
                 label="Usuario (Username)"
-                placeholder={isEdit ? '' : "Autogenerado por el sistema"}
+                placeholder={isEdit ? '' : "Se genera con nombre y apellido"}
                 disabled={true}
                 error={form.formState.errors.username?.message}
                 containerClassName="animate-form-field"
                 style={{ '--stagger': 3 } as React.CSSProperties}
                 {...form.register('username')}
               />
+              {!isEdit && (
+                <p className="-mt-3 text-xs text-muted-foreground md:col-span-2">
+                  Vista previa del usuario. Si ya existe, el sistema agregará un consecutivo.
+                </p>
+              )}
               <TFInput
                 label={`Contraseña ${isEdit ? '(Opcional)' : ''}`}
                 type="password"

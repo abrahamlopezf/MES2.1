@@ -4,6 +4,15 @@ const controller = require('./material.controller');
 const validateRequest = require('../../../middlewares/validateRequest');
 const schema = require('./material.schema');
 const asyncHandler = require('../../../utils/asyncHandler');
+const authMiddleware = require('../../../middlewares/auth.middleware');
+const permissionMiddleware = require('../../../middlewares/permission.middleware');
+
+router.use(authMiddleware);
+
+const requireWarehouseAdministrator = (req, res, next) => {
+  if (['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(req.user?.role?.code)) return next();
+  return res.status(403).json({ success: false, message: 'Solo el Administrador de Almacén puede editar materiales.' });
+};
 
 // Endpoints de Búsqueda y Lectura
 router.get('/', validateRequest(schema.searchSchema, 'query'), asyncHandler(controller.search));
@@ -15,11 +24,18 @@ router.get('/rankings', asyncHandler(async (req, res) => {
 router.get('/:uuid', asyncHandler(controller.getByUuid));
 
 // Endpoints de Mutación (CRUD)
-router.post('/', validateRequest(schema.createSchema), asyncHandler(controller.create));
-router.patch('/:uuid', validateRequest(schema.updateSchema), asyncHandler(controller.update));
+router.post('/', permissionMiddleware('materials.create', 'masterdata.create'), validateRequest(schema.createSchema), asyncHandler(controller.create));
+// La edición de materiales cambia el catálogo operativo de Almacén y queda reservada
+// al administrador de Almacén. La validación de permisos frontend no es suficiente.
+router.patch(
+  '/:uuid',
+  requireWarehouseAdministrator,
+  validateRequest(schema.updateSchema),
+  asyncHandler(controller.update)
+);
 
 // Soft Delete y Restore
-router.delete('/:uuid', asyncHandler(controller.remove));
-router.patch('/:uuid/restore', asyncHandler(controller.restore));
+router.delete('/:uuid', permissionMiddleware('materials.delete', 'masterdata.delete'), asyncHandler(controller.remove));
+router.patch('/:uuid/restore', requireWarehouseAdministrator, asyncHandler(controller.restore));
 
 module.exports = router;

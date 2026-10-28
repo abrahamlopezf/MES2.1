@@ -35,7 +35,16 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const [selectedSiloId, setSelectedSiloId] = useState<string>('');
   const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
   const [notes, setNotes] = useState('');
+  const [currency, setCurrency] = useState<'MXN' | 'USD'>('MXN');
   const [catalogReminder, setCatalogReminder] = useState<any>(null);
+
+  const { data: exchangeRate } = useQuery({
+    queryKey: ['warehouse', 'usd-mxn-rate'],
+    queryFn: async () => (await axiosClient.get('/warehouse/silos/exchange-rate')).data?.data,
+    enabled: isOpen && currency === 'USD',
+    staleTime: 60_000,
+    retry: 1,
+  });
 
   // Clear state when opened
   useEffect(() => {
@@ -45,6 +54,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       setSelectedSiloId('');
       setEntries([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
       setNotes('');
+      setCurrency('MXN');
     }
   }, [isOpen]);
 
@@ -130,6 +140,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         material_id: Number(materialId),
         location_id: isPp ? null : (locationId ? Number(locationId) : null),
         silo_id: isPp && selectedSiloId ? Number(selectedSiloId) : null,
+        currency,
         entries: entries.map(e => ({ 
           folio: e.folio, 
           quantity: Number(e.quantity),
@@ -252,6 +263,11 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       return;
     }
 
+    if (currency === 'USD' && !exchangeRate?.rate) {
+      toast.error('No se pudo consultar el tipo de cambio FIX de Banco de México. No es posible registrar en USD.');
+      return;
+    }
+
     const confirmed = await confirm({
       title: isPp ? 'Ingreso a Silos (Sin QR)' : 'Ingreso de Material',
       message: isPp 
@@ -274,6 +290,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         materialId={materialId}
         locationId={locationId}
         entries={entries}
+        currency={currency}
+        exchangeRate={exchangeRate}
         notes={notes}
         materials={materials}
         loadingMaterials={loadingMaterials}
@@ -289,6 +307,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         onChangeMaterialId={handleMaterialChange}
         onChangeLocationId={setLocationId}
         onChangeSiloId={setSelectedSiloId}
+        onChangeCurrency={setCurrency}
         onChangeNotes={setNotes}
         onAddEntry={handleAddEntry}
         onUpdateEntry={handleUpdateEntry}

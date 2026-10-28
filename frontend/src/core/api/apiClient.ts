@@ -17,6 +17,13 @@ export const httpClient: AxiosInstance = axios.create({
 
 // Registrar interceptores
 httpClient.interceptors.request.use(authInterceptor);
+httpClient.interceptors.response.use((response) => {
+  const renewedToken = response.headers?.['x-session-token'];
+  if (renewedToken && localStorage.getItem('auth_token')) {
+    localStorage.setItem('auth_token', renewedToken);
+  }
+  return response;
+});
 // httpClient.interceptors.request.use(idempotencyInterceptor);
 // httpClient.interceptors.response.use((res) => res, errorInterceptor);
 // httpClient.interceptors.response.use((res) => res, retryInterceptor);

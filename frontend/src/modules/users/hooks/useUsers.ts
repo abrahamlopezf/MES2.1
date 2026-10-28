@@ -24,7 +24,9 @@ export const useCreateUserMutation = () => {
     mutationFn: async (payload: UserFormValues) => {
       const dtoPayload = {
         ...userAdapter.toDTO(payload),
-        password: 'Temporal123!', // Contraseña por defecto obligatoria para el backend
+        // Conserva la contraseña temporal elegida en el formulario; usa el valor
+        // predeterminado solo cuando el usuario dejó el campo vacío.
+        password: payload.password || 'Temporal123!',
       };
       const response = await createUserRequest(dtoPayload);
       return userAdapter.toDomain(response.data);

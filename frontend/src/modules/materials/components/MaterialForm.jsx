@@ -109,7 +109,7 @@ const MaterialForm = ({
   const isEditing = Boolean(initialData?.id);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
   const { user } = useAuthStore();
-  const canEditRestrictedFields = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN', 'ADMIN_ALM'].includes(user?.role?.code);
+  const canEditRestrictedFields = ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(user?.role?.code);
 
   const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });
   const { data: codesData } = useMaterialCodesQuery({ pageSize: 10000 });
@@ -140,6 +140,7 @@ const MaterialForm = ({
     name: initialData?.name || '',
     description: initialData?.description || '',
     minimum_stock: initialData?.minimum_stock ?? '',
+    maximum_stock: initialData?.maximum_stock ?? '',
     reorder_point: initialData?.reorder_point ?? '',
     tags: initialData?.tags?.map(t => t.uuid || t.id) || [],
     is_active: initialData?.is_active ?? true,
@@ -254,6 +255,7 @@ const MaterialForm = ({
         name: initialData.name || current.name,
         description: initialData.description || current.description,
         minimum_stock: initialData.minimum_stock ?? current.minimum_stock,
+        maximum_stock: initialData.maximum_stock ?? current.maximum_stock,
         reorder_point: initialData.reorder_point ?? current.reorder_point,
         tags: initialData.tags?.map(t => t.uuid || String(t.id)) || current.tags,
         is_active: initialData.is_active ?? current.is_active,
@@ -418,6 +420,7 @@ const MaterialForm = ({
       name: effectiveName,
       description: formData.description.trim() || null,
       minimum_stock: formData.minimum_stock !== '' ? Number(formData.minimum_stock) : undefined,
+      maximum_stock: formData.maximum_stock !== '' ? Number(formData.maximum_stock) : null,
       reorder_point: formData.reorder_point !== '' ? Number(formData.reorder_point) : undefined,
       tags: formData.tags,
     };
@@ -671,7 +674,7 @@ const MaterialForm = ({
               placeholder="Ej. Lentes de seguridad oscuros"
               value={formData.name}
               onChange={(e) => updateField('name', e.target.value)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               required
             />
           </div>
@@ -687,7 +690,7 @@ const MaterialForm = ({
               value={formData.type_uuid}
               onChange={(e) => updateField('type_uuid', e.target.value)}
               options={typeOptions}
-              disabled={isEditing || isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               allowCreate={!isEditing}
               createLabel="Nuevo Tipo"
             />
@@ -706,7 +709,7 @@ const MaterialForm = ({
             value={formData.location_uuid}
             onChange={(e) => updateField('location_uuid', e.target.value)}
             options={locationOptions}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
           />
         </div>
 
@@ -720,7 +723,7 @@ const MaterialForm = ({
               value={formData.base_unit_uuid}
               onChange={(e) => updateField('base_unit_uuid', e.target.value)}
               options={unitOptions}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               allowCreate={!isEditing}
               createLabel="Nueva Unidad"
             />
@@ -740,7 +743,7 @@ const MaterialForm = ({
               value={formData.brand_uuid}
               onChange={(e) => updateField('brand_uuid', e.target.value)}
               options={brandOptions}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               allowCreate={!isEditing}
               createLabel="Nueva Marca"
             />
@@ -754,7 +757,7 @@ const MaterialForm = ({
         </div>
 
         {/* FILA 4: STOCK Y REORDEN (2 COLUMNAS EN MOBILE) */}
-        <div className="grid gap-2.5 sm:gap-4 grid-cols-2 animate-form-field relative z-10" style={{ '--stagger': 4 }}>
+        <div className="grid gap-2.5 sm:gap-4 grid-cols-1 sm:grid-cols-3 animate-form-field relative z-10" style={{ '--stagger': 4 }}>
           <TFInput
             label="Stock Mínimo"
             name="minimum_stock"
@@ -762,7 +765,17 @@ const MaterialForm = ({
             placeholder="0.00"
             value={formData.minimum_stock}
             onChange={(e) => updateField('minimum_stock', e.target.value)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
+          />
+
+          <TFInput
+            label="Stock Máximo"
+            name="maximum_stock"
+            type="number"
+            placeholder="Sin límite"
+            value={formData.maximum_stock}
+            onChange={(e) => updateField('maximum_stock', e.target.value)}
+            disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
           />
 
           <TFInput
@@ -772,7 +785,7 @@ const MaterialForm = ({
             placeholder="0.00"
             value={formData.reorder_point}
             onChange={(e) => updateField('reorder_point', e.target.value)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
           />
         </div>
 
@@ -791,7 +804,7 @@ const MaterialForm = ({
             isMulti={true}
             allowCreate={!isEditing}
             createLabel="Nueva Etiqueta"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
           />
           {formData.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -809,7 +822,7 @@ const MaterialForm = ({
                     {isNew && <span className="text-[9px] bg-amber-500 text-white dark:text-black px-1 rounded font-black tracking-wider">NUEVA</span>}
                     <button
                       type="button"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
                       onClick={() => updateField('tags', formData.tags.filter(id => id !== tagId))}
                       className="ml-0.5 hover:bg-black/10 dark:hover:bg-white/20 rounded-full p-0.5 transition-colors"
                       title="Quitar etiqueta"
@@ -830,7 +843,7 @@ const MaterialForm = ({
           placeholder="Características adicionales, empaque, uso..."
           value={formData.description}
           onChange={(e) => updateField('description', e.target.value)}
-          disabled={isSubmitting}
+          disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
           containerClassName="animate-form-field"
           className="min-h-[58px] sm:min-h-[72px] h-16 sm:h-20 text-sm"
           style={{ '--stagger': 5 }}
@@ -864,7 +877,7 @@ const MaterialForm = ({
               icon={ShieldAlert}
               type="button"
               onClick={() => setIsActionDialogOpen(true)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
               className="flex-1 sm:flex-initial sm:mr-auto h-10 sm:h-11 text-xs sm:text-sm"
             >
               Estado
@@ -874,7 +887,7 @@ const MaterialForm = ({
             type="button" 
             variant="secondary" 
             onClick={onCancel} 
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
             className="flex-1 sm:flex-initial sm:min-w-[120px] h-10 sm:h-11 text-xs sm:text-sm"
           >
             Cancelar

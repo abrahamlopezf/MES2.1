@@ -54,10 +54,11 @@ export const SilosManagementPage: React.FC = () => {
     folio: '',
     supplier_name: '',
     silo_id: '',
+    material_id: '',
     quantity_kg: '',
     lot_number: '',
-    lot_type: 'A',
     unit_cost: '28.50',
+    currency: 'MXN',
     notes: ''
   });
 
@@ -70,7 +71,6 @@ export const SilosManagementPage: React.FC = () => {
     min_capacity_kg: '5000',
     current_stock_kg: '0',
     current_lot_number: 'LOTE-SILO-01',
-    current_lot_type: 'A',
     unit_cost: '28.50'
   });
 
@@ -91,6 +91,17 @@ export const SilosManagementPage: React.FC = () => {
 
   const backendSummary = silosResponse?.summary;
 
+  const exchangeRateQuery = useQuery({
+    queryKey: ['warehouse', 'usd-mxn-rate'],
+    queryFn: async () => {
+      const res = await apiClient.get('/warehouse/silos/exchange-rate');
+      return res.data;
+    },
+    enabled: invoiceForm.currency === 'USD' && isInvoiceModalOpen,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   // 2. Obtener Catálogo de Materiales para asignación al Silo
   const { data: materialsData } = useQuery({
     queryKey: ['materials', 'all-list'],
@@ -106,7 +117,8 @@ export const SilosManagementPage: React.FC = () => {
   const ppMaterials = rawMaterials.filter((m: any) => {
     const name = (m.name || '').toUpperCase();
     const code = (m.internal_code || m.material_code || '').toUpperCase();
-    return name.includes('POLIPROPILENO') || name.includes('PP') || code.startsWith('MP-PP');
+    const tagged = (m.tags || []).some((tag: any) => /^(PP|POLIPROPILENO)/i.test(String(tag.name || '').trim()));
+    return tagged || name.includes('POLIPROPILENO') || name.includes('PP ') || code.startsWith('MP-PP');
   });
   const materialOptions = ppMaterials.length > 0 ? ppMaterials : rawMaterials;
 
@@ -125,10 +137,11 @@ export const SilosManagementPage: React.FC = () => {
         folio: '',
         supplier_name: '',
         silo_id: '',
+        material_id: '',
         quantity_kg: '',
         lot_number: '',
-        lot_type: 'A',
         unit_cost: '28.50',
+        currency: 'MXN',
         notes: ''
       });
     },
@@ -202,7 +215,6 @@ export const SilosManagementPage: React.FC = () => {
       min_capacity_kg: '5000',
       current_stock_kg: '0',
       current_lot_number: 'LOTE-SILO-01',
-      current_lot_type: 'A',
       unit_cost: '28.50'
     });
     setEditingSilo(null);
@@ -218,7 +230,6 @@ export const SilosManagementPage: React.FC = () => {
       min_capacity_kg: String(silo.min_capacity_kg || 5000),
       current_stock_kg: String(silo.current_stock_kg || 0),
       current_lot_number: silo.current_lot_number || '',
-      current_lot_type: silo.current_lot_type || 'A',
       unit_cost: String(silo.unit_cost || 28.50)
     });
     setIsSiloModalOpen(true);
@@ -227,7 +238,8 @@ export const SilosManagementPage: React.FC = () => {
   const handleOpenInvoiceModalForSilo = (siloId?: number) => {
     setInvoiceForm(prev => ({
       ...prev,
-      silo_id: siloId ? String(siloId) : (silos[0]?.id ? String(silos[0].id) : '')
+      silo_id: siloId ? String(siloId) : (silos[0]?.id ? String(silos[0].id) : ''),
+      material_id: String(silos.find((s) => s.id === siloId)?.material_id || ppMaterials[0]?.id || '')
     }));
     setIsInvoiceModalOpen(true);
   };
@@ -242,20 +254,30 @@ export const SilosManagementPage: React.FC = () => {
       toast.error('Selecciona el silo destino.');
       return;
     }
+    if (!invoiceForm.material_id) {
+      toast.error('Selecciona el material de polipropileno que indica la factura.');
+      return;
+    }
     const qty = Number(invoiceForm.quantity_kg);
     if (isNaN(qty) || qty <= 0) {
       toast.error('Ingresa una cantidad de kilos válida mayor a 0.');
+      return;
+    }
+    const unitCost = Number(invoiceForm.unit_cost);
+    if (!Number.isFinite(unitCost) || unitCost <= 0) {
+      toast.error('Ingresa el costo unitario de la factura en la moneda seleccionada.');
       return;
     }
 
     invoiceEntryMutation.mutate({
       folio: invoiceForm.folio.trim().toUpperCase(),
       silo_id: Number(invoiceForm.silo_id),
+      material_id: Number(invoiceForm.material_id),
       quantity_kg: qty,
       supplier_name: invoiceForm.supplier_name.trim() || undefined,
       lot_number: invoiceForm.lot_number.trim() || undefined,
-      lot_type: invoiceForm.lot_type || 'A',
-      unit_cost: Number(invoiceForm.unit_cost) || 28.50,
+      unit_cost: unitCost,
+      currency: invoiceForm.currency,
       notes: invoiceForm.notes.trim() || undefined
     });
   };
@@ -273,7 +295,6 @@ export const SilosManagementPage: React.FC = () => {
       material_id: siloForm.material_id ? Number(siloForm.material_id) : null,
       capacity_kg: Number(siloForm.capacity_kg) || 40000,
       min_capacity_kg: Number(siloForm.min_capacity_kg) || 5000,
-      current_lot_type: siloForm.current_lot_type || 'A',
     };
 
     if (editingSilo) {
@@ -293,15 +314,10 @@ export const SilosManagementPage: React.FC = () => {
     (s.material?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const [siloTab, setSiloTab] = useState<string>('ALL');
-
   const totalCapacityKg = backendSummary?.total_capacity_kg ?? silos.reduce((sum, s) => sum + (Number(s.capacity_kg) || 0), 0);
   const totalStockKg = backendSummary?.total_stock_kg ?? silos.reduce((sum, s) => sum + (Number(s.current_stock_kg) || 0), 0);
   const totalInvestment = backendSummary?.total_investment ?? silos.reduce((sum, s) => sum + (Number(s.total_investment) || ((Number(s.current_stock_kg) || 0) * (Number(s.unit_cost) || 0))), 0);
   const criticalSilosCount = backendSummary?.critical_silos_count ?? silos.filter(s => s.is_critical_reorder || (Number(s.current_stock_kg) <= Number(s.min_capacity_kg))).length;
-
-  // Tipos de resina presentes en silos
-  const lotTypes = Array.from(new Set(silos.map(s => (s.current_lot_type || 'A').toUpperCase()))).sort();
 
   // Datos dinámicos del KPI según pestaña activa (Homologado a la tarjeta de pérdidas y merma del Dashboard)
   let siloKpiTitle = allowCosts ? 'STOCK TOTAL EN SILOS' : 'VOLUMEN TOTAL EN SILOS';
@@ -313,32 +329,6 @@ export const SilosManagementPage: React.FC = () => {
     : `${Number(totalStockKg).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg PP total · ${silos.length} tanques operativos`;
   let siloKpiColor = 'border-emerald-500 bg-emerald-500/5';
   let siloKpiBadge = 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20';
-
-  if (siloTab !== 'ALL') {
-    const filtered = silos.filter(s => (s.current_lot_type || 'A').toUpperCase() === siloTab);
-    const cost = filtered.reduce((sum, s) => sum + (Number(s.total_investment) || ((Number(s.current_stock_kg) || 0) * (Number(s.unit_cost) || 0))), 0);
-    const kg = filtered.reduce((sum, s) => sum + (Number(s.current_stock_kg) || 0), 0);
-    const avgCost = kg > 0 ? (cost / kg) : (filtered[0]?.unit_cost || 0);
-    const names = filtered.map(s => s.code).join(', ');
-
-    siloKpiTitle = allowCosts ? `INVERSIÓN SILOS (TIPO ${siloTab})` : `STOCK SILOS (TIPO ${siloTab})`;
-    siloKpiValue = cost;
-    siloKpiKg = kg;
-    siloKpiSubtitle = allowCosts
-      ? `${Number(kg).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg PP Tipo ${siloTab} (${names}) · $${Number(avgCost).toFixed(2)}/kg`
-      : `${Number(kg).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg PP Tipo ${siloTab} (${names})`;
-
-    if (siloTab === 'A') {
-      siloKpiColor = 'border-blue-500 bg-blue-500/5';
-      siloKpiBadge = 'text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-500/20';
-    } else if (siloTab === 'B') {
-      siloKpiColor = 'border-purple-500 bg-purple-500/5';
-      siloKpiBadge = 'text-purple-700 dark:text-purple-300 bg-purple-500/10 border-purple-500/20';
-    } else {
-      siloKpiColor = 'border-amber-500 bg-amber-500/5';
-      siloKpiBadge = 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20';
-    }
-  }
 
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8 flex flex-col gap-6 max-w-[1700px] mx-auto w-full pb-32">
@@ -466,38 +456,7 @@ export const SilosManagementPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Switch adaptativo de pestañas con espacio suficiente idéntico a Merma y Scrap */}
-            <div className={`grid gap-1 bg-muted/80 p-1 rounded-lg border border-border/50 w-full items-center h-8 ${
-              lotTypes.length >= 3 ? 'grid-cols-4' : lotTypes.length === 2 ? 'grid-cols-3' : 'grid-cols-2'
-            }`}>
-              <button
-                type="button"
-                style={{ minHeight: 'unset', padding: '2px 4px' }}
-                onClick={() => setSiloTab('ALL')}
-                className={`!min-h-0 !py-1 !px-1 text-[11px] font-bold rounded-md text-center transition-all truncate cursor-pointer ${
-                  siloTab === 'ALL'
-                    ? 'bg-card text-foreground shadow-xs font-black'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Total
-              </button>
-              {lotTypes.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  style={{ minHeight: 'unset', padding: '2px 4px' }}
-                  onClick={() => setSiloTab(type)}
-                  className={`!min-h-0 !py-1 !px-1 text-[11px] font-bold rounded-md text-center transition-all truncate cursor-pointer ${
-                    siloTab === type
-                      ? type === 'A' ? 'bg-blue-600 text-white shadow-xs font-black' : type === 'B' ? 'bg-purple-600 text-white shadow-xs font-black' : 'bg-amber-600 text-white shadow-xs font-black'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Tipo {type}
-                </button>
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground">Existencias de polipropileno disponibles por silo.</p>
           </div>
 
           <div className="my-1 flex items-baseline justify-between gap-2 flex-wrap">
@@ -742,9 +701,6 @@ export const SilosManagementPage: React.FC = () => {
                         <span className="font-mono text-xs font-black text-foreground truncate">
                           {silo.current_lot_number || 'S/L'}
                         </span>
-                        <Badge variant="outline" className="font-mono text-[9px] px-1.5 py-0 shrink-0">
-                          Tipo {silo.current_lot_type || 'A'}
-                        </Badge>
                       </div>
                     </div>
 
@@ -882,7 +838,11 @@ export const SilosManagementPage: React.FC = () => {
                     <select
                       required
                       value={invoiceForm.silo_id}
-                      onChange={(e) => setInvoiceForm({ ...invoiceForm, silo_id: e.target.value })}
+                      onChange={(e) => setInvoiceForm({
+                        ...invoiceForm,
+                        silo_id: e.target.value,
+                        material_id: String(silos.find((s) => s.id === Number(e.target.value))?.material_id || ppMaterials[0]?.id || '')
+                      })}
                       className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                     >
                       <option value="" disabled>-- Selecciona un Silo --</option>
@@ -896,6 +856,24 @@ export const SilosManagementPage: React.FC = () => {
                       <Icon name="expand_more" size={20} />
                     </div>
                   </div>
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Icon name="label" size={14} className="text-primary" />
+                    <span>Polipropileno de la factura *</span>
+                  </label>
+                  <select
+                    required
+                    value={invoiceForm.material_id}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, material_id: e.target.value })}
+                    className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-xs sm:text-sm font-bold text-foreground"
+                  >
+                    <option value="" disabled>Selecciona el material etiquetado como Polipropileno</option>
+                    {materialOptions.map((material: any) => (
+                      <option key={material.id} value={material.id}>{material.internal_code || material.code || 'MP'} · {material.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Kilos Recibidos */}
@@ -944,45 +922,49 @@ export const SilosManagementPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Tipo de Lote */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Icon name="category" size={14} className="text-muted-foreground" />
-                    <span>Tipo de Resina</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={invoiceForm.lot_type}
-                      onChange={(e) => setInvoiceForm({ ...invoiceForm, lot_type: e.target.value })}
-                      className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground outline-none appearance-none cursor-pointer"
-                    >
-                      <option value="A">Tipo A (Estándar Virgen)</option>
-                      <option value="B">Tipo B (Restringido / Especial)</option>
-                      <option value="C">Tipo C (Técnico)</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <Icon name="expand_more" size={20} />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Costo Unitario */}
                 {allowCosts && (
+                  <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Icon name="currency_exchange" size={14} className="text-muted-foreground" />
+                      <span>Moneda de factura</span>
+                    </label>
+                    <select
+                      value={invoiceForm.currency}
+                      onChange={(e) => setInvoiceForm({ ...invoiceForm, currency: e.target.value })}
+                      className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-sm font-bold text-foreground"
+                    >
+                      <option value="MXN">MXN · Peso mexicano</option>
+                      <option value="USD">USD · Dólar estadounidense</option>
+                    </select>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                       <Icon name="attach_money" size={14} className="text-muted-foreground" />
-                      <span>Costo Unitario ($/kg)</span>
+                      <span>Costo Unitario ({invoiceForm.currency}/kg) *</span>
                     </label>
                     <Input
                       type="number"
                       step="0.01"
-                      min="0"
+                      min="0.0001"
+                      required
                       value={invoiceForm.unit_cost}
                       onChange={(e) => setInvoiceForm({ ...invoiceForm, unit_cost: e.target.value })}
-                      placeholder="28.50"
+                      placeholder={invoiceForm.currency === 'USD' ? 'Ej. 1.65' : 'Ej. 28.50'}
                       className="!h-11 font-mono font-bold text-xs sm:text-sm bg-background border-border"
                     />
                   </div>
+                  {invoiceForm.currency === 'USD' && (
+                    <div className="sm:col-span-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
+                      {exchangeRateQuery.isLoading ? 'Consultando tipo de cambio FIX…' : exchangeRateQuery.data ? (
+                        <>Tipo de cambio oficial {exchangeRateQuery.data.rate} MXN/USD ({exchangeRateQuery.data.date}). El sistema guardará el costo original en USD y su equivalente en MXN.</>
+                      ) : exchangeRateQuery.error ? (
+                        'No se pudo consultar Banco de México. Verifica la configuración del servicio antes de registrar la factura.'
+                      ) : 'Se consultará el tipo de cambio oficial al registrar la factura.'}
+                    </div>
+                  )}
+                  </>
                 )}
 
                 {/* Notas */}
@@ -1222,26 +1204,6 @@ export const SilosManagementPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Tipo de Lote */}
-                <div className={`space-y-1.5 ${editingSilo ? 'sm:col-span-2' : ''}`}>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Tipo de Resina
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={siloForm.current_lot_type}
-                      onChange={(e) => setSiloForm({ ...siloForm, current_lot_type: e.target.value })}
-                      className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground outline-none appearance-none cursor-pointer"
-                    >
-                      <option value="A">Tipo A (Estándar)</option>
-                      <option value="B">Tipo B (Restringido)</option>
-                      <option value="C">Tipo C</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <Icon name="expand_more" size={20} />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Botones */}

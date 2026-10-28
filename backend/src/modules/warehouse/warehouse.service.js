@@ -723,6 +723,10 @@ const manualEntry = async (payload, currentUser) => {
     throwHttpError('Faltan datos obligatorios para el ingreso manual (material y al menos una entrada).', 400);
   }
 
+  const currency = String(payload.currency || 'MXN').toUpperCase();
+  if (!['MXN', 'USD'].includes(currency)) throwHttpError('Moneda no soportada. Selecciona MXN o USD.', 400);
+  const exchangeRate = currency === 'USD' ? await require('./exchangeRate.service').getUsdMxnRate() : null;
+
   return await sequelize.transaction(async (t) => {
     const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier, Material, Silo } = require('../../database/models');
     
@@ -734,7 +738,12 @@ const manualEntry = async (payload, currentUser) => {
 
     const matName = (material.name || '').toUpperCase();
     const matCode = (material.code || material.internal_code || '').toUpperCase();
-    const isPp = Boolean(payload.silo_id) || matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP') || matCode.includes('PP-');
+    const materialTags = await material.getTags({ attributes: ['name'], transaction: t });
+    const hasPolypropyleneTag = materialTags.some(({ name }) => {
+      const normalizedName = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+      return normalizedName === 'PP' || normalizedName.includes('POLIPROPILENO');
+    });
+    const isPp = hasPolypropyleneTag || matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP') || matCode.includes('PP-');
 
     // Para materiales distintos de Polipropileno, la localidad de almacén es obligatoria
     if (!isPp && !payload.location_id) {
@@ -773,9 +782,10 @@ const manualEntry = async (payload, currentUser) => {
       if (!targetSilo) {
         throwHttpError(`No hay un silo activo asignado al material ${material.name}.`, 400);
       }
-      if (!targetSilo.is_active || Number(targetSilo.material_id) !== Number(material.id)) {
-        throwHttpError('El silo seleccionado está inactivo o contiene un material distinto al recibido.', 400);
+      if (!targetSilo.is_active) {
+        throwHttpError('El silo seleccionado está inactivo.', 400);
       }
+      if (hasPolypropyleneTag || matName.includes('POLIPROPILENO') || matName.includes('PP ')) targetSilo.material_id = material.id;
     } else {
       // 1. Generate QR Batch and Codes ONLY for other materials (non-PP)
       const batchCode = `QRB-MAN-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${now.toISOString().slice(11, 19).replace(/:/g, '')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
@@ -919,6 +929,8 @@ const manualEntry = async (payload, currentUser) => {
         }
       }
 
+      const invoiceUnitCost = Number(entry.unit_cost);
+      const mxnUnitCost = currency === 'USD' ? invoiceUnitCost * exchangeRate.rate : invoiceUnitCost;
       loteData.push({
         material_id: payload.material_id,
         user_id: currentUser.id,
@@ -930,8 +942,13 @@ const manualEntry = async (payload, currentUser) => {
         notes: payload.notes || (isPp ? `Ingreso a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) sin QR` : 'Ingreso manual'),
         is_active: true,
         supplier_id: finalSupplierId,
-        unit_cost: entry.unit_cost || null,
-        total_cost: entry.unit_cost ? Number(entry.unit_cost) * q : null
+        unit_cost: mxnUnitCost,
+        total_cost: mxnUnitCost * q,
+        invoice_currency: currency,
+        invoice_unit_cost: invoiceUnitCost,
+        invoice_exchange_rate: exchangeRate?.rate || null,
+        invoice_exchange_rate_date: exchangeRate?.date || null,
+        invoice_exchange_rate_source: exchangeRate?.source || null
       });
     }
 
@@ -968,25 +985,14 @@ const manualEntry = async (payload, currentUser) => {
         throwHttpError(`Capacidad excedida en ${targetSilo.code}: disponible ${Math.max(0, capacity - stockBefore)} kg, recibidos ${totalQuantity} kg.`, 400);
       }
       const existingCost = Number(targetSilo.unit_cost || 0);
-      const receivedValue = payload.entries.reduce((sum, entry) => sum + Number(entry.quantity) * Number(entry.unit_cost || 0), 0);
+      const receivedValue = payload.entries.reduce((sum, entry) => sum + Number(entry.quantity) * Number(entry.unit_cost || 0) * (exchangeRate?.rate || 1), 0);
       const totalValue = stockBefore * existingCost + receivedValue;
-      const lotTypes = [...new Set(payload.entries.map((entry) => String(entry.lot_type || '').trim().toUpperCase()).filter(Boolean))];
-      if (lotTypes.some((type) => !['A', 'B', 'C'].includes(type))) {
-        throwHttpError('El tipo de lote del silo debe ser A, B o C.', 400);
-      }
-      if (lotTypes.length > 1) {
-        throwHttpError('Separa los ingresos por tipo de lote; no se pueden mezclar tipos A, B o C en una recepción.', 400);
-      }
-      if (stockBefore > 0 && lotTypes.length === 1 && targetSilo.current_lot_type && lotTypes[0] !== String(targetSilo.current_lot_type).toUpperCase()) {
-        throwHttpError(`El silo conserva lote tipo ${targetSilo.current_lot_type}; no se puede mezclar con lote tipo ${lotTypes[0]}.`, 409);
-      }
       targetSilo.current_stock_kg = Number((stockBefore + totalQuantity).toFixed(2));
       if (totalValue > 0 && stockBefore + totalQuantity > 0) {
         targetSilo.unit_cost = Number((totalValue / (stockBefore + totalQuantity)).toFixed(4));
       }
       const folios = payload.entries.map((entry) => String(entry.folio || '').trim()).filter(Boolean);
       if (folios.length) targetSilo.current_lot_number = [...new Set(folios)].join(', ').slice(0, 100);
-      if (lotTypes.length === 1) targetSilo.current_lot_type = lotTypes[0];
       await targetSilo.save({ transaction: t });
       const { AuditLog } = require('../../database/models');
       await AuditLog.create({
@@ -998,7 +1004,7 @@ const manualEntry = async (payload, currentUser) => {
         description: `Ingreso manual sin QR de ${totalQuantity} kg de ${material.name} al silo ${targetSilo.code}.`,
         before_data: { current_stock_kg: stockBefore, unit_cost: existingCost },
         after_data: { current_stock_kg: Number(targetSilo.current_stock_kg), unit_cost: Number(targetSilo.unit_cost) },
-        metadata: { material_id: material.id, entries: payload.entries.map(({ folio, quantity, unit_cost, lot_type }) => ({ folio, quantity: Number(quantity), unit_cost: Number(unit_cost), lot_type: lot_type || null })) },
+        metadata: { material_id: material.id, polypropylene_tagged: hasPolypropyleneTag, currency, exchange_rate: exchangeRate, entries: payload.entries.map(({ folio, quantity, unit_cost, lot_type }) => ({ folio, quantity: Number(quantity), invoice_unit_cost: Number(unit_cost), mxn_unit_cost: Number(unit_cost) * (exchangeRate?.rate || 1), currency, lot_type: lot_type || null })) },
       }, { transaction: t });
     }
 
@@ -1008,8 +1014,8 @@ const manualEntry = async (payload, currentUser) => {
       inventory_id: inventory.id,
       type: isPp ? 'ENTRY' : 'MANUAL_ENTRY',
       quantity_change: Number(entry.quantity),
-      unit_cost: entry.unit_cost || null,
-      total_cost: entry.unit_cost ? Number(entry.unit_cost) * Number(entry.quantity) : null,
+      unit_cost: Number(entry.unit_cost) * (exchangeRate?.rate || 1),
+      total_cost: Number(entry.unit_cost) * Number(entry.quantity) * (exchangeRate?.rate || 1),
       performed_by: currentUser.id,
       notes: isPp
         ? `Ingreso directo a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) - Folio: ${entry.folio || 'S/N'}. Consumo directo Mezcladora (Excepción sin QR).`
@@ -1043,6 +1049,8 @@ const manualEntry = async (payload, currentUser) => {
       results, 
       qrBatchId: isPp ? null : qrBatch?.id || null, 
       is_silo: isPp,
+      invoice_currency: currency,
+      invoice_exchange_rate: exchangeRate,
       silo_code: targetSilo?.code || null,
       silo_name: targetSilo?.name || null,
       total_quantity: totalQuantity,

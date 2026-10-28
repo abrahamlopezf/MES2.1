@@ -204,9 +204,13 @@ const createUser = async (payload, currentUser) => {
     }
 
     // Auto-generar username basado en las 3 primeras letras del nombre y apellido
-    const cleanFirstName = (payload.first_name || '').trim().replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ]/g, '').toUpperCase();
-    const cleanLastName = (payload.last_name || '').trim().replace(/[^a-zA-ZñÑáéíóúÁÉÍÓÚ]/g, '').toUpperCase();
+    const normalizeName = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const cleanFirstName = normalizeName(payload.first_name);
+    const cleanLastName = normalizeName(payload.last_name);
     const baseUsername = `${cleanFirstName.substring(0, 3)}${cleanLastName.substring(0, 3)}`;
+    if (baseUsername.length < 3) {
+      throwHttpError('No se pudo generar el usuario. Verifica nombre y apellidos.', 400);
+    }
 
     let generatedUsername = baseUsername;
     let seq = 1;
