@@ -49,6 +49,14 @@ module.exports = {
         v_sup_role_id INTEGER;
         v_op_role_id INTEGER;
       BEGIN
+        -- Sincronizar secuencias ANTES de cualquier INSERT para evitar colisiones de PK (Key (id)=(...) already exists)
+        PERFORM setval(pg_get_serial_sequence('subareas', 'id'), COALESCE((SELECT MAX(id) FROM subareas), 1), (SELECT MAX(id) IS NOT NULL FROM subareas));
+        PERFORM setval(pg_get_serial_sequence('looms', 'id'), COALESCE((SELECT MAX(id) FROM looms), 1), (SELECT MAX(id) IS NOT NULL FROM looms));
+        PERFORM setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1), (SELECT MAX(id) IS NOT NULL FROM roles));
+        PERFORM setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1), (SELECT MAX(id) IS NOT NULL FROM users));
+        PERFORM setval(pg_get_serial_sequence('production_boms', 'id'), COALESCE((SELECT MAX(id) FROM production_boms), 1), (SELECT MAX(id) IS NOT NULL FROM production_boms));
+        PERFORM setval(pg_get_serial_sequence('production_bom_items', 'id'), COALESCE((SELECT MAX(id) FROM production_bom_items), 1), (SELECT MAX(id) IS NOT NULL FROM production_bom_items));
+
         SELECT id INTO v_telares_area_id FROM areas WHERE code = 'TELARES' LIMIT 1;
 
         IF v_telares_area_id IS NOT NULL THEN
@@ -103,24 +111,24 @@ module.exports = {
 
         PERFORM setval('looms_id_seq', (SELECT COALESCE(MAX(id), 1) FROM looms));
 
-        -- Roles de Telares por code (respetando índice parcial deleted_at IS NULL)
-        SELECT id INTO v_sup_role_id FROM roles WHERE code = 'SUPERVISOR_TELARES' AND deleted_at IS NULL LIMIT 1;
+        -- Roles de Telares por code (reactivando si estuviera soft-deleted)
+        SELECT id INTO v_sup_role_id FROM roles WHERE code = 'SUPERVISOR_TELARES' ORDER BY deleted_at NULLS FIRST LIMIT 1;
         IF v_sup_role_id IS NULL THEN
           INSERT INTO roles (name, code, description, is_system, is_active, area_id, created_at, updated_at)
           VALUES ('Supervisor de Telares', 'SUPERVISOR_TELARES', 'Supervisor operativo de Tejeduría y Telares Banda', false, true, v_telares_area_id, NOW(), NOW())
           RETURNING id INTO v_sup_role_id;
         ELSE
-          UPDATE roles SET name = 'Supervisor de Telares', area_id = COALESCE(v_telares_area_id, area_id), is_active = true, updated_at = NOW()
+          UPDATE roles SET name = 'Supervisor de Telares', area_id = COALESCE(v_telares_area_id, area_id), is_active = true, deleted_at = NULL, updated_at = NOW()
           WHERE id = v_sup_role_id;
         END IF;
 
-        SELECT id INTO v_op_role_id FROM roles WHERE code = 'OPERADOR_TELARES' AND deleted_at IS NULL LIMIT 1;
+        SELECT id INTO v_op_role_id FROM roles WHERE code = 'OPERADOR_TELARES' ORDER BY deleted_at NULLS FIRST LIMIT 1;
         IF v_op_role_id IS NULL THEN
           INSERT INTO roles (name, code, description, is_system, is_active, area_id, created_at, updated_at)
           VALUES ('Operador de Telares', 'OPERADOR_TELARES', 'Operador de tejeduría circular y telares banda', false, true, v_telares_area_id, NOW(), NOW())
           RETURNING id INTO v_op_role_id;
         ELSE
-          UPDATE roles SET name = 'Operador de Telares', area_id = COALESCE(v_telares_area_id, area_id), is_active = true, updated_at = NOW()
+          UPDATE roles SET name = 'Operador de Telares', area_id = COALESCE(v_telares_area_id, area_id), is_active = true, deleted_at = NULL, updated_at = NOW()
           WHERE id = v_op_role_id;
         END IF;
 

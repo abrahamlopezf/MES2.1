@@ -8,6 +8,8 @@ module.exports = {
       await queryInterface.sequelize.query(`ALTER TABLE material_locations
         ADD COLUMN IF NOT EXISTS area_id INTEGER REFERENCES areas(id) ON UPDATE CASCADE ON DELETE SET NULL`, { transaction });
       await queryInterface.sequelize.query(`
+        SELECT setval(pg_get_serial_sequence('material_locations', 'id'), COALESCE((SELECT MAX(id) FROM material_locations), 1), (SELECT MAX(id) IS NOT NULL FROM material_locations));
+
         UPDATE material_locations ml
         SET name = 'Silo',
             description = 'Localidad operativa para materia prima almacenada en silos.',

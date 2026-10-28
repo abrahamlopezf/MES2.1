@@ -84,9 +84,30 @@ module.exports = {
         v_laminado_area_id INTEGER;
         v_telares_area_id INTEGER;
       BEGIN
+        PERFORM setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1), (SELECT MAX(id) IS NOT NULL FROM roles));
+        PERFORM setval(pg_get_serial_sequence('permissions', 'id'), COALESCE((SELECT MAX(id) FROM permissions), 1), (SELECT MAX(id) IS NOT NULL FROM permissions));
+        PERFORM setval(pg_get_serial_sequence('role_permissions', 'id'), COALESCE((SELECT MAX(id) FROM role_permissions), 1), (SELECT MAX(id) IS NOT NULL FROM role_permissions));
+
         SELECT id INTO v_globo_area_id FROM areas WHERE code = 'GLOBO' LIMIT 1;
         SELECT id INTO v_laminado_area_id FROM areas WHERE code = 'LAMINADO' LIMIT 1;
         SELECT id INTO v_telares_area_id FROM areas WHERE code = 'TELARES' LIMIT 1;
+
+        UPDATE roles r
+        SET name = v.name,
+            area_id = COALESCE(v.area_id, r.area_id),
+            is_active = true,
+            deleted_at = NULL,
+            updated_at = NOW()
+        FROM (VALUES
+          ('Administrador de Globo', 'ADMIN_GLOBO', v_globo_area_id),
+          ('Supervisor de Globo', 'SUPERVISOR_GLOBO', v_globo_area_id),
+          ('Operador de Globo', 'OPERADOR_GLOBO', v_globo_area_id),
+          ('Administrador de Laminado', 'ADMIN_LAMINADO', v_laminado_area_id),
+          ('Supervisor de Laminado', 'SUPERVISOR_LAMINADO', v_laminado_area_id),
+          ('Operador de Laminado', 'OPERADOR_LAMINADO', v_laminado_area_id),
+          ('Administrador de Telares', 'ADMIN_TELARES', v_telares_area_id)
+        ) AS v(name, code, area_id)
+        WHERE r.code = v.code;
 
         INSERT INTO roles (name, code, area_id, is_active, created_at, updated_at)
         SELECT v.name, v.code, v.area_id, true, NOW(), NOW()
@@ -100,7 +121,7 @@ module.exports = {
           ('Administrador de Telares', 'ADMIN_TELARES', v_telares_area_id)
         ) AS v(name, code, area_id)
         WHERE NOT EXISTS (
-          SELECT 1 FROM roles r WHERE r.code = v.code AND r.deleted_at IS NULL
+          SELECT 1 FROM roles r WHERE r.code = v.code
         );
       END $$;
     `);
