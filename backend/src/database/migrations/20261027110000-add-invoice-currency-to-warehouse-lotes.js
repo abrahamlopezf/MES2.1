@@ -1,22 +1,15 @@
 'use strict';
 
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('lotes', 'invoice_currency', {
-      type: Sequelize.STRING(3), allowNull: false, defaultValue: 'MXN',
-    });
-    await queryInterface.addColumn('lotes', 'invoice_unit_cost', {
-      type: Sequelize.DECIMAL(12, 4), allowNull: true,
-    });
-    await queryInterface.addColumn('lotes', 'invoice_exchange_rate', {
-      type: Sequelize.DECIMAL(12, 6), allowNull: true,
-    });
-    await queryInterface.addColumn('lotes', 'invoice_exchange_rate_date', {
-      type: Sequelize.DATEONLY, allowNull: true,
-    });
-    await queryInterface.addColumn('lotes', 'invoice_exchange_rate_source', {
-      type: Sequelize.STRING(120), allowNull: true,
-    });
+  async up(queryInterface) {
+    await queryInterface.sequelize.query(`
+      ALTER TABLE lotes
+        ADD COLUMN IF NOT EXISTS invoice_currency VARCHAR(3) NOT NULL DEFAULT 'MXN',
+        ADD COLUMN IF NOT EXISTS invoice_unit_cost DECIMAL(12,4),
+        ADD COLUMN IF NOT EXISTS invoice_exchange_rate DECIMAL(12,6),
+        ADD COLUMN IF NOT EXISTS invoice_exchange_rate_date DATE,
+        ADD COLUMN IF NOT EXISTS invoice_exchange_rate_source VARCHAR(120);
+    `);
 
     // Backfill existing records as invoices denominated in MXN at their recorded cost.
     await queryInterface.sequelize.query(`UPDATE lotes

@@ -76,18 +76,33 @@ module.exports = {
       );
     `);
 
-    // 5. Roles de Globo y Laminado
+    // 5. Roles de Globo, Laminado y Telares (compatible con índice parcial roles_code_unique_active)
     await queryInterface.sequelize.query(`
-      INSERT INTO roles (name, code, area_id, is_active, created_at, updated_at)
-      VALUES
-        ('Administrador de Globo', 'ADMIN_GLOBO', 5, true, NOW(), NOW()),
-        ('Supervisor de Globo', 'SUPERVISOR_GLOBO', 5, true, NOW(), NOW()),
-        ('Operador de Globo', 'OPERADOR_GLOBO', 5, true, NOW(), NOW()),
-        ('Administrador de Laminado', 'ADMIN_LAMINADO', 4, true, NOW(), NOW()),
-        ('Supervisor de Laminado', 'SUPERVISOR_LAMINADO', 4, true, NOW(), NOW()),
-        ('Operador de Laminado', 'OPERADOR_LAMINADO', 4, true, NOW(), NOW()),
-        ('Administrador de Telares', 'ADMIN_TELARES', 3, true, NOW(), NOW())
-      ON CONFLICT (code) DO NOTHING;
+      DO $$
+      DECLARE
+        v_globo_area_id INTEGER;
+        v_laminado_area_id INTEGER;
+        v_telares_area_id INTEGER;
+      BEGIN
+        SELECT id INTO v_globo_area_id FROM areas WHERE code = 'GLOBO' LIMIT 1;
+        SELECT id INTO v_laminado_area_id FROM areas WHERE code = 'LAMINADO' LIMIT 1;
+        SELECT id INTO v_telares_area_id FROM areas WHERE code = 'TELARES' LIMIT 1;
+
+        INSERT INTO roles (name, code, area_id, is_active, created_at, updated_at)
+        SELECT v.name, v.code, v.area_id, true, NOW(), NOW()
+        FROM (VALUES
+          ('Administrador de Globo', 'ADMIN_GLOBO', v_globo_area_id),
+          ('Supervisor de Globo', 'SUPERVISOR_GLOBO', v_globo_area_id),
+          ('Operador de Globo', 'OPERADOR_GLOBO', v_globo_area_id),
+          ('Administrador de Laminado', 'ADMIN_LAMINADO', v_laminado_area_id),
+          ('Supervisor de Laminado', 'SUPERVISOR_LAMINADO', v_laminado_area_id),
+          ('Operador de Laminado', 'OPERADOR_LAMINADO', v_laminado_area_id),
+          ('Administrador de Telares', 'ADMIN_TELARES', v_telares_area_id)
+        ) AS v(name, code, area_id)
+        WHERE NOT EXISTS (
+          SELECT 1 FROM roles r WHERE r.code = v.code AND r.deleted_at IS NULL
+        );
+      END $$;
     `);
 
     // 6. Nuevos Permisos de Catálogos y WIP

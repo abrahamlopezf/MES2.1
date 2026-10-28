@@ -40,75 +40,117 @@ module.exports = {
         ADD COLUMN IF NOT EXISTS tape_color VARCHAR(80);
     `);
 
-    // 4. Asegurar la subárea Telares Banda (id = 7)
+    // 4-7. Asegurar subárea Telares Banda, los 21 Telares, y los Roles/Operadores de Telares sin colisionar IDs ni índices parciales
     await queryInterface.sequelize.query(`
-      INSERT INTO subareas (id, area_id, name, nomenclature, is_active, created_at, updated_at)
-      VALUES (7, 3, 'Telares Banda', 'TB', true, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET name = 'Telares Banda', is_active = true;
+      DO $$
+      DECLARE
+        v_telares_area_id INTEGER;
+        v_banda_subarea_id INTEGER;
+        v_sup_role_id INTEGER;
+        v_op_role_id INTEGER;
+      BEGIN
+        SELECT id INTO v_telares_area_id FROM areas WHERE code = 'TELARES' LIMIT 1;
 
-      SELECT setval('subareas_id_seq', (SELECT COALESCE(MAX(id), 1) FROM subareas));
-    `);
+        IF v_telares_area_id IS NOT NULL THEN
+          SELECT id INTO v_banda_subarea_id
+          FROM subareas
+          WHERE area_id = v_telares_area_id AND UPPER(nomenclature) = 'TB' AND deleted_at IS NULL
+          LIMIT 1;
 
-    // 5. Poblar/Actualizar los 21 Telares (Telares 1 al 17 circulares/estándar, 18 al 21 Telares Banda)
-    await queryInterface.sequelize.query(`
-      -- Actualizar los telares existentes (1 al 6)
-      UPDATE looms SET loom_number = 1, creel_capacity_spools = 1800 WHERE id = 1 OR code = 'TEL-01';
-      UPDATE looms SET loom_number = 2, creel_capacity_spools = 1800 WHERE id = 2 OR code = 'TEL-02';
-      UPDATE looms SET loom_number = 3, creel_capacity_spools = 1800 WHERE id = 3 OR code = 'TEL-03';
-      UPDATE looms SET loom_number = 4, creel_capacity_spools = 1800 WHERE id = 4 OR code = 'TEL-04';
-      UPDATE looms SET loom_number = 5, creel_capacity_spools = 1800 WHERE id = 5 OR code = 'TEL-05';
-      UPDATE looms SET loom_number = 6, creel_capacity_spools = 1800 WHERE id = 6 OR code = 'TEL-06';
+          IF v_banda_subarea_id IS NULL THEN
+            INSERT INTO subareas (area_id, name, nomenclature, is_active, created_at, updated_at)
+            VALUES (v_telares_area_id, 'Telares Banda', 'TB', true, NOW(), NOW())
+            RETURNING id INTO v_banda_subarea_id;
+          ELSE
+            UPDATE subareas
+            SET name = 'Telares Banda', is_active = true, updated_at = NOW()
+            WHERE id = v_banda_subarea_id;
+          END IF;
+        END IF;
 
-      -- Insertar Telares 7 al 21 si no existen
-      INSERT INTO looms (code, name, model, type, rpm, status, is_active, subarea_id, loom_number, creel_capacity_spools, current_spools_count, current_wip_kg, total_rolls_produced, created_at, updated_at)
-      VALUES
-        ('TEL-07', 'Telar Circular 07', 'LOHIA LSL-6', 'CIRCULAR', 120, 'DISPONIBLE', true, null, 7, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-08', 'Telar Circular 08', 'LOHIA LSL-6', 'CIRCULAR', 120, 'DISPONIBLE', true, null, 8, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-09', 'Telar Circular 09', 'LOHIA LSL-6', 'CIRCULAR', 120, 'DISPONIBLE', true, null, 9, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-10', 'Telar Circular 10', 'STARLINGER FX 6.0', 'CIRCULAR', 130, 'DISPONIBLE', true, null, 10, 1800, 1200, 240, 23, NOW(), NOW()),
-        ('TEL-11', 'Telar Circular 11', 'STARLINGER FX 6.0', 'CIRCULAR', 130, 'DISPONIBLE', true, null, 11, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-12', 'Telar Circular 12', 'STARLINGER FX 6.0', 'CIRCULAR', 130, 'DISPONIBLE', true, null, 12, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-13', 'Telar Circular 13', 'LOHIA NOVA 6', 'CIRCULAR', 125, 'DISPONIBLE', true, null, 13, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-14', 'Telar Circular 14', 'LOHIA NOVA 6', 'CIRCULAR', 125, 'DISPONIBLE', true, null, 14, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-15', 'Telar Circular 15', 'LOHIA NOVA 6', 'CIRCULAR', 125, 'DISPONIBLE', true, null, 15, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-16', 'Telar Circular 16', 'LOHIA LSL-8', 'CIRCULAR', 110, 'DISPONIBLE', true, null, 16, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-17', 'Telar Circular 17', 'LOHIA LSL-8', 'CIRCULAR', 110, 'DISPONIBLE', true, null, 17, 1800, 0, 0, 0, NOW(), NOW()),
-        -- Telares Banda (Subárea 7: Telares Banda)
-        ('TEL-18', 'Telar Banda 18', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, 7, 18, 1800, 450, 90, 12, NOW(), NOW()),
-        ('TEL-19', 'Telar Banda 19', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, 7, 19, 1800, 600, 120, 15, NOW(), NOW()),
-        ('TEL-20', 'Telar Banda 20', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, 7, 20, 1800, 0, 0, 0, NOW(), NOW()),
-        ('TEL-21', 'Telar Banda 21', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, 7, 21, 1800, 0, 0, 0, NOW(), NOW())
-      ON CONFLICT (code) DO UPDATE SET
-        loom_number = EXCLUDED.loom_number,
-        creel_capacity_spools = EXCLUDED.creel_capacity_spools,
-        subarea_id = EXCLUDED.subarea_id;
+        PERFORM setval('subareas_id_seq', (SELECT COALESCE(MAX(id), 1) FROM subareas));
 
-      SELECT setval('looms_id_seq', (SELECT COALESCE(MAX(id), 1) FROM looms));
-    `);
+        -- Actualizar los telares existentes (1 al 6)
+        UPDATE looms SET loom_number = 1, creel_capacity_spools = 1800 WHERE id = 1 OR code = 'TEL-01';
+        UPDATE looms SET loom_number = 2, creel_capacity_spools = 1800 WHERE id = 2 OR code = 'TEL-02';
+        UPDATE looms SET loom_number = 3, creel_capacity_spools = 1800 WHERE id = 3 OR code = 'TEL-03';
+        UPDATE looms SET loom_number = 4, creel_capacity_spools = 1800 WHERE id = 4 OR code = 'TEL-04';
+        UPDATE looms SET loom_number = 5, creel_capacity_spools = 1800 WHERE id = 5 OR code = 'TEL-05';
+        UPDATE looms SET loom_number = 6, creel_capacity_spools = 1800 WHERE id = 6 OR code = 'TEL-06';
 
-    // 6. Roles y Usuarios de Tejido / Telares con Nómina
-    await queryInterface.sequelize.query(`
-      INSERT INTO roles (id, name, code, description, is_system, is_active, area_id, created_at, updated_at)
-      VALUES 
-        (27, 'Supervisor de Telares', 'SUPERVISOR_TELARES', 'Supervisor operativo de Tejeduría y Telares Banda', false, true, 3, NOW(), NOW()),
-        (28, 'Operador de Telares', 'OPERADOR_TELARES', 'Operador de tejeduría circular y telares banda', false, true, 3, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, area_id = 3;
+        -- Insertar Telares 7 al 21 si no existen
+        INSERT INTO looms (code, name, model, type, rpm, status, is_active, subarea_id, loom_number, creel_capacity_spools, current_spools_count, current_wip_kg, total_rolls_produced, created_at, updated_at)
+        VALUES
+          ('TEL-07', 'Telar Circular 07', 'LOHIA LSL-6', 'CIRCULAR', 120, 'DISPONIBLE', true, null, 7, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-08', 'Telar Circular 08', 'LOHIA LSL-6', 'CIRCULAR', 120, 'DISPONIBLE', true, null, 8, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-09', 'Telar Circular 09', 'LOHIA LSL-6', 'CIRCULAR', 120, 'DISPONIBLE', true, null, 9, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-10', 'Telar Circular 10', 'STARLINGER FX 6.0', 'CIRCULAR', 130, 'DISPONIBLE', true, null, 10, 1800, 1200, 240, 23, NOW(), NOW()),
+          ('TEL-11', 'Telar Circular 11', 'STARLINGER FX 6.0', 'CIRCULAR', 130, 'DISPONIBLE', true, null, 11, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-12', 'Telar Circular 12', 'STARLINGER FX 6.0', 'CIRCULAR', 130, 'DISPONIBLE', true, null, 12, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-13', 'Telar Circular 13', 'LOHIA NOVA 6', 'CIRCULAR', 125, 'DISPONIBLE', true, null, 13, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-14', 'Telar Circular 14', 'LOHIA NOVA 6', 'CIRCULAR', 125, 'DISPONIBLE', true, null, 14, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-15', 'Telar Circular 15', 'LOHIA NOVA 6', 'CIRCULAR', 125, 'DISPONIBLE', true, null, 15, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-16', 'Telar Circular 16', 'LOHIA LSL-8', 'CIRCULAR', 110, 'DISPONIBLE', true, null, 16, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-17', 'Telar Circular 17', 'LOHIA LSL-8', 'CIRCULAR', 110, 'DISPONIBLE', true, null, 17, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-18', 'Telar Banda 18', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, v_banda_subarea_id, 18, 1800, 450, 90, 12, NOW(), NOW()),
+          ('TEL-19', 'Telar Banda 19', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, v_banda_subarea_id, 19, 1800, 600, 120, 15, NOW(), NOW()),
+          ('TEL-20', 'Telar Banda 20', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, v_banda_subarea_id, 20, 1800, 0, 0, 0, NOW(), NOW()),
+          ('TEL-21', 'Telar Banda 21', 'MÜLLER TELARES BANDA', 'BANDA', 150, 'DISPONIBLE', true, v_banda_subarea_id, 21, 1800, 0, 0, 0, NOW(), NOW())
+        ON CONFLICT (code) DO UPDATE SET
+          loom_number = EXCLUDED.loom_number,
+          creel_capacity_spools = EXCLUDED.creel_capacity_spools,
+          subarea_id = EXCLUDED.subarea_id;
 
-      SELECT setval('roles_id_seq', (SELECT COALESCE(MAX(id), 1) FROM roles));
-    `);
+        PERFORM setval('looms_id_seq', (SELECT COALESCE(MAX(id), 1) FROM looms));
 
-    // 7. Poblar operadores de tejido con números de nómina
-    await queryInterface.sequelize.query(`
-      INSERT INTO users (first_name, last_name, email, username, numero_nomina, password_hash, role_id, is_active, must_change_password, created_at, updated_at)
-      VALUES
-        ('Carlos', 'Morales', 'cmorales@empresa.com', 'op_tel_1200', '1200', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 28, true, false, NOW(), NOW()),
-        ('Juan Pablo', 'Castillo', 'jcastillo@empresa.com', 'op_tel_1201', '1201', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 28, true, false, NOW(), NOW()),
-        ('Miguel Ángel', 'Ruiz', 'mruiz@empresa.com', 'op_tel_1202', '1202', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 28, true, false, NOW(), NOW()),
-        ('Roberto', 'Méndez', 'rmendez@empresa.com', 'op_tel_1203', '1203', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 28, true, false, NOW(), NOW()),
-        ('Eduardo', 'Vargas', 'evargas@empresa.com', 'sup_tel_1150', '1150', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 27, true, false, NOW(), NOW())
-      ON CONFLICT (username) DO UPDATE SET
-        numero_nomina = EXCLUDED.numero_nomina,
-        role_id = EXCLUDED.role_id;
+        -- Roles de Telares por code (respetando índice parcial deleted_at IS NULL)
+        SELECT id INTO v_sup_role_id FROM roles WHERE code = 'SUPERVISOR_TELARES' AND deleted_at IS NULL LIMIT 1;
+        IF v_sup_role_id IS NULL THEN
+          INSERT INTO roles (name, code, description, is_system, is_active, area_id, created_at, updated_at)
+          VALUES ('Supervisor de Telares', 'SUPERVISOR_TELARES', 'Supervisor operativo de Tejeduría y Telares Banda', false, true, v_telares_area_id, NOW(), NOW())
+          RETURNING id INTO v_sup_role_id;
+        ELSE
+          UPDATE roles SET name = 'Supervisor de Telares', area_id = COALESCE(v_telares_area_id, area_id), is_active = true, updated_at = NOW()
+          WHERE id = v_sup_role_id;
+        END IF;
+
+        SELECT id INTO v_op_role_id FROM roles WHERE code = 'OPERADOR_TELARES' AND deleted_at IS NULL LIMIT 1;
+        IF v_op_role_id IS NULL THEN
+          INSERT INTO roles (name, code, description, is_system, is_active, area_id, created_at, updated_at)
+          VALUES ('Operador de Telares', 'OPERADOR_TELARES', 'Operador de tejeduría circular y telares banda', false, true, v_telares_area_id, NOW(), NOW())
+          RETURNING id INTO v_op_role_id;
+        ELSE
+          UPDATE roles SET name = 'Operador de Telares', area_id = COALESCE(v_telares_area_id, area_id), is_active = true, updated_at = NOW()
+          WHERE id = v_op_role_id;
+        END IF;
+
+        PERFORM setval('roles_id_seq', (SELECT COALESCE(MAX(id), 1) FROM roles));
+
+        -- Poblar operadores de tejido con números de nómina sin colisionar email ni numero_nomina
+        IF v_op_role_id IS NOT NULL THEN
+          INSERT INTO users (first_name, last_name, email, username, numero_nomina, password_hash, role_id, is_active, must_change_password, created_at, updated_at)
+          SELECT v.first_name, v.last_name, v.email, v.username, v.numero_nomina, v.password_hash, v_op_role_id, true, false, NOW(), NOW()
+          FROM (VALUES
+            ('Carlos', 'Morales', 'cmorales@empresa.com', 'op_tel_1200', '1200', '$2b$10$abcdefghijklmnopqrstuvwxyz123456'),
+            ('Juan Pablo', 'Castillo', 'jcastillo@empresa.com', 'op_tel_1201', '1201', '$2b$10$abcdefghijklmnopqrstuvwxyz123456'),
+            ('Miguel Ángel', 'Ruiz', 'mruiz@empresa.com', 'op_tel_1202', '1202', '$2b$10$abcdefghijklmnopqrstuvwxyz123456'),
+            ('Roberto', 'Méndez', 'rmendez@empresa.com', 'op_tel_1203', '1203', '$2b$10$abcdefghijklmnopqrstuvwxyz123456')
+          ) AS v(first_name, last_name, email, username, numero_nomina, password_hash)
+          WHERE NOT EXISTS (
+            SELECT 1 FROM users u
+            WHERE u.username = v.username OR u.email = v.email OR u.numero_nomina = v.numero_nomina
+          );
+        END IF;
+
+        IF v_sup_role_id IS NOT NULL THEN
+          INSERT INTO users (first_name, last_name, email, username, numero_nomina, password_hash, role_id, is_active, must_change_password, created_at, updated_at)
+          SELECT 'Eduardo', 'Vargas', 'evargas@empresa.com', 'sup_tel_1150', '1150', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', v_sup_role_id, true, false, NOW(), NOW()
+          WHERE NOT EXISTS (
+            SELECT 1 FROM users u
+            WHERE u.username = 'sup_tel_1150' OR u.email = 'evargas@empresa.com' OR u.numero_nomina = '1150'
+          );
+        END IF;
+      END $$;
     `);
 
     // 8. Poblar Catálogo de Telas y Bandas según Especificación del PDF (Página 1)
