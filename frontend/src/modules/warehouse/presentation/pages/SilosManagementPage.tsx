@@ -38,6 +38,11 @@ const formatCurrency = (val: number) => {
   }).format(val || 0);
 };
 
+const localDateValue = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 export const SilosManagementPage: React.FC = () => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
@@ -52,6 +57,7 @@ export const SilosManagementPage: React.FC = () => {
   // Formulario Factura PP (Entrada a Silo - Cero QR)
   const [invoiceForm, setInvoiceForm] = useState({
     folio: '',
+    invoice_date: localDateValue(),
     supplier_name: '',
     silo_id: '',
     material_id: '',
@@ -92,12 +98,12 @@ export const SilosManagementPage: React.FC = () => {
   const backendSummary = silosResponse?.summary;
 
   const exchangeRateQuery = useQuery({
-    queryKey: ['warehouse', 'usd-mxn-rate'],
+    queryKey: ['warehouse', 'usd-mxn-rate', invoiceForm.invoice_date],
     queryFn: async () => {
-      const res = await apiClient.get('/warehouse/silos/exchange-rate');
+      const res = await apiClient.get('/warehouse/silos/exchange-rate', { params: { date: invoiceForm.invoice_date } });
       return res.data;
     },
-    enabled: invoiceForm.currency === 'USD' && isInvoiceModalOpen,
+    enabled: isInvoiceModalOpen && Boolean(invoiceForm.invoice_date),
     staleTime: 60_000,
     retry: 1,
   });
@@ -135,6 +141,7 @@ export const SilosManagementPage: React.FC = () => {
       setIsInvoiceModalOpen(false);
       setInvoiceForm({
         folio: '',
+        invoice_date: localDateValue(),
         supplier_name: '',
         silo_id: '',
         material_id: '',
@@ -268,9 +275,14 @@ export const SilosManagementPage: React.FC = () => {
       toast.error('Ingresa el costo unitario de la factura en la moneda seleccionada.');
       return;
     }
+    if (!exchangeRateQuery.data?.rate) {
+      toast.error('No se pudo consultar el tipo de cambio del DOF para la fecha de factura.');
+      return;
+    }
 
     invoiceEntryMutation.mutate({
       folio: invoiceForm.folio.trim().toUpperCase(),
+      invoice_date: invoiceForm.invoice_date,
       silo_id: Number(invoiceForm.silo_id),
       material_id: Number(invoiceForm.material_id),
       quantity_kg: qty,
@@ -828,6 +840,17 @@ export const SilosManagementPage: React.FC = () => {
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Fecha de Factura *</label>
+                  <Input
+                    type="date"
+                    required
+                    value={invoiceForm.invoice_date}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, invoice_date: e.target.value })}
+                    className="!h-11 bg-background border-border"
+                  />
+                </div>
+
                 {/* Silo Destino */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -955,15 +978,21 @@ export const SilosManagementPage: React.FC = () => {
                       className="!h-11 font-mono font-bold text-xs sm:text-sm bg-background border-border"
                     />
                   </div>
-                  {invoiceForm.currency === 'USD' && (
+                  {
                     <div className="sm:col-span-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
-                      {exchangeRateQuery.isLoading ? 'Consultando tipo de cambio FIX…' : exchangeRateQuery.data ? (
-                        <>Tipo de cambio oficial {exchangeRateQuery.data.rate} MXN/USD ({exchangeRateQuery.data.date}). El sistema guardará el costo original en USD y su equivalente en MXN.</>
+                      {exchangeRateQuery.isLoading ? 'Consultando tipo de cambio del DOF…' : exchangeRateQuery.data ? (
+                        (() => {
+                          const amount = Number(invoiceForm.unit_cost || 0);
+                          const rate = Number(exchangeRateQuery.data.rate);
+                          const mxn = invoiceForm.currency === 'USD' ? amount * rate : amount;
+                          const usd = invoiceForm.currency === 'USD' ? amount : (rate > 0 ? amount / rate : 0);
+                          return <>Tipo de cambio del DOF: {rate} MXN/USD ({exchangeRateQuery.data.date}). Se guardarán {formatCurrency(mxn)} MXN y ${usd.toFixed(6)} USD.</>;
+                        })()
                       ) : exchangeRateQuery.error ? (
-                        'No se pudo consultar Banco de México. Verifica la configuración del servicio antes de registrar la factura.'
-                      ) : 'Se consultará el tipo de cambio oficial al registrar la factura.'}
+                        'No se pudo consultar el Diario Oficial de la Federación. Verifica la fecha y la conexión antes de registrar la factura.'
+                      ) : 'Se consultará la cotización publicada por el DOF para la fecha de factura.'}
                     </div>
-                  )}
+                  }
                   </>
                 )}
 

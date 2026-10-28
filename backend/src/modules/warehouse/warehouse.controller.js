@@ -99,7 +99,7 @@ const getDashboardMetrics = async (req, res, next) => {
 
 const getExchangeRate = async (req, res, next) => {
   try {
-    const rate = await require('./exchangeRate.service').getUsdMxnRate();
+    const rate = await require('./exchangeRate.service').getUsdMxnRate(req.query.date);
     return successResponse(res, 'Tipo de cambio consultado correctamente.', rate);
   } catch (error) {
     return next(error);

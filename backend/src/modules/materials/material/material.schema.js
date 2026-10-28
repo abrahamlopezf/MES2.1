@@ -42,7 +42,6 @@ const updateSchema = z.object({
   ranking_id: z.number().int().optional(),
   minimum_stock: z.number().min(0).optional(),
   maximum_stock: z.number().min(0).optional().nullable(),
-  maximum_stock: z.number().min(0).optional().nullable(),
   reorder_point: z.number().min(0).optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional(),
   is_active: z.boolean().optional(),

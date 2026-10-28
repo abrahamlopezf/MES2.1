@@ -12,9 +12,8 @@ export interface ManualEntryBottomSheetPresenterProps {
   // State
   materialId: string;
   locationId: string;
-  entries: { folio: string; quantity: string; supplier_id: string; unit_cost: string }[];
-  currency: 'MXN' | 'USD';
-  exchangeRate?: { rate: number; date: string; source: string };
+  entries: { folio: string; quantity: string; supplier_id: string; unit_cost: string; currency: 'MXN' | 'USD'; invoice_date: string }[];
+  exchangeRatesByDate: Record<string, { rate: number; date: string; requestedDate: string; source: string }>;
   notes: string;
   materials: any[];
   loadingMaterials: boolean;
@@ -32,7 +31,6 @@ export interface ManualEntryBottomSheetPresenterProps {
   onChangeMaterialId: (val: string) => void;
   onChangeLocationId: (val: string) => void;
   onChangeSiloId: (val: string) => void;
-  onChangeCurrency: (val: 'MXN' | 'USD') => void;
   onChangeNotes: (val: string) => void;
   onAddEntry: () => void;
   onUpdateEntry: (index: number, field: string, value: string) => void;
@@ -46,8 +44,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   materialId,
   locationId,
   entries,
-  currency,
-  exchangeRate,
+  exchangeRatesByDate,
   notes,
   materials,
   loadingMaterials,
@@ -63,7 +60,6 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   onChangeMaterialId,
   onChangeLocationId,
   onChangeSiloId,
-  onChangeCurrency,
   onChangeNotes,
   onAddEntry,
   onUpdateEntry,
@@ -211,14 +207,6 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
             )}
 
             <div className="flex flex-col gap-4 border-t border-border/50 pt-5">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-foreground ml-1">Moneda de factura</label>
-                <select value={currency} onChange={e => onChangeCurrency(e.target.value as 'MXN' | 'USD')} className="h-11 rounded-xl border border-input bg-card px-3 text-sm font-bold text-foreground">
-                  <option value="MXN">MXN · Peso mexicano</option>
-                  <option value="USD">USD · Dólar estadounidense</option>
-                </select>
-                {currency === 'USD' && <p className="text-xs text-muted-foreground ml-1">{exchangeRate?.rate ? `FIX Banco de México: ${exchangeRate.rate} MXN/USD (${exchangeRate.date}). Se conservarán costo USD y su equivalente MXN.` : 'Consultando tipo de cambio FIX de Banco de México…'}</p>}
-              </div>
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-foreground">Entradas (Folio [Opcional] y Cantidad) *</label>
                 <Button 
@@ -250,6 +238,17 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           <Trash2 size={16} />
                         </button>
                       )}
+                    </div>
+
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de factura *</label>
+                      <input
+                        type="date"
+                        required
+                        value={entry.invoice_date}
+                        onChange={e => onUpdateEntry(index, 'invoice_date', e.target.value)}
+                        className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner"
+                      />
                     </div>
 
                     {/* Fila 1: Folio y Cantidad */}
@@ -300,16 +299,24 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                     
                     {/* Fila 2: Costo Unitario */}
                     <div className="flex flex-col gap-1 min-w-0">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Costo Unitario *</label>
-                        <span className="text-[10px] font-medium text-muted-foreground">{currency}</span>
+                        <select
+                          aria-label={`Moneda del costo unitario del renglón ${index + 1}`}
+                          value={entry.currency}
+                          onChange={e => onUpdateEntry(index, 'currency', e.target.value)}
+                          className="h-7 rounded-md border border-input bg-card px-2 text-[10px] font-bold text-foreground"
+                        >
+                          <option value="MXN">MXN</option>
+                          <option value="USD">USD</option>
+                        </select>
                       </div>
                       <input 
                         type="number"
                         min="0"
                         step="0.0001"
                         className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-1 text-sm font-mono text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-inner min-w-0"
-                        placeholder="Ej. 12.50"
+                        placeholder={entry.currency === 'USD' ? 'Ej. 12.50 USD' : 'Ej. 12.50 MXN'}
                         value={entry.unit_cost}
                         onKeyDown={(e) => {
                           if (['-', '+', 'e', 'E'].includes(e.key)) {
@@ -330,6 +337,17 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           }
                         }}
                       />
+                      <span className="text-[10px] text-muted-foreground">
+                        {exchangeRatesByDate[entry.invoice_date]?.rate && Number(entry.unit_cost) > 0
+                          ? (() => {
+                              const rate = exchangeRatesByDate[entry.invoice_date];
+                              const amount = Number(entry.unit_cost);
+                              const mxn = entry.currency === 'USD' ? amount * rate.rate : amount;
+                              const usd = entry.currency === 'USD' ? amount : amount / rate.rate;
+                              return `DOF ${rate.rate} MXN/USD (${rate.date}) · Guardará $${mxn.toFixed(4)} MXN y $${usd.toFixed(6)} USD`;
+                            })()
+                          : 'Consultando el tipo de cambio del DOF para la fecha de factura…'}
+                      </span>
                     </div>
 
                     {/* Fila 3: Proveedor (Full width para no truncar la Razón Social) */}

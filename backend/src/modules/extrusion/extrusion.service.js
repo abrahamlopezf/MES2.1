@@ -4260,10 +4260,11 @@ class ExtrusionService {
       if (incomingUnitCost === null) {
         throw Object.assign(new Error('El costo unitario de la factura es obligatorio.'), { statusCode: 400 });
       }
-      const exchange = currency === 'USD'
-        ? await require('../warehouse/exchangeRate.service').getUsdMxnRate()
-        : { rate: 1, date: new Date().toISOString().slice(0, 10), source: 'MXN' };
-      const unitCostMxn = Number((incomingUnitCost * exchange.rate).toFixed(4));
+      const exchangeRateService = require('../warehouse/exchangeRate.service');
+      const invoiceDate = String(payload.invoice_date || exchangeRateService.localDate());
+      const exchange = await exchangeRateService.getUsdMxnRate(invoiceDate);
+      const unitCostMxn = Number((currency === 'USD' ? incomingUnitCost * exchange.rate : incomingUnitCost).toFixed(4));
+      const unitCostUsd = Number((currency === 'USD' ? incomingUnitCost : incomingUnitCost / exchange.rate).toFixed(6));
       if (unitCostMxn !== null && finalStock > 0) {
         const oldCost = Number(silo.unit_cost || 0);
         silo.unit_cost = Number(((initialStock * oldCost + qty * unitCostMxn) / finalStock).toFixed(4));
@@ -4291,12 +4292,16 @@ class ExtrusionService {
           material_name: material.name,
           polypropylene_tagged: hasPolypropyleneTag,
           quantity_kg: qty,
+          invoice_date: invoiceDate,
           invoice_currency: currency,
           invoice_unit_cost: incomingUnitCost,
+          invoice_unit_cost_mxn: unitCostMxn,
+          invoice_unit_cost_usd: unitCostUsd,
           exchange_rate_mxn_per_usd: exchange.rate,
           exchange_rate_date: exchange.date,
           exchange_rate_source: exchange.source,
           unit_cost_mxn_per_kg: unitCostMxn,
+          unit_cost_usd_per_kg: unitCostUsd,
           converted_total_mxn: Number((qty * unitCostMxn).toFixed(2)),
           silo_average_unit_cost_mxn: silo.unit_cost,
         }
@@ -4316,6 +4321,9 @@ class ExtrusionService {
           unit_cost: Number(silo.unit_cost),
           invoice_currency: currency,
           invoice_unit_cost: incomingUnitCost,
+          invoice_date: invoiceDate,
+          invoice_unit_cost_mxn: unitCostMxn,
+          invoice_unit_cost_usd: unitCostUsd,
           exchange_rate_mxn_per_usd: exchange.rate,
           exchange_rate_date: exchange.date,
           unit_cost_mxn_per_kg: unitCostMxn,

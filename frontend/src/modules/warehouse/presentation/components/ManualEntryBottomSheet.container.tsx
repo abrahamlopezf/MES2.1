@@ -23,6 +23,20 @@ export interface ManualEntryBottomSheetContainerProps {
   onSuccess?: () => void;
 }
 
+type ManualEntryRow = {
+  folio: string;
+  quantity: string;
+  supplier_id: string;
+  unit_cost: string;
+  currency: 'MXN' | 'USD';
+  invoice_date: string;
+};
+
+const todayLocal = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerProps> = ({ 
   isOpen, 
   onClose, 
@@ -33,15 +47,18 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const [materialId, setMaterialId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
   const [selectedSiloId, setSelectedSiloId] = useState<string>('');
-  const [entries, setEntries] = useState([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
+  const [entries, setEntries] = useState<ManualEntryRow[]>([{ folio: '', quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
   const [notes, setNotes] = useState('');
-  const [currency, setCurrency] = useState<'MXN' | 'USD'>('MXN');
   const [catalogReminder, setCatalogReminder] = useState<any>(null);
 
-  const { data: exchangeRate } = useQuery({
-    queryKey: ['warehouse', 'usd-mxn-rate'],
-    queryFn: async () => (await axiosClient.get('/warehouse/silos/exchange-rate')).data?.data,
-    enabled: isOpen && currency === 'USD',
+  const invoiceDates = [...new Set(entries.map((entry) => entry.invoice_date).filter(Boolean))].sort();
+  const { data: exchangeRatesByDate = {} } = useQuery<Record<string, { rate: number; date: string; requestedDate: string; source: string }>>({
+    queryKey: ['warehouse', 'usd-mxn-rates', invoiceDates],
+    queryFn: async () => Object.fromEntries(await Promise.all(invoiceDates.map(async (date) => {
+      const response = await axiosClient.get('/warehouse/silos/exchange-rate', { params: { date } });
+      return [date, response.data?.data];
+    }))),
+    enabled: isOpen && invoiceDates.length > 0,
     staleTime: 60_000,
     retry: 1,
   });
@@ -52,9 +69,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       setMaterialId('');
       setLocationId('');
       setSelectedSiloId('');
-      setEntries([{ folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
+      setEntries([{ folio: '', quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
       setNotes('');
-      setCurrency('MXN');
     }
   }, [isOpen]);
 
@@ -140,12 +156,13 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         material_id: Number(materialId),
         location_id: isPp ? null : (locationId ? Number(locationId) : null),
         silo_id: isPp && selectedSiloId ? Number(selectedSiloId) : null,
-        currency,
         entries: entries.map(e => ({ 
           folio: e.folio, 
           quantity: Number(e.quantity),
           supplier_id: e.supplier_id ? (String(e.supplier_id).startsWith('NEW:') ? e.supplier_id : Number(e.supplier_id)) : null,
-          unit_cost: e.unit_cost ? Number(e.unit_cost) : null
+          unit_cost: e.unit_cost ? Number(e.unit_cost) : null,
+          currency: e.currency,
+          invoice_date: e.invoice_date
         })),
         notes
       });
@@ -222,7 +239,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   };
 
   const handleAddEntry = () => {
-    setEntries([...entries, { folio: '', quantity: '', supplier_id: '', unit_cost: '' }]);
+    setEntries([...entries, { folio: '', quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
   };
 
   const handleRemoveEntry = (index: number) => {
@@ -263,8 +280,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       return;
     }
 
-    if (currency === 'USD' && !exchangeRate?.rate) {
-      toast.error('No se pudo consultar el tipo de cambio FIX de Banco de México. No es posible registrar en USD.');
+    if (entries.some((entry) => !entry.invoice_date || !exchangeRatesByDate[entry.invoice_date]?.rate)) {
+      toast.error('No se pudo consultar en el DOF el tipo de cambio de la fecha de alguna factura. Verifica las fechas y vuelve a intentar.');
       return;
     }
 
@@ -290,8 +307,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         materialId={materialId}
         locationId={locationId}
         entries={entries}
-        currency={currency}
-        exchangeRate={exchangeRate}
+        exchangeRatesByDate={exchangeRatesByDate}
         notes={notes}
         materials={materials}
         loadingMaterials={loadingMaterials}
@@ -307,7 +323,6 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         onChangeMaterialId={handleMaterialChange}
         onChangeLocationId={setLocationId}
         onChangeSiloId={setSelectedSiloId}
-        onChangeCurrency={setCurrency}
         onChangeNotes={setNotes}
         onAddEntry={handleAddEntry}
         onUpdateEntry={handleUpdateEntry}

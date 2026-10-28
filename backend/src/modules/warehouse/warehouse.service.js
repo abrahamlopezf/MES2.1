@@ -723,9 +723,28 @@ const manualEntry = async (payload, currentUser) => {
     throwHttpError('Faltan datos obligatorios para el ingreso manual (material y al menos una entrada).', 400);
   }
 
-  const currency = String(payload.currency || 'MXN').toUpperCase();
-  if (!['MXN', 'USD'].includes(currency)) throwHttpError('Moneda no soportada. Selecciona MXN o USD.', 400);
-  const exchangeRate = currency === 'USD' ? await require('./exchangeRate.service').getUsdMxnRate() : null;
+  const invoiceCurrencies = payload.entries.map((entry) => String(entry.currency || payload.currency || 'MXN').toUpperCase());
+  if (invoiceCurrencies.some((currency) => !['MXN', 'USD'].includes(currency))) {
+    throwHttpError('Moneda no soportada. Selecciona MXN o USD en cada factura.', 400);
+  }
+  const exchangeRateService = require('./exchangeRate.service');
+  const invoiceDates = payload.entries.map((entry) => String(entry.invoice_date || exchangeRateService.localDate()));
+  const uniqueInvoiceDates = [...new Set(invoiceDates)];
+  const exchangeRatesByDate = Object.fromEntries(await Promise.all(uniqueInvoiceDates.map(async (date) => [
+    date,
+    await exchangeRateService.getUsdMxnRate(date),
+  ])));
+  const rateForEntry = (entry) => exchangeRatesByDate[String(entry.invoice_date || exchangeRateService.localDate())];
+  const mxnUnitCostFor = (entry) => {
+    const rawCost = Number(entry.unit_cost);
+    const currency = String(entry.currency || payload.currency || 'MXN').toUpperCase();
+    return Number((currency === 'USD' ? rawCost * rateForEntry(entry).rate : rawCost).toFixed(4));
+  };
+  const usdUnitCostFor = (entry) => {
+    const rawCost = Number(entry.unit_cost);
+    const currency = String(entry.currency || payload.currency || 'MXN').toUpperCase();
+    return Number((currency === 'USD' ? rawCost : rawCost / rateForEntry(entry).rate).toFixed(6));
+  };
 
   return await sequelize.transaction(async (t) => {
     const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier, Material, Silo } = require('../../database/models');
@@ -930,7 +949,11 @@ const manualEntry = async (payload, currentUser) => {
       }
 
       const invoiceUnitCost = Number(entry.unit_cost);
-      const mxnUnitCost = currency === 'USD' ? invoiceUnitCost * exchangeRate.rate : invoiceUnitCost;
+      const invoiceCurrency = String(entry.currency || payload.currency || 'MXN').toUpperCase();
+      const exchange = rateForEntry(entry);
+      const mxnUnitCost = mxnUnitCostFor(entry);
+      const usdUnitCost = usdUnitCostFor(entry);
+      const invoiceDate = String(entry.invoice_date || exchange.requestedDate);
       loteData.push({
         material_id: payload.material_id,
         user_id: currentUser.id,
@@ -944,11 +967,14 @@ const manualEntry = async (payload, currentUser) => {
         supplier_id: finalSupplierId,
         unit_cost: mxnUnitCost,
         total_cost: mxnUnitCost * q,
-        invoice_currency: currency,
+        invoice_currency: invoiceCurrency,
         invoice_unit_cost: invoiceUnitCost,
-        invoice_exchange_rate: exchangeRate?.rate || null,
-        invoice_exchange_rate_date: exchangeRate?.date || null,
-        invoice_exchange_rate_source: exchangeRate?.source || null
+        invoice_unit_cost_mxn: mxnUnitCost,
+        invoice_unit_cost_usd: usdUnitCost,
+        invoice_date: invoiceDate,
+        invoice_exchange_rate: exchange.rate,
+        invoice_exchange_rate_date: exchange.date,
+        invoice_exchange_rate_source: exchange.source
       });
     }
 
@@ -985,7 +1011,7 @@ const manualEntry = async (payload, currentUser) => {
         throwHttpError(`Capacidad excedida en ${targetSilo.code}: disponible ${Math.max(0, capacity - stockBefore)} kg, recibidos ${totalQuantity} kg.`, 400);
       }
       const existingCost = Number(targetSilo.unit_cost || 0);
-      const receivedValue = payload.entries.reduce((sum, entry) => sum + Number(entry.quantity) * Number(entry.unit_cost || 0) * (exchangeRate?.rate || 1), 0);
+      const receivedValue = payload.entries.reduce((sum, entry) => sum + Number(entry.quantity) * mxnUnitCostFor(entry), 0);
       const totalValue = stockBefore * existingCost + receivedValue;
       targetSilo.current_stock_kg = Number((stockBefore + totalQuantity).toFixed(2));
       if (totalValue > 0 && stockBefore + totalQuantity > 0) {
@@ -1004,7 +1030,11 @@ const manualEntry = async (payload, currentUser) => {
         description: `Ingreso manual sin QR de ${totalQuantity} kg de ${material.name} al silo ${targetSilo.code}.`,
         before_data: { current_stock_kg: stockBefore, unit_cost: existingCost },
         after_data: { current_stock_kg: Number(targetSilo.current_stock_kg), unit_cost: Number(targetSilo.unit_cost) },
-        metadata: { material_id: material.id, polypropylene_tagged: hasPolypropyleneTag, currency, exchange_rate: exchangeRate, entries: payload.entries.map(({ folio, quantity, unit_cost, lot_type }) => ({ folio, quantity: Number(quantity), invoice_unit_cost: Number(unit_cost), mxn_unit_cost: Number(unit_cost) * (exchangeRate?.rate || 1), currency, lot_type: lot_type || null })) },
+        metadata: { material_id: material.id, polypropylene_tagged: hasPolypropyleneTag, entries: payload.entries.map((entry) => {
+          const exchange = rateForEntry(entry);
+          const invoiceCurrency = String(entry.currency || payload.currency || 'MXN').toUpperCase();
+          return { folio: entry.folio, invoice_date: entry.invoice_date || exchange.requestedDate, quantity: Number(entry.quantity), invoice_unit_cost: Number(entry.unit_cost), invoice_unit_cost_mxn: mxnUnitCostFor(entry), invoice_unit_cost_usd: usdUnitCostFor(entry), currency: invoiceCurrency, exchange_rate_mxn_per_usd: exchange.rate, exchange_rate_date: exchange.date, exchange_rate_source: exchange.source, lot_type: entry.lot_type || null };
+        }) },
       }, { transaction: t });
     }
 
@@ -1014,8 +1044,8 @@ const manualEntry = async (payload, currentUser) => {
       inventory_id: inventory.id,
       type: isPp ? 'ENTRY' : 'MANUAL_ENTRY',
       quantity_change: Number(entry.quantity),
-      unit_cost: Number(entry.unit_cost) * (exchangeRate?.rate || 1),
-      total_cost: Number(entry.unit_cost) * Number(entry.quantity) * (exchangeRate?.rate || 1),
+      unit_cost: mxnUnitCostFor(entry),
+      total_cost: mxnUnitCostFor(entry) * Number(entry.quantity),
       performed_by: currentUser.id,
       notes: isPp
         ? `Ingreso directo a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) - Folio: ${entry.folio || 'S/N'}. Consumo directo Mezcladora (Excepción sin QR).`
@@ -1049,8 +1079,8 @@ const manualEntry = async (payload, currentUser) => {
       results, 
       qrBatchId: isPp ? null : qrBatch?.id || null, 
       is_silo: isPp,
-      invoice_currency: currency,
-      invoice_exchange_rate: exchangeRate,
+      invoice_currency: new Set(invoiceCurrencies).size > 1 ? 'MIXED' : invoiceCurrencies[0],
+      exchange_rates_by_invoice_date: exchangeRatesByDate,
       silo_code: targetSilo?.code || null,
       silo_name: targetSilo?.name || null,
       total_quantity: totalQuantity,
