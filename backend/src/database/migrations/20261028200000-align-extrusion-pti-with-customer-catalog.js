@@ -55,6 +55,7 @@ const formulaLinks = [
 const clientCodes = catalog.map((item) => item.code);
 const formulaCodes = [...new Set(formulaLinks.map(([, formulaCode]) => formulaCode))];
 const backupTable = '_20261028200000_pti_catalog_backup';
+const cleanupBackupTable = '_20261028200000_pti_cleanup_backup';
 const legacyCodes = ['PTI-RAF-AMARILLA-01', 'PTI-RAF-BLANCA-01', 'PTI-CINT-NEGRO-01'];
 
 module.exports = {
@@ -304,8 +305,6 @@ module.exports = {
           ON CONFLICT (id) DO UPDATE SET ${updates};
         `, { replacements: { tableName }, transaction });
       }
-      await sequelize.query(`DROP TABLE IF EXISTS ${cleanupBackupTable};`, { transaction });
-      await sequelize.query(`DROP TABLE IF EXISTS ${backupTable};`, { transaction });
       await sequelize.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_pti_products_formula_id
         ON pti_products (formula_id)
         WHERE formula_id IS NOT NULL;`, { transaction });
