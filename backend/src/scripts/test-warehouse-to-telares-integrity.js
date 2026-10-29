@@ -86,7 +86,7 @@ async function testWarehouseToTelares() {
   });
   assert(formula?.ingredients?.length, 'no se encontró la fórmula blanca de Extrusora 4 y sus componentes');
   // Resolve every fixed fixture before creating orders or consuming QA inventory.
-  const extrusionPti = await db.PtiProduct.findByPk(formula.output_pti_id);
+  const extrusionPti = await db.PtiProduct.findOne({ where: { formula_id: formula.id, is_active: true } });
   assert(extrusionPti?.is_active, 'el PTI de salida de la fórmula debe estar activo');
   // Existing Telares catalog fixtures do not necessarily consume the output
   // PTI of the extrusion formula. Create a QA-only BOM to test the real handoff.

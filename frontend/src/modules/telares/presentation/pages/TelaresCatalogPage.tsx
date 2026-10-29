@@ -41,7 +41,7 @@ const emptyItem = (): BomItemDraft => ({
   pti_product_id: '',
   role: 'URDIMBRE',
   ratio_percentage: 50,
-  consumption_g_per_m: 32.5,
+  consumption_g_per_m: 0,
   required_quantity: '',
   required_unit: 'KG',
   notes: '',
@@ -52,6 +52,17 @@ const emptyBom = () => ({
   name: '',
   description: '',
   output_product_name: '',
+  subarea_id: null as number | null,
+  product_kind: 'ROLLO_TELA',
+  output_color: '',
+  output_width_value: '' as number | '',
+  output_width_unit: 'CM',
+  output_denier: '' as number | '',
+  tensile_strength_lb: '' as number | '',
+  units_per_pallet: '' as number | '',
+  packaging_type: '',
+  output_weight_kg: '' as number | '',
+  is_provisional: true,
   target_width_cm: 50,
   target_weight_g_per_m: 65,
   warp_density: 10,
@@ -70,8 +81,11 @@ const emptyBom = () => ({
   cost_transformation_index: 1.08,
   general_considerations: '',
   is_active: true,
-  items: [emptyItem()],
+  items: [],
 });
+
+const outputWidthToCm = (value: number, unit: string) =>
+  unit === 'PULGADA' ? value * 2.54 : unit === 'MM' ? value / 10 : value;
 
 const emptyLoom = () => ({
   code: '',
@@ -100,6 +114,8 @@ export const TelaresCatalogPage: React.FC = () => {
   const [bomSearch, setBomSearch] = useState('');
   const [bomOuncesFilter, setBomOuncesFilter] = useState<'ALL' | string>('ALL');
   const [bomTypeFilter, setBomTypeFilter] = useState<'ALL' | 'TUBULAR' | 'PLANA'>('ALL');
+  const [bomSubareaFilter, setBomSubareaFilter] = useState<'ALL' | string>('ALL');
+  const [bomProductFilter, setBomProductFilter] = useState<'ALL' | 'ROLLO_TELA' | 'BANDA' | 'CINTA'>('ALL');
 
   // Filtros y Vista Tab Telares
   const [loomSearch, setLoomSearch] = useState('');
@@ -174,7 +190,7 @@ export const TelaresCatalogPage: React.FC = () => {
         ...bomDraft,
         output_product_name: bomDraft.output_product_name || bomDraft.name,
         default_route: bomDraft.default_route.split(',').map((stage) => stage.trim().toUpperCase()).filter(Boolean),
-        items: bomDraft.items.map((item) => ({
+        items: bomDraft.items.filter((item) => item.pti_product_id !== '').map((item) => ({
           ...item,
           pti_product_id: Number(item.pti_product_id),
           required_quantity: item.required_quantity === '' ? null : Number(item.required_quantity),
@@ -233,16 +249,27 @@ export const TelaresCatalogPage: React.FC = () => {
   // Apertura de Modales
   const startNewBom = () => {
     setEditingBom(null);
-    setBomDraft(emptyBom());
+    const rollSubarea = subareas.find((subarea: any) => /rollo/i.test(subarea.name));
+    setBomDraft({ ...emptyBom(), subarea_id: rollSubarea?.id ?? null });
     setIsBomModalOpen(true);
   };
 
   const editBom = (bom: any) => {
     setEditingBom(bom);
+    const productKind = String(bom.product_kind || 'ROLLO_TELA').toUpperCase();
+    const savedRoute = (bom.default_route || []).map((stage: string) => String(stage).toUpperCase());
+    const editableRoute = productKind === 'ROLLO_TELA' && savedRoute.includes('GLOBO')
+      ? ['TELARES', 'LAMINADO', 'CORTE']
+      : savedRoute;
     setBomDraft({
       ...emptyBom(),
       ...bom,
-      default_route: (bom.default_route || []).join(','),
+      output_width_value: bom.output_width_value == null ? '' : Number(bom.output_width_value),
+      output_denier: bom.output_denier == null ? '' : Number(bom.output_denier),
+      tensile_strength_lb: bom.tensile_strength_lb == null ? '' : Number(bom.tensile_strength_lb),
+      units_per_pallet: bom.units_per_pallet == null ? '' : Number(bom.units_per_pallet),
+      output_weight_kg: bom.output_weight_kg == null ? '' : Number(bom.output_weight_kg),
+      default_route: editableRoute.join(','),
       ounces_yd2: bom.ounces_yd2 ? Number(bom.ounces_yd2) : 5.0,
       standard_output_meters: bom.standard_output_meters ? Number(bom.standard_output_meters) : '',
       cost_transformation_index: bom.cost_transformation_index ? Number(bom.cost_transformation_index) : 1.08,
@@ -291,17 +318,19 @@ export const TelaresCatalogPage: React.FC = () => {
         (bom.code || '').toLowerCase().includes(search) ||
         (bom.tape_color || '').toLowerCase().includes(search);
 
-      const matchesOunces =
-        bomOuncesFilter === 'ALL' ||
+      const isFabricRoll = String(bom.product_kind || 'ROLLO_TELA').toUpperCase() === 'ROLLO_TELA';
+      const matchesOunces = !isFabricRoll || bomOuncesFilter === 'ALL' ||
         (bom.ounces_yd2 && Number(bom.ounces_yd2).toFixed(1) === bomOuncesFilter);
 
-      const matchesType =
-        bomTypeFilter === 'ALL' ||
+      const matchesType = !isFabricRoll || bomTypeFilter === 'ALL' ||
         (bom.fabric_type || 'TUBULAR').toUpperCase() === bomTypeFilter;
 
-      return matchesSearch && matchesOunces && matchesType;
+      const matchesProduct = bomProductFilter === 'ALL' || String(bom.product_kind || 'ROLLO_TELA').toUpperCase() === bomProductFilter;
+      const matchesSubarea = bomSubareaFilter === 'ALL' || String(bom.subarea_id || '') === bomSubareaFilter;
+
+      return matchesSearch && matchesOunces && matchesType && matchesProduct && matchesSubarea;
     });
-  }, [boms, bomSearch, bomOuncesFilter, bomTypeFilter]);
+  }, [boms, bomSearch, bomOuncesFilter, bomTypeFilter, bomProductFilter, bomSubareaFilter]);
 
   // Filtrado de Telares
   const filteredLooms = useMemo(() => {
@@ -316,9 +345,9 @@ export const TelaresCatalogPage: React.FC = () => {
 
       let matchesType = true;
       if (loomFilter === 'BANDA') {
-        matchesType = l.subarea_id === 7 || l.type === 'BANDA' || (l.name || '').includes('Banda');
+        matchesType = /banda/i.test(l.subarea?.name || '') || l.type === 'BANDA' || (l.name || '').includes('Banda');
       } else if (loomFilter === 'CIRCULARES') {
-        matchesType = l.subarea_id !== 7 && l.type !== 'BANDA';
+        matchesType = !(/banda/i.test(l.subarea?.name || '') || l.type === 'BANDA' || (l.name || '').includes('Banda'));
       }
 
       let matchesStatus = true;
@@ -401,19 +430,19 @@ export const TelaresCatalogPage: React.FC = () => {
           <div className="rounded-2xl border-2 border-slate-700 bg-slate-800 p-4 shadow-lg space-y-3">
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black uppercase text-slate-100">Fichas Técnicas de Telares (PDF)</h2>
+                <h2 className="text-xl font-black uppercase text-slate-100">Catálogo PTI de Telares</h2>
                 <p className="text-xs font-semibold text-slate-400">
-                  Matriz oficial de Onzas, Tipo de Tela, Cinta de Identificación, Deniers e Índice de Costo
+                  Rollos de tela y productos de Banda con especificación, subárea y relación de consumo
                 </p>
               </div>
 
-              {/* Botón Registrar Tela (Abre Modal) */}
+              {/* Alta de PTI de salida */}
               <Button
                 onClick={startNewBom}
                 className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs h-11 px-4 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
-                + Registrar Ficha Técnica
+                + Registrar PTI
               </Button>
             </div>
 
@@ -437,6 +466,14 @@ export const TelaresCatalogPage: React.FC = () => {
                   </button>
                 )}
               </div>
+
+              <select value={bomSubareaFilter} onChange={(e) => setBomSubareaFilter(e.target.value)} className="h-10 rounded-xl border-2 border-slate-700 bg-slate-900 px-3 text-xs font-black text-white">
+                <option value="ALL">Todas las subáreas</option>
+                {subareas.map((subarea: any) => <option key={subarea.id} value={subarea.id}>{subarea.name}</option>)}
+              </select>
+              <select value={bomProductFilter} onChange={(e) => setBomProductFilter(e.target.value as typeof bomProductFilter)} className="h-10 rounded-xl border-2 border-slate-700 bg-slate-900 px-3 text-xs font-black text-white">
+                <option value="ALL">Todos los productos</option><option value="ROLLO_TELA">Rollos de tela</option><option value="BANDA">Bandas</option><option value="CINTA">Cintas</option>
+              </select>
 
               {/* Filtro de Tipo de Tela */}
               <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
@@ -491,7 +528,7 @@ export const TelaresCatalogPage: React.FC = () => {
             <p className="p-12 text-center text-slate-400 font-semibold">Cargando catálogo de telas…</p>
           ) : filteredBoms.length === 0 ? (
             <div className="p-12 text-center text-slate-400 font-bold bg-slate-800 rounded-2xl border-2 border-slate-700">
-              No se encontraron fichas técnicas con los filtros seleccionados.
+              No se encontraron PTI con los filtros seleccionados.
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border-2 border-slate-700 bg-slate-800 shadow-xl">
@@ -499,7 +536,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 <thead className="border-b-2 border-slate-700 bg-slate-900 text-xs font-black uppercase text-slate-300">
                   <tr>
                     <th className="p-3.5 pl-5">Código / Tela</th>
-                    <th className="p-3.5">Onzas / Tipo</th>
+                    <th className="p-3.5">Producto / Especificación</th>
                     <th className="p-3.5">Cinta Identificación</th>
                     <th className="p-3.5">Trama / Urdimbre</th>
                     {allowCosts && <th className="p-3.5">Índice Costo</th>}
@@ -510,7 +547,8 @@ export const TelaresCatalogPage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-700 font-semibold">
                   {filteredBoms.map((bom: any) => {
-                    const isHeavy = Number(bom.ounces_yd2 || 0) >= 6.5;
+                    const isFabricRoll = String(bom.product_kind || 'ROLLO_TELA').toUpperCase() === 'ROLLO_TELA';
+                    const isHeavy = isFabricRoll && Number(bom.ounces_yd2 || 0) >= 6.5;
                     return (
                       <tr key={bom.id} className="hover:bg-slate-750 transition-colors">
                         <td className="p-3.5 pl-5">
@@ -518,15 +556,22 @@ export const TelaresCatalogPage: React.FC = () => {
                           <span className="font-mono text-xs font-bold text-blue-400">{bom.code}</span>
                         </td>
                         <td className="p-3.5">
-                          <Badge className="bg-slate-900 border border-slate-600 text-amber-400 font-black text-xs mr-1.5">
-                            {bom.ounces_yd2 ? `${Number(bom.ounces_yd2).toFixed(1)} oz` : 'Estándar'}
-                          </Badge>
-                          <Badge variant={bom.fabric_type === 'PLANA' ? 'outline' : 'default'} className="font-bold text-xs">
-                            {bom.fabric_type || 'TUBULAR'}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1.5">
+                            <Badge className="bg-blue-950 border border-blue-500/30 text-blue-200 font-black text-xs">{bom.product_kind === 'BANDA' ? 'BANDA' : bom.product_kind === 'CINTA' ? 'CINTA' : 'ROLLO DE TELA'}</Badge>
+                            <Badge className="bg-slate-900 border border-slate-600 text-slate-200 font-bold text-xs">{bom.subarea?.name || 'Subárea pendiente'}</Badge>
+                            {bom.is_provisional && <Badge className="bg-amber-950 border border-amber-500/40 text-amber-200 font-bold text-xs">PROVISIONAL</Badge>}
+                          </div>
+                          <span className="mt-1 block text-xs text-slate-400">
+                            {[bom.output_color, bom.output_width_value ? `${Number(bom.output_width_value)} ${bom.output_width_unit || 'CM'}` : null, bom.output_denier ? `${bom.output_denier} D` : null, bom.ounces_yd2 ? `${Number(bom.ounces_yd2).toFixed(1)} oz/yd²` : null].filter(Boolean).join(' · ') || 'Especificación pendiente'}
+                          </span>
+                          {bom.product_kind === 'ROLLO_TELA' && <Badge variant={bom.fabric_type === 'PLANA' ? 'outline' : 'default'} className="mt-1 font-bold text-xs">{bom.fabric_type || 'TUBULAR'}</Badge>}
                         </td>
                         <td className="p-3.5">
-                          {bom.tape_color && bom.tape_color !== 'N/A' ? (
+                          {!isFabricRoll && (bom.output_color || bom.tensile_strength_lb || bom.units_per_pallet) ? (
+                              <span className="inline-flex items-center gap-1.5 font-bold text-xs text-white bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-600">
+                                {bom.output_color || 'Color pendiente'} {bom.tensile_strength_lb ? `· ${Number(bom.tensile_strength_lb)} lb` : ''} {bom.units_per_pallet ? `· ${bom.units_per_pallet}/tarima` : ''}
+                              </span>
+                          ) : isFabricRoll && bom.tape_color && bom.tape_color !== 'N/A' ? (
                             <span className="inline-flex items-center gap-1.5 font-bold text-xs text-white bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-600">
                               <span
                                 className="h-2.5 w-2.5 rounded-full"
@@ -548,8 +593,7 @@ export const TelaresCatalogPage: React.FC = () => {
                           )}
                         </td>
                         <td className="p-3.5 text-xs font-mono">
-                          <div><span className="text-slate-400 font-sans font-semibold">Trama:</span> {bom.weft_denier || '1800-2000'}D</div>
-                          <div><span className="text-slate-400 font-sans font-semibold">Urdimbre:</span> {bom.warp_denier || '1800-2000'}D</div>
+                          {isFabricRoll ? <><div><span className="text-slate-400 font-sans font-semibold">Trama:</span> {bom.weft_denier || '1800-2000'}D</div><div><span className="text-slate-400 font-sans font-semibold">Urdimbre:</span> {bom.warp_denier || '1800-2000'}D</div></> : <span className="text-slate-500 font-sans">No aplica a este PTI</span>}
                           {isHeavy && (
                             <span className="inline-block mt-0.5 text-[10px] font-bold text-rose-400 uppercase">
                               ⚠ Restricción: No 1800D
@@ -565,6 +609,8 @@ export const TelaresCatalogPage: React.FC = () => {
                         )}
                         <td className="p-3.5 text-xs">
                           <span className="text-slate-300 font-medium">{bom.items?.length || 0} insumo(s) PTI</span>
+                          {bom.items?.some((item: any) => !item.required_quantity && !Number(item.consumption_g_per_m)) && <span className="block text-[10px] text-amber-300">Relación de consumo pendiente</span>}
+                          {!bom.items?.length && <span className="block text-[10px] text-amber-300">Sin consumo: no disponible para producción</span>}
                         </td>
                         <td className="p-3.5 text-xs text-slate-300 font-medium">
                           {(bom.default_route || []).join(' → ')}
@@ -1052,7 +1098,74 @@ export const TelaresCatalogPage: React.FC = () => {
                 </label>
               </div>
 
+              <section className="rounded-xl border border-cyan-500/30 bg-cyan-950/15 p-4 space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wide text-cyan-200">Identidad del PTI de salida</h4>
+                    <p className="mt-1 text-[11px] text-slate-400">La subárea limita qué telares pueden producirlo. Marca como provisional los datos ficticios o pendientes de confirmar.</p>
+                  </div>
+                  <label className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs font-bold text-amber-200">
+                    <input type="checkbox" checked={bomDraft.is_provisional} onChange={(e) => setBomDraft({ ...bomDraft, is_provisional: e.target.checked })} />
+                    Especificación provisional
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="text-xs font-bold text-slate-300">SUBÁREA *
+                    <select required value={bomDraft.subarea_id ?? ''} onChange={(e) => {
+                      const selected = subareas.find((subarea: any) => Number(subarea.id) === Number(e.target.value));
+                      const isBand = /banda/i.test(selected?.name || '');
+                      setBomDraft({
+                        ...bomDraft,
+                        subarea_id: e.target.value ? Number(e.target.value) : null,
+                        product_kind: isBand ? 'BANDA' : 'ROLLO_TELA',
+                        default_route: !isBand && bomDraft.default_route.toUpperCase().includes('GLOBO') ? 'TELARES,LAMINADO,CORTE' : bomDraft.default_route,
+                      });
+                    }} className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white">
+                      <option value="">Seleccionar subárea…</option>
+                      {subareas.map((subarea: any) => <option key={subarea.id} value={subarea.id}>{subarea.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs font-bold text-slate-300">TIPO DE SALIDA *
+                    <select required value={bomDraft.product_kind} onChange={(e) => setBomDraft({ ...bomDraft, product_kind: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white">
+                      {/banda/i.test(subareas.find((subarea: any) => Number(subarea.id) === Number(bomDraft.subarea_id))?.name || '')
+                        ? <><option value="BANDA">BANDA</option><option value="CINTA">CINTILLA / CINTA</option></>
+                        : <option value="ROLLO_TELA">ROLLO DE TELA</option>}
+                    </select>
+                  </label>
+                  <label className="text-xs font-bold text-slate-300">COLOR / VARIANTE
+                    <Input value={bomDraft.output_color} onChange={(e) => setBomDraft({ ...bomDraft, output_color: e.target.value })} placeholder="Ej. Blanco, verde óptico" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                  </label>
+                  <label className="text-xs font-bold text-slate-300">ANCHO
+                    <Input type="number" min="0" step="0.01" value={bomDraft.output_width_value} onChange={(e) => {
+                      const value = e.target.value === '' ? '' : Number(e.target.value);
+                      setBomDraft({ ...bomDraft, output_width_value: value, target_width_cm: value === '' ? bomDraft.target_width_cm : outputWidthToCm(value, bomDraft.output_width_unit) });
+                    }} placeholder="Pendiente" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                  </label>
+                  <label className="text-xs font-bold text-slate-300">UNIDAD DE ANCHO
+                    <select value={bomDraft.output_width_unit} onChange={(e) => setBomDraft({ ...bomDraft, output_width_unit: e.target.value, target_width_cm: bomDraft.output_width_value === '' ? bomDraft.target_width_cm : outputWidthToCm(Number(bomDraft.output_width_value), e.target.value) })} className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white"><option value="CM">cm</option><option value="PULGADA">pulgadas</option><option value="MM">mm</option></select>
+                  </label>
+                  <label className="text-xs font-bold text-slate-300">DENIER DE SALIDA
+                    <Input type="number" min="0" value={bomDraft.output_denier} onChange={(e) => setBomDraft({ ...bomDraft, output_denier: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Pendiente" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                  </label>
+                  {bomDraft.product_kind !== 'ROLLO_TELA' && <>
+                    <label className="text-xs font-bold text-slate-300">RESISTENCIA (LB)
+                      <Input type="number" min="0" step="0.01" value={bomDraft.tensile_strength_lb} onChange={(e) => setBomDraft({ ...bomDraft, tensile_strength_lb: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Pendiente" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                    </label>
+                    <label className="text-xs font-bold text-slate-300">UNIDADES POR TARIMA
+                      <Input type="number" min="0" step="1" value={bomDraft.units_per_pallet} onChange={(e) => setBomDraft({ ...bomDraft, units_per_pallet: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Pendiente" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                    </label>
+                    <label className="text-xs font-bold text-slate-300">EMPAQUE
+                      <Input value={bomDraft.packaging_type} onChange={(e) => setBomDraft({ ...bomDraft, packaging_type: e.target.value })} placeholder="Ej. Rollo, caja" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                    </label>
+                  </>}
+                  <label className="text-xs font-bold text-slate-300">PESO DE REFERENCIA (KG)
+                    <Input type="number" min="0" step="0.001" value={bomDraft.output_weight_kg} onChange={(e) => setBomDraft({ ...bomDraft, output_weight_kg: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Pendiente de confirmar" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                  </label>
+                </div>
+              </section>
+
               {/* Especificaciones Técnicas (PDF Página 1) */}
+              {bomDraft.product_kind === 'ROLLO_TELA' && (
               <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 space-y-3">
                 <h4 className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4" />
@@ -1185,6 +1298,7 @@ export const TelaresCatalogPage: React.FC = () => {
                   </label>
                 </div>
               </div>
+              )}
 
               {/* Índice de Transformación de Costo (Oculto para Supervisores) */}
               {allowCosts && (
@@ -1241,7 +1355,7 @@ export const TelaresCatalogPage: React.FC = () => {
                     METROS DE REFERENCIA POR SALIDA (OPCIONAL)
                     <Input type="number" min="0.001" step="0.01" value={bomDraft.standard_output_meters} onChange={(e) => setBomDraft({ ...bomDraft, standard_output_meters: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Necesario para cantidades por rollo" className="mt-1 bg-slate-900 border-slate-700 text-white" />
                   </label>
-                  <p className="sm:col-span-2 self-center text-[11px] text-slate-400">El consumo planeado usa gramos de PTI por metro. La cantidad por salida se prorratea si se captura una base de metros.</p>
+                  <p className="sm:col-span-2 self-center text-[11px] text-slate-400">La cantidad de PTI se escala según la unidad base: kg usa el peso planeado o real; metro usa la longitud; rollo usa los metros de referencia.</p>
                 </div>
               </div>
 
@@ -1267,12 +1381,22 @@ export const TelaresCatalogPage: React.FC = () => {
                 </label>
                 <label className="block text-xs font-bold text-slate-300 col-span-2">
                   RUTA OPERATIVA DEL QR
-                  <Input
+                  <select
                     value={bomDraft.default_route}
                     onChange={(e) => setBomDraft({ ...bomDraft, default_route: e.target.value })}
-                    placeholder="TELARES,LAMINADO,CORTE"
-                    className="mt-1 bg-slate-800 border-slate-700 text-white font-mono text-xs"
-                  />
+                    className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white"
+                  >
+                    {bomDraft.product_kind === 'ROLLO_TELA' ? <>
+                      <option value="TELARES,LAMINADO,CORTE">Telares → Laminado → Corte</option>
+                      <option value="TELARES,CORTE">Telares → Corte directo</option>
+                    </> : <>
+                      <option value="TELARES,GLOBO,CORTE">Telares → Globo → Corte</option>
+                      <option value="TELARES,LAMINADO,CORTE">Telares → Laminado → Corte</option>
+                      <option value="TELARES,GLOBO,LAMINADO,CORTE">Telares → Globo → Laminado → Corte</option>
+                      <option value="TELARES,CORTE">Telares → Corte directo</option>
+                    </>}
+                  </select>
+                  {bomDraft.product_kind === 'ROLLO_TELA' && <span className="mt-1 block text-[10px] font-semibold text-amber-300">Los rollos de tela no se pueden enviar a Globo.</span>}
                 </label>
               </div>
 
@@ -1321,7 +1445,7 @@ export const TelaresCatalogPage: React.FC = () => {
                         <option value="">Seleccione PTI</option>
                         {activePtis.map((pti: any) => (
                           <option key={pti.id} value={pti.id}>
-                            {pti.code} — {pti.name} (${pti.unit_price || 42.5}/kg)
+                            {pti.code} — {pti.name}{allowCosts ? ` ($${pti.unit_price || 42.5}/kg)` : ''}
                           </option>
                         ))}
                       </select>
@@ -1343,7 +1467,7 @@ export const TelaresCatalogPage: React.FC = () => {
                       >
                         <option value="URDIMBRE">URDIMBRE</option>
                         <option value="TRAMA">TRAMA</option>
-                        <option value="CINTA_REFUERZO">CINTA / REFUERZO</option>
+                        <option value="REFUERZO">CINTA / REFUERZO</option>
                       </select>
                     </div>
 
@@ -1368,35 +1492,32 @@ export const TelaresCatalogPage: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        disabled={bomDraft.items.length === 1}
                         onClick={() =>
                           setBomDraft({ ...bomDraft, items: bomDraft.items.filter((_, i) => i !== index) })
                         }
-                        className="h-9 px-2 text-red-400 hover:text-red-300 disabled:opacity-30 mt-5"
+                        className="h-9 px-2 text-red-400 hover:text-red-300 mt-5"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                     <div className="sm:col-span-4 grid grid-cols-1 sm:grid-cols-4 gap-2 border-t border-slate-700 pt-2">
                       <label className="block text-[11px] font-bold text-slate-400 uppercase sm:col-span-2">
-                        CONSUMO DEL PTI (G / METRO) *
+                        CONSUMO DEL PTI (G / METRO) · OPCIONAL
                         <Input
                           type="number"
-                          min="0.001"
+                          min="0"
                           step="0.001"
-                          required
                           value={item.consumption_g_per_m}
                           onChange={(e) => setBomDraft({ ...bomDraft, items: bomDraft.items.map((row, i) => i === index ? { ...row, consumption_g_per_m: Number(e.target.value) || 0 } : row) })}
                           className="mt-1 h-9 bg-slate-800 border-slate-700 text-xs font-bold text-white"
                         />
                       </label>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase">
-                        CANTIDAD POR SALIDA
+                        CANTIDAD POR BASE DE SALIDA · OPCIONAL
                         <Input
                           type="number"
-                          min="0.001"
+                          min="0"
                           step="0.001"
-                          required
                           value={item.required_quantity}
                           onChange={(e) => setBomDraft({ ...bomDraft, items: bomDraft.items.map((row, i) => i === index ? { ...row, required_quantity: e.target.value === '' ? '' : Number(e.target.value) } : row) })}
                           className="mt-1 h-9 bg-slate-800 border-slate-700 text-xs font-bold text-white"
@@ -1412,7 +1533,7 @@ export const TelaresCatalogPage: React.FC = () => {
                           <option value="KG">KG</option><option value="PIEZAS">BOBINAS</option>
                         </select>
                       </label>
-                      <p className="sm:col-span-4 text-[10px] text-slate-500">El consumo g/metro calcula la demanda del plan. La cantidad por salida sirve para prorratear la receta cuando el producto tiene metros de referencia configurados.</p>
+                      <p className="sm:col-span-4 rounded-md border border-amber-500/20 bg-amber-950/10 p-2 text-[10px] text-amber-200">No captures una relación estimada como definitiva. Puedes guardar la ficha provisional y completar cuánto PTI se consume por kg, metro o rollo cuando el cliente confirme el dato; producción bloqueará una ficha sin consumo definido.</p>
                     </div>
                   </div>
                 ))}
@@ -1580,9 +1701,10 @@ export const TelaresCatalogPage: React.FC = () => {
                   onChange={(e) =>
                     setLoomDraft({ ...loomDraft, subarea_id: e.target.value ? Number(e.target.value) : null })
                   }
+                  required
                   className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-800 px-3 text-xs font-bold text-white"
                 >
-                  <option value="">Telares general (Planta)</option>
+                  <option value="">Selecciona subárea…</option>
                   {subareas.map((s: any) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

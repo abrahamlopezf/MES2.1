@@ -71,7 +71,10 @@ async function runFullLineExtrusionTest() {
     where: { code: 'F-EXT-4-BLANCA', is_active: true },
     include: [{ model: require('../database/models').FormulaIngredient, as: 'ingredients', include: [{ model: Material, as: 'material' }] }],
   });
-  if (!formula4?.ingredients?.length || !formula4.output_pti_id) {
+  const outputPti = formula4
+    ? await require('../database/models').PtiProduct.findOne({ where: { formula_id: formula4.id, is_active: true } })
+    : null;
+  if (!formula4?.ingredients?.length || !outputPti) {
     throw new Error('La fórmula activa F-EXT-4-BLANCA debe incluir ingredientes y un PTI de salida.');
   }
   const materialForIngredient = (name) => formula4.ingredients.find((item) => item.material?.name === name)?.material;
@@ -286,7 +289,6 @@ async function runFullLineExtrusionTest() {
   
   // Buscar o crear Rack PTI
   const rackQr = await getVirginQr('QR-RACK-LINE');
-  const outputPti = await require('../database/models').PtiProduct.findByPk(formula4.output_pti_id);
   const rack = await PtiRack.create({
     rack_code: `RACK-TEST-LINE-${Date.now()}`,
     qr_code: rackQr.qr_code,
@@ -300,7 +302,7 @@ async function runFullLineExtrusionTest() {
   // Inyectar 80 bobinas de cinta al Rack PTI escaneando su QR, registrando 15.00 kg de merma/scrap en el arranque
   const rackScanResult = await extrusionService.scanRackPti({
     rack_qr: rack.qr_code,
-    pti_material_id: formula4.output_pti_id,
+    pti_material_id: outputPti.id,
     quantity: 60,
     unit_weight_kg: Number(outputPti?.unit_weight_kg) || 5,
     mixture_qr: mixDestQr.qr_code,

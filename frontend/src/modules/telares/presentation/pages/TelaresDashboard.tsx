@@ -28,6 +28,7 @@ export const TelaresDashboard: React.FC = () => {
   // Tab filter: 'ALL' | 'CIRCULAR' | 'BANDA' | 'LOADED'
   const [filterType, setFilterType] = useState<'ALL' | 'CIRCULAR' | 'BANDA' | 'LOADED'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedWipLoomId, setSelectedWipLoomId] = useState<'ALL' | number>('ALL');
 
   // Modal de Transferencia Atómica de Carrito
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -55,6 +56,8 @@ export const TelaresDashboard: React.FC = () => {
   const transferMode = wipData?.transfer_mode || 'RACK_PARTIAL';
   const looms = wipData?.looms || [];
   const availableCarts = wipData?.available_carts || [];
+  const selectedWipLoom = looms.find((loom) => loom.id === Number(selectedWipLoomId));
+  const isBandLoom = (loom: LoomWipItem) => /banda/i.test(loom.subarea?.name || '') || loom.type === 'BANDA';
 
   // Mutación para Transferencia Atómica
   const transferMutation = useMutation({
@@ -95,8 +98,8 @@ export const TelaresDashboard: React.FC = () => {
   // Filtrado de telares
   const filteredLooms = looms.filter((loom) => {
     // Filtro por tipo o carga
-    if (filterType === 'CIRCULAR' && loom.type !== 'CIRCULAR') return false;
-    if (filterType === 'BANDA' && loom.type !== 'BANDA') return false;
+    if (filterType === 'CIRCULAR' && isBandLoom(loom)) return false;
+    if (filterType === 'BANDA' && !isBandLoom(loom)) return false;
     if (filterType === 'LOADED' && loom.current_spools_count <= 0) return false;
 
     // Filtro de búsqueda
@@ -337,6 +340,34 @@ export const TelaresDashboard: React.FC = () => {
         )}
       </div>
 
+      {/* WIP POR TELAR: inventario específico y vista consolidada */}
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wide text-foreground">WIP de Telares</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Consulta el material de una fileta o conserva la vista general del área.</p>
+          </div>
+          <label className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
+            <span>Detalle por telar</span>
+            <select value={selectedWipLoomId} onChange={(event) => setSelectedWipLoomId(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))} className="h-10 min-w-56 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-foreground">
+              <option value="ALL">WIP general · todos los telares</option>
+              {looms.map((loom) => <option key={loom.id} value={loom.id}>#{loom.loom_number} · {loom.name}</option>)}
+            </select>
+          </label>
+        </div>
+        {selectedWipLoom ? (
+          <div className="p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div><strong className="text-foreground">Telar #{selectedWipLoom.loom_number} · {selectedWipLoom.name}</strong><span className="ml-2 text-xs text-muted-foreground">{selectedWipLoom.subarea?.name || 'Subárea pendiente'}</span></div>
+              <div className="flex gap-4 font-mono text-xs"><span className="text-blue-600 dark:text-blue-300">{Number(selectedWipLoom.current_wip_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg</span><span className="text-amber-600 dark:text-amber-300">{Number(selectedWipLoom.current_spools_count || 0).toLocaleString('es-MX')} bobinas</span>{allowCosts && <span className="text-emerald-600 dark:text-emerald-300">{selectedWipLoom.valuation_mxn == null ? 'Valuación incompleta' : `$${Number(selectedWipLoom.valuation_mxn).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}</span>}</div>
+            </div>
+            {selectedWipLoom.pti_inventory.length ? <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[580px] text-left text-sm"><thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground"><tr><th className="p-2.5">PTI / Color</th><th className="p-2.5">Denier / Ancho</th><th className="p-2.5 text-right">Bobinas</th><th className="p-2.5 text-right">Peso WIP</th>{allowCosts && <th className="p-2.5 text-right">Valor</th>}</tr></thead><tbody className="divide-y divide-border">{selectedWipLoom.pti_inventory.map((item, index) => <tr key={`${item.pti_product_id || item.code}-${index}`}><td className="p-2.5"><strong>{item.code}</strong><span className="ml-2 text-muted-foreground">{item.name} · {item.color}</span></td><td className="p-2.5 text-muted-foreground">{item.denier ? `D${item.denier}` : '—'} · {item.tape_width_mm ? `${item.tape_width_mm} mm` : '—'}</td><td className="p-2.5 text-right font-mono">{Number(item.quantity_spools).toLocaleString('es-MX')}</td><td className="p-2.5 text-right font-mono">{Number(item.quantity_kg).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg</td>{allowCosts && <td className="p-2.5 text-right font-mono">{item.valuation_mxn == null ? '—' : `$${Number(item.valuation_mxn).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}</td>}</tr>)}</tbody></table></div> : <div className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">Este telar no tiene bobinas registradas en su WIP.</div>}
+          </div>
+        ) : (
+          <div className="grid gap-3 p-4 sm:grid-cols-3"><div className="rounded-lg border border-border bg-background p-3"><span className="text-[10px] font-bold uppercase text-muted-foreground">Telares incluidos</span><p className="mt-1 font-mono text-xl font-black">{looms.length}</p></div><div className="rounded-lg border border-border bg-background p-3"><span className="text-[10px] font-bold uppercase text-muted-foreground">Bobinas en fileta</span><p className="mt-1 font-mono text-xl font-black">{Number(macro?.total_spools || 0).toLocaleString('es-MX')}</p></div><div className="rounded-lg border border-border bg-background p-3"><span className="text-[10px] font-bold uppercase text-muted-foreground">Peso WIP</span><p className="mt-1 font-mono text-xl font-black">{Number(macro?.total_wip_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg</p>{allowCosts && <span className="text-xs text-emerald-600 dark:text-emerald-300">{macro?.total_valuation_mxn == null ? 'Valuación incompleta' : `$${Number(macro.total_valuation_mxn).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}</span>}</div></div>
+        )}
+      </section>
+
       {/* BARRA DE FILTROS Y BÚSQUEDA */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-muted/40 p-2.5 rounded-xl border border-border">
         {/* TABS DE FILTRO */}
@@ -357,7 +388,7 @@ export const TelaresDashboard: React.FC = () => {
             onClick={() => setFilterType('CIRCULAR')}
             className="text-xs font-bold h-9 px-3 rounded-lg"
           >
-            Circulares 1–17 ({looms.filter((l) => l.type === 'CIRCULAR').length})
+            Rollo ({looms.filter((l) => !isBandLoom(l)).length})
           </Button>
           <Button
             type="button"
@@ -366,7 +397,7 @@ export const TelaresDashboard: React.FC = () => {
             onClick={() => setFilterType('BANDA')}
             className="text-xs font-bold h-9 px-3 rounded-lg"
           >
-            Banda 18–21 ({looms.filter((l) => l.type === 'BANDA').length})
+            Banda ({looms.filter(isBandLoom).length})
           </Button>
           <Button
             type="button"
@@ -395,8 +426,9 @@ export const TelaresDashboard: React.FC = () => {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-16 text-muted-foreground gap-3">
           <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm font-bold">Cargando estado individual de los 21 telares...</p>
+          <p className="text-sm font-bold">Cargando estado individual de {looms.length || 21} telares...</p>
         </div>
+
       ) : filteredLooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl border border-dashed border-border bg-card">
           <AlertTriangle className="h-10 w-10 text-amber-500 mb-2" />
@@ -406,7 +438,7 @@ export const TelaresDashboard: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredLooms.map((loom) => {
-            const isBanda = loom.type === 'BANDA';
+            const isBanda = isBandLoom(loom);
             const isProducing = loom.status === 'TEJIENDO' || loom.status === 'EN_PRODUCCION';
             const pct = loom.creel_utilization_pct;
 

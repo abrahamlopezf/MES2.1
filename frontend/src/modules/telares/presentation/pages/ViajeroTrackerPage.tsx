@@ -128,6 +128,14 @@ export const ViajeroTrackerPage: React.FC = () => {
             </div>
 
             {/* Ficha Técnica de la Tela y Métricas */}
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-950/20 px-4 py-3">
+              <Badge className="bg-cyan-700 text-white font-black">{roll.product_kind || roll.bom?.product_kind || 'ROLLO_TELA'}</Badge>
+              <strong className="text-sm text-white">{roll.output_product_name || roll.bom?.output_product_name || roll.bom?.name}</strong>
+              {(roll.output_color || roll.bom?.output_color) && <span className="text-xs text-slate-300">Color: {roll.output_color || roll.bom?.output_color}</span>}
+              {(roll.output_width_value || roll.bom?.output_width_value) && <span className="text-xs text-slate-300">Ancho: {roll.output_width_value || roll.bom?.output_width_value} {roll.output_width_unit || roll.bom?.output_width_unit || 'cm'}</span>}
+              {(roll.output_denier || roll.bom?.output_denier) && <span className="text-xs text-slate-300">Denier: {roll.output_denier || roll.bom?.output_denier}</span>}
+              {(roll.tensile_strength_lb || roll.bom?.tensile_strength_lb) && <span className="text-xs text-slate-300">Resistencia: {roll.tensile_strength_lb || roll.bom?.tensile_strength_lb} lb</span>}
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="rounded-xl bg-slate-900 p-4 border border-slate-700">
                 <span className="text-xs font-bold text-slate-400 uppercase block">Metros Lineales</span>

@@ -25,16 +25,23 @@ export const ViajeroLabelModal: React.FC<ViajeroLabelModalProps> = ({ roll, onCl
   const supervisorName = roll.shiftSupervisor
     ? `${roll.shiftSupervisor.first_name} ${roll.shiftSupervisor.last_name}`.trim()
     : 'No registrado';
-  const modelName = roll.bom?.name || 'Tela Tubular';
+  const productKind = roll.product_kind || roll.bom?.product_kind || 'ROLLO_TELA';
+  const modelName = roll.output_product_name || roll.bom?.output_product_name || roll.bom?.name || 'Producto de Telares';
   const fabricType = roll.fabric_type || roll.bom?.fabric_type || 'TUBULAR';
-  const color = roll.tape_color || roll.bom?.tape_color || 'No registrado';
+  const color = roll.output_color || roll.bom?.output_color || roll.tape_color || roll.bom?.tape_color || 'No registrado';
   const qrPayload = JSON.stringify({
     type: 'TRACEFLOW_TELARES_ROLL', version: 1,
     qr_code: roll.qr_code, roll_code: roll.roll_code,
     loom: { number: loomNumber, name: roll.loom?.name || null }, shift: shiftNumber,
     model: {
-      name: modelName, bom_code: roll.bom?.code || null, fabric_type: fabricType, color,
+      product_kind: productKind, name: modelName, bom_code: roll.bom?.code || null, fabric_type: fabricType, color,
       width_cm: roll.width_cm ?? roll.bom?.target_width_cm ?? null,
+      output_width_value: roll.output_width_value ?? roll.bom?.output_width_value ?? null,
+      output_width_unit: roll.output_width_unit || roll.bom?.output_width_unit || null,
+      output_denier: roll.output_denier ?? roll.bom?.output_denier ?? null,
+      tensile_strength_lb: roll.tensile_strength_lb ?? roll.bom?.tensile_strength_lb ?? null,
+      units_per_pallet: roll.units_per_pallet ?? roll.bom?.units_per_pallet ?? null,
+      packaging_type: roll.packaging_type || roll.bom?.packaging_type || null,
       grammage_g_per_m: roll.grammage_g_per_m ?? roll.bom?.target_weight_g_per_m ?? null,
       ounces_yd2: roll.ounces_yd2 ?? roll.bom?.ounces_yd2 ?? null,
     },
@@ -117,6 +124,7 @@ export const ViajeroLabelModal: React.FC<ViajeroLabelModalProps> = ({ roll, onCl
 
               {/* Ficha Técnica de la Tela (PDF) */}
               <div className="rounded-lg bg-white p-2.5 border border-slate-200 space-y-1 text-xs">
+                <div className="flex justify-between"><span className="text-slate-500 font-bold">Tipo de PTI:</span><strong className="text-slate-900">{productKind === 'ROLLO_TELA' ? 'ROLLO DE TELA' : productKind}</strong></div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-bold">Ficha / BOM:</span>
                   <strong className="text-slate-900 truncate max-w-[200px]">{modelName}</strong>
@@ -135,6 +143,7 @@ export const ViajeroLabelModal: React.FC<ViajeroLabelModalProps> = ({ roll, onCl
                   <span className="text-slate-500">Ancho: <strong>{roll.width_cm} cm</strong></span>
                   <span className="text-slate-500">Gramaje: <strong>{Number(roll.grammage_g_per_m).toFixed(1)} g/m</strong></span>
                 </div>
+                {(roll.output_denier || roll.bom?.output_denier || roll.tensile_strength_lb || roll.bom?.tensile_strength_lb) && <div className="flex justify-between border-t border-slate-100 pt-1 text-[11px] text-slate-600"><span>Denier: <strong>{roll.output_denier || roll.bom?.output_denier || '—'}</strong></span><span>Resistencia: <strong>{roll.tensile_strength_lb || roll.bom?.tensile_strength_lb ? `${roll.tensile_strength_lb || roll.bom?.tensile_strength_lb} lb` : '—'}</strong></span></div>}
               </div>
             </div>
           </div>

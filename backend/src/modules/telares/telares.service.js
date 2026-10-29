@@ -38,7 +38,7 @@ const {
 } = require('../../database/models');
 
 class TelaresService {
-  normalizeProductionRoute(route) {
+  normalizeProductionRoute(route, productKind = 'ROLLO_TELA') {
     const stages = Array.isArray(route)
       ? route.map((stage) => String(stage || '').trim().toUpperCase())
       : [];
@@ -54,10 +54,16 @@ class TelaresService {
         { statusCode: 400, code: 'INVALID_PRODUCTION_ROUTE' }
       );
     }
+    if (String(productKind || 'ROLLO_TELA').trim().toUpperCase() === 'ROLLO_TELA' && stages.includes('GLOBO')) {
+      throw Object.assign(
+        new Error('Los rollos de tela no pueden tener Globo en su ruta; selecciona Laminado o ruta directa a Corte.'),
+        { statusCode: 400, code: 'GLOBO_NOT_ALLOWED_FOR_ROLL' }
+      );
+    }
     return stages;
   }
 
-  calculateBomPtiDemand(bom, plannedMeters) {
+  calculateBomPtiDemand(bom, plannedMeters, plannedWeightKg = null) {
     const meters = Number(plannedMeters);
     if (!Number.isFinite(meters) || meters <= 0) throw Object.assign(new Error('Los metros objetivo deben ser mayores a cero.'), { statusCode: 400 });
     if (!Array.isArray(bom.items) || !bom.items.length || bom.items.some((item) => !Number(item.pti_product_id))) {
@@ -65,6 +71,7 @@ class TelaresService {
     }
     const standardMeters = Number(bom.standard_output_meters || 0);
     const expectedOutputs = Number(bom.expected_output_quantity || 1);
+    const outputUnit = String(bom.expected_output_unit || 'ROLLO').toUpperCase();
     const outputMultiplier = standardMeters > 0 ? (meters / standardMeters) * expectedOutputs : null;
 
     return (bom.items || []).map((item) => {
@@ -72,13 +79,30 @@ class TelaresService {
       const unit = String(item.required_unit || 'KG').toUpperCase();
       let requiredKg = null;
       let requiredSpools = null;
-      if (requiredQuantity > 0 && outputMultiplier) {
+      if (requiredQuantity > 0 && outputUnit === 'KG') {
+        const standardWeightKg = Number(bom.output_weight_kg || 0);
+        const reportedWeightKg = Number(plannedWeightKg || 0);
+        const estimatedWeightKg = reportedWeightKg > 0
+          ? reportedWeightKg
+          : standardWeightKg > 0 && standardMeters > 0
+          ? standardWeightKg * (meters / standardMeters)
+          : (!bom.is_provisional ? Number(bom.target_weight_g_per_m || 0) * meters / 1000 : 0);
+        if (estimatedWeightKg <= 0 || expectedOutputs <= 0) {
+          throw Object.assign(new Error(`La ficha ${bom.code} requiere un peso base de salida para calcular el consumo por kg.`), { statusCode: 409, code: 'BOM_OUTPUT_BASIS_REQUIRED' });
+        }
+        const multiplier = estimatedWeightKg / expectedOutputs;
+        if (unit === 'KG') requiredKg = requiredQuantity * multiplier;
+        else if (unit === 'PIEZAS') requiredSpools = requiredQuantity * multiplier;
+      } else if (requiredQuantity > 0 && outputUnit === 'METRO') {
+        const multiplier = meters / expectedOutputs;
+        if (unit === 'KG') requiredKg = requiredQuantity * multiplier;
+        else if (unit === 'PIEZAS') requiredSpools = requiredQuantity * multiplier;
+      } else if (requiredQuantity > 0 && outputMultiplier) {
         if (unit === 'KG') requiredKg = requiredQuantity * outputMultiplier;
         else if (unit === 'PIEZAS') requiredSpools = requiredQuantity * outputMultiplier;
       } else {
         const gramsPerMeter = Number(item.consumption_g_per_m || 0);
-        const fallbackGrams = Number(bom.target_weight_g_per_m || 0) * Number(item.ratio_percentage || 0) / 100;
-        const consumptionGramsPerMeter = gramsPerMeter > 0 ? gramsPerMeter : fallbackGrams;
+        const consumptionGramsPerMeter = gramsPerMeter;
         if (consumptionGramsPerMeter <= 0) {
           throw Object.assign(new Error(`La ficha ${bom.code} no tiene consumo configurado para ${item.ptiProduct?.code || `PTI ${item.pti_product_id}`}.`), { statusCode: 409, code: 'BOM_PTI_CONSUMPTION_REQUIRED' });
         }
@@ -88,8 +112,8 @@ class TelaresService {
     });
   }
 
-  async assessLoomPtiAvailability({ loomId, bom, plannedMeters, transaction }) {
-    const demands = this.calculateBomPtiDemand(bom, plannedMeters);
+  async assessLoomPtiAvailability({ loomId, bom, plannedMeters, plannedWeightKg = null, transaction }) {
+    const demands = this.calculateBomPtiDemand(bom, plannedMeters, plannedWeightKg);
     const productIds = demands.map(({ item }) => Number(item.pti_product_id)).filter(Boolean);
     const [wipRows, racks] = await Promise.all([
       LoomPtiWip.findAll({
@@ -288,6 +312,18 @@ class TelaresService {
     return Subarea.findAll({ where: { area_id: area.id, is_active: true }, attributes: ['id', 'name', 'nomenclature'], order: [['id', 'ASC']] });
   }
 
+  async resolvePtiSubareaId(ptiProduct, transaction) {
+    const area = await Area.findOne({ where: { code: 'TELARES' }, transaction });
+    if (!area) throw Object.assign(new Error('No existe el área Telares para resolver el destino del PTI.'), { statusCode: 409 });
+    const nomenclature = Number(ptiProduct?.extrusion_machine_number) === 1 ? 'TB' : 'TR';
+    const subarea = await Subarea.findOne({ where: { area_id: area.id, nomenclature, is_active: true }, transaction });
+    if (!subarea) {
+      const destination = nomenclature === 'TB' ? 'Telares Banda' : 'Telares Rollo';
+      throw Object.assign(new Error(`No está configurada la subárea ${destination} requerida por el PTI ${ptiProduct?.code || ''}.`), { statusCode: 409 });
+    }
+    return subarea.id;
+  }
+
   /**
    * Listar operadores y supervisores de Tejido / Telares (con número de nómina)
    */
@@ -481,6 +517,7 @@ class TelaresService {
     return await ProductionBom.findAll({
       where: includeInactive ? {} : { is_active: true },
       include: [
+        { model: Subarea, as: 'subarea', attributes: ['id', 'name', 'nomenclature'], required: false },
         {
           model: ProductionBomItem,
           as: 'items',
@@ -511,7 +548,6 @@ class TelaresService {
 
       const ptiIds = [...new Set((payload.supported_pti_types ?? loom?.supported_pti_types ?? []).map(Number))];
       if (ptiIds.some((value) => !Number.isInteger(value) || value <= 0)) throw new Error('La lista de PTI compatibles contiene un valor no válido.');
-      if (!ptiIds.length) throw new Error('Selecciona al menos un tipo de PTI de Extrusión que maneje el telar.');
       if (ptiIds.length && (await PtiProduct.count({ where: { id: ptiIds }, transaction: t })) !== ptiIds.length) {
         throw new Error('Uno o más PTI compatibles no existen en el catálogo de Extrusión.');
       }
@@ -547,13 +583,22 @@ class TelaresService {
         subarea_id: payload.subarea_id === undefined ? (loom?.subarea_id ?? null) : (payload.subarea_id ? Number(payload.subarea_id) : null),
       };
 
-      if (values.subarea_id !== null) {
-        const subarea = await Subarea.findOne({
+      if (values.subarea_id === null) throw new Error('Selecciona si este telar pertenece a Rollo o a Banda.');
+      const subarea = await Subarea.findOne({
           where: { id: values.subarea_id, is_active: true },
           include: [{ model: Area, where: { code: 'TELARES' }, required: true }],
           transaction: t,
-        });
-        if (!subarea) throw new Error('La subárea seleccionada no pertenece al área de Telares.');
+      });
+      if (!subarea) throw new Error('La subárea seleccionada no pertenece al área de Telares.');
+      const isBandSubarea = /banda/i.test(subarea.name);
+      if ((String(values.type).toUpperCase() === 'BANDA') !== isBandSubarea) throw new Error('El tipo del telar no corresponde a la subárea seleccionada.');
+      const selectedPtis = ptiIds.length ? await PtiProduct.findAll({ where: { id: ptiIds }, transaction: t }) : [];
+      if (selectedPtis.some((pti) => (Number(pti.extrusion_machine_number) === 1) !== isBandSubarea)) {
+        throw new Error('Los PTI de la Extrusora 1 deben configurarse en Telares Banda; los demás PTI corresponden a Telares Rollo.');
+      }
+      const selectedBoms = bomIds.length ? await ProductionBom.findAll({ where: { id: bomIds }, transaction: t }) : [];
+      if (selectedBoms.some((bom) => Number(bom.subarea_id || 0) !== Number(values.subarea_id))) {
+        throw new Error('Las fichas PTI seleccionadas deben pertenecer a la misma subárea que el telar.');
       }
       if (!Number.isFinite(values.rpm) || values.rpm <= 0) throw new Error('La velocidad RPM debe ser mayor a cero.');
       if (loom) await loom.update(values, { transaction: t });
@@ -627,19 +672,10 @@ class TelaresService {
         throw error;
       }
 
-      let requiredSubareaId = rack.destination_subarea_id || null;
-      if (!requiredSubareaId && Number(ptiProduct.extrusion_machine_number) === 1) {
-        const telaresArea = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
-        const bandSubarea = telaresArea && await Subarea.findOne({
-          where: { area_id: telaresArea.id, nomenclature: 'TB', is_active: true },
-          transaction: t,
-        });
-        if (!bandSubarea) {
-          const error = new Error('No se puede identificar la subárea Telares Banda para el PTI de la Extrusora 1.');
-          error.statusCode = 409;
-          throw error;
-        }
-        requiredSubareaId = bandSubarea.id;
+      const expectedPtiSubareaId = await this.resolvePtiSubareaId(ptiProduct, t);
+      const requiredSubareaId = rack.destination_subarea_id || expectedPtiSubareaId;
+      if (Number(requiredSubareaId) !== Number(expectedPtiSubareaId)) {
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${Number(ptiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
       }
       if (Number(requiredSubareaId || 0) !== Number(loom.subarea_id || 0)) {
         const destination = requiredSubareaId ? 'Telares Banda' : 'Telares general';
@@ -822,9 +858,11 @@ class TelaresService {
       const name = String(payload.name ?? bom?.name ?? '').trim();
       const items = payload.items ?? (bom ? await ProductionBomItem.findAll({ where: { bom_id: bom.id }, transaction: t }) : []);
       if (!code || !name) throw new Error('El código y el nombre del rollo son obligatorios.');
-      if (!Array.isArray(items) || items.length === 0) throw new Error('Agrega al menos un tipo de PTI de Extrusión requerido.');
+      const isProvisional = payload.is_provisional ?? bom?.is_provisional ?? false;
+      const productKind = String(payload.product_kind ?? bom?.product_kind ?? 'ROLLO_TELA').trim().toUpperCase();
+      if (!Array.isArray(items) || (!items.length && !isProvisional)) throw new Error('Agrega al menos un PTI de Extrusión o marca la ficha como provisional mientras se confirma su relación de consumo.');
 
-      const route = this.normalizeProductionRoute(payload.default_route ?? bom?.default_route ?? ['TELARES', 'LAMINADO', 'CORTE']);
+      const route = this.normalizeProductionRoute(payload.default_route ?? bom?.default_route ?? ['TELARES', 'LAMINADO', 'CORTE'], productKind);
 
       const ounces = payload.ounces_yd2 !== undefined && payload.ounces_yd2 !== ''
         ? Number(payload.ounces_yd2)
@@ -845,11 +883,23 @@ class TelaresService {
         }
       }
 
+      const telaresArea = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
+      const subareaId = payload.subarea_id === '' || payload.subarea_id === null || payload.subarea_id === undefined
+        ? (bom?.subarea_id ?? null) : Number(payload.subarea_id);
+      const outputSubarea = telaresArea && subareaId
+        ? await Subarea.findOne({ where: { id: subareaId, area_id: telaresArea.id, is_active: true }, transaction: t })
+        : null;
+      if (!outputSubarea) throw new Error('Selecciona una subárea activa de Telares para esta ficha.');
+      const isBandSubarea = /banda/i.test(outputSubarea.name);
+
       const normalizedItems = [];
       for (const item of items) {
         const ptiId = Number(item.pti_product_id);
         const pti = ptiId > 0 ? await PtiProduct.findByPk(ptiId, { transaction: t }) : null;
         if (!pti || !pti.is_active) throw new Error('Cada componente debe ser un PTI activo del catálogo de Extrusión.');
+        if ((Number(pti.extrusion_machine_number) === 1) !== isBandSubarea) {
+          throw new Error(`El PTI ${pti.code} no corresponde a ${isBandSubarea ? 'Telares Banda (Extrusora 1)' : 'Telares Rollo (Extrusoras 2, 4, 5 o dinámicas)'}.`);
+        }
 
         // Validar denier del PTI según restricción
         if (restrictDenier1800 && Number(pti.denier) === 1800) {
@@ -865,7 +915,8 @@ class TelaresService {
           : Number(item.required_quantity);
         const requiredUnit = String(item.required_unit || 'KG').toUpperCase();
         if (!Number.isFinite(ratio) || ratio < 0 || ratio > 100 || !Number.isFinite(consumption) || consumption < 0) throw new Error(`Consumo o proporción no válida para ${pti.code}.`);
-        if (requiredQuantity === null || !Number.isFinite(requiredQuantity) || requiredQuantity <= 0) throw new Error(`Indica la cantidad de PTI requerida por rollo para ${pti.code}.`);
+        if (requiredQuantity !== null && (!Number.isFinite(requiredQuantity) || requiredQuantity <= 0)) throw new Error(`La cantidad de PTI por salida debe ser mayor a cero para ${pti.code}.`);
+        if (!isProvisional && requiredQuantity === null && consumption <= 0) throw new Error(`Completa el consumo del PTI ${pti.code} o marca la ficha como provisional.`);
         if (!['KG', 'PIEZAS'].includes(requiredUnit)) throw new Error('La unidad requerida debe ser KG o PIEZAS.');
         normalizedItems.push({
           pti_product_id: pti.id,
@@ -898,6 +949,23 @@ class TelaresService {
         warp_density: Number(payload.warp_density ?? bom?.warp_density ?? 10),
         weft_density: Number(payload.weft_density ?? bom?.weft_density ?? 10),
         output_product_name: String(payload.output_product_name ?? bom?.output_product_name ?? name).trim(),
+        subarea_id: payload.subarea_id === '' || payload.subarea_id === null || payload.subarea_id === undefined
+          ? (bom?.subarea_id ?? null) : Number(payload.subarea_id),
+        product_kind: productKind,
+        output_color: payload.output_color ?? bom?.output_color ?? null,
+        output_width_value: payload.output_width_value === '' || payload.output_width_value === null
+          ? null : Number(payload.output_width_value ?? bom?.output_width_value ?? 0) || null,
+        output_width_unit: String(payload.output_width_unit ?? bom?.output_width_unit ?? 'CM').toUpperCase(),
+        output_denier: payload.output_denier === '' || payload.output_denier === null
+          ? null : Number(payload.output_denier ?? bom?.output_denier ?? 0) || null,
+        tensile_strength_lb: payload.tensile_strength_lb === '' || payload.tensile_strength_lb === null
+          ? null : Number(payload.tensile_strength_lb ?? bom?.tensile_strength_lb ?? 0) || null,
+        units_per_pallet: payload.units_per_pallet === '' || payload.units_per_pallet === null
+          ? null : Number(payload.units_per_pallet ?? bom?.units_per_pallet ?? 0) || null,
+        packaging_type: payload.packaging_type ?? bom?.packaging_type ?? null,
+        output_weight_kg: payload.output_weight_kg === '' || payload.output_weight_kg === null
+          ? null : Number(payload.output_weight_kg ?? bom?.output_weight_kg ?? 0) || null,
+        is_provisional: isProvisional,
         expected_output_quantity: Number(payload.expected_output_quantity ?? bom?.expected_output_quantity ?? 1),
         expected_output_unit: String(payload.expected_output_unit ?? bom?.expected_output_unit ?? 'ROLLO').toUpperCase(),
         standard_output_meters: payload.standard_output_meters === '' || payload.standard_output_meters === null
@@ -918,6 +986,13 @@ class TelaresService {
 
       if (!Number.isFinite(values.target_width_cm) || values.target_width_cm <= 0 || !Number.isFinite(values.expected_output_quantity) || values.expected_output_quantity <= 0) {
         throw new Error('El ancho y la cantidad de salida deben ser mayores a cero.');
+      }
+      if (!['ROLLO_TELA', 'BANDA', 'CINTA'].includes(values.product_kind)) throw new Error('El tipo de producto PTI de Telares no es válido.');
+      if (values.subarea_id) {
+        if (Number(values.subarea_id) !== Number(outputSubarea.id)) throw new Error('La subárea de la ficha cambió durante la validación. Vuelve a intentarlo.');
+        if (['BANDA', 'CINTA'].includes(values.product_kind) !== isBandSubarea) {
+          throw new Error('El tipo de producto no corresponde a la subárea seleccionada (Rollo o Banda).');
+        }
       }
       if (values.standard_output_meters !== null && (!Number.isFinite(values.standard_output_meters) || values.standard_output_meters <= 0)) {
         throw new Error('Los metros de referencia de salida deben ser mayores a cero.');
@@ -971,14 +1046,10 @@ class TelaresService {
       if (!ptiProduct || !rack.current_pti_product_id) {
         throw Object.assign(new Error(`El rack ${rack.rack_code} no tiene un PTI exacto identificado.`), { statusCode: 409 });
       }
-      let destinationSubareaId = rack.destination_subarea_id || null;
-      if (!destinationSubareaId && Number(ptiProduct.extrusion_machine_number) === 1) {
-        const area = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
-        const bandSubarea = area && await Subarea.findOne({ where: { area_id: area.id, nomenclature: 'TB', is_active: true }, transaction: t });
-        if (!bandSubarea) {
-          throw Object.assign(new Error('No se puede identificar la subárea Telares Banda para el PTI de la Extrusora 1.'), { statusCode: 409 });
-        }
-        destinationSubareaId = bandSubarea.id;
+      const expectedPtiSubareaId = await this.resolvePtiSubareaId(ptiProduct, t);
+      const destinationSubareaId = rack.destination_subarea_id || expectedPtiSubareaId;
+      if (Number(destinationSubareaId) !== Number(expectedPtiSubareaId)) {
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${Number(ptiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
       }
       if (Number(destinationSubareaId || 0) !== Number(loom.subarea_id || 0)) {
         const destination = destinationSubareaId ? 'TELARES BANDA' : 'TELARES';
@@ -1050,6 +1121,9 @@ class TelaresService {
         transaction: t,
       });
       if (!bom) throw new Error(`Receta / BOM ID ${bom_id} no encontrada.`);
+      if (!loom.subarea_id || Number(bom.subarea_id || 0) !== Number(loom.subarea_id)) {
+        throw Object.assign(new Error(`La ficha ${bom.name} pertenece a otra subárea. Verifica que la máquina y el PTI sean ambos de Rollo o ambos de Banda.`), { statusCode: 409, code: 'TELARES_SUBAREA_MISMATCH' });
+      }
       let plannedMeters = Number(meters_planned || 0);
       const plannedWeightKg = Number(weight_planned_kg || 0);
       if (plannedWeightKg > 0) {
@@ -1063,7 +1137,7 @@ class TelaresService {
         throw new Error(`El telar ${loom.name} no está habilitado para producir ${bom.name}.`);
       }
 
-      const availability = await this.assessLoomPtiAvailability({ loomId: loom.id, bom, plannedMeters, transaction: t });
+      const availability = await this.assessLoomPtiAvailability({ loomId: loom.id, bom, plannedMeters, plannedWeightKg: plannedWeightKg > 0 ? plannedWeightKg : null, transaction: t });
       if (!availability.sufficient) {
         await this.notifyTelaresSupervisors({ loom, bom, plannedMeters: Number(plannedMeters.toFixed(2)), shortages: availability.shortages }, operator_id);
         const error = new Error(`WIP insuficiente para ${bom.name} en ${loom.name}. Se notificó al Supervisor de Telares con el faltante y los QRs sugeridos por FIFO.`);
@@ -1218,7 +1292,8 @@ class TelaresService {
 
       // 1. Determinar Ruta Oficial del QR Viajero
       const officialRoute = this.normalizeProductionRoute(
-        Array.isArray(custom_route) && custom_route.length > 0 ? custom_route : bom.default_route
+        Array.isArray(custom_route) && custom_route.length > 0 ? custom_route : bom.default_route,
+        bom.product_kind || 'ROLLO_TELA'
       );
       const currentStage = 'TELARES';
       const nextAllowedStage = officialRoute[1];
@@ -1316,6 +1391,15 @@ class TelaresService {
           ounces_yd2: bom.ounces_yd2,
           fabric_type: bom.fabric_type,
           tape_color: bom.tape_color,
+          product_kind: bom.product_kind || 'ROLLO_TELA',
+          output_product_name: bom.output_product_name || bom.name,
+          output_color: bom.output_color,
+          output_width_value: bom.output_width_value,
+          output_width_unit: bom.output_width_unit,
+          output_denier: bom.output_denier,
+          tensile_strength_lb: bom.tensile_strength_lb,
+          units_per_pallet: bom.units_per_pallet,
+          packaging_type: bom.packaging_type,
         },
         { transaction: t }
       );
@@ -1333,7 +1417,7 @@ class TelaresService {
       const backflushRecords = [];
       const currentCreelSpools = Number(run.loom.current_spools_count || 0);
       const currentCreelKg = Number(run.loom.current_wip_kg || 0);
-      const requiredByProduct = this.calculateBomPtiDemand(bom, numMeters);
+      const requiredByProduct = this.calculateBomPtiDemand(bom, numMeters, numWeightKg);
       const trackedLoomWip = await LoomPtiWip.findAll({
         where: { loom_id: run.loom_id, pti_product_id: { [Op.in]: requiredByProduct.map(({ item }) => Number(item.pti_product_id)) }, quantity_remaining_spools: { [Op.gt]: 0 } },
         order: [['received_at', 'ASC'], ['id', 'ASC']],
@@ -1557,6 +1641,33 @@ class TelaresService {
     }
 
     const route = roll.route || [];
+    const productKind = String(roll.product_kind || roll.bom?.product_kind || 'ROLLO_TELA').trim().toUpperCase();
+
+    if (productKind === 'ROLLO_TELA' && targetArea === 'GLOBO') {
+      await ViajeroRoutingLog.create({
+        viajero_roll_id: roll.id,
+        from_stage: roll.current_stage,
+        to_stage: targetArea,
+        operator_id: operator_id || null,
+        action: 'BLOQUEO_RUTEO_INVALIDO',
+        notes: 'Bloqueo de negocio: los rollos de tela no pueden ingresar a Globo.',
+      }, transaction ? { transaction } : {});
+      return {
+        is_allowed: false,
+        error_code: 'GLOBO_NOT_ALLOWED_FOR_ROLL',
+        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+        message: `⛔ Este rollo de tela no puede ingresar a Globo. Ruta registrada: ${route.join(' -> ')}.`,
+      };
+    }
+
+    if (productKind === 'ROLLO_TELA' && route.some((stage) => String(stage).trim().toUpperCase() === 'GLOBO')) {
+      return {
+        is_allowed: false,
+        error_code: 'INVALID_ROLL_ROUTE',
+        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+        message: `⛔ La ruta histórica de ${roll.roll_code} contiene Globo y no es válida para rollos de tela. Solicita corregir el ruteo antes de continuar.`,
+      };
+    }
 
     if (!route.includes(targetArea)) {
       await ViajeroRoutingLog.create({

@@ -77,22 +77,8 @@ export const TelaresTerminalPage: React.FC = () => {
   const [loomFilter, setLoomFilter] = useState<'ALL' | 'CIRCULARES' | 'BANDA'>('ALL');
   const [selectedLoomId, setSelectedLoomId] = useState<number | null>(null);
 
-  // Selector de destino del rollo: GLOBO, LAMINADO, AMBOS, CORTE
+  // El catálogo y el servidor restringen las opciones según el tipo de PTI.
   const [destinationChoice, setDestinationChoice] = useState<'GLOBO' | 'LAMINADO' | 'AMBOS' | 'CORTE'>('LAMINADO');
-
-  const getSelectedRoute = (): string[] => {
-    switch (destinationChoice) {
-      case 'GLOBO':
-        return ['TELARES', 'GLOBO', 'CORTE'];
-      case 'LAMINADO':
-        return ['TELARES', 'LAMINADO', 'CORTE'];
-      case 'AMBOS':
-        return ['TELARES', 'GLOBO', 'LAMINADO', 'CORTE'];
-      case 'CORTE':
-      default:
-        return ['TELARES', 'CORTE'];
-    }
-  };
 
   // Estados locales para reporte de rollo
   const [metersInput, setMetersInput] = useState<string>('500');
@@ -167,6 +153,27 @@ export const TelaresTerminalPage: React.FC = () => {
   }, [activeLoom]);
 
   const selectedBom = useMemo(() => boms.find((bom) => bom.id === Number(selectedBomId)) || null, [boms, selectedBomId]);
+  const outputProductKind = String(activeRun?.bom?.product_kind || selectedBom?.product_kind || 'ROLLO_TELA').toUpperCase();
+  const isFabricRoll = outputProductKind === 'ROLLO_TELA';
+
+  useEffect(() => {
+    if (isFabricRoll && (destinationChoice === 'GLOBO' || destinationChoice === 'AMBOS')) {
+      setDestinationChoice('LAMINADO');
+    }
+  }, [isFabricRoll, destinationChoice]);
+
+  const getSelectedRoute = (): string[] => {
+    if (isFabricRoll && (destinationChoice === 'GLOBO' || destinationChoice === 'AMBOS')) {
+      return destinationChoice === 'GLOBO' ? ['TELARES', 'LAMINADO', 'CORTE'] : ['TELARES', 'LAMINADO', 'CORTE'];
+    }
+    switch (destinationChoice) {
+      case 'GLOBO': return ['TELARES', 'GLOBO', 'CORTE'];
+      case 'LAMINADO': return ['TELARES', 'LAMINADO', 'CORTE'];
+      case 'AMBOS': return ['TELARES', 'GLOBO', 'LAMINADO', 'CORTE'];
+      case 'CORTE':
+      default: return ['TELARES', 'CORTE'];
+    }
+  };
 
   // Racks disponibles en planta para asignación
   const availableRacks = useMemo(() => {
@@ -1017,7 +1024,8 @@ export const TelaresTerminalPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <div className={`grid grid-cols-2 ${isFabricRoll ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-2.5`}>
+                      {!isFabricRoll && <>
                       <button
                         type="button"
                         onClick={() => setDestinationChoice('GLOBO')}
@@ -1031,6 +1039,7 @@ export const TelaresTerminalPage: React.FC = () => {
                         <span className="text-xs font-black uppercase tracking-wide">Solo Globo</span>
                         <span className="text-[10px] text-cyan-300 font-bold">Inflado / Tubular</span>
                       </button>
+                      </>}
 
                       <button
                         type="button"
@@ -1046,6 +1055,7 @@ export const TelaresTerminalPage: React.FC = () => {
                         <span className="text-[10px] text-indigo-300 font-bold">Recubrimiento PEBD</span>
                       </button>
 
+                      {!isFabricRoll && <>
                       <button
                         type="button"
                         onClick={() => setDestinationChoice('AMBOS')}
@@ -1059,6 +1069,7 @@ export const TelaresTerminalPage: React.FC = () => {
                         <span className="text-xs font-black uppercase tracking-wide">Ambos (Glo ➔ Lam)</span>
                         <span className="text-[10px] text-emerald-300 font-bold">Globo y luego Lam</span>
                       </button>
+                      </>}
 
                       <button
                         type="button"
@@ -1074,6 +1085,7 @@ export const TelaresTerminalPage: React.FC = () => {
                         <span className="text-[10px] text-amber-300 font-bold">Sin Globo ni Lam</span>
                       </button>
                     </div>
+                    {isFabricRoll && <p className="text-xs font-semibold text-amber-300">Los rollos de tela no se envían a Globo. Selecciona Laminado o envío directo a Corte.</p>}
 
                     {/* Resumen dinámico del Ruteo que se estampará en el QR Viajero */}
                     <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 flex items-center justify-between flex-wrap gap-2">

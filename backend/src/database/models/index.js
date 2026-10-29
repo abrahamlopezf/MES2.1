@@ -878,6 +878,7 @@ db.LoomPtiWip.belongsTo(db.PtiRack, { foreignKey: 'source_rack_id', as: 'sourceR
 db.LoomPtiWip.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
 db.ProductionBom = initProductionBomModel(sequelize, DataTypes);
 db.ProductionBomItem = initProductionBomItemModel(sequelize, DataTypes);
+db.ProductionBom.belongsTo(db.Subarea, { foreignKey: 'subarea_id', as: 'subarea' });
 db.LoomRun = initLoomRunModel(sequelize, DataTypes);
 db.ViajeroRoll = initViajeroRollModel(sequelize, DataTypes);
 db.ViajeroRollOperatorSegment = initViajeroRollOperatorSegmentModel(sequelize, DataTypes);
