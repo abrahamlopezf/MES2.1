@@ -3,6 +3,7 @@ const { allocateBalancedSiloConsumption } = require('./services/siloConsumptionA
 const { getClientFormulaKind, isClientFormulaAllowedOnMachine, selectLeastLoadedMachine } = require('./services/formulaMachinePolicy');
 const { fetchQueueOutputSnapshots, persistQueueOutputSnapshot } = require('./services/queueOutputSnapshot.service');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
+const { canViewCosts } = require('../../shared/security/accessRules');
 
 const getWipQrContext = async (qrIds = []) => {
   const ids = [...new Set(qrIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
@@ -4779,7 +4780,8 @@ class ExtrusionService {
   /**
    * Obtiene todos los Silos con su stock, lote, material y alertas de reorden.
    */
-  async getSilos() {
+  async getSilos(currentUser) {
+    const allowCosts = canViewCosts(currentUser);
     const { Silo, Material, Tag } = require('../../database/models');
     const silos = await Silo.findAll({
       where: { is_active: true },
@@ -4792,6 +4794,10 @@ class ExtrusionService {
 
     return silos.map(s => {
       const plain = s.toJSON ? s.toJSON() : { ...s };
+      const { unit_cost: rawUnitCost, material: rawMaterial, ...publicSilo } = plain;
+      const safeMaterial = rawMaterial && typeof rawMaterial === 'object'
+        ? Object.fromEntries(Object.entries(rawMaterial).filter(([key]) => allowCosts || !/cost|price|currency|valuation|costo|precio|dinero/i.test(key)))
+        : rawMaterial;
       const currentStock = Number(plain.current_stock_kg) || 0;
       const maxCap = Number(plain.capacity_kg) || 40000;
       const minCap = Number(plain.min_capacity_kg) || 5000;
@@ -4801,11 +4807,12 @@ class ExtrusionService {
       const fillPct = Math.min(100, Math.round((currentStock / (maxCap || 1)) * 100));
       const isCritical = currentStock <= minCap;
       const isWarning = !isCritical && currentStock <= alertStock;
-      const unitCost = Number(plain.unit_cost) || 0;
+      const unitCost = allowCosts ? Number(rawUnitCost) || 0 : 0;
       const totalInvestment = Number((currentStock * unitCost).toFixed(2));
 
       return {
-        ...plain,
+        ...publicSilo,
+        material: safeMaterial,
         current_stock_kg: currentStock,
         capacity_kg: maxCap,
         min_capacity_kg: minCap,
@@ -4814,8 +4821,7 @@ class ExtrusionService {
         is_critical_reorder: isCritical,
         is_stock_alert: isWarning,
         status_alert: isCritical ? 'CRITICO_REORDEN' : isWarning ? 'ALERTA_STOCK' : 'NORMAL',
-        unit_cost: unitCost,
-        total_investment: totalInvestment
+        ...(allowCosts ? { unit_cost: unitCost, total_investment: totalInvestment } : {})
       };
     });
   }

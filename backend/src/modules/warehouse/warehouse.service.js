@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize, Inventory, Material, Lote, User, Ranking, MaterialUnit } = require('../../database/models');
-const { throwHttpError } = require('../../shared/security/accessRules');
+const { throwHttpError, canViewCosts } = require('../../shared/security/accessRules');
 const inventoryDomainService = require('./inventoryDomain.service');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -522,6 +522,7 @@ const changeLocation = async (payload, currentUser) => {
 
 const getDashboardMetrics = async (user) => {
   const { sequelize, Inventory, Material, InventoryMovement, Lote } = require('../../database/models');
+  const allowCosts = canViewCosts(user);
 
   // Financieros
   const [invValueResult] = await sequelize.query(`
@@ -539,6 +540,16 @@ const getDashboardMetrics = async (user) => {
   `);
   const silosValue = parseFloat(silosValResult[0]?.silos_value || 0);
   const silosStockKg = parseFloat(silosValResult[0]?.silos_stock || 0);
+  const totalInventoryValue = Number((inventoryValue + silosValue).toFixed(2));
+  const [stockMaterialCountResult] = await sequelize.query(`
+    SELECT COUNT(DISTINCT material_id) AS count
+    FROM (
+      SELECT material_id FROM lotes WHERE is_active = true AND available_amount > 0
+      UNION
+      SELECT material_id FROM silos WHERE is_active = true AND current_stock_kg > 0 AND material_id IS NOT NULL
+    ) active_stock
+  `);
+  const materialsWithStockCount = Number(stockMaterialCountResult[0]?.count || 0);
 
   const [lossBreakdownResult] = await sequelize.query(`
     SELECT 
@@ -680,12 +691,30 @@ const getDashboardMetrics = async (user) => {
     merma: parseFloat(row.consumos)
   }));
 
-  const [pieDataResult] = await sequelize.query(`
-    SELECT r.name, SUM(l.available_amount * l.unit_cost) as value
-    FROM lotes l
-    JOIN materials m ON l.material_id = m.id
+  const [pieDataResult] = await sequelize.query(allowCosts ? `
+    SELECT r.name, SUM(stock_value.value) as value
+    FROM (
+      SELECT m.ranking_id, SUM(l.available_amount * l.unit_cost) as value
+      FROM lotes l JOIN materials m ON l.material_id = m.id
+      WHERE l.is_active = true
+      GROUP BY m.ranking_id
+      UNION ALL
+      SELECT m.ranking_id, SUM(s.current_stock_kg * s.unit_cost) as value
+      FROM silos s JOIN materials m ON s.material_id = m.id
+      WHERE s.is_active = true
+      GROUP BY m.ranking_id
+    ) stock_value
+    JOIN rankings r ON stock_value.ranking_id = r.id
+    GROUP BY r.name
+  ` : `
+    SELECT r.name, COUNT(DISTINCT stock_material.material_id) as value
+    FROM (
+      SELECT l.material_id FROM lotes l WHERE l.is_active = true AND l.available_amount > 0
+      UNION
+      SELECT s.material_id FROM silos s WHERE s.is_active = true AND s.current_stock_kg > 0 AND s.material_id IS NOT NULL
+    ) stock_material
+    JOIN materials m ON stock_material.material_id = m.id
     JOIN rankings r ON m.ranking_id = r.id
-    WHERE l.is_active = true
     GROUP BY r.name
   `);
   
@@ -700,18 +729,21 @@ const getDashboardMetrics = async (user) => {
     materialesStockBajo: stockBajoCount,
     mermaRegistrada: Math.abs(mermaKg || 0),
     financial: {
-      inventoryValue,
-      silosValue,
+      inventoryValue: allowCosts ? totalInventoryValue : null,
+      totalInventoryValue: allowCosts ? totalInventoryValue : null,
+      warehouseInventoryValue: allowCosts ? inventoryValue : null,
+      silosValue: allowCosts ? silosValue : null,
       silosStockKg,
-      lossValue,
-      mermaLoss,
-      scrapLoss,
-      bajaLoss,
+      lossValue: allowCosts ? lossValue : null,
+      mermaLoss: allowCosts ? mermaLoss : null,
+      scrapLoss: allowCosts ? scrapLoss : null,
+      bajaLoss: allowCosts ? bajaLoss : null,
       mermaQty,
       scrapQty,
       bajaQty,
       totalLossQty
     },
+    materialsWithStockCount,
     chartData,
     mermaData,
     pieData

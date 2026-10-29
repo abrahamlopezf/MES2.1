@@ -2,6 +2,7 @@ const extrusionService = require('./extrusion.service');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const { encryptQrData } = require('../../shared/utils/crypto.utils');
+const { canViewCosts } = require('../../shared/security/accessRules');
 
 class ExtrusionController {
   async mixFormula(req, res, next) {
@@ -608,7 +609,8 @@ class ExtrusionController {
 
   async getSilos(req, res, next) {
     try {
-      const silos = await extrusionService.getSilos();
+      const allowCosts = canViewCosts(req.user);
+      const silos = await extrusionService.getSilos(req.user);
 
       let totalStockKg = 0;
       let totalCapacityKg = 0;
@@ -620,7 +622,7 @@ class ExtrusionController {
       for (const s of silos) {
         const stock = Number(s.current_stock_kg) || 0;
         const cap = Number(s.capacity_kg) || 0;
-        const inv = Number(s.total_investment) || 0;
+        const inv = allowCosts ? Number(s.total_investment) || 0 : 0;
         totalStockKg += stock;
         totalCapacityKg += cap;
         totalInvestment += inv;
@@ -629,10 +631,10 @@ class ExtrusionController {
 
         const tagName = s.materialTag?.name || 'SIN_ETIQUETA';
         if (!byTag[tagName]) {
-          byTag[tagName] = { tag: tagName, stock_kg: 0, total_investment: 0, count: 0, silos: [] };
+          byTag[tagName] = { tag: tagName, stock_kg: 0, total_investment: allowCosts ? 0 : null, count: 0, silos: [] };
         }
         byTag[tagName].stock_kg += stock;
-        byTag[tagName].total_investment += inv;
+        if (allowCosts) byTag[tagName].total_investment += inv;
         byTag[tagName].count += 1;
         byTag[tagName].silos.push(s.name || s.code);
       }
@@ -643,7 +645,7 @@ class ExtrusionController {
         summary: {
           total_stock_kg: Number(totalStockKg.toFixed(2)),
           total_capacity_kg: Number(totalCapacityKg.toFixed(2)),
-          total_investment: Number(totalInvestment.toFixed(2)),
+          total_investment: allowCosts ? Number(totalInvestment.toFixed(2)) : null,
           critical_silos_count: criticalCount,
           alert_silos_count: alertCount,
           by_tag: byTag

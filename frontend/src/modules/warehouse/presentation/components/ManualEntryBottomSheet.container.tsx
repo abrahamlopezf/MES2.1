@@ -182,10 +182,12 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       }
 
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['materials', 'suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] });
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'silos'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] });
       
       const createdCatalogs = resPayload?.created_catalogs || [];
       const qrBatchId = resPayload?.qrBatchId;

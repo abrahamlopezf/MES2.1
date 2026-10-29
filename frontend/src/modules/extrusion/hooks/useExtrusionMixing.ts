@@ -50,6 +50,7 @@ export const useMixFormula = () => {
         queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] }),
         queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'dashboard-metrics'] }),
         queryClient.invalidateQueries({ queryKey: ['wip', 'inventory'] }),
       ]);
     },

@@ -88,7 +88,9 @@ export const SilosManagementPage: React.FC = () => {
     queryFn: async () => {
       const res = await apiClient.get('/warehouse/silos');
       return res.data;
-    }
+    },
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false
   });
 
   const silos: SiloItem[] = Array.isArray(silosResponse?.data)
@@ -151,6 +153,8 @@ export const SilosManagementPage: React.FC = () => {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] });
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'silos'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] });
       toast.success(data?.message || 'Ingreso de PP registrado exitosamente en Silo (Cero QRs generados).');
       setIsInvoiceModalOpen(false);
       setInvoiceForm({
@@ -181,6 +185,8 @@ export const SilosManagementPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] });
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'silos'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] });
       toast.success('Silo registrado exitosamente en Almacén.');
       setIsSiloModalOpen(false);
       resetSiloForm();
@@ -200,6 +206,8 @@ export const SilosManagementPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] });
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'silos'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] });
       toast.success('Silo actualizado correctamente.');
       setIsSiloModalOpen(false);
       setEditingSilo(null);
@@ -220,6 +228,8 @@ export const SilosManagementPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] });
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'silos'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse', 'dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] });
       toast.success('Silo desactivado.');
     },
     onError: (err: any) => {

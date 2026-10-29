@@ -194,7 +194,9 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
       } catch (e) {
         return {};
       }
-    }
+    },
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false
   });
 
   const userName = user?.first_name || user?.username || 'Usuario';
@@ -213,6 +215,9 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
     stockBajo: metrics?.materialesStockBajo || 0,
     merma: metrics?.mermaRegistrada || 0,
     inventoryValue: metrics?.financial?.inventoryValue || 0,
+    materialsWithStockCount: metrics?.materialsWithStockCount || 0,
+    silosValue: metrics?.financial?.silosValue || 0,
+    silosStockKg: metrics?.financial?.silosStockKg || 0,
     lossValue: metrics?.financial?.lossValue || 0,
     mermaLoss: metrics?.financial?.mermaLoss || 0,
     scrapLoss: metrics?.financial?.scrapLoss || 0,
@@ -314,16 +319,26 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
       </div>
 
       {/* EXECUTIVE SUMMARY KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <ExecutiveKpiCard 
-          title={allowCosts ? "COSTO TOTAL ALMACÉN" : "TOTAL EXISTENCIAS EN ALMACÉN"}
-          value={allowCosts ? kpis.inventoryValue : (kpis.totalUnits || kpis.activeMaterialsCount || 230)}
-          unit={allowCosts ? "" : "uds"}
+          title={allowCosts ? "COSTO TOTAL ALMACÉN + SILOS" : "MATERIALES CON EXISTENCIA"}
+          value={allowCosts ? kpis.inventoryValue : kpis.materialsWithStockCount}
+          unit={allowCosts ? "" : "materiales"}
           isCurrency={allowCosts}
           colorClass="border-blue-500 bg-blue-500/5"
           icon={allowCosts ? <DollarSign className="w-4 h-4 text-blue-500" /> : <Boxes className="w-4 h-4 text-blue-500" />}
-          contextText={<><ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" /> {allowCosts ? "Inventario activo valorado" : "Unidades físicas activas"}</>}
-          subtitle={allowCosts ? "Valorización de existencias en almacén" : "Existencias físicas en almacén"}
+          contextText={<><ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" /> {allowCosts ? "Lotes de almacén + inventario en silos" : "Materiales con lotes o silos activos"}</>}
+          subtitle={allowCosts ? "Valor de Almacén y silos de Extrusión" : "Conteo de materiales activos"}
+        />
+        <ExecutiveKpiCard
+          title={allowCosts ? "VALOR EN SILOS" : "STOCK EN SILOS"}
+          value={allowCosts ? kpis.silosValue : kpis.silosStockKg}
+          unit={allowCosts ? "" : "kg"}
+          isCurrency={allowCosts}
+          colorClass="border-cyan-500 bg-cyan-500/5"
+          icon={<Boxes className="w-4 h-4 text-cyan-500" />}
+          contextText={<><ShieldCheck className="w-3.5 h-3.5 text-cyan-500 shrink-0" /> {allowCosts ? "Incluido en el costo consolidado" : "Materia prima disponible"}</>}
+          subtitle={allowCosts ? "Valorización actual de silos" : "Existencia física compartida con Extrusión"}
         />
         <DynamicLossKpiCard 
           kpis={kpis}
@@ -416,7 +431,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
           {/* Pie Chart: Inventory Value by Family */}
           <Card className="p-5 shadow-sm lg:col-span-2 xl:col-span-1">
             <h3 className="text-sm font-bold text-foreground opacity-70 mb-6 uppercase tracking-wider text-center">
-              {allowCosts ? "Valor de Inventario por Familia" : "Distribución de Stock por Familia"}
+              {allowCosts ? "Valor de Inventario por Familia" : "Materiales con Stock por Familia"}
             </h3>
             <div className="h-[300px] w-full">
               {pieData.length === 0 ? (
@@ -447,7 +462,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
                       wrapperStyle={{ fontSize: '12px' }}
                     />
                     <RechartsTooltip 
-                      formatter={(value) => allowCosts ? formatCurrency(value) : `${value} uds`}
+                      formatter={(value) => allowCosts ? formatCurrency(value) : `${value} materiales`}
                       contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }}
                       itemStyle={{ color: isDark ? '#e2e8f0' : '#0f172a' }}
                       labelStyle={{ display: 'none' }}
