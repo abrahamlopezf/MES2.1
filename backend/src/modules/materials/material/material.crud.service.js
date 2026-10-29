@@ -1,6 +1,19 @@
 const { Material, MaterialFamily, MaterialCode, MaterialBrand, MaterialType, Location, Tag } = require('../../../database/models');
 const { NotFoundError } = require('../../../services/BaseCatalogService');
 
+const findCatalogByIdentifier = (Model, identifier, options = {}, extraWhere = {}) => {
+  const raw = String(identifier ?? '');
+  const isNumericId = /^\d+$/.test(raw);
+  return Model.findOne({
+    ...options,
+    where: {
+      ...(options.where || {}),
+      ...extraWhere,
+      [isNumericId ? 'id' : 'uuid']: isNumericId ? Number(raw) : raw,
+    },
+  });
+};
+
 class MaterialCrudService {
   
   async create(data) {
@@ -346,17 +359,16 @@ class MaterialCrudService {
       let materialCode = await MaterialCode.findByPk(material.material_code_id, { transaction });
 
       if (data.family_uuid !== undefined) {
-        family = await MaterialFamily.findOne({ where: { uuid: data.family_uuid, is_active: true }, transaction });
+        family = await findCatalogByIdentifier(MaterialFamily, data.family_uuid, { transaction }, { is_active: true });
         if (!family) throw new Error('La familia seleccionada no existe o está inactiva.');
         data.family_id = family.id;
         delete data.family_uuid;
       }
 
       if (data.material_code_uuid !== undefined || data.article_code !== undefined) {
-        const codeQuery = data.material_code_uuid
-          ? { uuid: data.material_code_uuid }
-          : { code: String(data.article_code || '').trim().toUpperCase() };
-        materialCode = await MaterialCode.findOne({ where: codeQuery, transaction });
+        materialCode = data.material_code_uuid
+          ? await findCatalogByIdentifier(MaterialCode, data.material_code_uuid, { transaction })
+          : await MaterialCode.findOne({ where: { code: String(data.article_code || '').trim().toUpperCase() }, transaction });
         if (!materialCode) throw new Error('El artículo seleccionado debe existir en el catálogo.');
         data.material_code_id = materialCode.id;
         if (data.article_code !== undefined) {
@@ -389,7 +401,7 @@ class MaterialCrudService {
         if (value === null || value === '') {
           data[idField] = null;
         } else {
-          const record = await Model.findOne({ where: { uuid: value, is_active: true }, transaction });
+          const record = await findCatalogByIdentifier(Model, value, { transaction }, { is_active: true });
           if (!record) throw new Error(`El catálogo asociado a ${uuidField} no existe o está inactivo.`);
           data[idField] = record.id;
         }

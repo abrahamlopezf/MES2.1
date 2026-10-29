@@ -1,4 +1,8 @@
 const { z } = require('zod');
+const catalogIdentifierSchema = z.union([
+  z.string().uuid(),
+  z.string().regex(/^\d+$/, 'Debe ser UUID o ID de catálogo válido'),
+]);
 
 const createSchema = z.object({
   family_uuid: z.string().uuid('UUID de familia inválido').optional().nullable(),
@@ -34,8 +38,8 @@ const createSchema = z.object({
 });
 
 const updateSchema = z.object({
-  family_uuid: z.string().uuid().optional(),
-  material_code_uuid: z.string().uuid().optional(),
+  family_uuid: catalogIdentifierSchema.optional(),
+  material_code_uuid: catalogIdentifierSchema.optional(),
   article_code: z.string().min(1).max(50).optional(),
   name: z.string().min(1).max(150).optional(),
   description: z.string().optional().nullable(),
@@ -45,9 +49,9 @@ const updateSchema = z.object({
   reorder_point: z.number().min(0).optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'BLOCKED', 'OBSOLETE']).optional(),
   is_active: z.boolean().optional(),
-  location_uuid: z.string().uuid('UUID de localidad inválido').optional().nullable(),
-  type_uuid: z.string().uuid('UUID de tipo inválido').optional().nullable(),
-  brand_uuid: z.string().uuid('UUID de marca inválido').optional().nullable(),
+  location_uuid: catalogIdentifierSchema.optional().nullable(),
+  type_uuid: catalogIdentifierSchema.optional().nullable(),
+  brand_uuid: catalogIdentifierSchema.optional().nullable(),
   base_unit_uuid: z.union([z.string(), z.number()]).optional().nullable(),
   tags: z.array(z.union([z.string(), z.number()])).optional()
 });

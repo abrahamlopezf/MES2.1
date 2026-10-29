@@ -364,6 +364,15 @@ const MaterialForm = ({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    // Los selectores aceptan UUID o ID numérico como value. La API de edición
+    // requiere UUID para las relaciones; normalízalos antes de enviar el PATCH.
+    const resolveCatalogUuid = (value, records) => {
+      if (value === null || value === undefined || value === '') return value;
+      const raw = String(value);
+      if (raw.startsWith('NEW:') || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)) return raw;
+      return records.find((record) => String(record.id) === raw)?.uuid || raw;
+    };
+
     const isNewFamily = formData.family_uuid && formData.family_uuid.startsWith('NEW:');
     const isNewType = formData.type_uuid && formData.type_uuid.startsWith('NEW:');
     const isNewBrand = formData.brand_uuid && formData.brand_uuid.startsWith('NEW:');
@@ -404,23 +413,23 @@ const MaterialForm = ({
 
     const payload = {
       ranking_id: finalRankingId ? parseInt(finalRankingId, 10) : undefined,
-      family_uuid: isNewFamily ? undefined : (formData.family_uuid || undefined),
+      family_uuid: isNewFamily ? undefined : (resolveCatalogUuid(formData.family_uuid, families) || undefined),
       new_family_name: isNewFamily ? formData.family_uuid.replace('NEW:', '') : undefined,
 
-      material_code_uuid: effectiveCodeUuid || undefined,
+      material_code_uuid: resolveCatalogUuid(effectiveCodeUuid, codes) || undefined,
       article_code: effectiveArticleCode || undefined,
       article_name: effectiveName,
 
-      type_uuid: isNewType ? undefined : (formData.type_uuid || null),
+      type_uuid: isNewType ? undefined : (resolveCatalogUuid(formData.type_uuid, types) || null),
       new_type_name: isNewType ? formData.type_uuid.replace('NEW:', '') : undefined,
 
-      brand_uuid: isNewBrand ? undefined : (formData.brand_uuid || null),
+      brand_uuid: isNewBrand ? undefined : (resolveCatalogUuid(formData.brand_uuid, brands) || null),
       new_brand_name: isNewBrand ? formData.brand_uuid.replace('NEW:', '') : undefined,
 
-      base_unit_uuid: isNewUnit ? undefined : (formData.base_unit_uuid || null),
+      base_unit_uuid: isNewUnit ? undefined : (resolveCatalogUuid(formData.base_unit_uuid, units) || null),
       new_unit_name: isNewUnit ? String(formData.base_unit_uuid).replace('NEW:', '') : undefined,
 
-      location_uuid: formData.location_uuid || null,
+      location_uuid: resolveCatalogUuid(formData.location_uuid, locations) || null,
       name: effectiveName,
       description: formData.description.trim() || null,
       minimum_stock: formData.minimum_stock !== '' ? Number(formData.minimum_stock) : undefined,
@@ -428,6 +437,21 @@ const MaterialForm = ({
       reorder_point: formData.reorder_point !== '' ? Number(formData.reorder_point) : undefined,
       tags: formData.tags,
     };
+
+    const uuidFields = [
+      ['familia', payload.family_uuid],
+      ['artículo', payload.material_code_uuid],
+      ['tipo', payload.type_uuid],
+      ['marca', payload.brand_uuid],
+      ['unidad', payload.base_unit_uuid],
+      ['localidad', payload.location_uuid],
+    ];
+    const invalidUuid = uuidFields.find(([, value]) => value && value !== null && !String(value).startsWith('NEW:')
+      && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value)));
+    if (invalidUuid) {
+      setFormError(`No se pudo validar el catálogo de ${invalidUuid[0]}. Actualiza los catálogos e inténtalo de nuevo.`);
+      return;
+    }
 
     if (isEditing) {
       payload.is_active = Boolean(formData.is_active);
