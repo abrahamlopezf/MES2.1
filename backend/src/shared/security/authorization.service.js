@@ -27,22 +27,35 @@ class AuthorizationService {
     }
 
     // 2. Verificación de Ámbito (Scope)
-    const isActorGlobal = isAdmin({ role: actorRole }) || (actorRole.area_id === null && actorRole.subarea_id === null);
+    const actorCode = String(actorRole.code || '').toUpperCase();
+    const roleAreaFallbacks = {
+      ADMIN_EXT: 2,
+      ADMIN_EXTRUSION: 2,
+      SUPERVISOR_EXTRUSION: 2,
+      OPERADOR_EXTRUSION: 2,
+      ADMIN_ALM: 1,
+      ADMIN_ALMACEN: 1,
+      ADMIN_TELARES: 3,
+      ADMIN_TEL: 3,
+    };
+    const actorAreaId = actorRole.area_id ?? roleAreaFallbacks[actorCode] ?? null;
+    const isKnownAreaAdmin = Object.prototype.hasOwnProperty.call(roleAreaFallbacks, actorCode);
+    const isActorGlobal = isAdmin({ role: actorRole }) || (!isKnownAreaAdmin && actorRole.area_id === null && actorRole.subarea_id === null);
     if (isActorGlobal) {
       return true; // Usuario global (ej. SUPERADMIN) tiene acceso a todas las áreas
     }
 
-    const isActorAreaAdmin = actorRole.area_id !== null && actorRole.subarea_id === null;
+    const isActorAreaAdmin = actorAreaId !== null && actorRole.subarea_id === null;
     if (isActorAreaAdmin) {
       // Un administrador de área puede gestionar usuarios de su misma área
-      return targetRole.area_id === actorRole.area_id;
+      return Number(targetRole.area_id) === Number(actorAreaId);
     }
 
     const isActorSubareaAdmin = actorRole.area_id !== null && actorRole.subarea_id !== null;
     if (isActorSubareaAdmin) {
       // Un administrador de subárea solo puede gestionar dentro de su subárea específica
       return (
-        targetRole.area_id === actorRole.area_id &&
+        Number(targetRole.area_id) === Number(actorAreaId) &&
         targetRole.subarea_id === actorRole.subarea_id
       );
     }
@@ -66,6 +79,10 @@ class AuthorizationService {
    * Regla: Puede gestionar si el targetUserRole.level < actorRole.level y está en su scope.
    */
   static canManageUser(actorRole, targetUserRole) {
+    if (String(actorRole?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION'
+      && ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(targetUserRole?.code || '').toUpperCase())) {
+      return this._hasScopeAccess(actorRole, targetUserRole, false);
+    }
     return this._hasScopeAccess(actorRole, targetUserRole, true);
   }
 

@@ -1,0 +1,3002 @@
+{
+  "source": "local formula catalog (active formulas linked to process formulas)",
+  "formulas": [
+    {
+      "code": "F-EXT-1-AMARILLO",
+      "name": "AMARILLO HUEVO - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Amarillo Huevo 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Amarillo Huevo 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "337.800",
+            "percentage": "67.5600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-AMAR-HUEVO",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "6.000",
+            "percentage": "1.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "337.80",
+          "percentage": "67.56",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-AMAR-HUEVO",
+          "quantity": "6.00",
+          "percentage": "1.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-AMARILLO-ANTI",
+      "name": "AMARILLO ANTIESTÁTICO - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Amarillo Antiestático 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Amarillo Antiestático 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "335.000",
+            "percentage": "67.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-011",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "11.000",
+            "percentage": "2.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-AMAR-HUEVO",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "1.000",
+            "percentage": "0.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.000",
+            "percentage": "0.6000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "335.00",
+          "percentage": "67.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-CON-011",
+          "quantity": "11.00",
+          "percentage": "2.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-AMAR-HUEVO",
+          "quantity": "1.00",
+          "percentage": "0.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "3.00",
+          "percentage": "0.60",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-AZUL",
+      "name": "AZUL - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Azul 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Azul 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "339.800",
+            "percentage": "67.9600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-012",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.000",
+            "percentage": "0.8000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "339.80",
+          "percentage": "67.96",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-012",
+          "quantity": "4.00",
+          "percentage": "0.80",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-BLANCO",
+      "name": "BLANCO - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Blanco 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Blanco 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "335.600",
+            "percentage": "67.1200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-001",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "6.000",
+            "percentage": "1.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "335.60",
+          "percentage": "67.12",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-001",
+          "quantity": "6.00",
+          "percentage": "1.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-NARANJA",
+      "name": "NARANJA - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Naranja 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Naranja 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "340.000",
+            "percentage": "68.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-013",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.800",
+            "percentage": "0.7600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "340.00",
+          "percentage": "68.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-013",
+          "quantity": "3.80",
+          "percentage": "0.76",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-NATURAL",
+      "name": "NATURAL ANTIESTÁTICO - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Natural Antiestático 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Natural Antiestático 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "334.800",
+            "percentage": "66.9600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-011",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "11.000",
+            "percentage": "2.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "334.80",
+          "percentage": "66.96",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-011",
+          "quantity": "11.00",
+          "percentage": "2.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-NEGRO",
+      "name": "NEGRO - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Negro 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Negro 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "334.800",
+            "percentage": "66.9600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-011",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "11.000",
+            "percentage": "2.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "334.80",
+          "percentage": "66.96",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-011",
+          "quantity": "11.00",
+          "percentage": "2.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-ROJO",
+      "name": "ROJO - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Rojo 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Rojo 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "339.600",
+            "percentage": "67.9200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-010",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "339.60",
+          "percentage": "67.92",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-010",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-1-VERDE",
+      "name": "VERDE - RAFIA PARA CINTURÓN",
+      "description": "Extrusora 1 - Rafia para cinturón Verde 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [
+        1
+      ],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "EXTRUDER_1",
+      "process_formula": {
+        "description": "Extrusora 1 - Rafia para cinturón Verde 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "340.800",
+            "percentage": "68.1600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-003",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-VERDE",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.000",
+            "percentage": "0.6000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "340.80",
+          "percentage": "68.16",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-POL-003",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-VERDE",
+          "quantity": "3.00",
+          "percentage": "0.60",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-2-BLANCA",
+      "name": "MEZCLA BLANCA EXTRUSORA 2",
+      "description": "Extrusora 2 - Mezcla Blanca 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusora 2 - Mezcla Blanca 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "385.600",
+            "percentage": "77.1200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-001",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "6.000",
+            "percentage": "1.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "385.60",
+          "percentage": "77.12",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-001",
+          "quantity": "6.00",
+          "percentage": "1.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-4-BLANCA",
+      "name": "MEZCLA BLANCA EXTRUSORA 4",
+      "description": "Extrusora 4 - Mezcla Blanca SIN Polipropileno B (Autorizada en Ext 4) 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusora 4 - Mezcla Blanca SIN Polipropileno B (Autorizada en Ext 4) 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "485.600",
+            "percentage": "97.1200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-001",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "6.000",
+            "percentage": "1.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "485.60",
+          "percentage": "97.12",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-001",
+          "quantity": "6.00",
+          "percentage": "1.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-5-BLANCA",
+      "name": "MEZCLA BLANCA EXTRUSORA 5",
+      "description": "Extrusora 5 - Mezcla Blanca 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusora 5 - Mezcla Blanca 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "385.600",
+            "percentage": "77.1200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-001",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "6.000",
+            "percentage": "1.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "385.60",
+          "percentage": "77.12",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-001",
+          "quantity": "6.00",
+          "percentage": "1.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-AMARILLO-ANTI",
+      "name": "MEZCLA AMARILLO ANTIESTÁTICO",
+      "description": "Extrusión - Mezcla Amarillo Antiestático 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Amarillo Antiestático 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "484.000",
+            "percentage": "96.8000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "1.000",
+            "percentage": "0.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-AMAR-HUEVO",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "1.000",
+            "percentage": "0.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-011",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "11.000",
+            "percentage": "2.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.000",
+            "percentage": "0.6000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "484.00",
+          "percentage": "96.80",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "1.00",
+          "percentage": "0.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-AMAR-HUEVO",
+          "quantity": "1.00",
+          "percentage": "0.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-011",
+          "quantity": "11.00",
+          "percentage": "2.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "3.00",
+          "percentage": "0.60",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-AZUL",
+      "name": "MEZCLA COLOR AZUL",
+      "description": "Extrusión - Mezcla Color Azul 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Color Azul 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "490.000",
+            "percentage": "98.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-012",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.800",
+            "percentage": "0.7600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "490.00",
+          "percentage": "98.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-012",
+          "quantity": "3.80",
+          "percentage": "0.76",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-LIQ-NEGRO",
+      "name": "MEZCLA COLOR NEGRO (LIQUITANK)",
+      "description": "Fórmula exclusiva Liquitank Negro 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Fórmula exclusiva Liquitank Negro 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "440.600",
+            "percentage": "88.1200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-011",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "5.200",
+            "percentage": "1.0400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "440.60",
+          "percentage": "88.12",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-009",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-011",
+          "quantity": "5.20",
+          "percentage": "1.04",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-LIQ-ROJO",
+      "name": "MEZCLA COLOR ROJO (LIQUITANK)",
+      "description": "Fórmula exclusiva Liquitank Rojo 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Fórmula exclusiva Liquitank Rojo 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "440.600",
+            "percentage": "88.1200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "50.000",
+            "percentage": "10.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-010",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "5.200",
+            "percentage": "1.0400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "440.60",
+          "percentage": "88.12",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-009",
+          "quantity": "50.00",
+          "percentage": "10.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-010",
+          "quantity": "5.20",
+          "percentage": "1.04",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-MORADO",
+      "name": "MEZCLA COLOR MORADO",
+      "description": "Extrusión - Mezcla Color Morado 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Color Morado 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "492.300",
+            "percentage": "98.4600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-MORADO",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.500",
+            "percentage": "0.7000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "492.30",
+          "percentage": "98.46",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-MORADO",
+          "quantity": "3.50",
+          "percentage": "0.70",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-NATURAL",
+      "name": "MEZCLA CINTA COLOR NATURAL",
+      "description": "Extrusión - Mezcla Cinta Color Natural 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Cinta Color Natural 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "495.800",
+            "percentage": "99.1600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "495.80",
+          "percentage": "99.16",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-NEGRO",
+      "name": "MEZCLA COLOR NEGRO",
+      "description": "Extrusión - Mezcla Color Negro 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Color Negro 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "382.800",
+            "percentage": "76.5600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-011",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "11.000",
+            "percentage": "2.2000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "382.80",
+          "percentage": "76.56",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-011",
+          "quantity": "11.00",
+          "percentage": "2.20",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-ROJO",
+      "name": "MEZCLA COLOR ROJO",
+      "description": "Extrusión - Mezcla Color Rojo 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Color Rojo 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "491.600",
+            "percentage": "98.3200",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MAS-010",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "491.60",
+          "percentage": "98.32",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MAS-010",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-VERDE",
+      "name": "MEZCLA COLOR VERDE",
+      "description": "Extrusión - Mezcla Color Verde 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Color Verde 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "492.800",
+            "percentage": "98.5600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-VERDE",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "3.000",
+            "percentage": "0.6000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "492.80",
+          "percentage": "98.56",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-VERDE",
+          "quantity": "3.00",
+          "percentage": "0.60",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    },
+    {
+      "code": "F-EXT-VERDE-OPT",
+      "name": "MEZCLA COLOR VERDE ÓPTICO",
+      "description": "Extrusión - Mezcla Color Verde Óptico 500kg",
+      "batch_size_kg": "500.00",
+      "expected_yield_pieces": "97.00",
+      "expected_yield_kg": "485.00",
+      "allowed_extruders": [],
+      "restricted_extruders": [],
+      "is_active": true,
+      "cost_index": "1.1500",
+      "extruder_assignment_mode": "DYNAMIC",
+      "process_formula": {
+        "description": "Extrusión - Mezcla Color Verde Óptico 500kg",
+        "area_code": "EXTRUSION",
+        "version": 1,
+        "status": "ACTIVA",
+        "is_active": true,
+        "items": [
+          {
+            "internal_code": "MP-POL-007",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "384.800",
+            "percentage": "76.9600",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 1,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-POL-008",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "100.000",
+            "percentage": "20.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 2,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CAR-006",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "2.000",
+            "percentage": "0.4000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 3,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-VERDE-OPT",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.000",
+            "percentage": "0.8000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 4,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-MB-AMARILLO",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "5.000",
+            "percentage": "1.0000",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 5,
+            "is_required": true
+          },
+          {
+            "internal_code": "MP-CON-009",
+            "material_role": "BASE",
+            "calculation_type": "FIXED_QUANTITY",
+            "quantity": "4.200",
+            "percentage": "0.8400",
+            "unit": "KG",
+            "tolerance_min": null,
+            "tolerance_max": null,
+            "sort_order": 6,
+            "is_required": true
+          }
+        ]
+      },
+      "ingredients": [
+        {
+          "internal_code": "MP-POL-007",
+          "quantity": "384.80",
+          "percentage": "76.96",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-POL-008",
+          "quantity": "100.00",
+          "percentage": "20.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": true,
+          "restricted_machine_ids": [
+            4
+          ]
+        },
+        {
+          "internal_code": "MP-CAR-006",
+          "quantity": "2.00",
+          "percentage": "0.40",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-VERDE-OPT",
+          "quantity": "4.00",
+          "percentage": "0.80",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-MB-AMARILLO",
+          "quantity": "5.00",
+          "percentage": "1.00",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        },
+        {
+          "internal_code": "MP-CON-009",
+          "quantity": "4.20",
+          "percentage": "0.84",
+          "unit": "KG",
+          "is_restricted_on_machine_4": false,
+          "restricted_machine_ids": []
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "internal_code": "MP-CAR-006",
+      "name": "CARBONATO DE CALCIO",
+      "description": "PE CON CARGA",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "DRAFT",
+      "version": 1,
+      "internal_consecutive": "006",
+      "family_code": "MP-",
+      "material_code": "CAR-006",
+      "type_code": "PE CON CARGA",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-CON-009",
+      "name": "CONCENTRADO UVPP20",
+      "description": "UVPP20",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "DRAFT",
+      "version": 1,
+      "internal_consecutive": "009",
+      "family_code": "MP-",
+      "material_code": "CON-009",
+      "type_code": "UVPP20",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-CON-011",
+      "name": "CONCENTRADO AE-18",
+      "description": "AE 18",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "DRAFT",
+      "version": 1,
+      "internal_consecutive": "011",
+      "family_code": "MP-",
+      "material_code": "CON-011",
+      "type_code": "AE 18",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MAS-001",
+      "name": "MASTERBATCH BLANCO",
+      "description": "RPMB-4204",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 2,
+      "internal_consecutive": "001",
+      "family_code": "MP-",
+      "material_code": "MAS-001",
+      "type_code": "RPMB-4204",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MAS-010",
+      "name": "MASTERBATCH ROJO",
+      "description": "CP 50335 RED",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 2,
+      "internal_consecutive": "010",
+      "family_code": "MP-",
+      "material_code": "MAS-010",
+      "type_code": "CP 50335 RED",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MAS-011",
+      "name": "MASTERBATCH NEGRO",
+      "description": "MBNEPE-4020",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 2,
+      "internal_consecutive": "011",
+      "family_code": "MP-",
+      "material_code": "MAS-011",
+      "type_code": "MBNEPE-4020",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MAS-012",
+      "name": "MASTERBATCH AZUL",
+      "description": "MBPEAZ-91135",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 2,
+      "internal_consecutive": "012",
+      "family_code": "MP-",
+      "material_code": "MAS-012",
+      "type_code": "MBPEAZ-91135",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MAS-013",
+      "name": "MASTERBATCH NARANJA",
+      "description": "MBPENA-114059",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 2,
+      "internal_consecutive": "013",
+      "family_code": "MP-",
+      "material_code": "MAS-013",
+      "type_code": "MBPENA-114059",
+      "brand_code": "GENERICA",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MB-AMAR-HUEVO",
+      "name": "MASTERBATCH AMARILLO HUEVO",
+      "description": "Pigmento Masterbatch Amarillo Huevo MBPEAM-96382",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "017",
+      "family_code": "MP-",
+      "material_code": "MAS-016",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MB-AMARILLO",
+      "name": "MASTERBATCH AMARILLO",
+      "description": "Pigmento Masterbatch Amarillo Estándar",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "018",
+      "family_code": "MP-",
+      "material_code": "MAS-016",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MB-MORADO",
+      "name": "MASTERBATCH MORADO",
+      "description": "Pigmento Masterbatch Morado para Rafia",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "014",
+      "family_code": "MP-",
+      "material_code": "MAS-012",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MB-VERDE",
+      "name": "MASTERBATCH VERDE",
+      "description": "Pigmento Masterbatch Verde para Rafia",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "013",
+      "family_code": "MP-",
+      "material_code": "MAS-012",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-MB-VERDE-OPT",
+      "name": "MASTERBATCH VERDE OPTICO",
+      "description": "Pigmento Masterbatch Verde Óptico para Rafia",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "015",
+      "family_code": "MP-",
+      "material_code": "MAS-012",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-POL-003",
+      "name": "POLIETILENO 808AA",
+      "description": "LAMINADO F 7",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 2,
+      "internal_consecutive": "003",
+      "family_code": "MP-",
+      "material_code": "POL-003",
+      "type_code": "LAMINADO F 7",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-POL-007",
+      "name": "POLIPROPILENO (A)",
+      "description": "Resina Polipropileno Tipo A (Laminación / Rafia)",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "DRAFT",
+      "version": 3,
+      "internal_consecutive": "007",
+      "family_code": "MP-",
+      "material_code": "POL-007",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-POL-008",
+      "name": "POLIPROPILENO (B)",
+      "description": "Resina Polipropileno Tipo B de alta densidad",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "008",
+      "family_code": "MP-",
+      "material_code": "POL-007",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    },
+    {
+      "internal_code": "MP-POL-009",
+      "name": "POLIPROPILENO (C)",
+      "description": "Resina Polipropileno Tipo C (Sujeto a disponibilidad / Almacén Unidad Externa)",
+      "traceability_level": "NONE",
+      "minimum_stock": "0.000000",
+      "maximum_stock": null,
+      "reorder_point": "0.000000",
+      "is_active": true,
+      "status": "ACTIVE",
+      "version": 1,
+      "internal_consecutive": "009",
+      "family_code": "MP-",
+      "material_code": "POL-007",
+      "type_code": "LAMINACION F 35",
+      "brand_code": "VARIAS",
+      "base_unit_code": "KG",
+      "stock_unit_code": null
+    }
+  ]
+}

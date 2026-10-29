@@ -1,4 +1,7 @@
 const extrusionService = require('./extrusion.service');
+const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
+const { encryptQrData } = require('../../shared/utils/crypto.utils');
 
 class ExtrusionController {
   async mixFormula(req, res, next) {
@@ -210,10 +213,23 @@ class ExtrusionController {
 
   async getExtrusionFormulas(req, res, next) {
     try {
-      const formulas = await extrusionService.getExtrusionFormulas();
+      const formulas = await extrusionService.getExtrusionFormulas(req.query);
       return res.status(200).json({
         success: true,
         data: formulas
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createFormula(req, res, next) {
+    try {
+      const formula = await extrusionService.createFormula(req.body);
+      return res.status(201).json({
+        success: true,
+        message: 'Fórmula creada inactiva. Completa sus ingredientes antes de activarla.',
+        data: formula
       });
     } catch (error) {
       next(error);
@@ -299,11 +315,96 @@ class ExtrusionController {
   async getExtrusionWip(req, res, next) {
     try {
       const roleCode = String(req.user?.role?.code || '').toUpperCase();
-      const includeFinancials = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode);
+      const includeFinancials = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode);
       const result = await extrusionService.getExtrusionWip({ includeFinancials });
       return res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
+    }
+  }
+
+  async downloadWipQrLabelsPdf(req, res, next) {
+    try {
+      const labels = await extrusionService.getWipQrLabelsForPdf(req.body?.uuids);
+      const pdfBuffer = await new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: false });
+        const chunks = [];
+        doc.on('data', (chunk) => chunks.push(chunk));
+        doc.on('error', reject);
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+        const pageWidth = 595.28;
+        const pageHeight = 841.89;
+        const renderLabel = async (label, x, y, width, height, large = false) => {
+          doc.roundedRect(x + 4, y + 4, width - 8, height - 8, 8).lineWidth(0.8).strokeColor('#94a3b8').stroke();
+          const titleY = y + (large ? 22 : 10);
+          doc.font('Helvetica-Bold').fontSize(large ? 18 : 9.5).fillColor('#111827')
+            .text(label.material_name || 'Material WIP', x + 10, titleY, { width: width - 20, align: 'center', ellipsis: true });
+          const infoY = titleY + (large ? 24 : 13);
+          doc.font('Helvetica').fontSize(large ? 12 : 7.5).fillColor('#374151')
+            .text(`${label.material_code || ''} · ${Number(label.quantity_kg).toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg`, x + 8, infoY, { width: width - 16, align: 'center', ellipsis: true });
+
+          const qrSize = large ? Math.min(width - 72, 270) : Math.min(width - 56, height - 52);
+          const qrX = x + (width - qrSize) / 2;
+          const qrY = infoY + (large ? 18 : 11);
+          const payload = encryptQrData(label.qr_code);
+          const dataUrl = await QRCode.toDataURL(payload, {
+            width: large ? 600 : 320,
+            margin: 1,
+            errorCorrectionLevel: 'H',
+            color: { dark: '#000000', light: '#ffffff' },
+          });
+          doc.image(dataUrl, qrX, qrY, { width: qrSize, height: qrSize });
+          const codeY = qrY + qrSize + (large ? 18 : 5);
+          doc.font('Helvetica-Bold').fontSize(large ? 10 : 6.6).fillColor('#111827')
+            .text(label.qr_code, x + 8, codeY, { width: width - 16, align: 'center', ellipsis: true });
+          if (large) {
+            doc.font('Helvetica').fontSize(9).fillColor('#64748b')
+              .text('WIP · Extrusión', x + 8, codeY + 19, { width: width - 16, align: 'center' });
+          }
+        };
+
+        (async () => {
+          try {
+            if (labels.length === 1) {
+              const width = 390;
+              const height = 460;
+              await renderLabel(labels[0], (pageWidth - width) / 2, (pageHeight - height) / 2, width, height, true);
+            } else {
+              const marginX = 24;
+              const marginY = 24;
+              const columns = 2;
+              const rowsPerPage = 5;
+              const gap = 4;
+              const cellWidth = (pageWidth - marginX * 2 - gap) / columns;
+              const cellHeight = (pageHeight - marginY * 2 - gap * (rowsPerPage - 1)) / rowsPerPage;
+              for (let index = 0; index < labels.length; index += 1) {
+                const position = index % (columns * rowsPerPage);
+                if (index > 0 && position === 0) doc.addPage({ size: 'A4', margin: 0 });
+                const column = position % columns;
+                const row = Math.floor(position / columns);
+                await renderLabel(
+                  labels[index],
+                  marginX + column * (cellWidth + gap),
+                  marginY + row * (cellHeight + gap),
+                  cellWidth,
+                  cellHeight,
+                );
+              }
+            }
+            doc.end();
+          } catch (error) {
+            reject(error);
+          }
+        })();
+      });
+
+      const fileName = labels.length === 1 ? 'QR-WIP-Extrusion.pdf' : `QR-seleccion-WIP-Extrusion-${labels.length}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      return res.send(pdfBuffer);
+    } catch (error) {
+      return next(error);
     }
   }
 
@@ -477,6 +578,15 @@ class ExtrusionController {
     }
   }
 
+  async createMachine(req, res, next) {
+    try {
+      const machine = await extrusionService.createMachine(req.body || {});
+      return res.status(201).json({ success: true, data: machine, message: 'Extrusora creada.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async updateMachine(req, res, next) {
     try {
       const machine = await extrusionService.updateMachine(req.params.id, req.body);
@@ -504,7 +614,8 @@ class ExtrusionController {
       let totalCapacityKg = 0;
       let totalInvestment = 0;
       let criticalCount = 0;
-      const byType = {};
+      let alertCount = 0;
+      const byTag = {};
 
       for (const s of silos) {
         const stock = Number(s.current_stock_kg) || 0;
@@ -514,15 +625,16 @@ class ExtrusionController {
         totalCapacityKg += cap;
         totalInvestment += inv;
         if (s.is_critical_reorder) criticalCount++;
+        if (s.is_stock_alert) alertCount++;
 
-        const type = (s.current_lot_type || 'A').toUpperCase();
-        if (!byType[type]) {
-          byType[type] = { type, stock_kg: 0, total_investment: 0, count: 0, silos: [] };
+        const tagName = s.materialTag?.name || 'SIN_ETIQUETA';
+        if (!byTag[tagName]) {
+          byTag[tagName] = { tag: tagName, stock_kg: 0, total_investment: 0, count: 0, silos: [] };
         }
-        byType[type].stock_kg += stock;
-        byType[type].total_investment += inv;
-        byType[type].count += 1;
-        byType[type].silos.push(s.name || s.code);
+        byTag[tagName].stock_kg += stock;
+        byTag[tagName].total_investment += inv;
+        byTag[tagName].count += 1;
+        byTag[tagName].silos.push(s.name || s.code);
       }
 
       return res.status(200).json({
@@ -533,7 +645,8 @@ class ExtrusionController {
           total_capacity_kg: Number(totalCapacityKg.toFixed(2)),
           total_investment: Number(totalInvestment.toFixed(2)),
           critical_silos_count: criticalCount,
-          by_type: byType
+          alert_silos_count: alertCount,
+          by_tag: byTag
         }
       });
     } catch (error) {

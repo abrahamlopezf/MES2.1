@@ -88,13 +88,15 @@ const menuGroups = [
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN"],
     isGroup: true,
     children: [
-      { label: "Fórmulas y PTI", path: "/production/formulas", icon: "science", permission: "extrusion.formulas.view" },
+      { label: "WIP de Extrusión", path: "/extrusion/wip", icon: "inventory_2", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION", "OPERADOR_EXTRUSION"] },
       { label: "Máquinas Extrusoras", path: "/production/machines", icon: "precision_manufacturing", permission: "extrusion.view" },
+      { label: "Fórmulas y PTI", path: "/production/formulas", icon: "science", permission: "extrusion.formulas.view" },
       { label: "Centro de Mezclado", path: "/production/mixing", icon: "blender", permission: "extrusion.wip.manage" },
-      { label: "Tablero de Colas", path: "/extrusion/board", icon: "view_kanban", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
       { label: "Terminal de Extrusión", path: "/production/extrusion", icon: "settings", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
+      { label: "Tablero de Colas", path: "/extrusion/board", icon: "view_kanban", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
       { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: "shelves", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
-      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: "assignment", permission: "" }
+      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: "assignment", permission: "" },
+      { label: "Control de Merma/Scrap", path: "/extrusion/scrap-control", icon: "scale", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] }
     ]
   },
   {
@@ -168,10 +170,11 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
     : hasPermission(item.permission);
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isExtrusionSupervisor = userRole === 'SUPERVISOR_EXTRUSION';
   const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
   const isHiddenForRole = item.hiddenRoles?.some(r => r.toUpperCase() === userRole);
   const isAllowedRole = isGlobalAdmin || !item.allowedRoles || item.allowedRoles.some(r => r.toUpperCase() === userRole);
-  if ((!hasAccess && !isGlobalAdmin) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
+  if ((!hasAccess && !isGlobalAdmin && !isExtrusionSupervisor) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
 
   if (!item.isGroup) {
     return (
@@ -257,8 +260,8 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
               : hasPermission(child.permission);
             const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
             const isHiddenForRole = child.hiddenRoles?.some(r => r.toUpperCase() === userRole);
-            const isAllowedRole = isGlobalAdmin || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
-            if ((!hasChildAccess && !isGlobalAdmin) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
+            const isAllowedRole = isGlobalAdmin || isExtrusionSupervisor || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
+            if ((!hasChildAccess && !isGlobalAdmin && !isExtrusionSupervisor) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
             if (child.onClick) {
               return (
                 <button
@@ -325,6 +328,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
   }, [isCollapsed]);
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isExtrusionSupervisor = userRole === 'SUPERVISOR_EXTRUSION';
   const isExecutive = isAdminUser(user);
   const isSupervisor = isSupervisorUser(user);
   const userArea = getUserAreaCode(user);
@@ -348,12 +352,12 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
       }
 
       // 1. REGLA ESTRICTA SUPERVISORES:
-      // - NUNCA tiene acceso a Gestión de Usuarios
+      // - Solo Supervisor de Extrusión puede acceder a usuarios de su área
       // - Solo tiene acceso a su propia área (las demás áreas/procesos ocultos)
       // - Dashboard e Identidad y Lotes sí están disponibles (limitados)
       if (isSupervisor) {
         if (group.label === 'Gestión de Usuarios') {
-          return false;
+          return userRole === 'SUPERVISOR_EXTRUSION' && userArea === 'EXTRUSION';
         }
         if (group.label === 'Dashboard' || group.label === 'Identidad y Lotes') {
           return true;
@@ -411,12 +415,12 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
         return { ...group, label: 'Dashboard de Almacén' };
       }
       if ((isExtrusionAdmin || (isSupervisor && userArea === 'EXTRUSION')) && group.label === 'Dashboard') {
-        return { ...group, label: 'Dashboard de Extrusión' };
+        return { ...group, label: 'Dashboard de Extrusión', path: '/extrusion/dashboard' };
       }
       if ((isTelaresAdmin || (isSupervisor && userArea === 'TELARES')) && group.label === 'Dashboard') {
         return { ...group, label: 'Dashboard de Telares' };
       }
-      if ((isWarehouseUser || isExtrusionAdmin || isTelaresAdmin) && group.label === 'Gestión de Usuarios') {
+      if ((isWarehouseUser || isExtrusionAdmin || isTelaresAdmin || (isSupervisor && userRole === 'SUPERVISOR_EXTRUSION')) && group.label === 'Gestión de Usuarios') {
         return {
           ...group,
           children: group.children?.filter(child => child.path === '/users')

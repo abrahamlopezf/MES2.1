@@ -31,6 +31,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: true,
       },
+      is_dynamic_member: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'La extrusora puede recibir fórmulas del grupo dinámico del cliente.',
+      },
       notes: {
         type: DataTypes.TEXT,
         allowNull: true,

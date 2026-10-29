@@ -1,4 +1,124 @@
 const { sequelize, ProcessFormula, ProcessFormulaItem, ProcessPreparation, ProcessPreparationInput, WipInventory, QrCode, QrBatch, TraceabilityEvent, TraceabilityMovement, TraceabilityLink, Lote, Area, TraceableItem, Material } = require('../../database/models');
+const { allocateBalancedSiloConsumption } = require('./services/siloConsumptionAllocator');
+const { getClientFormulaKind, isClientFormulaAllowedOnMachine, selectLeastLoadedMachine } = require('./services/formulaMachinePolicy');
+const { fetchQueueOutputSnapshots, persistQueueOutputSnapshot } = require('./services/queueOutputSnapshot.service');
+const { decryptQrData } = require('../../shared/utils/crypto.utils');
+
+const getWipQrContext = async (qrIds = []) => {
+  const ids = [...new Set(qrIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  if (!ids.length) return new Map();
+  const { ConsumptionOrderItem, ConsumptionOrder, TraceabilityMovement, TraceabilityLink, User, Area, QrCode } = require('../../database/models');
+  const { Op } = sequelize.Sequelize;
+  const [orderItems, receiptMovements, sourceLinks] = await Promise.all([
+    ConsumptionOrderItem.findAll({
+      where: { child_qr_id: { [Op.in]: ids } },
+      include: [{
+        model: ConsumptionOrder,
+        as: 'order',
+        attributes: ['id', 'order_number', 'requesting_area_id', 'requested_by', 'resolved_by', 'created_at', 'resolved_at'],
+        include: [
+          { model: User, as: 'requester', attributes: ['id', 'username', 'first_name', 'last_name'] },
+          { model: User, as: 'resolver', attributes: ['id', 'username', 'first_name', 'last_name'] },
+          { model: Area, as: 'requesting_area', attributes: ['id', 'name'] },
+        ],
+      }],
+      order: [['created_at', 'DESC']],
+    }),
+    TraceabilityMovement.findAll({
+      where: { qr_code_id: { [Op.in]: ids }, movement_type: 'RECEPCION_AREA' },
+      include: [{ model: User, as: 'performer', attributes: ['id', 'username', 'first_name', 'last_name'] }],
+      order: [['created_at', 'ASC']],
+    }),
+    TraceabilityLink.findAll({
+      where: { child_qr_code_id: { [Op.in]: ids } },
+      include: [{ model: QrCode, as: 'parent_qr_code', attributes: ['id', 'qr_code'] }],
+      order: [['created_at', 'ASC']],
+    }),
+  ]);
+  const context = new Map(ids.map((id) => [id, { order: null, receipt: null, sourceQrCode: null }]));
+  const person = (user) => user ? {
+    id: user.id,
+    username: user.username || null,
+    name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Usuario',
+  } : null;
+  for (const item of orderItems) {
+    const entry = context.get(Number(item.child_qr_id));
+    if (entry && !entry.order && item.order) {
+      entry.order = {
+        number: item.order.order_number,
+        requested_at: item.order.created_at,
+        resolved_at: item.order.resolved_at,
+        requested_quantity: Number(item.requested_quantity || 0),
+        fulfilled_quantity: Number(item.fulfilled_quantity || 0),
+        requested_by: person(item.order.requester),
+        fulfilled_by: person(item.order.resolver),
+        requesting_area: item.order.requesting_area?.name || null,
+      };
+    }
+  }
+  for (const movement of receiptMovements) {
+    const entry = context.get(Number(movement.qr_code_id));
+    // Relabeling/demo fixtures are not the original receipt into WIP.
+    if (entry && !entry.receipt && !movement.metadata?.local_test_child_qr) {
+      entry.receipt = { at: movement.createdAt, by: person(movement.performer) };
+    }
+  }
+  for (const link of sourceLinks) {
+    const entry = context.get(Number(link.child_qr_code_id));
+    if (entry && !entry.sourceQrCode) entry.sourceQrCode = link.parent_qr_code?.qr_code || null;
+  }
+  return context;
+};
+
+const normalizePtiFormulaUniqueError = (error) => {
+  const constraint = error?.constraint || error?.original?.constraint || error?.parent?.constraint;
+  const fields = Object.keys(error?.fields || {});
+  if (error?.name === 'SequelizeUniqueConstraintError'
+    && (constraint === 'uq_pti_products_formula_id' || fields.includes('formula_id'))) {
+    return Object.assign(new Error('Esta fórmula ya tiene un PTI enlazado. Cada fórmula solo puede tener un PTI.'), { statusCode: 409 });
+  }
+  return error;
+};
+
+const assertFormulaAllowedOnExtruder = async (formula, machineId, models, transaction = null, { existingQueueId = null } = {}) => {
+  const formulaKind = getClientFormulaKind(formula);
+  if (formulaKind) {
+    const machine = await models.Extruder.findByPk(machineId, { transaction });
+    const isEligible = isClientFormulaAllowedOnMachine(formula, machine);
+    if (!isEligible && existingQueueId) {
+      const grandfatheredQueue = await models.ExtruderQueue.findOne({
+        where: {
+          id: Number(existingQueueId),
+          extruder_id: Number(machineId),
+          formula_id: Number(formula.id),
+          status: ['ACTIVA', 'EN_ESPERA', 'PAUSADA'],
+        },
+        attributes: ['id'],
+        transaction,
+      });
+      if (grandfatheredQueue) return;
+    }
+    if (!isEligible) {
+      const target = formulaKind === 'EXTRUDER_1'
+        ? 'la Extrusora 1'
+        : formulaKind === 'FIXED'
+          ? 'una extrusora activa enlazada a esta fórmula'
+          : 'una extrusora activa que pertenezca al grupo dinámico';
+      throw Object.assign(new Error(`La fórmula '${formula.name}' solo puede usarse en ${target}.`), { statusCode: 400 });
+    }
+    return;
+  }
+  const { ExtruderFormula } = models;
+  const matrixCount = await ExtruderFormula.count({ where: { extruder_id: machineId }, transaction });
+  if (matrixCount > 0) {
+    const allowed = await ExtruderFormula.findOne({ where: { extruder_id: machineId, formula_id: formula.id, is_allowed: true }, transaction });
+    if (!allowed) throw Object.assign(new Error(`Matriz de Compatibilidad: la fórmula '${formula.name}' no está autorizada para la Extrusora ${machineId}.`), { statusCode: 400 });
+    return;
+  }
+  if ((formula.restricted_extruders || []).includes(Number(machineId)) || ((formula.allowed_extruders || []).length > 0 && !formula.allowed_extruders.includes(Number(machineId)))) {
+    throw Object.assign(new Error(`La fórmula '${formula.name}' no está autorizada para la Extrusora ${machineId}.`), { statusCode: 400 });
+  }
+};
 
 class ExtrusionService {
   validatePausedQueueScan(targetQueue, scannedQr) {
@@ -78,10 +198,7 @@ class ExtrusionService {
       const linkedPti = isOfficialExtrusionFormula && await PtiProduct.findOne({
         where: {
           is_active: true,
-          [sequelize.Sequelize.Op.or]: [
-            { id: formula.output_pti_id || -1 },
-            { formula_id: formula.id },
-          ],
+          formula_id: formula.id,
         },
         transaction,
       });
@@ -92,9 +209,31 @@ class ExtrusionService {
       }
 
       // 2. Validar restricciones de Extrusora si se especificó
-      const machineId = extruder_id ? Number(extruder_id) : null;
+      let machineId = extruder_id ? Number(extruder_id) : null;
       let extruder = null;
       let isSiloMode = false;
+
+      const formulaKind = getClientFormulaKind(formula);
+      if (formulaKind && !machineId) {
+        const { Extruder, ExtruderQueue } = require('../../database/models');
+        const eligibleMachines = formulaKind === 'EXTRUDER_1'
+          ? await Extruder.findAll({ where: { code: 'EXT-01', is_active: true, status: 'ACTIVE' }, transaction })
+          : formulaKind === 'FIXED'
+            ? await Extruder.findAll({ where: { id: (formula.allowed_extruders || []).map(Number), is_active: true, status: 'ACTIVE' }, transaction })
+            : await Extruder.findAll({ where: { is_active: true, status: 'ACTIVE', is_dynamic_member: true }, transaction });
+        if (!eligibleMachines.length) {
+          throw Object.assign(new Error(formulaKind === 'EXTRUDER_1'
+            ? 'La Extrusora 1 no está registrada y activa.'
+            : 'No hay extrusoras activas en el grupo dinámico para asignar esta fórmula.'), { statusCode: 400 });
+        }
+        const queues = await ExtruderQueue.findAll({
+          where: { extruder_id: eligibleMachines.map((machine) => machine.id), status: ['ACTIVA', 'EN_ESPERA', 'PAUSADA'] },
+          attributes: ['extruder_id'],
+          transaction,
+        });
+        const selectedMachine = selectLeastLoadedMachine(eligibleMachines, queues);
+        machineId = selectedMachine ? Number(selectedMachine.id) : null;
+      }
 
       if (machineId) {
         const { Extruder, ExtruderFormula } = require('../../database/models');
@@ -102,26 +241,16 @@ class ExtrusionService {
           transaction
         });
 
-        if (!extruder && ![1, 2, 3, 4, 5, 6].includes(machineId)) {
+        if (!extruder || !extruder.is_active || extruder.status !== 'ACTIVE') {
           const error = new Error('Máquina no válida.');
           error.statusCode = 400;
           throw error;
         }
 
-        // Fase 3: Hard-block Extrusora 4 (Cero PP-B)
-        if (machineId === 4) {
-          const hasProhibitedPpb = (formula.ingredients || []).some(ing => {
-            const matName = (ing.material?.name || '').toUpperCase();
-            return ing.is_restricted_on_machine_4 || matName.includes('POLIPROPILENO (B)');
-          });
-          if (hasProhibitedPpb) {
-            const error = new Error("Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido procesar fórmulas que contengan 'POLIPROPILENO (B)'. Intento bloqueado.");
-            error.statusCode = 400;
-            throw error;
-          }
-        }
-
         // Matriz de compatibilidad relacional
+        if (getClientFormulaKind(formula)) {
+          await assertFormulaAllowedOnExtruder(formula, machineId, require('../../database/models'), transaction);
+        } else {
         const matrixCount = await ExtruderFormula.count({ where: { extruder_id: machineId }, transaction });
         if (matrixCount > 0) {
           const isAllowedInMatrix = await ExtruderFormula.findOne({
@@ -146,36 +275,26 @@ class ExtrusionService {
             throw error;
           }
         }
+        }
       }
 
       // El silo abastece al mezclador. Su selección es independiente de la
       // extrusora que recibirá después los contenedores preparados.
-      const { Silo, Material } = require('../../database/models');
+      // Material is imported at module scope and is also used above while
+      // loading formula ingredients. Redeclaring it here would shadow that
+      // binding for the whole transaction callback and trigger a TDZ error.
+      const { Silo } = require('../../database/models');
       const ppIngredients = (formula.ingredients || []).filter(ing => {
-        const matName = (ing.material?.name || ing.material_name || '').toUpperCase();
-        const matCode = (ing.material?.internal_code || ing.material_code || '').toUpperCase();
-        return matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP');
+        const matName = (ing.material?.name || ing.material_name || '').trim().toUpperCase();
+        const matCode = (ing.material?.internal_code || ing.material_code || '').trim().toUpperCase();
+        return matName.startsWith('POLIPROPILENO') || matName === 'PP' || matName.startsWith('PP ') || matCode.startsWith('MP-PP');
       });
-      const requestedSiloInputs = Array.isArray(silo_inputs) ? silo_inputs : [];
-      // Backward compatibility for formulas with a single silo-fed PP ingredient.
-      const siloAssignments = requestedSiloInputs.length
-        ? requestedSiloInputs
-        : (silo_id && ppIngredients.length === 1 ? [{ material_id: ppIngredients[0].material_id, silo_id }] : []);
-      const siloMaterialIds = new Set(siloAssignments.map(item => Number(item.material_id)));
-      isSiloMode = siloAssignments.length > 0;
+      // El usuario no selecciona silo por tipo de PP: ambos silos alimentan la mezcla.
+      const siloAssignments = [];
+      const siloMaterialIds = new Set(ppIngredients.map(item => Number(item.material_id)));
+      isSiloMode = ppIngredients.length > 0;
       if ((silo_id || siloAssignments.length) && ppIngredients.length === 0) {
         throw Object.assign(new Error('No se puede seleccionar un silo para una fórmula que no contiene polipropileno.'), { statusCode: 400 });
-      }
-      if (siloMaterialIds.size !== siloAssignments.length) {
-        throw Object.assign(new Error('No se puede asignar más de un silo al mismo material de polipropileno.'), { statusCode: 400 });
-      }
-      for (const assignment of siloAssignments) {
-        if (!Number.isInteger(Number(assignment.silo_id)) || Number(assignment.silo_id) <= 0) {
-          throw Object.assign(new Error('Uno de los silos seleccionados no es válido.'), { statusCode: 400 });
-        }
-        if (!ppIngredients.some(ingredient => Number(ingredient.material_id) === Number(assignment.material_id))) {
-          throw Object.assign(new Error(`El material ${assignment.material_id} no es un ingrediente de polipropileno de esta fórmula.`), { statusCode: 400 });
-        }
       }
 
       // 3. Generar Nomenclatura de Contenedor(es) - Asignados automáticamente por el sistema
@@ -254,54 +373,66 @@ class ExtrusionService {
         }, { transaction });
       }
 
-      // 5. El mezclador puede recibir cada ingrediente PP desde su silo correspondiente.
+      // 5. Repartir el PP entre ambos silos activos y registrar el origen por silo.
       if (isSiloMode) {
         const batchSize = Number(formula.batch_size_kg) || 500.00;
-        if (siloMaterialIds.size !== ppIngredients.length) {
-          const missing = ppIngredients.filter(item => !siloMaterialIds.has(Number(item.material_id)));
-          throw Object.assign(new Error(`Asigna un silo a cada material PP de la fórmula: ${missing.map(item => item.material?.name || item.material_id).join(', ')}.`), { statusCode: 400 });
+        const requirements = ppIngredients.map((ingredient) => {
+          const qty = Number(ingredient.quantity);
+          const perBatch = Number.isFinite(qty) && qty > 0
+            ? qty
+            : (batchSize * (Number(ingredient.percentage) || 95)) / 100;
+          return { ingredient, requiredKg: Number(perBatch.toFixed(3)) };
+        });
+        const totalPpKg = Number(requirements.reduce((sum, item) => sum + item.requiredKg, 0).toFixed(3));
+        const activeSilos = await Silo.findAll({
+          where: { is_active: true },
+          order: [['code', 'ASC'], ['id', 'ASC']],
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        if (activeSilos.length !== 2) {
+          throw Object.assign(new Error(`Se requieren exactamente 2 silos activos para repartir el PP. Silos activos: ${activeSilos.length}.`), { statusCode: 409 });
         }
-        for (const assignment of siloAssignments) {
-          const ppIngredient = ppIngredients.find(item => Number(item.material_id) === Number(assignment.material_id));
-          let requiredKg = Number(ppIngredient.quantity);
-          if (!Number.isFinite(requiredKg) || requiredKg <= 0) requiredKg = (batchSize * (Number(ppIngredient.percentage) || 95)) / 100;
-          const deductedKg = Number((requiredKg * count).toFixed(3));
-          const targetSilo = await Silo.findByPk(Number(assignment.silo_id), { transaction, lock: transaction.LOCK.UPDATE });
-          if (!targetSilo || !targetSilo.is_active) {
-            throw Object.assign(new Error(`El silo ${assignment.silo_id} no existe o está inactivo.`), { statusCode: 400 });
+        const siloPlan = allocateBalancedSiloConsumption(totalPpKg, activeSilos);
+        const remainingBySilo = siloPlan.map((entry) => entry.quantityKg);
+
+        for (const { ingredient, requiredKg } of requirements) {
+          let remaining = requiredKg;
+          for (let i = 0; i < activeSilos.length && remaining > 0.0005; i += 1) {
+            const targetSilo = activeSilos[i];
+            const deductedKg = Number(Math.min(remaining, remainingBySilo[i]).toFixed(3));
+            if (deductedKg <= 0) continue;
+            const before = Number(targetSilo.current_stock_kg);
+            const after = Math.max(0, Number((before - deductedKg).toFixed(3)));
+            targetSilo.current_stock_kg = after;
+            await targetSilo.save({ transaction });
+            await ProcessPreparationInput.create({
+              preparation_id: preparation.id,
+              source_traceable_item_id: null,
+              source_qr_code_id: null,
+              material_id: targetSilo.material_id || ingredient.material_id,
+              quantity: deductedKg,
+              unit: 'KG',
+              balance_before: before,
+              balance_after: after,
+              source_silo_id: targetSilo.id,
+              source_lot_number: targetSilo.current_lot_number || null,
+              unit_cost_snapshot: targetSilo.unit_cost == null ? null : Number(targetSilo.unit_cost),
+              extended_cost_snapshot: targetSilo.unit_cost == null ? null : Number((deductedKg * Number(targetSilo.unit_cost)).toFixed(4)),
+              notes: `Consumo equilibrado de PP desde Silo ${targetSilo.code}; ingrediente de receta: ${ingredient.material?.name || 'PP'}; Lote: ${targetSilo.current_lot_number || 'N/A'}`
+            }, { transaction });
+            remaining = Number((remaining - deductedKg).toFixed(3));
+            remainingBySilo[i] = Number((remainingBySilo[i] - deductedKg).toFixed(3));
+            totalQuantity += deductedKg;
           }
-          // Los tipos históricos A/B/C identifican lotes internos y no son una
-          // restricción de compatibilidad del silo. La regla de compatibilidad de
-          // cada fórmula/extrusora se valida aparte.
-          const before = Number(targetSilo.current_stock_kg);
-          if (before < deductedKg) {
-            throw Object.assign(new Error(`Stock insuficiente en Silo ${targetSilo.code}: requiere ${deductedKg} kg; disponible ${before} kg.`), { statusCode: 400 });
-          }
-          const after = Number((before - deductedKg).toFixed(3));
-          targetSilo.current_stock_kg = after;
-          await targetSilo.save({ transaction });
-          await ProcessPreparationInput.create({
-            preparation_id: preparation.id,
-            source_traceable_item_id: null,
-            source_qr_code_id: null,
-            material_id: targetSilo.material_id || ppIngredient.material_id,
-            quantity: deductedKg,
-            unit: 'KG',
-            balance_before: before,
-            balance_after: after,
-            source_silo_id: targetSilo.id,
-            source_lot_number: targetSilo.current_lot_number || null,
-            unit_cost_snapshot: targetSilo.unit_cost == null ? null : Number(targetSilo.unit_cost),
-            extended_cost_snapshot: targetSilo.unit_cost == null ? null : Number((deductedKg * Number(targetSilo.unit_cost)).toFixed(4)),
-            notes: `Alimentación al mezclador de ${ppIngredient.material?.name || 'PP'} desde Silo ${targetSilo.code}; Lote: ${targetSilo.current_lot_number || 'N/A'}`
-          }, { transaction });
-          totalQuantity += deductedKg;
+          if (remaining > 0.0005) throw Object.assign(new Error('No fue posible distribuir todo el consumo de PP entre ambos silos.'), { statusCode: 409 });
         }
       }
 
       // 6. Procesar Entradas Restantes de Aditivos con QR Hijo (-SN)
       const folio = preparation.folio;
       let primaryMaterialId = formula.target_intermediate_material_id || (formula.ingredients && formula.ingredients[0]?.material_id);
+      const consumedNonPpByMaterial = new Map();
       for (const input of (inputs || [])) {
         if (isSiloMode && siloMaterialIds.has(Number(input.material_id))) {
           // Si por alguna razón se envió el PP en inputs, ya fue procesado por el Silo
@@ -323,6 +454,17 @@ class ExtrusionService {
           throw new Error(`El material con QR ${input.qr_code} no se encuentra en el WIP de Extrusión.`);
         }
 
+        const consumedMaterialId = Number(wipItem.material_id);
+        if (isOfficialExtrusionFormula) {
+          if (siloMaterialIds.has(consumedMaterialId)) {
+            throw Object.assign(new Error(`El Polipropileno del QR ${input.qr_code} debe consumirse desde los silos, no mediante un QR hijo.`), { statusCode: 400 });
+          }
+          const recipeIngredient = formula.ingredients.find((ingredient) => Number(ingredient.material_id) === consumedMaterialId);
+          if (!recipeIngredient) {
+            throw Object.assign(new Error(`El material del QR ${input.qr_code} no pertenece a la fórmula seleccionada.`), { statusCode: 400 });
+          }
+        }
+
         if (!primaryMaterialId && wipItem.material_id) {
           primaryMaterialId = wipItem.material_id;
         }
@@ -334,6 +476,10 @@ class ExtrusionService {
         // Descontar
         const balanceBefore = Number(wipItem.amount);
         const consumedQuantity = Number(input.quantity);
+        consumedNonPpByMaterial.set(
+          consumedMaterialId,
+          Number(((consumedNonPpByMaterial.get(consumedMaterialId) || 0) + consumedQuantity).toFixed(3)),
+        );
         const newAmount = Number((balanceBefore - consumedQuantity).toFixed(3));
         wipItem.amount = newAmount;
         await wipItem.save({ transaction });
@@ -343,7 +489,8 @@ class ExtrusionService {
         // Asegurar existencia de TraceableItem para el QR origen
         let sourceTraceable = await TraceableItem.findOne({
           where: { qr_code_id: sourceQr.id },
-          transaction
+          transaction,
+          lock: { level: transaction.LOCK.UPDATE, of: TraceableItem }
         });
 
         if (!sourceTraceable) {
@@ -444,10 +591,39 @@ class ExtrusionService {
         }, { transaction });
       }
 
-      const expectedBatchKg = (Number(formula.batch_size_kg) || 500) * count;
+      if (isOfficialExtrusionFormula) {
+        const expectedByMaterial = new Map();
+        for (const ingredient of formula.ingredients || []) {
+          const materialId = Number(ingredient.material_id);
+          if (siloMaterialIds.has(materialId)) continue;
+          expectedByMaterial.set(
+            materialId,
+            Number(((expectedByMaterial.get(materialId) || 0) + Number(ingredient.quantity || 0)).toFixed(3)),
+          );
+        }
+        const materialIds = new Set([...expectedByMaterial.keys(), ...consumedNonPpByMaterial.keys()]);
+        for (const materialId of materialIds) {
+          const expectedKg = Number(expectedByMaterial.get(materialId) || 0);
+          const consumedKg = Number(consumedNonPpByMaterial.get(materialId) || 0);
+          if (Math.abs(consumedKg - expectedKg) <= 0.05) continue;
+          const ingredient = (formula.ingredients || []).find((item) => Number(item.material_id) === materialId);
+          const materialName = ingredient?.material?.name || `material #${materialId}`;
+          const remainingKg = Math.max(0, Number((expectedKg - consumedKg).toFixed(2)));
+          const detail = consumedKg > expectedKg
+            ? `excede por ${(consumedKg - expectedKg).toFixed(2)} kg`
+            : `faltan ${remainingKg.toFixed(2)} kg`;
+          throw Object.assign(
+            new Error(`Dosificación incompleta para ${materialName}: se requieren ${expectedKg.toFixed(2)} kg y se capturaron ${consumedKg.toFixed(2)} kg (${detail}).`),
+            { statusCode: 409 },
+          );
+        }
+      }
+
+      const expectedBatchKg = Number(formula.batch_size_kg) || 500;
       if (isOfficialExtrusionFormula && Math.abs(totalQuantity - expectedBatchKg) > 0.05) {
+        const expectedPerContainer = Number((expectedBatchKg / count).toFixed(2));
         throw Object.assign(
-          new Error(`La dosificación debe completar ${expectedBatchKg.toFixed(2)} kg (${count} contenedor(es) de ${(Number(formula.batch_size_kg) || 500).toFixed(2)} kg); se capturaron ${totalQuantity.toFixed(2)} kg. Ajusta el PP del silo y los aditivos antes de registrar.`),
+          new Error(`La dosificación debe completar un lote total de ${expectedBatchKg.toFixed(2)} kg, dividido en ${count} contenedor(es) de aproximadamente ${expectedPerContainer.toFixed(2)} kg; se capturaron ${totalQuantity.toFixed(2)} kg. Ajusta el PP del silo y los aditivos antes de registrar.`),
           { statusCode: 409 }
         );
       }
@@ -725,7 +901,7 @@ class ExtrusionService {
 
       for (const ing of ingredients) {
         const mat = ing.material;
-        const wipSum = (await WipInventory.sum('amount', {
+        const physicalWipSum = (await WipInventory.sum('amount', {
           where: {
             material_id: ing.material_id,
             area_id: 2
@@ -733,7 +909,7 @@ class ExtrusionService {
         })) || 0;
 
         const reqQty = Number(ing.quantity || 0);
-        const availWip = Number(Number(wipSum).toFixed(2));
+        const physicalWip = Number(Number(physicalWipSum).toFixed(3));
 
         // Obtener todos los sacos hijos (-SN) activos con existencias en Área 2 ordenados por FIFO
         const fifoWipList = await WipInventory.findAll({
@@ -763,7 +939,7 @@ class ExtrusionService {
 
         for (const itemWip of fifoWipList) {
           const sackQty = Number(itemWip.amount || 0);
-          accumulatedKg = Number((accumulatedKg + sackQty).toFixed(2));
+          accumulatedKg = Number((accumulatedKg + sackQty).toFixed(3));
           if (!reachedRequirement) {
             sacksNeededCount++;
             if (accumulatedKg >= reqQty) {
@@ -780,6 +956,8 @@ class ExtrusionService {
         }
 
         const nextFifoWip = fifoWipList[0] || null;
+        const scannableWip = Number(Number(accumulatedKg).toFixed(3));
+        const unscannableWip = Number(Math.max(0, physicalWip - scannableWip).toFixed(3));
 
         detailedItems.push({
           id: ing.id,
@@ -790,8 +968,12 @@ class ExtrusionService {
           required_quantity: reqQty,
           percentage: Number(ing.percentage || 0),
           is_restricted: Boolean(ing.is_restricted_on_machine_4),
-          available_wip_kg: availWip,
-          is_sufficient: availWip >= reqQty,
+          // A recipe is ready only when its stock is backed by active child QRs
+          // that the operator can actually scan and consume.
+          available_wip_kg: scannableWip,
+          physical_wip_kg: physicalWip,
+          unscannable_wip_kg: unscannableWip,
+          is_sufficient: scannableWip >= reqQty,
           suggested_fifo_qr: nextFifoWip?.qr_code?.qr_code || null,
           suggested_fifo_amount: nextFifoWip ? Number(nextFifoWip.amount) : null,
           fifo_qrs: fifoQrs,
@@ -821,7 +1003,7 @@ class ExtrusionService {
     const detailedItems = [];
     for (const item of items) {
       const mat = await Material.findByPk(item.material_id);
-      const wipSum = (await WipInventory.sum('amount', {
+      const physicalWipSum = (await WipInventory.sum('amount', {
         where: {
           material_id: item.material_id,
           area_id: 2
@@ -829,7 +1011,7 @@ class ExtrusionService {
       })) || 0;
 
       const reqQty = Number(item.quantity || 0);
-      const availWip = Number(Number(wipSum).toFixed(2));
+      const physicalWip = Number(Number(physicalWipSum).toFixed(3));
 
       const fifoWipList = await WipInventory.findAll({
         where: {
@@ -858,7 +1040,7 @@ class ExtrusionService {
 
       for (const itemWip of fifoWipList) {
         const sackQty = Number(itemWip.amount || 0);
-        accumulatedKg = Number((accumulatedKg + sackQty).toFixed(2));
+        accumulatedKg = Number((accumulatedKg + sackQty).toFixed(3));
         if (!reachedRequirement) {
           sacksNeededCount++;
           if (accumulatedKg >= reqQty) {
@@ -875,14 +1057,18 @@ class ExtrusionService {
       }
 
       const nextFifoWip = fifoWipList[0] || null;
+      const scannableWip = Number(Number(accumulatedKg).toFixed(3));
+      const unscannableWip = Number(Math.max(0, physicalWip - scannableWip).toFixed(3));
 
       detailedItems.push({
         ...item.toJSON(),
         material_name: mat ? mat.name : 'Desconocido',
         material_code: mat ? mat.internal_code : '',
         required_quantity: reqQty,
-        available_wip_kg: availWip,
-        is_sufficient: availWip >= reqQty,
+        available_wip_kg: scannableWip,
+        physical_wip_kg: physicalWip,
+        unscannable_wip_kg: unscannableWip,
+        is_sufficient: scannableWip >= reqQty,
         suggested_fifo_qr: nextFifoWip?.qr_code?.qr_code || null,
         suggested_fifo_amount: nextFifoWip ? Number(nextFifoWip.amount) : null,
         fifo_qrs: fifoQrs,
@@ -901,7 +1087,18 @@ class ExtrusionService {
   }
 
   async getWipChildQr(qrCode) {
-    const cleanQr = (qrCode || '').trim().toUpperCase();
+    const scannedValue = String(qrCode || '').trim();
+    let decodedValue = scannedValue;
+    if (/^AGY:/i.test(scannedValue)) {
+      try {
+        decodedValue = decryptQrData(`AGY:${scannedValue.slice(4)}`);
+      } catch {
+        const error = new Error('El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+    const cleanQr = decodedValue.trim().toUpperCase();
     if (!cleanQr) throw new Error('Código QR requerido.');
 
     if (!cleanQr.includes('-SN')) {
@@ -910,7 +1107,7 @@ class ExtrusionService {
       throw error;
     }
 
-    const { QrCode, WipInventory, Material } = require('../../database/models');
+    const { QrCode, WipInventory, Material, Lote, Location } = require('../../database/models');
     const qr = await QrCode.findOne({ where: { qr_code: cleanQr } });
     if (!qr) {
       const error = new Error(`El código QR '${cleanQr}' no existe en el sistema.`);
@@ -926,7 +1123,15 @@ class ExtrusionService {
 
     const wip = await WipInventory.findOne({
       where: { qr_code_id: qr.id, area_id: 2 },
-      include: [{ model: Material, as: 'material' }]
+      include: [
+        { model: Material, as: 'material' },
+        {
+          model: Lote,
+          as: 'lote',
+          attributes: ['id', 'folio', 'date_received', 'location_id'],
+          include: [{ model: Location, as: 'location', attributes: ['id', 'code', 'name'] }],
+        },
+      ],
     });
 
     if (!wip || Number(wip.amount) <= 0) {
@@ -941,6 +1146,7 @@ class ExtrusionService {
       throw error;
     }
 
+    const context = (await getWipQrContext([qr.id])).get(Number(qr.id));
     return {
       qr_code: qr.qr_code,
       qr_id: qr.id,
@@ -948,7 +1154,21 @@ class ExtrusionService {
       material_name: wip.material ? wip.material.name : 'Material',
       material_code: wip.material ? wip.material.internal_code : '',
       available_amount: Number(wip.amount),
-      unit: 'KG'
+      unit: 'KG',
+      entered_wip_at: context?.receipt?.at || wip.created_at,
+      entered_wip_by: context?.receipt?.by || null,
+      ingress_date_source: context?.receipt ? 'TRACEABILITY_MOVEMENT' : 'WIP_RECORD',
+      consumption_order: context?.order || null,
+      source: {
+        lot_folio: wip.lote?.folio || null,
+        lot_received_at: wip.lote?.date_received || null,
+        warehouse_location: wip.lote?.location ? {
+          id: wip.lote.location.id,
+          code: wip.lote.location.code,
+          name: wip.lote.location.name,
+        } : null,
+        parent_qr_code: context?.sourceQrCode || null,
+      },
     };
   }
 
@@ -1240,7 +1460,7 @@ class ExtrusionService {
   /**
    * Cambia la prioridad de una mezcla, pausando la activa y registrando merma de purga.
    */
-  async switchQueuePriority({ extruder_id, target_queue_id, queue_id, scanned_qr, prioritize_formula_id, scrap_items = [], shift_code, notes, userId }) {
+  async switchQueuePriority({ extruder_id, target_queue_id, queue_id, scanned_qr, prioritize_formula_id, purge_percentage, scrap_items = [], shift_code, notes, userId }) {
     const targetId = Number(target_queue_id || queue_id);
     if (!targetId) {
       const error = new Error('ID de la mezcla en cola a priorizar es obligatorio.');
@@ -1316,20 +1536,8 @@ class ExtrusionService {
         }
       }
 
-      // 2. Regla 2: Restricciones de Fórmula en Extrusora 4 (POLIPROPILENO (B))
-      if (machineId === 4 && formula) {
-        const hasProhibitedPpb = (formula.ingredients || []).some(ing => {
-          const matName = (ing.material?.name || '').toUpperCase();
-          return ing.is_restricted_on_machine_4 || matName.includes('POLIPROPILENO (B)');
-        });
-        const isRestricted = (formula.restricted_extruders || []).includes(4);
-
-        if (hasProhibitedPpb || isRestricted) {
-          const error = new Error("Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido usar el material 'POLIPROPILENO (B)'. Intento bloqueado.");
-          error.statusCode = 400;
-          throw error;
-        }
-      }
+      // Validar reglas del catálogo incluso si existen matrices de compatibilidad antiguas.
+      await assertFormulaAllowedOnExtruder(formula, machineId, require('../../database/models'), t, { existingQueueId: targetQueue.id });
 
       // 3. Buscar si hay una mezcla actualmente ACTIVA en esa extrusora
       const currentActive = await ExtruderQueue.findOne({
@@ -1341,19 +1549,27 @@ class ExtrusionService {
         lock: t.LOCK.UPDATE
       });
 
+      const queueOutputSnapshots = await fetchQueueOutputSnapshots(sequelize, [currentActive?.id, targetQueue.id], t);
+      if (currentActive && queueOutputSnapshots.has(Number(currentActive.id))) {
+        Object.assign(currentActive, queueOutputSnapshots.get(Number(currentActive.id)));
+      }
+      if (queueOutputSnapshots.has(Number(targetQueue.id))) {
+        Object.assign(targetQueue, queueOutputSnapshots.get(Number(targetQueue.id)));
+      }
+
       let transition = null;
       const scrapLogs = [];
 
-      // 4. Regla 3 & 4: Si se interrumpe una mezcla activa, pasar a PAUSADA y exigir peso de merma de transición/purga
+      // 4. Una transición puede registrarse sin pesar merma en ese momento.
+      // El pesaje clasificado se concilia al cierre del turno.
       if (currentActive && currentActive.id !== targetQueue.id) {
-        if (!Array.isArray(scrap_items) || scrap_items.length === 0) {
-          const error = new Error('Clasifica la merma de la transición por mezcla anterior, nueva, combinada o material de purga; no se asignará un peso sin origen.');
-          error.statusCode = 400;
-          throw error;
+        const purgePercentage = purge_percentage == null ? null : Number(purge_percentage);
+        if (purgePercentage !== null && (!Number.isFinite(purgePercentage) || purgePercentage < 0 || purgePercentage > 100)) {
+          throw Object.assign(new Error('El porcentaje de purgante debe estar entre 0 y 100.'), { statusCode: 400 });
         }
-
         currentActive.status = 'PAUSADA';
         await currentActive.save({ transaction: t });
+        const transitionNotes = [notes, purgePercentage == null ? null : `Purgante utilizado: ${purgePercentage}%.`].filter(Boolean).join(' | ') || null;
         transition = await ExtrusionTransition.create({
           extruder_id: machineId,
           from_queue_id: currentActive.id,
@@ -1362,7 +1578,7 @@ class ExtrusionService {
           to_mixture_qr: targetQueue.consumption_order_qr_id,
           shift_code: shift_code || 'TURNO_1',
           started_by: userId || null,
-          notes: notes || null,
+          notes: transitionNotes,
         }, { transaction: t });
 
         const previousFormula = await Formula.findByPk(currentActive.formula_id, {
@@ -1378,10 +1594,31 @@ class ExtrusionService {
             : null,
         ]);
         const formulaColors = (formulaRecord) => [...new Set((formulaRecord?.ptiProducts || []).filter((pti) => pti.is_active && pti.color).map((pti) => String(pti.color).trim()).filter(Boolean))];
-        const previousColors = formulaColors(previousFormula);
-        const nextColors = formulaColors(formula);
+        const previousColors = currentActive.output_pti_color
+          ? [String(currentActive.output_pti_color).trim()]
+          : formulaColors(previousFormula);
+        const nextColors = targetQueue.output_pti_color
+          ? [String(targetQueue.output_pti_color).trim()]
+          : formulaColors(formula);
 
-        for (const item of scrap_items) {
+        // La estimación se calcula sobre el saldo disponible de la mezcla nueva.
+        // El valor real sigue pendiente hasta el pesaje de merma al cierre de turno.
+        const newMixBalanceKg = Number(targetPreparation?.remaining_quantity_kg ?? 0);
+        const estimatedPurgeKg = purgePercentage == null
+          ? 0
+          : Number((newMixBalanceKg * purgePercentage / 100).toFixed(3));
+        const transitionScrapItems = [...scrap_items];
+        if (estimatedPurgeKg > 0) {
+          transitionScrapItems.push({
+            category: 'MEZCLA_NUEVA',
+            estimated_weight_kg: estimatedPurgeKg,
+            color: nextColors.join(', ') || null,
+            reason: 'PURGA_TRANSICION_ESTIMADA',
+            notes: `Estimación automática: saldo de mezcla nueva (${newMixBalanceKg.toFixed(3)} kg) × ${purgePercentage}%. Se confirmará al pesar merma por color al cierre del turno.`,
+          });
+        }
+
+        for (const item of transitionScrapItems) {
           const estimatedWeight = Number(item.estimated_weight_kg ?? item.scrap_weight_kg ?? item.actual_weight_kg);
           const actualWeight = item.actual_weight_kg == null ? null : Number(item.actual_weight_kg);
           if (!['MEZCLA_ANTERIOR', 'MEZCLA_NUEVA', 'MEZCLA_MIXTA', 'MATERIAL_PURGA'].includes(item.category)) {
@@ -1614,7 +1851,7 @@ class ExtrusionService {
       throw error;
     }
 
-    const { PtiRack, Material, Formula, FormulaIngredient, ExtruderQueue, Lote, ProcessPreparation, ExtrusionProductionEntry, ExtrusionScrapLog, Subarea, Area, PtiProduct } = require('../../database/models');
+    const { PtiRack, QrCode, QrBatch, Material, Formula, FormulaIngredient, ExtruderQueue, Lote, ProcessPreparation, ExtrusionProductionEntry, ExtrusionScrapLog, Subarea, Area, PtiProduct } = require('../../database/models');
     const consumptionService = require('./services/consumption.service');
 
     return await sequelize.transaction(async (t) => {
@@ -1635,6 +1872,10 @@ class ExtrusionService {
         const error = new Error(`El QR de mezcla ${mixture_qr} no está asociado a una corrida de Extrusión.`);
         error.statusCode = 404;
         throw error;
+      }
+      const queueOutputSnapshots = await fetchQueueOutputSnapshots(sequelize, [queueItem.id], t);
+      if (queueOutputSnapshots.has(Number(queueItem.id))) {
+        Object.assign(queueItem, queueOutputSnapshots.get(Number(queueItem.id)));
       }
       if (queueItem.status !== 'ACTIVA') {
         const error = new Error(`La mezcla ${mixture_qr} no está activa; no se puede registrar producción con una mezcla en estado ${queueItem.status}.`);
@@ -1687,8 +1928,10 @@ class ExtrusionService {
         throw error;
       }
       const linkedFormulaId = Number(ptiProduct.formula_id || 0);
-      const declaredOutputPtiId = Number(queueItem.formula?.output_pti_id || 0);
-      if (linkedFormulaId !== Number(queueItem.formula_id) && declaredOutputPtiId !== Number(ptiProduct.id)) {
+      const expectedPtiId = Number(queueItem.output_pti_product_id || 0);
+      if (expectedPtiId > 0
+        ? expectedPtiId !== Number(ptiProduct.id)
+        : linkedFormulaId !== Number(queueItem.formula_id)) {
         throw Object.assign(new Error(`El PTI ${ptiProduct.code} (${ptiProduct.color || 'color no definido'}) no está enlazado a la fórmula ${queueItem.formula?.name || queueItem.formula_id}. Selecciona un PTI compatible en el catálogo.`), { statusCode: 409 });
       }
       rackUnitWeight = Number(unit_weight_kg) || (currentQty > 0 ? Number(rack.unit_weight_kg) : Number(ptiProduct.unit_weight_kg)) || 0;
@@ -1701,13 +1944,8 @@ class ExtrusionService {
       }
       if (rackUnitWeight <= 0 && scaleWeight > 0) rackUnitWeight = Number((scaleWeight / pieces).toFixed(3));
 
-      // 2. Validar capacidad del Rack
-      if (rack.status === 'LLENO' || currentQty + pieces > maxCap) {
-        const error = new Error(`Capacidad Excedida: El Rack ${rack.rack_code} no puede recibir ${pieces} piezas. Capacidad máxima: ${maxCap}, Disponible: ${Math.max(0, maxCap - currentQty)}.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      // 3. Regla 5: Racks Dinámicos (Condicionamiento)
+      // 2. Validar el producto y destino del rack elegido. Si no alcanza su
+      // capacidad, el sobrante se distribuirá en racks compatibles.
       if (currentQty > 0) {
         if (!rack.current_pti_product_id) {
           throw Object.assign(new Error(`El Rack ${rack.rack_code} contiene PTI registrado antes del control exacto de color. Termina o vacía ese rack antes de mezclar una fórmula/color nuevo.`), { statusCode: 409 });
@@ -1715,9 +1953,6 @@ class ExtrusionService {
         if (Number(rack.current_pti_product_id) !== Number(ptiProduct.id)) {
           throw Object.assign(new Error(`El Rack ${rack.rack_code} está condicionado al PTI ${rack.current_pti_product_id}; el PTI ${ptiProduct.code} es otro producto/color. Usa un rack vacío.`), { statusCode: 409 });
         }
-      } else {
-        rack.current_pti_type_id = effectiveMaterialId;
-        rack.current_pti_product_id = ptiProduct.id;
       }
 
       const areaTelares = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
@@ -1731,11 +1966,89 @@ class ExtrusionService {
         error.statusCode = 409;
         throw error;
       }
-      rack.destination_subarea_id = destinationSubareaId;
+      const rackAllocations = [];
+      const autoCreatedRacks = [];
+      let remainingPieces = pieces;
+      const allocateRackCapacity = (candidateRack) => {
+        if (remainingPieces <= 0) return;
+        const capacity = Number(candidateRack.max_capacity || 100);
+        const occupied = Number(candidateRack.current_quantity || 0);
+        const available = Math.max(0, capacity - occupied);
+        if (available <= 0) return;
+        const allocatedPieces = Math.min(remainingPieces, available);
+        rackAllocations.push({ rack: candidateRack, pieces: allocatedPieces });
+        remainingPieces -= allocatedPieces;
+      };
 
-      // 4. Actualizar cantidad
-      rack.current_quantity = currentQty + pieces;
-      rack.unit_weight_kg = rackUnitWeight;
+      allocateRackCapacity(rack);
+      const compatibleRacks = await PtiRack.findAll({
+        where: {
+          id: { [sequelize.Sequelize.Op.ne]: rack.id },
+          [sequelize.Sequelize.Op.or]: [
+            { current_quantity: { [sequelize.Sequelize.Op.lte]: 0 } },
+            { current_pti_product_id: ptiProduct.id, destination_subarea_id: destinationSubareaId },
+          ],
+        },
+        order: [['id', 'ASC']],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      for (const compatibleRack of compatibleRacks) allocateRackCapacity(compatibleRack);
+
+      const extrusionAreaForRack = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction: t });
+      if (!extrusionAreaForRack) {
+        throw Object.assign(new Error('No existe el área EXTRUSION para generar el QR del nuevo rack.'), { statusCode: 409 });
+      }
+      let autoRackIndex = 1;
+      while (remainingPieces > 0) {
+        const autoCapacity = maxCap > 0 ? maxCap : 100;
+        const allocatedPieces = Math.min(remainingPieces, autoCapacity);
+        let rackCode;
+        let qrCode;
+        do {
+          rackCode = `AUTO-PTI-${Date.now()}-${autoRackIndex++}-${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
+          qrCode = `QR-${rackCode}`;
+        } while (
+          await PtiRack.findOne({ where: { rack_code: rackCode }, transaction: t })
+          || await QrCode.findOne({ where: { qr_code: qrCode }, transaction: t })
+        );
+
+        let qrBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t, lock: t.LOCK.UPDATE });
+        if (!qrBatch) {
+          qrBatch = await QrBatch.create({
+            batch_code: `BATCH-PTI-RACK-${Date.now()}-${autoRackIndex}`,
+            quantity: 1,
+            assigned_area_id: extrusionAreaForRack.id,
+            status: 'AVAILABLE',
+            created_by: userId || 1,
+          }, { transaction: t });
+        }
+        const rackQrRecord = await QrCode.create({
+          serial: Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 100000),
+          qr_code: qrCode,
+          batch_id: qrBatch.id,
+          purpose: 'PTI_RACK',
+          assigned_area_id: extrusionAreaForRack.id,
+          status: 'IN_USE',
+          is_active: true,
+          created_by: userId || 1,
+        }, { transaction: t });
+        const createdRack = await PtiRack.create({
+          rack_code: rackCode,
+          qr_code: qrCode,
+          max_capacity: autoCapacity,
+          current_quantity: 0,
+          unit_price: Number(unit_price) || Number(ptiProduct.unit_price) || 0,
+          unit_weight_kg: rackUnitWeight,
+          location_name: rack.location_name || 'Piso Extrusión',
+          status: 'VACIO',
+        }, { transaction: t });
+        autoCreatedRacks.push(createdRack);
+        allocateRackCapacity(createdRack);
+      }
+      if (!rackAllocations.length || remainingPieces !== 0) {
+        throw Object.assign(new Error('No fue posible distribuir toda la producción entre racks.'), { statusCode: 409 });
+      }
 
       // 5. Backflushing y Fórmula
       let formula = null;
@@ -1812,158 +2125,206 @@ class ExtrusionService {
       const ptiTransformedCostPerKg = mixtureCostPerKg == null
         ? null
         : Number((mixtureCostPerKg * transformedCostIndex).toFixed(6));
-      const productionEntry = await ExtrusionProductionEntry.create({
-        process_preparation_id: preparation?.id || null,
-        queue_id: queueItem.id,
-        extruder_id: effectiveExtruderId,
-        destination_subarea_id: destinationSubareaId,
-        mixture_qr: mixture_qr,
-        rack_id: rack.id,
-        pti_product_id: ptiProduct.id,
-        pti_color_snapshot: ptiProduct.color || null,
-        pieces,
-        net_weight_kg: netWeightKg,
-        weight_source: weightSource,
-        mixture_cost_per_kg: mixtureCostPerKg,
-        transformed_cost_index_snapshot: transformedCostIndex,
-        pti_transformed_cost_per_kg: ptiTransformedCostPerKg,
-        production_value: ptiTransformedCostPerKg == null ? null : Number((netWeightKg * ptiTransformedCostPerKg).toFixed(4)),
-        recorded_by: userId || null,
-        notes: notes || null,
-      }, { transaction: t });
-
-      // El QR del rack es la salida PTI del proceso. Conservar aquí la liga
-      // mezcla -> PTI permite recorrer en el escaneo la genealogía hasta los
-      // lotes originales, incluyendo la merma separada de la salida neta.
       const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction: t });
       if (!extrusionArea) {
         throw Object.assign(new Error('No existe el área EXTRUSION para registrar la trazabilidad del PTI.'), { statusCode: 409 });
       }
-      let rackQr = await QrCode.findOne({ where: { qr_code: rack.qr_code }, transaction: t, lock: t.LOCK.UPDATE });
-      if (!rackQr) {
-        let qrBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t });
-        if (!qrBatch) {
-          qrBatch = await QrBatch.create({
-            batch_code: `BATCH-PTI-RACK-${Date.now()}`,
-            quantity: 1,
+      const productionEntries = [];
+      const rackResults = [];
+      const allocationWeightsRemaining = { net: netWeightKg, scrap: scrapKg };
+      for (let index = 0; index < rackAllocations.length; index += 1) {
+        const allocation = rackAllocations[index];
+        const allocationRack = allocation.rack;
+        const allocationIsLast = index === rackAllocations.length - 1;
+        const allocationNetWeightKg = allocationIsLast
+          ? Math.max(0, Number(allocationWeightsRemaining.net.toFixed(3)))
+          : Math.min(
+            Math.max(0, allocationWeightsRemaining.net),
+            Math.max(0, Number((netWeightKg * allocation.pieces / pieces).toFixed(3))),
+          );
+        allocationWeightsRemaining.net = Number((allocationWeightsRemaining.net - allocationNetWeightKg).toFixed(3));
+        const allocationScrapKg = allocationIsLast
+          ? Math.max(0, Number(allocationWeightsRemaining.scrap.toFixed(3)))
+          : Math.min(
+            Math.max(0, allocationWeightsRemaining.scrap),
+            Math.max(0, Number((scrapKg * allocation.pieces / pieces).toFixed(3))),
+          );
+        allocationWeightsRemaining.scrap = Number((allocationWeightsRemaining.scrap - allocationScrapKg).toFixed(3));
+
+        const rackCurrentQty = Number(allocationRack.current_quantity || 0);
+        const rackPreviousUnitWeight = Number(allocationRack.unit_weight_kg || 0);
+        if (rackCurrentQty > 0 && Number(allocationRack.current_pti_product_id) !== Number(ptiProduct.id)) {
+          throw Object.assign(new Error(`El Rack ${allocationRack.rack_code} dejó de ser compatible con ${ptiProduct.code}. No se registró la producción.`), { statusCode: 409 });
+        }
+        if (rackCurrentQty > 0 && Number(allocationRack.destination_subarea_id || 0) !== Number(destinationSubareaId || 0)) {
+          throw Object.assign(new Error(`El Rack ${allocationRack.rack_code} tiene un destino de Telares incompatible. No se registró la producción.`), { statusCode: 409 });
+        }
+        allocationRack.current_pti_type_id = effectiveMaterialId;
+        allocationRack.current_pti_product_id = ptiProduct.id;
+        allocationRack.destination_subarea_id = destinationSubareaId;
+        allocationRack.current_quantity = rackCurrentQty + allocation.pieces;
+        if (rackCurrentQty <= 0 || !allocationRack.unit_weight_kg) allocationRack.unit_weight_kg = rackUnitWeight;
+
+        const productionEntry = await ExtrusionProductionEntry.create({
+          process_preparation_id: preparation?.id || null,
+          queue_id: queueItem.id,
+          extruder_id: effectiveExtruderId,
+          destination_subarea_id: destinationSubareaId,
+          mixture_qr,
+          rack_id: allocationRack.id,
+          pti_product_id: ptiProduct.id,
+          pti_color_snapshot: ptiProduct.color || null,
+          pieces: allocation.pieces,
+          net_weight_kg: allocationNetWeightKg,
+          weight_source: weightSource,
+          mixture_cost_per_kg: mixtureCostPerKg,
+          transformed_cost_index_snapshot: transformedCostIndex,
+          pti_transformed_cost_per_kg: ptiTransformedCostPerKg,
+          production_value: ptiTransformedCostPerKg == null ? null : Number((allocationNetWeightKg * ptiTransformedCostPerKg).toFixed(4)),
+          recorded_by: userId || null,
+          notes: notes || null,
+        }, { transaction: t });
+        productionEntries.push(productionEntry);
+
+        let rackQr = await QrCode.findOne({ where: { qr_code: allocationRack.qr_code }, transaction: t, lock: t.LOCK.UPDATE });
+        if (!rackQr) {
+          let qrBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t, lock: t.LOCK.UPDATE });
+          if (!qrBatch) {
+            qrBatch = await QrBatch.create({
+              batch_code: `BATCH-PTI-RACK-${Date.now()}-${index}`,
+              quantity: 1,
+              assigned_area_id: extrusionArea.id,
+              status: 'AVAILABLE',
+              created_by: userId || 1,
+            }, { transaction: t });
+          }
+          rackQr = await QrCode.create({
+            serial: Date.now() + Math.floor(Math.random() * 1000) + index,
+            qr_code: allocationRack.qr_code,
+            batch_id: qrBatch.id,
+            purpose: 'PTI_RACK',
             assigned_area_id: extrusionArea.id,
-            status: 'AVAILABLE',
+            status: 'IN_USE',
+            is_active: true,
             created_by: userId || 1,
           }, { transaction: t });
         }
-        rackQr = await QrCode.create({
-          serial: Date.now() + Math.floor(Math.random() * 1000),
-          qr_code: rack.qr_code,
-          batch_id: qrBatch.id,
-          purpose: 'PTI_RACK',
-          assigned_area_id: extrusionArea.id,
-          status: 'IN_USE',
-          created_by: userId || 1,
-        }, { transaction: t });
-      }
-      let rackTraceable = await TraceableItem.findOne({ where: { qr_code_id: rackQr.id }, transaction: t, lock: t.LOCK.UPDATE });
-      const previousRackKg = rackTraceable ? Number(rackTraceable.quantity_current) : 0;
-      const newRackKg = Number((previousRackKg + netWeightKg).toFixed(3));
-      if (!rackTraceable) {
-        rackTraceable = await TraceableItem.create({
-          qr_code_id: rackQr.id,
-          item_type: 'INTERMEDIATE_PRODUCT',
-          material_id: effectiveMaterialId,
-          product_name: ptiProduct.name,
-          origin_area_id: extrusionArea.id,
-          current_area_id: extrusionArea.id,
-          quantity_initial: netWeightKg,
-          quantity_current: netWeightKg,
-          unit: 'KG',
-          status: 'DISPONIBLE',
-          reference_folio: preparation?.folio || mixture_qr,
-          created_by: userId || null,
-          metadata: { rack_code: rack.rack_code, pti_product_id: ptiProduct.id, pti_code: ptiProduct.code, color: ptiProduct.color || null },
-        }, { transaction: t });
-      } else {
-        rackTraceable.quantity_initial = Number((Number(rackTraceable.quantity_initial) + netWeightKg).toFixed(3));
-        rackTraceable.quantity_current = newRackKg;
-        rackTraceable.status = 'DISPONIBLE';
-        rackTraceable.material_id = effectiveMaterialId;
-        rackTraceable.product_name = ptiProduct.name;
-        rackTraceable.updated_by = userId || null;
-        rackTraceable.metadata = {
-          ...(rackTraceable.metadata || {}),
-          rack_code: rack.rack_code,
-          pti_product_id: ptiProduct.id,
-          pti_code: ptiProduct.code,
-          color: ptiProduct.color || null,
-          last_production_entry_id: productionEntry.id,
-        };
-        await rackTraceable.save({ transaction: t });
-      }
-      if (containerTraceable) {
-        await TraceabilityLink.create({
-          parent_traceable_item_id: containerTraceable.id,
-          child_traceable_item_id: rackTraceable.id,
-          parent_qr_code_id: containerTraceable.qr_code_id,
-          child_qr_code_id: rackQr.id,
-          link_type: 'TRANSFORMACION',
-          quantity_used: consumedMixtureKg,
-          quantity_generated: netWeightKg,
-          scrap_quantity: scrapKg,
-          unit: 'KG',
-          process_area_id: extrusionArea.id,
-          notes: `Salida PTI ${ptiProduct.code} (${netWeightKg.toFixed(3)} kg) al rack ${rack.rack_code}; merma asociada ${scrapKg.toFixed(3)} kg.`,
-          metadata: { production_entry_id: productionEntry.id, process_preparation_id: preparation?.id || null, extruder_id: effectiveExtruderId, pti_product_id: ptiProduct.id, color: ptiProduct.color || null, weight_source: weightSource },
-          created_by: userId || null,
-        }, { transaction: t });
-      }
-      await TraceabilityMovement.create({
-        traceable_item_id: rackTraceable.id,
-        qr_code_id: rackQr.id,
-        movement_type: 'GENERACION_INTERMEDIA',
-        from_area_id: extrusionArea.id,
-        to_area_id: extrusionArea.id,
-        quantity: netWeightKg,
-        unit: 'KG',
-        balance_after: newRackKg,
-        reference_folio: preparation?.folio || mixture_qr,
-        performed_by: userId || null,
-        notes: `Producción de ${pieces} bobina(s) de ${ptiProduct.code} en ${rack.rack_code}.`,
-        metadata: { production_entry_id: productionEntry.id, scrap_weight_kg: scrapKg, mixture_qr },
-      }, { transaction: t });
-      await TraceabilityEvent.create({
-        qr_code_id: rackQr.id,
-        event_type: 'PRODUCCION_EXTRUSION',
-        entity_type: 'ExtrusionProductionEntry',
-        entity_id: String(productionEntry.id),
-        from_status: rackQr.status,
-        to_status: 'IN_WIP',
-        performed_by: userId || null,
-        notes: `Ingreso de ${pieces} bobina(s) ${ptiProduct.code} al rack ${rack.rack_code}.`,
-        metadata: { production_entry_id: productionEntry.id, mixture_qr, net_weight_kg: netWeightKg, scrap_weight_kg: scrapKg, pti_product_id: ptiProduct.id, color: ptiProduct.color || null },
-      }, { transaction: t });
-
-      // Puntos 3, 3.1 & 6: Valorización del PTI (con precio de catálogo o cálculo con cost_index)
-      let calculatedPtiPrice = Number(unit_price) || (ptiProduct && Number(ptiProduct.unit_price) > 0 ? Number(ptiProduct.unit_price) : 0) || Number(rack.unit_price) || 0;
-      if (calculatedPtiPrice <= 0 && preparation?.transformed_value_snapshot != null) {
-        const expectedPieces = Number(formula?.expected_yield_pieces || 0);
-        if (expectedPieces > 0) calculatedPtiPrice = Number((Number(preparation.transformed_value_snapshot) / expectedPieces).toFixed(2));
-      }
-
-      if (calculatedPtiPrice > 0) {
-        rack.unit_price = calculatedPtiPrice;
-      }
-
-      if (ptiTransformedCostPerKg != null) {
-        const previousUnitWeight = currentQty > 0 ? Number(rack.unit_weight_kg || 0) : 0;
-        const previousKg = currentQty > 0 && previousUnitWeight > 0 ? currentQty * previousUnitWeight : 0;
-        const previousValue = previousKg > 0 && rack.unit_cost_per_kg != null
-          ? previousKg * Number(rack.unit_cost_per_kg)
-          : null;
-        if (currentQty === 0) rack.unit_cost_per_kg = ptiTransformedCostPerKg;
-        else if (previousValue != null && previousKg + netWeightKg > 0) {
-          rack.unit_cost_per_kg = Number(((previousValue + netWeightKg * ptiTransformedCostPerKg) / (previousKg + netWeightKg)).toFixed(6));
+        const rackTraceable = await TraceableItem.findOne({ where: { qr_code_id: rackQr.id }, transaction: t, lock: t.LOCK.UPDATE });
+        const previousRackKg = rackTraceable ? Number(rackTraceable.quantity_current) : 0;
+        const newRackKg = Number((previousRackKg + allocationNetWeightKg).toFixed(3));
+        let updatedRackTraceable = rackTraceable;
+        if (!updatedRackTraceable) {
+          updatedRackTraceable = await TraceableItem.create({
+            qr_code_id: rackQr.id,
+            item_type: 'INTERMEDIATE_PRODUCT',
+            material_id: effectiveMaterialId,
+            product_name: ptiProduct.name,
+            origin_area_id: extrusionArea.id,
+            current_area_id: extrusionArea.id,
+            quantity_initial: allocationNetWeightKg,
+            quantity_current: allocationNetWeightKg,
+            unit: 'KG',
+            status: 'DISPONIBLE',
+            reference_folio: preparation?.folio || mixture_qr,
+            created_by: userId || null,
+            metadata: { rack_code: allocationRack.rack_code, pti_product_id: ptiProduct.id, pti_code: ptiProduct.code, color: ptiProduct.color || null },
+          }, { transaction: t });
+        } else {
+          updatedRackTraceable.quantity_initial = Number((Number(updatedRackTraceable.quantity_initial) + allocationNetWeightKg).toFixed(3));
+          updatedRackTraceable.quantity_current = newRackKg;
+          updatedRackTraceable.status = 'DISPONIBLE';
+          updatedRackTraceable.material_id = effectiveMaterialId;
+          updatedRackTraceable.product_name = ptiProduct.name;
+          updatedRackTraceable.updated_by = userId || null;
+          updatedRackTraceable.metadata = {
+            ...(updatedRackTraceable.metadata || {}),
+            rack_code: allocationRack.rack_code,
+            pti_product_id: ptiProduct.id,
+            pti_code: ptiProduct.code,
+            color: ptiProduct.color || null,
+            last_production_entry_id: productionEntry.id,
+          };
+          await updatedRackTraceable.save({ transaction: t });
         }
-      }
+        if (containerTraceable) {
+          await TraceabilityLink.create({
+            parent_traceable_item_id: containerTraceable.id,
+            child_traceable_item_id: updatedRackTraceable.id,
+            parent_qr_code_id: containerTraceable.qr_code_id,
+            child_qr_code_id: rackQr.id,
+            link_type: 'TRANSFORMACION',
+            quantity_used: Number((allocationNetWeightKg + allocationScrapKg).toFixed(3)),
+            quantity_generated: allocationNetWeightKg,
+            scrap_quantity: allocationScrapKg,
+            unit: 'KG',
+            process_area_id: extrusionArea.id,
+            notes: `Salida PTI ${ptiProduct.code} (${allocationNetWeightKg.toFixed(3)} kg) al rack ${allocationRack.rack_code}; merma asociada ${allocationScrapKg.toFixed(3)} kg.`,
+            metadata: { production_entry_id: productionEntry.id, process_preparation_id: preparation?.id || null, extruder_id: effectiveExtruderId, pti_product_id: ptiProduct.id, color: ptiProduct.color || null, weight_source: weightSource },
+            created_by: userId || null,
+          }, { transaction: t });
+        }
+        await TraceabilityMovement.create({
+          traceable_item_id: updatedRackTraceable.id,
+          qr_code_id: rackQr.id,
+          movement_type: 'GENERACION_INTERMEDIA',
+          from_area_id: extrusionArea.id,
+          to_area_id: extrusionArea.id,
+          quantity: allocationNetWeightKg,
+          unit: 'KG',
+          balance_after: newRackKg,
+          reference_folio: preparation?.folio || mixture_qr,
+          performed_by: userId || null,
+          notes: `Producción de ${allocation.pieces} bobina(s) de ${ptiProduct.code} en ${allocationRack.rack_code}.`,
+          metadata: { production_entry_id: productionEntry.id, scrap_weight_kg: allocationScrapKg, mixture_qr },
+        }, { transaction: t });
+        await TraceabilityEvent.create({
+          qr_code_id: rackQr.id,
+          event_type: 'PRODUCCION_EXTRUSION',
+          entity_type: 'ExtrusionProductionEntry',
+          entity_id: String(productionEntry.id),
+          from_status: rackQr.status,
+          to_status: 'IN_WIP',
+          performed_by: userId || null,
+          notes: `Ingreso de ${allocation.pieces} bobina(s) ${ptiProduct.code} al rack ${allocationRack.rack_code}.`,
+          metadata: { production_entry_id: productionEntry.id, mixture_qr, net_weight_kg: allocationNetWeightKg, scrap_weight_kg: allocationScrapKg, pti_product_id: ptiProduct.id, color: ptiProduct.color || null },
+        }, { transaction: t });
 
-      await rack.save({ transaction: t });
+        let calculatedPtiPrice = Number(unit_price) || Number(ptiProduct.unit_price) || Number(allocationRack.unit_price) || 0;
+        if (calculatedPtiPrice <= 0 && preparation?.transformed_value_snapshot != null) {
+          const expectedPieces = Number(formula?.expected_yield_pieces || 0);
+          if (expectedPieces > 0) calculatedPtiPrice = Number((Number(preparation.transformed_value_snapshot) / expectedPieces).toFixed(2));
+        }
+        if (calculatedPtiPrice > 0) allocationRack.unit_price = calculatedPtiPrice;
+
+        if (ptiTransformedCostPerKg != null) {
+          const previousKg = rackCurrentQty > 0 && rackPreviousUnitWeight > 0 ? rackCurrentQty * rackPreviousUnitWeight : 0;
+          const previousValue = previousKg > 0 && allocationRack.unit_cost_per_kg != null
+            ? previousKg * Number(allocationRack.unit_cost_per_kg)
+            : null;
+          if (rackCurrentQty === 0) allocationRack.unit_cost_per_kg = ptiTransformedCostPerKg;
+          else if (previousValue != null && previousKg + allocationNetWeightKg > 0) {
+            allocationRack.unit_cost_per_kg = Number(((previousValue + allocationNetWeightKg * ptiTransformedCostPerKg) / (previousKg + allocationNetWeightKg)).toFixed(6));
+          }
+        }
+        await allocationRack.save({ transaction: t });
+        rackResults.push({
+          id: allocationRack.id,
+          rack_code: allocationRack.rack_code,
+          qr_code: allocationRack.qr_code,
+          pieces_added: allocation.pieces,
+          current_quantity: Number(allocationRack.current_quantity),
+          max_capacity: Number(allocationRack.max_capacity),
+          status: allocationRack.status,
+          current_pti_type_id: allocationRack.current_pti_type_id,
+          unit_price: Number(allocationRack.unit_price || 0),
+          unit_weight_kg: allocationRack.unit_weight_kg == null ? null : Number(allocationRack.unit_weight_kg),
+          unit_cost_per_kg: allocationRack.unit_cost_per_kg == null ? null : Number(allocationRack.unit_cost_per_kg),
+          total_value: allocationRack.unit_cost_per_kg != null && Number(allocationRack.unit_weight_kg || 0) > 0
+            ? Number((Number(allocationRack.current_quantity) * Number(allocationRack.unit_weight_kg) * Number(allocationRack.unit_cost_per_kg)).toFixed(2))
+            : Number((Number(allocationRack.current_quantity) * Number(allocationRack.unit_price || 0)).toFixed(2)),
+        });
+      }
+      const productionEntry = productionEntries[0] || null;
 
       let scrapLog = null;
       if (scrapKg > 0) {
@@ -1992,27 +2353,20 @@ class ExtrusionService {
       }
 
       const queueCompletion = await this.completeQueueIfDepleted(queueItem, preparation, containerTraceable, t);
+      const rackAllocationSummary = rackResults.map((item) => `${item.pieces_added} pzas en ${item.rack_code}`).join(', ');
+      const createdRackResults = autoCreatedRacks
+        .map((createdRack) => rackResults.find((item) => Number(item.id) === Number(createdRack.id)))
+        .filter(Boolean);
 
       return {
-        message: `Ingreso registrado: ${pieces} piezas almacenadas en ${rack.rack_code}.${scaleWeight ? ` (Báscula: ${scaleWeight} kg @ ${rackUnitWeight} kg/pza).` : ''}${scrapKg > 0 ? ` Merma: ${scrapKg} kg.` : ''}${siloDeductionResult ? ` Silo ${siloDeductionResult.silo_code}: -${siloDeductionResult.deducted_kg} kg.` : ''}`,
-        rack: {
-          id: rack.id,
-          rack_code: rack.rack_code,
-          qr_code: rack.qr_code,
-          current_quantity: Number(rack.current_quantity),
-          max_capacity: Number(rack.max_capacity),
-          status: rack.status,
-          current_pti_type_id: rack.current_pti_type_id,
-          unit_price: Number(rack.unit_price || 0),
-          unit_weight_kg: rack.unit_weight_kg == null ? null : Number(rack.unit_weight_kg),
-          unit_cost_per_kg: rack.unit_cost_per_kg == null ? null : Number(rack.unit_cost_per_kg),
-          total_value: rack.unit_cost_per_kg != null && Number(rack.unit_weight_kg || 0) > 0
-            ? Number((Number(rack.current_quantity) * Number(rack.unit_weight_kg) * Number(rack.unit_cost_per_kg)).toFixed(2))
-            : Number((Number(rack.current_quantity) * Number(rack.unit_price || 0)).toFixed(2))
-        },
+        message: `Ingreso registrado: ${pieces} piezas distribuidas entre ${rackAllocationSummary}.${createdRackResults.length ? ` Se generaron ${createdRackResults.length} rack(s) y sus QR.` : ''}${scaleWeight ? ` (Báscula: ${scaleWeight} kg @ ${rackUnitWeight} kg/pza).` : ''}${scrapKg > 0 ? ` Merma: ${scrapKg} kg.` : ''}${siloDeductionResult ? ` Silo ${siloDeductionResult.silo_code}: -${siloDeductionResult.deducted_kg} kg.` : ''}`,
+        rack: rackResults[0],
+        racks: rackResults,
+        created_racks: createdRackResults,
         backflushing: backflushingResult,
         silo_deduction: siloDeductionResult,
         production_entry: productionEntry,
+        production_entries: productionEntries,
         scrap_logged: scrapLog,
         queue_completion: queueCompletion,
         destination_subarea: destinationSubareaId ? { id: destinationSubareaId, name: 'TELARES BANDA' } : { id: null, name: 'TELARES' },
@@ -2045,6 +2399,12 @@ class ExtrusionService {
       ]
     });
 
+    const queueOutputSnapshots = await fetchQueueOutputSnapshots(sequelize, queues.map((queue) => queue.id));
+    for (const queue of queues) {
+      const outputSnapshot = queueOutputSnapshots.get(Number(queue.id));
+      if (outputSnapshot) Object.assign(queue, outputSnapshot);
+    }
+
     const extruders = await Extruder.findAll({ where: { is_active: true }, order: [['id', 'ASC']] });
 
     const qrRows = queues.length ? await QrCode.findAll({ where: { qr_code: [...new Set(queues.map((queue) => queue.consumption_order_qr_id))] }, attributes: ['id', 'qr_code'] }) : [];
@@ -2053,6 +2413,11 @@ class ExtrusionService {
     const qrIdByCode = new Map(qrRows.map((qr) => [qr.qr_code, Number(qr.id)]));
     const queueView = (queue) => {
       const item = queue.toJSON();
+      const outputSnapshot = queueOutputSnapshots.get(Number(queue.id));
+      if (outputSnapshot) {
+        item.output_pti_product_id = outputSnapshot.output_pti_product_id;
+        item.output_pti_color = outputSnapshot.output_pti_color;
+      }
       const tracked = traceableByQr.get(qrIdByCode.get(queue.consumption_order_qr_id));
       item.container_remaining_quantity_kg = tracked ? Number(tracked.quantity_current) : null;
       return item;
@@ -2063,8 +2428,14 @@ class ExtrusionService {
       const active = machineQueues.find(q => q.status === 'ACTIVA') || null;
       const paused = machineQueues.filter(q => q.status === 'PAUSADA');
       const waiting = machineQueues.filter(q => q.status === 'EN_ESPERA');
+      const sameOutputVariant = (queue, reference) => {
+        if (Number(queue.formula_id) !== Number(reference.formula_id)) return false;
+        const queuePtiId = Number(queue.output_pti_product_id || queue.formula?.ptiProducts?.[0]?.id || 0);
+        const referencePtiId = Number(reference.output_pti_product_id || reference.formula?.ptiProducts?.[0]?.id || 0);
+        return !queuePtiId || !referencePtiId || queuePtiId === referencePtiId;
+      };
       const sameFormulaBatches = active
-        ? machineQueues.filter((queue) => Number(queue.formula_id) === Number(active.formula_id) && ['ACTIVA', 'EN_ESPERA', 'PAUSADA'].includes(queue.status))
+        ? machineQueues.filter((queue) => sameOutputVariant(queue, active) && ['ACTIVA', 'EN_ESPERA', 'PAUSADA'].includes(queue.status))
         : [];
       const seenPreparations = new Set();
       const trackedPreparations = new Set(sameFormulaBatches
@@ -2089,10 +2460,13 @@ class ExtrusionService {
           name: ext.name,
           type: ext.type,
           status: ext.status,
+          is_dynamic_member: Boolean(ext.is_dynamic_member),
         },
         active: active ? queueView(active) : null,
         active_formula_group: active ? {
           formula_id: active.formula_id,
+          output_pti_product_id: active.output_pti_product_id || active.formula?.ptiProducts?.[0]?.id || null,
+          output_pti_color: active.output_pti_color || active.formula?.ptiProducts?.[0]?.color || null,
           formula_name: active.formula?.name || null,
           batch_count: batchCount,
           quantity_kg: Number(groupedQuantityKg.toFixed(3)),
@@ -2127,11 +2501,11 @@ class ExtrusionService {
   /**
    * Encola una mezcla ya preparada en una extrusora compatible.
    */
-  async enqueueMix({ extruder_id, consumption_order_qr_id, formula_id, priority = 1, notes }) {
+  async enqueueMix({ extruder_id, consumption_order_qr_id, formula_id, priority = 1, notes, transaction = null }) {
     const machineId = Number(extruder_id);
-    const { Extruder, ExtruderFormula, ExtruderQueue, Formula, FormulaIngredient, Material, ProcessPreparation, QrCode } = require('../../database/models');
+    const { Extruder, ExtruderFormula, ExtruderQueue, Formula, FormulaIngredient, Material, ProcessPreparation, QrCode, PtiProduct } = require('../../database/models');
 
-    const extruder = await Extruder.findByPk(machineId);
+    const extruder = await Extruder.findByPk(machineId, { transaction });
 
     if (!extruder && ![1, 2, 3, 4, 5, 6].includes(machineId)) {
       const error = new Error('Máquina no válida.');
@@ -2140,7 +2514,8 @@ class ExtrusionService {
     }
 
     const formula = await Formula.findByPk(formula_id, {
-      include: [{ model: FormulaIngredient, as: 'ingredients', include: [{ model: Material, as: 'material' }] }]
+      include: [{ model: FormulaIngredient, as: 'ingredients', include: [{ model: Material, as: 'material' }] }],
+      transaction,
     });
 
     if (!formula) {
@@ -2151,6 +2526,7 @@ class ExtrusionService {
 
     const existingQueue = await ExtruderQueue.findOne({
       where: { consumption_order_qr_id, status: { [sequelize.Sequelize.Op.notIn]: ['COMPLETADA', 'CANCELADA'] } },
+      transaction,
     });
     if (existingQueue) {
       throw Object.assign(new Error(`El contenedor ${consumption_order_qr_id} ya está en la cola ${existingQueue.id}.`), { statusCode: 409 });
@@ -2159,54 +2535,23 @@ class ExtrusionService {
     // A prepared mix QR is the production container identity. Preserve its
     // preparation link so transition scrap, consumption, FIFO history, and
     // queue depletion all reconcile against the same batch.
-    const sourceQr = await QrCode.findOne({ where: { qr_code: consumption_order_qr_id }, attributes: ['id'] });
+    const sourceQr = await QrCode.findOne({ where: { qr_code: consumption_order_qr_id }, attributes: ['id'], transaction });
     const preparation = sourceQr && await ProcessPreparation.findOne({
       where: { destination_qr_code_id: sourceQr.id },
       order: [['id', 'DESC']],
+      transaction,
     });
     if (preparation && Number(preparation.formula_id) !== Number(formula.id)) {
       throw Object.assign(new Error(`El QR ${consumption_order_qr_id} pertenece a una mezcla de otra fórmula.`), { statusCode: 409 });
     }
 
-    // Restricción Extrusora 4: PROHIBIDO PP-B en la mezcla preparada.
-    if (machineId === 4) {
-      const hasProhibitedPpb = (formula.ingredients || []).some(ing => {
-        const matName = (ing.material?.name || '').toUpperCase();
-        return ing.is_restricted_on_machine_4 || matName.includes('POLIPROPILENO (B)');
-      });
-      const isRestricted = (formula.restricted_extruders || []).includes(4);
+    await assertFormulaAllowedOnExtruder(formula, machineId, require('../../database/models'), transaction);
 
-      if (hasProhibitedPpb || isRestricted) {
-        const error = new Error("Restricción de Máquina: La Extrusora 4 tiene estrictamente prohibido procesar fórmulas que contengan 'POLIPROPILENO (B)'. Intento bloqueado.");
-        error.statusCode = 400;
-        throw error;
-      }
-
-    }
-
-    // Matriz de compatibilidad
-    const matrixCount = await ExtruderFormula.count({ where: { extruder_id: machineId } });
-    if (matrixCount > 0) {
-      const isAllowedInMatrix = await ExtruderFormula.findOne({
-        where: { extruder_id: machineId, formula_id: formula.id, is_allowed: true }
-      });
-      if (!isAllowedInMatrix) {
-        const error = new Error(`Matriz de Compatibilidad: La fórmula '${formula.name}' no está autorizada para la Extrusora ${machineId}. Intento bloqueado.`);
-        error.statusCode = 400;
-        throw error;
-      }
-    } else {
-      if (formula.restricted_extruders && formula.restricted_extruders.includes(machineId)) {
-        const error = new Error(`Restricción de Máquina: La Extrusora ${machineId} tiene estrictamente prohibido procesar la fórmula '${formula.name}'. Intento bloqueado.`);
-        error.statusCode = 400;
-        throw error;
-      }
-      if (formula.allowed_extruders && formula.allowed_extruders.length > 0 && !formula.allowed_extruders.includes(machineId)) {
-        const error = new Error(`Restricción de Máquina: La Extrusora ${machineId} no está autorizada para la fórmula '${formula.name}'. Máquinas permitidas: [${formula.allowed_extruders.join(', ')}]. Intento bloqueado.`);
-        error.statusCode = 400;
-        throw error;
-      }
-    }
+    const outputPti = await PtiProduct.findOne({
+      where: { formula_id: formula.id, is_active: true },
+      attributes: ['id', 'color'],
+      transaction,
+    });
 
     const newQueue = await ExtruderQueue.create({
       extruder_id: machineId,
@@ -2219,7 +2564,9 @@ class ExtrusionService {
       // and every queue item represents a complete prepared mixture.
       is_silo_kit: false,
       notes
-    });
+    }, { transaction });
+
+    await persistQueueOutputSnapshot(sequelize, newQueue.id, outputPti, transaction);
 
     return newQueue;
   }
@@ -2597,7 +2944,7 @@ class ExtrusionService {
     let totalSilosValue = 0;
     const silosData = silos.map(s => {
       const stock = Number(s.current_stock_kg || 0);
-      const val = Number((stock * Number(s.unit_cost || 28.5)).toFixed(2));
+      const val = Number((stock * Number(s.unit_cost || 0)).toFixed(2));
       totalSilosStockKg += stock;
       totalSilosValue += val;
       return {
@@ -3067,8 +3414,42 @@ class ExtrusionService {
           if (submittedGroups.has(key)) throw Object.assign(new Error('Hay grupos de pesaje duplicados; combina sus pesos antes de cerrar.'), { statusCode: 400 });
           submittedGroups.set(key, item);
         }
-        if (submittedGroups.size !== groupedLogs.size || [...groupedLogs.keys()].some((key) => !submittedGroups.has(key))) {
-          throw Object.assign(new Error('El pesaje debe incluir exactamente los grupos de scrap registrados, separados por categoría y color.'), { statusCode: 400 });
+        const extraColorGroups = [...submittedGroups.entries()].filter(([key, item]) => !groupedLogs.has(key));
+        if (extraColorGroups.some(([, item]) => String(item.category).trim().toUpperCase() !== 'MERMA_COLOR')) {
+          throw Object.assign(new Error('Los grupos adicionales del cierre deben clasificarse como merma por color.'), { statusCode: 400 });
+        }
+        if ([...groupedLogs.keys()].some((key) => !submittedGroups.has(key))) {
+          throw Object.assign(new Error('El pesaje debe incluir todos los grupos de scrap registrados, separados por categoría y color.'), { statusCode: 400 });
+        }
+        if (extraColorGroups.length) {
+          // El cierre permite capturar la merma real por color aunque la
+          // transición ya no solicite estimaciones anticipadas.
+          const { ExtrusionScrapLog: ScrapLog } = require('../../database/models');
+          for (const [, item] of extraColorGroups) {
+            const weight = Number(item.actual_weight_kg);
+            if (weight <= 0) continue;
+            const created = await ScrapLog.create({
+              extruder_id: machineId,
+              from_mixture_qr_id: 'MERMA_CIERRE_TURNO',
+              to_mixture_qr_id: null,
+              scrap_weight_kg: weight,
+              estimated_weight_kg: 0,
+              actual_weight_kg: weight,
+              reason: 'MERMA_CIERRE_TURNO',
+              category: String(item.category || 'MERMA_COLOR').trim().toUpperCase(),
+              color: String(item.color || '').trim(),
+              shift_code,
+              actual_weight_method: 'PESAJE_CIERRE_TURNO_COLOR',
+              mixture_consumption_applied: false,
+              valuation_status: 'PENDIENTE_COSTO',
+              weighed_by: userId || null,
+              weighed_at: new Date(),
+              logged_by: userId || null,
+              notes: 'Peso real clasificado por color al cierre de turno; no atribuido a una mezcla específica.',
+            }, { transaction });
+            logs.push(created);
+            weighingById.set(Number(created.id), { actual_weight_kg: weight });
+          }
         }
         for (const [key, groupLogs] of groupedLogs) {
           const actualGroupWeight = Number(submittedGroups.get(key).actual_weight_kg);
@@ -3167,6 +3548,19 @@ class ExtrusionService {
           await ExtrusionTransition.update({ status: 'CERRADA', closed_at: new Date(), closed_by: userId || null }, { where: { id: transitionId }, transaction });
         }
       }
+      // Cerrar también transiciones sin estimaciones de merma asociadas: su
+      // pesaje real quedó registrado por color en el cierre del turno.
+      const unclosedTransitions = await ExtrusionTransition.findAll({
+        where: { extruder_id: machineId, shift_code, status: 'ABIERTA', started_at: { [Op.gte]: start, [Op.lt]: end } },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      for (const transition of unclosedTransitions) {
+        transition.status = 'CERRADA';
+        transition.closed_at = new Date();
+        transition.closed_by = userId || null;
+        await transition.save({ transaction });
+      }
       const affectedQrs = [...new Set(logs.flatMap((log) => [log.from_mixture_qr_id, log.to_mixture_qr_id]).filter((qr) => qr && qr !== 'MATERIAL_PURGA' && qr !== 'MERMA_NO_ATRIBUIDA'))];
       for (const qr of affectedQrs) {
         const queue = await ExtruderQueue.findOne({ where: { consumption_order_qr_id: qr }, transaction, lock: transaction.LOCK.UPDATE });
@@ -3235,26 +3629,58 @@ class ExtrusionService {
   }
 
   async getExtrusionWip({ includeFinancials = false } = {}) {
-    const { WipInventory, Material, Lote, QrCode, Area, ProcessPreparation, ProcessFormula } = require('../../database/models');
+    const { WipInventory, Material, Lote, QrCode, Location, Area, ProcessPreparation, ProcessFormula, Formula, TraceableItem, ExtruderQueue } = require('../../database/models');
     const area = await Area.findOne({ where: { code: 'EXTRUSION' } });
     if (!area) return { area_id: null, total_kg: 0, items: [], mixtures: [] };
     const items = await WipInventory.findAll({
       where: { area_id: area.id },
       include: [
         { model: Material, as: 'material', attributes: ['id', 'name', 'internal_code'] },
-        { model: Lote, as: 'lote', attributes: includeFinancials ? ['id', 'folio', 'unit_cost'] : ['id', 'folio'] },
-        { model: QrCode, as: 'qr_code', attributes: ['id', 'qr_code', 'status'] },
+        {
+          model: Lote,
+          as: 'lote',
+          attributes: includeFinancials
+            ? ['id', 'folio', 'unit_cost', 'date_received', 'location_id', 'user_id']
+            : ['id', 'folio', 'date_received', 'location_id', 'user_id'],
+          include: [
+            { model: Location, as: 'location', attributes: ['id', 'code', 'name'] },
+          ],
+        },
+        { model: QrCode, as: 'qr_code', attributes: ['id', 'uuid', 'qr_code', 'status', 'is_active'] },
       ],
       order: [['updated_at', 'DESC']],
     });
+    const wipQrContext = await getWipQrContext(items.map((item) => item.qr_code?.id));
     const data = items.map((item) => ({
       id: item.id,
       material_id: item.material_id,
       material: item.material,
       lote_id: item.lote_id,
       lote: item.lote,
+      qr_uuid: item.qr_code?.uuid || null,
       qr_code: item.qr_code?.qr_code || null,
+      qr_code_status: item.qr_code?.status || null,
+      has_scannable_qr: Boolean(
+        item.qr_code?.is_active
+        && item.qr_code.status !== 'CONSUMED'
+        && String(item.qr_code.qr_code || '').toUpperCase().includes('-SN')
+      ),
       amount_kg: Number(item.amount || 0),
+      wip_created_at: item.created_at,
+      entered_wip_at: wipQrContext.get(Number(item.qr_code?.id))?.receipt?.at || item.created_at,
+      entered_wip_by: wipQrContext.get(Number(item.qr_code?.id))?.receipt?.by || null,
+      ingress_date_source: wipQrContext.get(Number(item.qr_code?.id))?.receipt ? 'TRACEABILITY_MOVEMENT' : 'WIP_RECORD',
+      consumption_order: wipQrContext.get(Number(item.qr_code?.id))?.order || null,
+      source: {
+        lot_folio: item.lote?.folio || null,
+        lot_received_at: item.lote?.date_received || null,
+        warehouse_location: item.lote?.location ? {
+          id: item.lote.location.id,
+          code: item.lote.location.code,
+          name: item.lote.location.name,
+        } : null,
+        parent_qr_code: wipQrContext.get(Number(item.qr_code?.id))?.sourceQrCode || null,
+      },
       ...(includeFinancials ? {
         unit_cost: item.lote?.unit_cost == null ? null : Number(item.lote.unit_cost),
         value: item.lote?.unit_cost == null ? null : Number((Number(item.amount) * Number(item.lote.unit_cost)).toFixed(4)),
@@ -3266,21 +3692,56 @@ class ExtrusionService {
       include: [{ model: ProcessFormula, as: 'formula', attributes: ['id', 'name'] }],
       order: [['prepared_at', 'DESC']],
     });
-    const mixtures = preparations
-      .map((prep) => ({
+    const mixtures = [];
+    for (const prep of preparations) {
+      if (prep.status === 'SOLICITADA') continue;
+      const remainingKg = Number(prep.remaining_quantity_kg ?? prep.total_quantity ?? 0);
+      if (remainingKg <= 0) continue;
+      // Formula is the current extrusion catalog. Prefer it over the legacy
+      // ProcessFormula association, whose integer IDs can overlap.
+      const formula = await Formula.findByPk(prep.formula_id, { attributes: ['id', 'name', 'code'] }) || prep.formula;
+      const containers = await TraceableItem.findAll({
+        where: { item_type: 'PREPARED_MIX', reference_folio: prep.folio },
+        include: [{ model: QrCode, as: 'qr_code', attributes: ['qr_code', 'status', 'is_active'] }],
+        order: [['id', 'ASC']],
+      });
+      const queueRows = await ExtruderQueue.findAll({
+        where: { process_preparation_id: prep.id },
+        attributes: ['status'],
+      });
+      const queueStatuses = [...new Set(queueRows.map((queue) => queue.status))];
+      const mixtureStatus = queueStatuses.includes('ACTIVA')
+        ? 'ACTIVA'
+        : queueStatuses.includes('PAUSADA')
+          ? 'PAUSADA'
+          : queueStatuses.includes('EN_ESPERA')
+            ? 'EN_ESPERA'
+            : queueStatuses.length > 0 && queueStatuses.every((status) => ['COMPLETADA', 'CANCELADA'].includes(status))
+              ? queueStatuses.every((status) => status === 'CANCELADA') ? 'CANCELADA' : 'COMPLETADA'
+              : prep.status;
+      mixtures.push({
         id: prep.id,
         folio: prep.folio,
-        formula: prep.formula?.name || null,
-        status: prep.status,
+        formula: formula?.name || null,
+        status: mixtureStatus,
+        preparation_status: prep.status,
+        queue_statuses: queueStatuses,
         quantity_kg: Number(prep.total_quantity || 0),
-        remaining_kg: Number(prep.remaining_quantity_kg ?? prep.total_quantity ?? 0),
+        remaining_kg: remainingKg,
+        qr_codes: containers
+          .filter((container) => Number(container.quantity_current || 0) > 0.0005)
+          .map((container) => ({
+          qr_code: container.qr_code?.qr_code || null,
+          remaining_kg: Number(container.quantity_current || 0),
+          status: container.status,
+          })),
         ...(includeFinancials ? {
           transformed_cost_per_kg: prep.transformed_cost_per_kg == null ? null : Number(prep.transformed_cost_per_kg),
-          remaining_value: prep.transformed_cost_per_kg == null ? null : Number((Number(prep.remaining_quantity_kg ?? prep.total_quantity ?? 0) * Number(prep.transformed_cost_per_kg)).toFixed(4)),
+          remaining_value: prep.transformed_cost_per_kg == null ? null : Number((remainingKg * Number(prep.transformed_cost_per_kg)).toFixed(4)),
         } : {}),
         prepared_at: prep.prepared_at,
-      }))
-      .filter((prep) => prep.remaining_kg > 0);
+      });
+    }
     return {
       area_id: area.id,
       total_kg: Number(data.reduce((sum, item) => sum + item.amount_kg, 0).toFixed(3)),
@@ -3291,6 +3752,47 @@ class ExtrusionService {
         mixtures_total_value: Number(mixtures.reduce((sum, item) => sum + Number(item.remaining_value || 0), 0).toFixed(4)),
       } : {}),
     };
+  }
+
+  async getWipQrLabelsForPdf(uuids = []) {
+    const { WipInventory, Material, QrCode } = require('../../database/models');
+    if (!Array.isArray(uuids)) {
+      throw Object.assign(new Error('La selección de QR debe enviarse como una lista.'), { statusCode: 400 });
+    }
+    const cleanUuids = [...new Set((uuids || []).map((value) => String(value || '').trim()).filter(Boolean))];
+    if (!cleanUuids.length || cleanUuids.length > 100) {
+      throw Object.assign(new Error('Selecciona entre 1 y 100 QR para generar el PDF.'), { statusCode: 400 });
+    }
+    const { Op } = sequelize.Sequelize;
+    const rows = await WipInventory.findAll({
+      where: { area_id: 2, amount: { [Op.gt]: 0 } },
+      include: [
+        { model: Material, as: 'material', attributes: ['id', 'name', 'internal_code'], required: true },
+        {
+          model: QrCode,
+          as: 'qr_code',
+          attributes: ['uuid', 'qr_code', 'purpose', 'status', 'is_active'],
+          where: {
+            uuid: { [Op.in]: cleanUuids },
+            purpose: 'WIP_PROCESS_INPUT',
+            status: { [Op.notIn]: ['CONSUMED', 'CANCELADO'] },
+            is_active: true,
+          },
+          required: true,
+        },
+      ],
+      order: [['id', 'ASC']],
+    });
+    if (rows.length !== cleanUuids.length) {
+      throw Object.assign(new Error('Uno o más QR seleccionados ya no están activos en el WIP de Extrusión.'), { statusCode: 409 });
+    }
+    return rows.map((row) => ({
+      qr_uuid: row.qr_code.uuid,
+      qr_code: row.qr_code.qr_code,
+      material_name: row.material.name,
+      material_code: row.material.internal_code,
+      quantity_kg: Number(row.amount),
+    }));
   }
 
   /**
@@ -3417,7 +3919,7 @@ class ExtrusionService {
    * Obtiene el historial de registros de merma/scrap en Extrusión.
    */
   async getScrapLogs(query = {}) {
-    const { ExtrusionScrapLog, User } = require('../../database/models');
+    const { ExtrusionScrapLog, ExtrusionTransition, ExtruderQueue, Formula, PtiProduct, User } = require('../../database/models');
     const where = {};
     if (query.extruder_id) where.extruder_id = Number(query.extruder_id);
     if (query.mixture_qr) where.from_mixture_qr_id = query.mixture_qr;
@@ -3431,7 +3933,38 @@ class ExtrusionService {
 
     return await ExtrusionScrapLog.findAll({
       where,
-      include: [{ model: User, as: 'operator', attributes: ['id', 'username', 'first_name', 'last_name'] }],
+      attributes: [
+        'id', 'extruder_id', 'from_mixture_qr_id', 'to_mixture_qr_id', 'scrap_weight_kg',
+        'transition_id', 'category', 'color', 'estimated_weight_kg', 'actual_weight_kg',
+        'source_lote_id', 'from_mix_share', 'to_mix_share', 'shift_code',
+        'mixture_consumption_applied', 'actual_weight_method', 'shift_closure_id',
+        'weighed_by', 'weighed_at', 'reason', 'notes', 'logged_by', 'created_at', 'updated_at',
+      ],
+      include: [
+        { model: User, as: 'operator', attributes: ['id', 'username', 'first_name', 'last_name'] },
+        {
+          model: ExtrusionTransition,
+          as: 'transition',
+          attributes: ['id', 'from_queue_id', 'to_queue_id', 'from_mixture_qr', 'to_mixture_qr', 'shift_code', 'started_at', 'closed_at', 'status', 'notes'],
+          required: false,
+          include: [
+            {
+              model: ExtruderQueue,
+              as: 'fromQueue',
+              attributes: ['id', 'formula_id', 'consumption_order_qr_id'],
+              required: false,
+              include: [{ model: Formula, as: 'formula', attributes: ['id', 'code', 'name'], include: [{ model: PtiProduct, as: 'ptiProducts', attributes: ['id', 'code', 'name', 'color'] }] }],
+            },
+            {
+              model: ExtruderQueue,
+              as: 'toQueue',
+              attributes: ['id', 'formula_id', 'consumption_order_qr_id'],
+              required: false,
+              include: [{ model: Formula, as: 'formula', attributes: ['id', 'code', 'name'], include: [{ model: PtiProduct, as: 'ptiProducts', attributes: ['id', 'code', 'name', 'color'] }] }],
+            },
+          ],
+        },
+      ],
       order: [['created_at', 'DESC']],
       limit: Math.min(Number(query.limit) || 50, 200)
     });
@@ -3463,12 +3996,79 @@ class ExtrusionService {
     return await this.calculateFormulaCosts(formula);
   }
 
+  async createFormula(payload) {
+    const { Formula, Extruder, sequelize } = require('../../database/models');
+    const code = String(payload.code || '').trim().toUpperCase();
+    const name = String(payload.name || '').trim();
+    const assignmentMode = String(payload.extruder_assignment_mode || 'DYNAMIC').trim().toUpperCase();
+    const batchSize = Number(payload.batch_size_kg ?? 500);
+    const yieldPieces = Number(payload.expected_yield_pieces ?? 5000);
+    const yieldKg = Number(payload.expected_yield_kg ?? 490);
+    const costIndex = Number(payload.cost_index ?? 1.15);
+
+    if (!/^F-EXT-CUSTOM-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(code)) {
+      throw Object.assign(new Error('El código debe iniciar con F-EXT-CUSTOM- y contener solo letras, números y guiones.'), { statusCode: 400 });
+    }
+    if (!name) throw Object.assign(new Error('El nombre de la fórmula es obligatorio.'), { statusCode: 400 });
+    if (!['DYNAMIC', 'FIXED'].includes(assignmentMode)) {
+      throw Object.assign(new Error('Selecciona una asignación dinámica o fija.'), { statusCode: 400 });
+    }
+    if (!Number.isFinite(batchSize) || batchSize <= 0 || !Number.isFinite(yieldPieces) || yieldPieces <= 0
+      || !Number.isFinite(yieldKg) || yieldKg < 0 || !Number.isFinite(costIndex) || costIndex < 0) {
+      throw Object.assign(new Error('Revisa el tamaño de lote, rendimiento e índice de multiplicación.'), { statusCode: 400 });
+    }
+
+    const t = await sequelize.transaction();
+    try {
+      if (await Formula.findOne({ where: { code }, transaction: t })) {
+        throw Object.assign(new Error(`Ya existe una fórmula con el código ${code}.`), { statusCode: 409 });
+      }
+
+      let allowedExtruders = [];
+      if (assignmentMode === 'FIXED') {
+        const requestedIds = [...new Set((Array.isArray(payload.allowed_extruders) ? payload.allowed_extruders : []).map(Number))];
+        if (!requestedIds.length || requestedIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+          throw Object.assign(new Error('Selecciona al menos una extrusora para una fórmula fija.'), { statusCode: 400 });
+        }
+        const machines = await Extruder.findAll({
+          where: { id: requestedIds, is_active: true, status: 'ACTIVE' },
+          attributes: ['id', 'code'],
+          transaction: t,
+        });
+        if (machines.length !== requestedIds.length || machines.some((machine) => ['EXT-01', 'EXT-LIQ'].includes(machine.code))) {
+          throw Object.assign(new Error('Una o más extrusoras seleccionadas no están disponibles para asignación fija.'), { statusCode: 409 });
+        }
+        allowedExtruders = requestedIds;
+      }
+
+      const formula = await Formula.create({
+        code,
+        name,
+        description: payload.description ? String(payload.description).trim() : null,
+        batch_size_kg: batchSize,
+        cost_index: costIndex,
+        expected_yield_pieces: yieldPieces,
+        expected_yield_kg: yieldKg,
+        allowed_extruders: allowedExtruders,
+        restricted_extruders: [],
+        extruder_assignment_mode: assignmentMode,
+        is_active: false,
+      }, { transaction: t });
+
+      await t.commit();
+      return await this.getFormulaDetailsById(formula.id);
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
+  }
+
   /**
    * Edita una fórmula de extrusión existente (nombre, descripción, cost_index, ingredientes, etc.)
    * Permite ajustar materiales, cantidades, composición y el índice de multiplicación para dar el valor transformado a la mezcla.
    */
   async updateFormula(id, payload) {
-    const { Formula, FormulaIngredient, Material, PtiProduct, sequelize } = require('../../database/models');
+    const { Formula, FormulaIngredient, Material, Extruder, ExtruderQueue, sequelize } = require('../../database/models');
     const formula = await Formula.findByPk(id);
     if (!formula) {
       const error = new Error(`Fórmula con ID ${id} no encontrada.`);
@@ -3526,45 +4126,76 @@ class ExtrusionService {
       }
 
       if (payload.is_active !== undefined) {
-        formula.is_active = Boolean(payload.is_active);
+        const nextIsActive = Boolean(payload.is_active);
+        if (nextIsActive && !formula.is_active && String(formula.code || '').startsWith('F-EXT-CUSTOM-')) {
+          const ingredientCount = await FormulaIngredient.count({ where: { formula_id: formula.id }, transaction: t });
+          if (ingredientCount === 0) {
+            throw Object.assign(new Error('Agrega al menos un ingrediente desde la ficha técnica antes de activar esta fórmula.'), { statusCode: 409 });
+          }
+        }
+        formula.is_active = nextIsActive;
       }
 
-      if (payload.output_pti_id !== undefined) {
-        const ptiId = payload.output_pti_id === null || payload.output_pti_id === ''
-          ? null
-          : Number(payload.output_pti_id);
-        if (ptiId !== null && (!Number.isInteger(ptiId) || ptiId <= 0)) {
-          const error = new Error('El PTI seleccionado no es válido.');
-          error.statusCode = 400;
-          throw error;
+      const formulaKind = getClientFormulaKind(formula);
+      if (formulaKind && (payload.extruder_assignment_mode !== undefined || payload.allowed_extruders !== undefined)) {
+        const isExtruderOneFormula = formulaKind === 'EXTRUDER_1';
+        const requestedMode = isExtruderOneFormula
+          ? 'EXTRUDER_1'
+          : String(payload.extruder_assignment_mode || formula.extruder_assignment_mode || 'DYNAMIC').trim().toUpperCase();
+        if (!['EXTRUDER_1', 'DYNAMIC', 'FIXED'].includes(requestedMode)
+          || (isExtruderOneFormula && requestedMode !== 'EXTRUDER_1')
+          || (!isExtruderOneFormula && requestedMode === 'EXTRUDER_1')) {
+          throw Object.assign(new Error('Modo de asignación no válido para esta fórmula.'), { statusCode: 400 });
         }
 
-        const nextPti = ptiId === null ? null : await PtiProduct.findByPk(ptiId, {
-          transaction: t,
-          lock: t.LOCK.UPDATE,
-        });
-        if (ptiId !== null && !nextPti) {
-          const error = new Error('El PTI seleccionado no existe.');
-          error.statusCode = 404;
-          throw error;
-        }
-        if (nextPti && nextPti.formula_id && Number(nextPti.formula_id) !== Number(formula.id)) {
-          const error = new Error(`El PTI '${nextPti.code}' ya está enlazado a otra fórmula.`);
-          error.statusCode = 409;
-          throw error;
+        let requestedExtruderIds = [];
+        if (requestedMode === 'EXTRUDER_1') {
+          const machineOne = await Extruder.findOne({ where: { code: 'EXT-01' }, attributes: ['id'], transaction: t });
+          requestedExtruderIds = machineOne ? [Number(machineOne.id)] : [];
+          if (!requestedExtruderIds.length) {
+            throw Object.assign(new Error('La Extrusora 1 no está registrada; no se puede guardar su fórmula exclusiva.'), { statusCode: 409 });
+          }
+        } else if (requestedMode === 'FIXED') {
+          const rawIds = payload.allowed_extruders !== undefined ? payload.allowed_extruders : formula.allowed_extruders;
+          if (!Array.isArray(rawIds)) {
+            throw Object.assign(new Error('Selecciona al menos una extrusora para una fórmula fija.'), { statusCode: 400 });
+          }
+          requestedExtruderIds = [...new Set(rawIds.map(Number))];
+          if (requestedExtruderIds.some((machineId) => !Number.isInteger(machineId) || machineId <= 0)) {
+            throw Object.assign(new Error('La selección contiene una extrusora no válida.'), { statusCode: 400 });
+          }
+          const selectedMachines = await Extruder.findAll({
+            where: { id: requestedExtruderIds, is_active: true, status: 'ACTIVE' },
+            attributes: ['id', 'code'],
+            transaction: t,
+          });
+          if (selectedMachines.length !== requestedExtruderIds.length
+            || selectedMachines.some((machine) => ['EXT-01', 'EXT-LIQ'].includes(machine.code))) {
+            throw Object.assign(new Error('Una o más extrusoras ya no están disponibles para asignación fija.'), { statusCode: 409 });
+          }
+          if (!requestedExtruderIds.length) {
+            throw Object.assign(new Error('Selecciona al menos una extrusora para una fórmula fija.'), { statusCode: 400 });
+          }
         }
 
-        const previouslyLinkedPtis = await PtiProduct.findAll({ where: { formula_id: formula.id }, transaction: t });
-        for (const previousPti of previouslyLinkedPtis) {
-          if (Number(previousPti.id) !== ptiId) await previousPti.update({ formula_id: null }, { transaction: t });
+        const nextAllowed = requestedMode === 'DYNAMIC' ? [] : requestedExtruderIds;
+        const currentAllowed = (formula.allowed_extruders || []).map(Number).sort((a, b) => a - b);
+        const nextAllowedSorted = [...nextAllowed].sort((a, b) => a - b);
+        const assignmentChanged = requestedMode !== formula.extruder_assignment_mode
+          || currentAllowed.length !== nextAllowedSorted.length
+          || currentAllowed.some((machineId, index) => machineId !== nextAllowedSorted[index]);
+        if (assignmentChanged) {
+          const pendingQueueCount = await ExtruderQueue.count({
+            where: { formula_id: formula.id, status: ['ACTIVA', 'EN_ESPERA', 'PAUSADA'] },
+            transaction: t,
+          });
+          if (pendingQueueCount > 0) {
+            throw Object.assign(new Error('No se puede cambiar la asignación mientras haya mezclas activas, en espera o pausadas para esta fórmula.'), { statusCode: 409 });
+          }
         }
-        if (nextPti) {
-          await PtiProduct.update(
-            { formula_id: formula.id },
-            { where: { id: nextPti.id }, transaction: t }
-          );
-        }
-        formula.output_pti_id = ptiId;
+        formula.extruder_assignment_mode = requestedMode;
+        formula.allowed_extruders = nextAllowed;
+        formula.restricted_extruders = [];
       }
 
       if (payload.ingredients && Array.isArray(payload.ingredients)) {
@@ -3582,7 +4213,7 @@ class ExtrusionService {
 
         const batchSize = Number(formula.batch_size_kg) || 500;
         let totalQuantity = 0;
-        let hasMachine4Restriction = false;
+        let totalPercentage = 0;
 
         const newIngredients = [];
         for (const item of payload.ingredients) {
@@ -3601,8 +4232,8 @@ class ExtrusionService {
           }
 
           const qty = Number(item.quantity !== undefined ? item.quantity : item.weight_kg);
-          if (isNaN(qty) || qty < 0) {
-            const error = new Error(`La cantidad para '${material.name}' debe ser un número válido.`);
+          if (!Number.isFinite(qty) || qty <= 0) {
+            const error = new Error(`La cantidad para '${material.name}' debe ser mayor a cero.`);
             error.statusCode = 400;
             throw error;
           }
@@ -3612,15 +4243,7 @@ class ExtrusionService {
           if (isNaN(pct) || pct <= 0) {
             pct = batchSize > 0 ? (qty / batchSize) * 100 : 0;
           }
-
-          const isRestrictedM4 = Boolean(
-            item.is_restricted_on_machine_4 ||
-            (material.name && material.name.toUpperCase().includes('POLIPROPILENO (B)'))
-          );
-
-          if (isRestrictedM4) {
-            hasMachine4Restriction = true;
-          }
+          totalPercentage += pct;
 
           newIngredients.push({
             formula_id: formula.id,
@@ -3628,9 +4251,16 @@ class ExtrusionService {
             quantity: Number(qty.toFixed(2)),
             percentage: Number(pct.toFixed(2)),
             unit: item.unit || 'KG',
-            is_restricted_on_machine_4: isRestrictedM4,
-            restricted_machine_ids: isRestrictedM4 ? [4] : []
+            is_restricted_on_machine_4: false,
+            restricted_machine_ids: []
           });
+        }
+
+        if (getClientFormulaKind(formula) && Math.abs(totalQuantity - batchSize) > 0.05) {
+          throw Object.assign(new Error(`La fórmula debe sumar ${batchSize.toFixed(2)} kg. Total capturado: ${totalQuantity.toFixed(2)} kg.`), { statusCode: 400 });
+        }
+        if (getClientFormulaKind(formula) && Math.abs(totalPercentage - 100) > 0.1) {
+          throw Object.assign(new Error(`La composición porcentual debe sumar 100%. Total capturado: ${totalPercentage.toFixed(2)}%.`), { statusCode: 400 });
         }
 
         // Sincronizar restricciones de extrusora 4 en la fórmula
@@ -3639,8 +4269,20 @@ class ExtrusionService {
         const allExtruderIds = activeExtruders.map(e => e.id);
         let allowed = Array.isArray(formula.allowed_extruders) ? [...formula.allowed_extruders] : allExtruderIds;
         let restricted = Array.isArray(formula.restricted_extruders) ? [...formula.restricted_extruders] : [];
+        const hasMachine4Restriction = !getClientFormulaKind(formula) &&
+          (formula.ingredients || []).some(ing => ing.is_restricted_on_machine_4 || (ing.material?.name || '').toUpperCase().includes('POLIPROPILENO (B)'));
 
-        if (hasMachine4Restriction) {
+        const clientFormulaKind = getClientFormulaKind(formula);
+        if (clientFormulaKind === 'EXTRUDER_1') {
+          allowed = activeExtruders.filter((extruder) => extruder.code === 'EXT-01').map((extruder) => Number(extruder.id));
+          restricted = [];
+        } else if (clientFormulaKind === 'DYNAMIC') {
+          allowed = [];
+          restricted = [];
+        } else if (clientFormulaKind === 'FIXED') {
+          allowed = (formula.allowed_extruders || []).map(Number);
+          restricted = [];
+        } else if (hasMachine4Restriction) {
           allowed = allowed.filter(id => Number(id) !== 4);
           if (!restricted.includes(4)) restricted.push(4);
         } else {
@@ -3805,24 +4447,29 @@ class ExtrusionService {
     if (weight !== null && (!Number.isFinite(weight) || weight <= 0)) throw Object.assign(new Error('El peso unitario, si se captura, debe ser mayor a cero.'), { statusCode: 400 });
     if (unit_price !== undefined && (!Number.isFinite(price) || price < 0)) throw Object.assign(new Error('El precio unitario debe ser igual o mayor a cero.'), { statusCode: 400 });
 
-    const pti = await PtiProduct.create({
-      code: ptiCode,
-      name: name.trim(),
-      specifications: specifications ? specifications.trim() : null,
-      unit_weight_kg: weight,
-      unit_price: !isNaN(price) && price >= 0 ? price : 0.00,
-      extrusion_machine_number: numericProfile.extrusion_machine_number,
-      tape_type: String(tape_type).trim(),
-      color: String(color).trim(),
-      denier: numericProfile.denier,
-      tape_count: numericProfile.tape_count,
-      tape_count_tolerance: numericProfile.tape_count_tolerance,
-      tape_width_mm: numericProfile.tape_width_mm,
-      transformed_cost_index: numericProfile.transformed_cost_index,
-      formula_id: formula ? Number(formula_id) : null,
-      material_id: material_id ? Number(material_id) : null,
-      is_active: is_active !== undefined ? Boolean(is_active) : true
-    });
+    let pti;
+    try {
+      pti = await PtiProduct.create({
+        code: ptiCode,
+        name: name.trim(),
+        specifications: specifications ? specifications.trim() : null,
+        unit_weight_kg: weight,
+        unit_price: !isNaN(price) && price >= 0 ? price : 0.00,
+        extrusion_machine_number: numericProfile.extrusion_machine_number,
+        tape_type: String(tape_type).trim(),
+        color: String(color).trim(),
+        denier: numericProfile.denier,
+        tape_count: numericProfile.tape_count,
+        tape_count_tolerance: numericProfile.tape_count_tolerance,
+        tape_width_mm: numericProfile.tape_width_mm,
+        transformed_cost_index: numericProfile.transformed_cost_index,
+        formula_id: formula ? Number(formula_id) : null,
+        material_id: material_id ? Number(material_id) : null,
+        is_active: is_active !== undefined ? Boolean(is_active) : true
+      });
+    } catch (error) {
+      throw normalizePtiFormulaUniqueError(error);
+    }
 
     return await this.getPtiProductById(pti.id);
   }
@@ -3924,7 +4571,11 @@ class ExtrusionService {
       pti.is_active = Boolean(payload.is_active);
     }
 
-    await pti.save();
+    try {
+      await pti.save();
+    } catch (error) {
+      throw normalizePtiFormulaUniqueError(error);
+    }
     return await this.getPtiProductById(pti.id);
   }
 
@@ -3992,7 +4643,9 @@ class ExtrusionService {
         name: ext.name,
         type: ext.type,
         status: ext.status,
+        is_active: Boolean(ext.is_active),
         notes: ext.notes,
+        is_dynamic_member: Boolean(ext.is_dynamic_member),
         allowedFormulas: ext.allowedFormulas || [],
         compatible_formulas: ext.allowedFormulas || [],
         has_formula_matrix: configuredMachineIds.has(Number(ext.id)),
@@ -4001,8 +4654,40 @@ class ExtrusionService {
     });
   }
 
-  async updateMachine(extruderId, payload) {
+  async createMachine(payload = {}) {
     const { Extruder } = require('../../database/models');
+    const code = String(payload.code || '').trim().toUpperCase();
+    const name = String(payload.name || '').trim();
+    if (!code || !name) {
+      throw Object.assign(new Error('El código y el nombre de la extrusora son obligatorios.'), { statusCode: 400 });
+    }
+    if (!/^[A-Z0-9][A-Z0-9_-]{1,49}$/.test(code)) {
+      throw Object.assign(new Error('El código debe contener de 2 a 50 caracteres: letras, números, guion o guion bajo.'), { statusCode: 400 });
+    }
+    const isDynamicMember = Boolean(payload.is_dynamic_member);
+    if (code === 'EXT-01' && isDynamicMember) {
+      throw Object.assign(new Error('La Extrusora 1 es exclusiva y no puede agregarse al grupo dinámico.'), { statusCode: 400 });
+    }
+    try {
+      return await Extruder.create({
+        code,
+        name,
+        type: String(payload.type || 'STANDARD').trim() || 'STANDARD',
+        status: 'ACTIVE',
+        is_active: true,
+        is_dynamic_member: isDynamicMember,
+        notes: payload.notes ? String(payload.notes).trim() : null,
+      });
+    } catch (error) {
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        throw Object.assign(new Error(`Ya existe una extrusora con el código ${code}.`), { statusCode: 409 });
+      }
+      throw error;
+    }
+  }
+
+  async updateMachine(extruderId, payload) {
+    const { Extruder, ExtruderQueue } = require('../../database/models');
     const machine = await Extruder.findByPk(extruderId);
     if (!machine) {
       const error = new Error(`Extrusora #${extruderId} no encontrada.`);
@@ -4019,9 +4704,30 @@ class ExtrusionService {
       machine.name = name;
     }
     if (payload.type !== undefined) machine.type = String(payload.type).trim() || 'STANDARD';
-    if (payload.status !== undefined) machine.status = String(payload.status).trim().toUpperCase();
+    if (payload.status !== undefined) {
+      const status = String(payload.status).trim().toUpperCase();
+      if (!['ACTIVE', 'MAINTENANCE'].includes(status)) {
+        throw Object.assign(new Error('Estado no válido. Usa ACTIVE o MAINTENANCE.'), { statusCode: 400 });
+      }
+      machine.status = status;
+    }
     if (payload.notes !== undefined) machine.notes = payload.notes ? String(payload.notes).trim() : null;
     if (payload.is_active !== undefined) machine.is_active = Boolean(payload.is_active);
+    if (payload.is_dynamic_member !== undefined) {
+      const isDynamicMember = Boolean(payload.is_dynamic_member);
+      if (machine.code === 'EXT-01' && isDynamicMember) {
+        throw Object.assign(new Error('La Extrusora 1 es exclusiva y no puede agregarse al grupo dinámico.'), { statusCode: 400 });
+      }
+      if (Boolean(machine.is_dynamic_member) !== isDynamicMember) {
+        const pendingQueues = await ExtruderQueue.count({
+          where: { extruder_id: machine.id, status: ['ACTIVA', 'EN_ESPERA', 'PAUSADA'] },
+        });
+        if (pendingQueues > 0) {
+          throw Object.assign(new Error('No se puede cambiar la pertenencia al grupo dinámico mientras tenga mezclas activas, en espera o pausadas.'), { statusCode: 409 });
+        }
+      }
+      machine.is_dynamic_member = isDynamicMember;
+    }
     await machine.save();
     return machine;
   }
@@ -4074,10 +4780,12 @@ class ExtrusionService {
    * Obtiene todos los Silos con su stock, lote, material y alertas de reorden.
    */
   async getSilos() {
-    const { Silo, Material } = require('../../database/models');
+    const { Silo, Material, Tag } = require('../../database/models');
     const silos = await Silo.findAll({
+      where: { is_active: true },
       include: [
-        { model: Material, as: 'material' }
+        { model: Material, as: 'material' },
+        { model: Tag, as: 'materialTag', attributes: ['id', 'uuid', 'name', 'color'] },
       ],
       order: [['id', 'ASC']]
     });
@@ -4087,8 +4795,12 @@ class ExtrusionService {
       const currentStock = Number(plain.current_stock_kg) || 0;
       const maxCap = Number(plain.capacity_kg) || 40000;
       const minCap = Number(plain.min_capacity_kg) || 5000;
+      const alertStock = plain.alert_stock_kg === null || plain.alert_stock_kg === undefined
+        ? minCap
+        : Number(plain.alert_stock_kg);
       const fillPct = Math.min(100, Math.round((currentStock / (maxCap || 1)) * 100));
       const isCritical = currentStock <= minCap;
+      const isWarning = !isCritical && currentStock <= alertStock;
       const unitCost = Number(plain.unit_cost) || 0;
       const totalInvestment = Number((currentStock * unitCost).toFixed(2));
 
@@ -4097,9 +4809,11 @@ class ExtrusionService {
         current_stock_kg: currentStock,
         capacity_kg: maxCap,
         min_capacity_kg: minCap,
+        alert_stock_kg: alertStock,
         fill_percentage: fillPct,
         is_critical_reorder: isCritical,
-        status_alert: isCritical ? 'CRITICO_REORDEN' : 'NORMAL',
+        is_stock_alert: isWarning,
+        status_alert: isCritical ? 'CRITICO_REORDEN' : isWarning ? 'ALERTA_STOCK' : 'NORMAL',
         unit_cost: unitCost,
         total_investment: totalInvestment
       };
@@ -4110,14 +4824,21 @@ class ExtrusionService {
    * Crea un nuevo Silo en Almacén / Extrusión con asignación de material y capacidades.
    */
   async createSilo(payload) {
-    const { code, name, material_id, capacity_kg, min_capacity_kg, current_stock_kg, current_lot_number, current_lot_type, unit_cost } = payload;
-    if (!code || !name) {
-      const err = new Error('Código y nombre del Silo son obligatorios.');
-      err.statusCode = 400;
-      throw err;
-    }
+    const { code, name, material_tag_id, capacity_kg, min_capacity_kg, alert_stock_kg } = payload;
+    const invalid = (message) => { const error = new Error(message); error.statusCode = 400; return error; };
+    if (!String(code || '').trim() || !String(name || '').trim()) throw invalid('Código y nombre del silo son obligatorios.');
+    const capacity = Number(capacity_kg);
+    const minimum = Number(min_capacity_kg);
+    const alert = Number(alert_stock_kg);
+    if (!Number.isFinite(capacity) || capacity <= 0) throw invalid('La capacidad máxima debe ser mayor que cero.');
+    if (!Number.isFinite(minimum) || minimum < 0 || minimum > capacity) throw invalid('El stock mínimo debe estar entre cero y la capacidad máxima.');
+    if (!Number.isFinite(alert) || alert < minimum || alert > capacity) throw invalid('El stock de alerta debe ser igual o mayor al mínimo y no exceder la capacidad máxima.');
+    if (!Number.isInteger(Number(material_tag_id)) || Number(material_tag_id) <= 0) throw invalid('Selecciona la etiqueta de material que permitirá ingresar al silo.');
 
-    const { Silo, Material } = require('../../database/models');
+    const { Silo, Material, Tag } = require('../../database/models');
+    if (await Silo.count({ where: { is_active: true } }) >= 2) {
+      throw Object.assign(new Error('La operación está configurada para dos silos activos. Desactiva uno antes de registrar otro.'), { statusCode: 409 });
+    }
     const existing = await Silo.findOne({ where: { code: code.trim().toUpperCase() } });
     if (existing) {
       const err = new Error(`El código de Silo '${code}' ya se encuentra registrado.`);
@@ -4125,21 +4846,25 @@ class ExtrusionService {
       throw err;
     }
 
+    const materialTag = await Tag.findByPk(Number(material_tag_id));
+    if (!materialTag || !materialTag.is_active || materialTag.deleted_at) throw invalid('La etiqueta seleccionada no existe o está inactiva.');
+
     const silo = await Silo.create({
       code: code.trim().toUpperCase(),
       name: name.trim(),
-      material_id: material_id ? Number(material_id) : null,
-      capacity_kg: Number(capacity_kg) || 40000.00,
-      min_capacity_kg: Number(min_capacity_kg) || 5000.00,
-      current_stock_kg: Number(current_stock_kg) || 0.00,
-      current_lot_number: current_lot_number ? current_lot_number.trim() : 'LOTE-SILO-01',
-      current_lot_type: current_lot_type ? current_lot_type.trim().toUpperCase() : 'A',
-      unit_cost: Number(unit_cost) || 28.50,
+      material_tag_id: materialTag.id,
+      capacity_kg: capacity,
+      min_capacity_kg: minimum,
+      alert_stock_kg: alert,
+      current_stock_kg: 0,
+      current_lot_number: null,
+      current_lot_type: null,
+      unit_cost: 0,
       is_active: true
     });
 
     return await Silo.findByPk(silo.id, {
-      include: [{ model: Material, as: 'material' }]
+      include: [{ model: Material, as: 'material' }, { model: Tag, as: 'materialTag' }]
     });
   }
 
@@ -4147,21 +4872,40 @@ class ExtrusionService {
    * Edita un Silo existente (material asignado, capacidades mín/máx, lote, costo).
    */
   async updateSilo(id, payload) {
-    const { Silo, Material } = require('../../database/models');
+    const { Silo, Material, Tag } = require('../../database/models');
+    const invalid = (message) => { const error = new Error(message); error.statusCode = 400; return error; };
     const silo = await Silo.findByPk(id);
     if (!silo) {
       const err = new Error(`Silo #${id} no encontrado.`);
       err.statusCode = 404;
       throw err;
     }
+    const wasActive = Boolean(silo.is_active);
+    const previousMaterialTagId = silo.material_tag_id;
 
     if (payload.code) silo.code = payload.code.trim().toUpperCase();
     if (payload.name) silo.name = payload.name.trim();
-    if (payload.material_id !== undefined) silo.material_id = payload.material_id ? Number(payload.material_id) : null;
     if (payload.capacity_kg !== undefined) silo.capacity_kg = Number(payload.capacity_kg);
     if (payload.min_capacity_kg !== undefined) silo.min_capacity_kg = Number(payload.min_capacity_kg);
-    if (payload.current_lot_type) silo.current_lot_type = payload.current_lot_type.trim().toUpperCase();
+    if (payload.alert_stock_kg !== undefined) silo.alert_stock_kg = Number(payload.alert_stock_kg);
+    if (payload.material_tag_id !== undefined) silo.material_tag_id = payload.material_tag_id ? Number(payload.material_tag_id) : null;
     if (payload.is_active !== undefined) silo.is_active = Boolean(payload.is_active);
+
+    if (silo.is_active && !wasActive) {
+      const activeCount = await Silo.count({ where: { is_active: true } });
+      if (activeCount >= 2) throw invalid('La operación está configurada para dos silos activos.');
+    }
+
+    if (!Number.isFinite(Number(silo.capacity_kg)) || Number(silo.capacity_kg) <= 0) throw invalid('La capacidad máxima debe ser mayor que cero.');
+    if (!Number.isFinite(Number(silo.min_capacity_kg)) || Number(silo.min_capacity_kg) < 0 || Number(silo.min_capacity_kg) > Number(silo.capacity_kg)) throw invalid('El stock mínimo debe estar entre cero y la capacidad máxima.');
+    if (!Number.isFinite(Number(silo.alert_stock_kg)) || Number(silo.alert_stock_kg) < Number(silo.min_capacity_kg) || Number(silo.alert_stock_kg) > Number(silo.capacity_kg)) throw invalid('El stock de alerta debe ser igual o mayor al mínimo y no exceder la capacidad máxima.');
+    if (!silo.material_tag_id) throw invalid('Selecciona la etiqueta de material que permitirá ingresar al silo.');
+    const materialTag = await Tag.findByPk(silo.material_tag_id);
+    if (!materialTag || !materialTag.is_active || materialTag.deleted_at) throw invalid('La etiqueta seleccionada no existe o está inactiva.');
+    if (Number(silo.capacity_kg) < Number(silo.current_stock_kg)) throw invalid('La capacidad máxima no puede quedar por debajo del stock actual.');
+    if (Number(silo.current_stock_kg) > 0 && payload.material_tag_id !== undefined && Number(silo.material_tag_id) !== Number(previousMaterialTagId)) {
+      throw invalid('No se puede cambiar la etiqueta permitida mientras el silo tenga existencias. Vacíalo mediante movimientos antes de cambiarla.');
+    }
 
     // NOTA OPERATIVA: current_stock_kg, current_lot_number y unit_cost NO son editables desde la
     // actualización de metadatos del silo para evitar descuadres. Se gobiernan por ingresos y consumos.
@@ -4169,7 +4913,7 @@ class ExtrusionService {
     await silo.save();
 
     return await Silo.findByPk(silo.id, {
-      include: [{ model: Material, as: 'material' }]
+      include: [{ model: Material, as: 'material' }, { model: Tag, as: 'materialTag' }]
     });
   }
 
@@ -4177,7 +4921,7 @@ class ExtrusionService {
    * Desactiva / Elimina lógicamente un Silo.
    */
   async deleteSilo(id) {
-    const { Silo, Material } = require('../../database/models');
+    const { Silo, Material, Tag } = require('../../database/models');
     const silo = await Silo.findByPk(id);
     if (!silo) {
       const err = new Error(`Silo #${id} no encontrado.`);
@@ -4210,7 +4954,7 @@ class ExtrusionService {
       throw err;
     }
 
-    const { Silo, Material } = require('../../database/models');
+    const { Silo, Material, Tag } = require('../../database/models');
 
     return await sequelize.transaction(async (t) => {
       const silo = await Silo.findByPk(silo_id, { transaction: t, lock: t.LOCK.UPDATE });
@@ -4223,22 +4967,16 @@ class ExtrusionService {
         throw Object.assign(new Error(`El Silo ${silo.code} está inactivo y no puede recibir material.`), { statusCode: 400 });
       }
 
-      const receivedMaterialId = Number(payload.material_id || silo.material_id || 0);
+      const receivedMaterialId = Number(payload.material_id || 0);
       const material = receivedMaterialId ? await Material.findByPk(receivedMaterialId, { transaction: t }) : null;
       if (!material) {
         throw Object.assign(new Error('Selecciona el material de polipropileno recibido.'), { statusCode: 400 });
       }
-      const materialTags = await material.getTags({ attributes: ['name'], transaction: t });
-      const hasPolypropyleneTag = materialTags.some(({ name }) => {
-        const normalizedName = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-        return normalizedName === 'PP' || normalizedName.includes('POLIPROPILENO');
-      });
-      const materialName = String(material.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-      const isPolypropylene = hasPolypropyleneTag || materialName.includes('POLIPROPILENO') || materialName.startsWith('PP ');
-      if (!isPolypropylene) {
-        throw Object.assign(new Error('El material debe tener la etiqueta Polipropileno para ingresar a un silo.'), { statusCode: 400 });
+      const materialTags = await material.getTags({ attributes: ['id', 'name'], transaction: t });
+      const allowedTag = await Tag.findByPk(silo.material_tag_id, { transaction: t });
+      if (!allowedTag || !allowedTag.is_active || !materialTags.some((tag) => Number(tag.id) === Number(silo.material_tag_id))) {
+        throw Object.assign(new Error(`El material no tiene la etiqueta "${allowedTag?.name || 'configurada en el silo'}" requerida para ingresar a ${silo.code}.`), { statusCode: 400 });
       }
-      silo.material_id = material.id;
       const initialStock = Number(silo.current_stock_kg);
       const maxCap = Number(silo.capacity_kg);
       const finalStock = initialStock + qty;
@@ -4290,7 +5028,7 @@ class ExtrusionService {
           folio,
           material_id: material.id,
           material_name: material.name,
-          polypropylene_tagged: hasPolypropyleneTag,
+          matches_silo_material_tag: true,
           quantity_kg: qty,
           invoice_date: invoiceDate,
           invoice_currency: currency,
@@ -4317,7 +5055,7 @@ class ExtrusionService {
           added_kg: qty,
           current_stock_kg: Number(finalStock.toFixed(2)),
           current_lot_number: silo.current_lot_number,
-          current_lot_type: silo.current_lot_type,
+          current_lot_type: null,
           unit_cost: Number(silo.unit_cost),
           invoice_currency: currency,
           invoice_unit_cost: incomingUnitCost,

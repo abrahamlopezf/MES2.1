@@ -313,11 +313,19 @@ class MaterialCrudService {
       base_unit_id: baseUnitId
     };
 
-    const material = await Material.create(materialData);
-
-    if (data.tags && Array.isArray(data.tags)) {
-      const resolvedTagIds = await this._resolveTags(data.tags, createdCatalogs);
-      await material.setTags(resolvedTagIds);
+    const db = require('../../../database/models');
+    const transaction = await db.sequelize.transaction();
+    let material;
+    try {
+      material = await Material.create(materialData, { transaction });
+      if (data.tags && Array.isArray(data.tags)) {
+        const resolvedTagIds = await this._resolveTags(data.tags, createdCatalogs, transaction);
+        await material.setTags(resolvedTagIds, { transaction });
+      }
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
 
     material.dataValues.created_catalogs = createdCatalogs;
@@ -489,8 +497,8 @@ class MaterialCrudService {
         if (tag) {
           if (tag.deleted_at) {
             await tag.restore({ transaction });
-            await tag.update({ is_active: true }, { transaction });
           }
+          if (!tag.is_active) await tag.update({ is_active: true }, { transaction });
         } else {
           const randomColor = tagColors[Math.floor(Math.random() * tagColors.length)];
           tag = await Tag.create({
@@ -521,9 +529,10 @@ class MaterialCrudService {
         } else {
           tag = await Tag.findOne({ where: { name: strItem }, transaction });
         }
-        if (tag) {
-          resolvedIds.push(tag.id);
+        if (!tag || !tag.is_active) {
+          throw new Error('Una de las etiquetas seleccionadas ya no existe o está inactiva. Actualiza el catálogo e inténtalo de nuevo.');
         }
+        resolvedIds.push(tag.id);
       }
     }
     return resolvedIds;

@@ -14,18 +14,35 @@ const router = express.Router();
 router.use(authMiddleware);
 
 router.use((req, res, next) => {
-  if (isSupervisor(req.user)) {
+  const roleCode = String(req.user?.role?.code || '').toUpperCase();
+  const isExtrusionRoleSelector = roleCode === 'SUPERVISOR_EXTRUSION'
+    && req.method === 'GET'
+    && req.path === '/';
+  if (isSupervisor(req.user) && !isExtrusionRoleSelector) {
     return res.status(403).json({
       success: false,
       message: 'Los supervisores no tienen acceso a la gestión de roles.',
     });
   }
+  if (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode)
+    && !(req.method === 'GET' && req.path === '/')) {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin de Extrusión no tiene acceso a la gestión de roles.',
+    });
+  }
   next();
 });
 
+const authorizeRoleSelectorRead = (req, res, next) => {
+  if (String(req.user?.role?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION'
+    && req.method === 'GET' && req.path === '/') return next();
+  return permissionMiddleware('roles.read', 'users.read', 'users.create')(req, res, next);
+};
+
 router.get(
   '/',
-  permissionMiddleware('roles.read', 'users.read', 'users.create'),
+  authorizeRoleSelectorRead,
   rolesController.getRoles
 );
 

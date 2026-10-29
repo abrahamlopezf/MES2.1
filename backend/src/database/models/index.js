@@ -677,6 +677,10 @@ db.Silo.belongsTo(db.Material, {
   foreignKey: 'material_id',
   as: 'material',
 });
+db.Silo.belongsTo(db.Tag, {
+  foreignKey: 'material_tag_id',
+  as: 'materialTag',
+});
 
 // Extruder <-> Formula (Compatibility Matrix)
 db.Extruder.belongsToMany(db.Formula, {

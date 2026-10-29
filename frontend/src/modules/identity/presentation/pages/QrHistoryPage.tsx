@@ -27,6 +27,7 @@ export function QrHistoryPage() {
   const userRoleCode = (user?.role?.code || '').toUpperCase();
   const isGlobalAdmin = isAdminUser(user);
   const isSupervisor = isSupervisorUser(user);
+  const isExtrusionSupervisor = userRoleCode === 'SUPERVISOR_EXTRUSION';
   const isWarehouseUser = !isGlobalAdmin && !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
                           user?.area?.code === 'ALMACEN' || 
                           user?.area?.code === 'ALM');
@@ -39,6 +40,13 @@ export function QrHistoryPage() {
   const qrs = React.useMemo(() => {
     if (!rawQrs) return [];
     if (isSupervisor) {
+      if (isExtrusionSupervisor) {
+        return rawQrs.filter((qr: any) => {
+          const areaCode = String(qr.assigned_area?.code || qr.batch?.assigned_area?.code || qr.assigned_area?.name || '').toUpperCase();
+          const areaId = qr.assigned_area_id || qr.assigned_area?.id || qr.batch?.assigned_area_id || qr.batch?.assigned_area?.id;
+          return areaCode.includes('EXTRUS') || areaCode === 'EXT' || Number(areaId) === 2;
+        });
+      }
       return rawQrs.filter((qr: any) => {
         const creatorId = qr.created_by?.id || qr.creator?.id || qr.created_by;
         return creatorId && user?.id && Number(creatorId) === Number(user.id);
@@ -51,7 +59,7 @@ export function QrHistoryPage() {
       const areaId = qr.assigned_area_id || qr.assigned_area?.id || qr.batch?.assigned_area?.id;
       return areaCode === 'ALM' || areaCode === 'ALMACEN' || areaName.includes('ALMAC') || Number(areaId) === 1;
     });
-  }, [rawQrs, isSupervisor, isWarehouseUser, user]);
+  }, [rawQrs, isSupervisor, isExtrusionSupervisor, isWarehouseUser, user]);
 
   return (
     <div className="flex flex-col h-full bg-background overflow-x-hidden">

@@ -88,15 +88,7 @@ const UsersPage: React.FC = () => {
   }
 
   if (isExtrusionAdmin) {
-    roles = roles.filter((r: any) => 
-      r.code === 'ADMIN_EXT' || 
-      r.code === 'ADMIN_EXTRUSION' || 
-      r.code === 'SUPERVISOR_EXTRUSION' || 
-      r.code === 'OPERADOR_EXTRUSION' || 
-      r.name?.toUpperCase().includes('EXTRUSI') ||
-      r.area?.code === 'EXTRUSION' ||
-      Number(r.area_id || r.area?.id) === 2
-    );
+    roles = roles.filter((r: any) => ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(r.code || '').toUpperCase()));
   }
 
   const filteredUsers = useMemo(() => {
@@ -230,7 +222,7 @@ const UsersPage: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2 w-full">
         <div className="flex-1 w-full min-w-[250px]">
           <h1 className="text-3xl font-black text-foreground tracking-tight">Gestión de Usuarios</h1>
-          <p className="text-muted-foreground font-semibold mt-1">Administra accesos, roles y áreas del personal.</p>
+          <p className="text-muted-foreground font-semibold mt-1">{isExtrusionAdmin ? 'Consulta y administra únicamente usuarios de Extrusión.' : 'Administra accesos, roles y áreas del personal.'}</p>
         </div>
         <PermissionGate permission="users.create">
           <Button onClick={openCreateForm} size="lg" className="font-bold shadow-sm w-full md:w-auto h-12 text-sm shrink-0">

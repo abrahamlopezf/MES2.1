@@ -137,8 +137,15 @@ const assertRoleCanBeDeactivated = async (role, transaction = null) => {
 };
 
 const getRoles = async (currentUser) => {
+  const actorCode = String(currentUser?.role?.code || '').toUpperCase();
+  const where = getRoleWhereForActor(currentUser);
+  if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(actorCode)) {
+    where.code = ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'];
+    where.area_id = currentUser?.role?.area_id ?? 2;
+    delete where.level;
+  }
   const roles = await Role.findAll({
-    where: getRoleWhereForActor(currentUser),
+    where,
     include: roleInclude,
     order: [['id', 'ASC']],
   });

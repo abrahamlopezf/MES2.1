@@ -5,6 +5,7 @@ import { apiClient } from '../../../../core/api/apiClient';
 import { Badge, Button, Input, Icon } from '../../../../design-system';
 import { useAuthStore } from '../../../../store/authStore';
 import { canViewCosts } from '../../../../utils/authHelpers';
+import { useActiveTagsQuery } from '../../../materials/hooks/useMaterialsQueries';
 
 interface SiloItem {
   id: number;
@@ -13,6 +14,8 @@ interface SiloItem {
   material_id: number | null;
   capacity_kg: number;
   min_capacity_kg: number;
+  alert_stock_kg: number;
+  material_tag_id: number | null;
   current_stock_kg: number;
   current_lot_number: string;
   current_lot_type: string;
@@ -21,7 +24,8 @@ interface SiloItem {
   is_active: boolean;
   fill_percentage: number;
   is_critical_reorder: boolean;
-  status_alert: 'NORMAL' | 'CRITICO_REORDEN';
+  status_alert: 'NORMAL' | 'ALERTA_STOCK' | 'CRITICO_REORDEN';
+  materialTag?: { id: number; uuid: string; name: string; color?: string } | null;
   material?: {
     id: number;
     name: string;
@@ -72,12 +76,10 @@ export const SilosManagementPage: React.FC = () => {
   const [siloForm, setSiloForm] = useState({
     code: '',
     name: '',
-    material_id: '',
+    material_tag_id: '',
     capacity_kg: '40000',
     min_capacity_kg: '5000',
-    current_stock_kg: '0',
-    current_lot_number: 'LOTE-SILO-01',
-    unit_cost: '28.50'
+    alert_stock_kg: '10000'
   });
 
   // 1. Obtener Silos reales desde backend con métricas calculadas
@@ -96,6 +98,7 @@ export const SilosManagementPage: React.FC = () => {
     : [];
 
   const backendSummary = silosResponse?.summary;
+  const { data: materialTags = [] } = useActiveTagsQuery();
 
   const exchangeRateQuery = useQuery({
     queryKey: ['warehouse', 'usd-mxn-rate', invoiceForm.invoice_date],
@@ -112,7 +115,7 @@ export const SilosManagementPage: React.FC = () => {
   const { data: materialsData } = useQuery({
     queryKey: ['materials', 'all-list'],
     queryFn: async () => {
-      const res = await apiClient.get('/materials?limit=100');
+      const res = await apiClient.get('/materials?limit=all');
       return res.data?.data?.items || res.data?.data || res.data || [];
     }
   });
@@ -127,6 +130,17 @@ export const SilosManagementPage: React.FC = () => {
     return tagged || name.includes('POLIPROPILENO') || name.includes('PP ') || code.startsWith('MP-PP');
   });
   const materialOptions = ppMaterials.length > 0 ? ppMaterials : rawMaterials;
+  const getMaterialsForSilo = (siloId?: number) => {
+    const silo = silos.find((item) => item.id === siloId);
+    const siloTagUuid = silo?.materialTag?.uuid;
+    const siloTagId = silo?.material_tag_id;
+    if (!siloTagId && !siloTagUuid) return [];
+    return rawMaterials.filter((material: any) => (material.tags || []).some((tag: any) =>
+      (siloTagId && Number(tag.id) === Number(siloTagId)) ||
+      (siloTagUuid && String(tag.uuid) === String(siloTagUuid))
+    ));
+  };
+  const selectedSiloMaterials = getMaterialsForSilo(Number(invoiceForm.silo_id));
 
   // Mutación: Registrar Factura PP (Entrada directa al Silo sin etiquetas QR)
   const invoiceEntryMutation = useMutation({
@@ -217,12 +231,10 @@ export const SilosManagementPage: React.FC = () => {
     setSiloForm({
       code: '',
       name: '',
-      material_id: materialOptions[0]?.id ? String(materialOptions[0].id) : '',
+      material_tag_id: materialTags.find((tag: any) => /^(PP|POLIPROPILENO)$/i.test(String(tag.name || '').trim()))?.id?.toString() || '',
       capacity_kg: '40000',
       min_capacity_kg: '5000',
-      current_stock_kg: '0',
-      current_lot_number: 'LOTE-SILO-01',
-      unit_cost: '28.50'
+      alert_stock_kg: '10000'
     });
     setEditingSilo(null);
   };
@@ -232,21 +244,20 @@ export const SilosManagementPage: React.FC = () => {
     setSiloForm({
       code: silo.code || '',
       name: silo.name || '',
-      material_id: silo.material_id ? String(silo.material_id) : '',
+      material_tag_id: silo.material_tag_id ? String(silo.material_tag_id) : '',
       capacity_kg: String(silo.capacity_kg || 40000),
       min_capacity_kg: String(silo.min_capacity_kg || 5000),
-      current_stock_kg: String(silo.current_stock_kg || 0),
-      current_lot_number: silo.current_lot_number || '',
-      unit_cost: String(silo.unit_cost || 28.50)
+      alert_stock_kg: String(silo.alert_stock_kg || 10000)
     });
     setIsSiloModalOpen(true);
   };
 
   const handleOpenInvoiceModalForSilo = (siloId?: number) => {
+    const chosenSiloId = siloId || silos[0]?.id;
     setInvoiceForm(prev => ({
       ...prev,
-      silo_id: siloId ? String(siloId) : (silos[0]?.id ? String(silos[0].id) : ''),
-      material_id: String(silos.find((s) => s.id === siloId)?.material_id || ppMaterials[0]?.id || '')
+      silo_id: chosenSiloId ? String(chosenSiloId) : '',
+      material_id: String(getMaterialsForSilo(chosenSiloId)[0]?.id || '')
     }));
     setIsInvoiceModalOpen(true);
   };
@@ -300,22 +311,35 @@ export const SilosManagementPage: React.FC = () => {
       toast.error('Código y nombre del Silo son obligatorios.');
       return;
     }
+    const capacity = Number(siloForm.capacity_kg);
+    const minimum = Number(siloForm.min_capacity_kg);
+    const alert = Number(siloForm.alert_stock_kg);
+    if (!siloForm.material_tag_id) {
+      toast.error('Selecciona la etiqueta que permitirá ingresar materiales al silo.');
+      return;
+    }
+    if (!Number.isFinite(capacity) || capacity <= 0 || !Number.isFinite(minimum) || minimum < 0 || minimum > capacity) {
+      toast.error('Revisa la capacidad máxima y el stock mínimo del silo.');
+      return;
+    }
+    if (!Number.isFinite(alert) || alert < minimum || alert > capacity) {
+      toast.error('El stock de alerta debe ser igual o mayor al mínimo y no exceder la capacidad máxima.');
+      return;
+    }
 
     const payload: any = {
       code: siloForm.code.trim().toUpperCase(),
       name: siloForm.name.trim(),
-      material_id: siloForm.material_id ? Number(siloForm.material_id) : null,
-      capacity_kg: Number(siloForm.capacity_kg) || 40000,
-      min_capacity_kg: Number(siloForm.min_capacity_kg) || 5000,
+      material_tag_id: Number(siloForm.material_tag_id),
+      capacity_kg: capacity,
+      min_capacity_kg: minimum,
+      alert_stock_kg: alert,
     };
 
     if (editingSilo) {
       // En edición NUNCA se sobreescribe stock, costo ni lote actual para evitar descuadres operativos
       updateSiloMutation.mutate({ id: editingSilo.id, payload });
     } else {
-      payload.current_stock_kg = Number(siloForm.current_stock_kg) || 0;
-      payload.current_lot_number = siloForm.current_lot_number.trim() || 'LOTE-SILO-01';
-      payload.unit_cost = Number(siloForm.unit_cost) || 28.50;
       createSiloMutation.mutate(payload);
     }
   };
@@ -323,6 +347,7 @@ export const SilosManagementPage: React.FC = () => {
   const filteredSilos = silos.filter(s =>
     (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (s.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.materialTag?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (s.material?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -590,8 +615,10 @@ export const SilosManagementPage: React.FC = () => {
             const currentStock = Number(silo.current_stock_kg) || 0;
             const maxCap = Number(silo.capacity_kg) || 40000;
             const minCap = Number(silo.min_capacity_kg) || 5000;
+            const alertStock = Number(silo.alert_stock_kg) || minCap;
             const fillPct = Math.min(100, Math.round((currentStock / (maxCap || 1)) * 100));
             const isCritical = currentStock <= minCap;
+            const isWarning = !isCritical && currentStock <= alertStock;
 
             return (
               <div
@@ -599,6 +626,8 @@ export const SilosManagementPage: React.FC = () => {
                 className={`rounded-2xl border-2 bg-card overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md ${
                   isCritical
                     ? 'border-amber-500/70 dark:border-amber-500/80 ring-1 ring-amber-500/30'
+                    : isWarning
+                    ? 'border-orange-400/70 ring-1 ring-orange-400/20'
                     : 'border-border'
                 }`}
               >
@@ -610,10 +639,10 @@ export const SilosManagementPage: React.FC = () => {
                         {silo.code}
                       </span>
                       <Badge
-                        variant={isCritical ? 'destructive' : 'success'}
-                        className="font-mono text-[10px] font-black uppercase tracking-wider"
+                        variant={isCritical ? 'destructive' : 'outline'}
+                        className={`font-mono text-[10px] font-black uppercase tracking-wider ${isWarning ? 'border-orange-400 text-orange-600' : ''}`}
                       >
-                        {isCritical ? '⚠️ REORDEN CRÍTICO' : '✅ NIVEL ÓPTIMO'}
+                        {isCritical ? '⚠️ MÍNIMO CRÍTICO' : isWarning ? '⚠️ ALERTA DE STOCK' : '✅ NIVEL ÓPTIMO'}
                       </Badge>
                     </div>
                     <h3 className="font-black text-base text-foreground truncate">
@@ -621,10 +650,7 @@ export const SilosManagementPage: React.FC = () => {
                     </h3>
                     <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1 truncate">
                       <Icon name="science" size={14} className="text-primary shrink-0" />
-                      <span>{silo.material?.name || 'Polipropileno a Granel'}</span>
-                      {silo.material?.internal_code && (
-                        <span className="font-mono text-[10px] opacity-80">({silo.material.internal_code})</span>
-                      )}
+                      <span>Etiqueta: {silo.materialTag?.name || 'Sin etiqueta asignada'}</span>
                     </p>
                   </div>
 
@@ -669,6 +695,8 @@ export const SilosManagementPage: React.FC = () => {
                         className={`h-full rounded-full transition-all duration-500 ${
                           isCritical
                             ? 'bg-amber-500'
+                            : isWarning
+                            ? 'bg-orange-400'
                             : fillPct > 85
                             ? 'bg-blue-600'
                             : 'bg-emerald-500'
@@ -678,7 +706,7 @@ export const SilosManagementPage: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between text-[11px] font-mono font-bold text-muted-foreground pt-0.5">
                       <span>0 kg</span>
-                      <span className="text-amber-600 dark:text-amber-400">Mín: {minCap.toLocaleString()} kg</span>
+                      <span className="text-amber-600 dark:text-amber-400">Mín: {minCap.toLocaleString()} kg · Alerta: {alertStock.toLocaleString()} kg</span>
                       <span>Máx: {maxCap.toLocaleString()} kg</span>
                     </div>
                   </div>
@@ -723,7 +751,7 @@ export const SilosManagementPage: React.FC = () => {
                             Costo Unitario
                           </span>
                           <span className="font-mono text-xs font-black text-primary block truncate">
-                            ${Number(silo.unit_cost || 28.5).toFixed(2)} / kg
+                            ${Number(silo.unit_cost || 0).toFixed(2)} / kg
                           </span>
                         </div>
 
@@ -864,7 +892,7 @@ export const SilosManagementPage: React.FC = () => {
                       onChange={(e) => setInvoiceForm({
                         ...invoiceForm,
                         silo_id: e.target.value,
-                        material_id: String(silos.find((s) => s.id === Number(e.target.value))?.material_id || ppMaterials[0]?.id || '')
+                        material_id: String(getMaterialsForSilo(Number(e.target.value))[0]?.id || '')
                       })}
                       className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                     >
@@ -892,11 +920,14 @@ export const SilosManagementPage: React.FC = () => {
                     onChange={(e) => setInvoiceForm({ ...invoiceForm, material_id: e.target.value })}
                     className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-xs sm:text-sm font-bold text-foreground"
                   >
-                    <option value="" disabled>Selecciona el material etiquetado como Polipropileno</option>
-                    {materialOptions.map((material: any) => (
+                    <option value="" disabled>Selecciona un material con la etiqueta del silo</option>
+                    {selectedSiloMaterials.map((material: any) => (
                       <option key={material.id} value={material.id}>{material.internal_code || material.code || 'MP'} · {material.name}</option>
                     ))}
                   </select>
+                  {selectedSiloMaterials.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">No hay materiales con la etiqueta del silo. Asigna esa etiqueta al material antes de registrar el ingreso.</p>
+                  )}
                 </div>
 
                 {/* Kilos Recibidos */}
@@ -1110,28 +1141,28 @@ export const SilosManagementPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Material que almacenará */}
+                {/* Etiqueta compatible con múltiples materiales */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Material Asignado (Polipropileno / Resina) *
+                    Etiqueta de Material Permitida *
                   </label>
                   <div className="relative">
                     <select
-                      value={siloForm.material_id}
-                      onChange={(e) => setSiloForm({ ...siloForm, material_id: e.target.value })}
+                      required
+                      value={siloForm.material_tag_id}
+                      onChange={(e) => setSiloForm({ ...siloForm, material_tag_id: e.target.value })}
                       className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground outline-none appearance-none cursor-pointer"
                     >
-                      <option value="">-- Sin material específico vinculado --</option>
-                      {materialOptions.map((mat: any) => (
-                        <option key={mat.id} value={mat.id}>
-                          {mat.internal_code ? `[${mat.internal_code}] ` : ''}{mat.name}
-                        </option>
+                      <option value="">-- Selecciona una etiqueta --</option>
+                      {materialTags.map((tag: any) => (
+                        <option key={tag.id} value={tag.id}>{tag.name}</option>
                       ))}
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                       <Icon name="expand_more" size={20} />
                     </div>
                   </div>
+                  <span className="text-[10px] text-muted-foreground block">Cualquier material con esta etiqueta podrá ingresar al silo, aunque cambie su tipo o código de PP.</span>
                 </div>
 
                 {/* Capacidad Máxima */}
@@ -1151,16 +1182,16 @@ export const SilosManagementPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Capacidad Mínima de Seguridad (Evitar Desabasto) */}
+                {/* Stock mínimo */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1">
                     <Icon name="warning" size={14} className="text-amber-500" />
-                    <span>Capacidad Mínima de Seguridad (kg) *</span>
+                    <span>Stock Mínimo (kg) *</span>
                   </label>
                   <Input
                     type="number"
                     step="100"
-                    min="100"
+                    min="0"
                     required
                     value={siloForm.min_capacity_kg}
                     onChange={(e) => setSiloForm({ ...siloForm, min_capacity_kg: e.target.value })}
@@ -1168,58 +1199,32 @@ export const SilosManagementPage: React.FC = () => {
                     className="!h-11 font-mono font-black text-sm bg-background border-amber-500/40 text-amber-600 dark:text-amber-400"
                   />
                   <span className="text-[10px] text-muted-foreground font-medium block">
-                    Al llegar a este umbral se dispara alerta crítica para comprar a tiempo.
+                    Al alcanzar este nivel, el sistema marcará el silo en mínimo crítico.
                   </span>
                 </div>
 
-                {/* Stock Inicial / Costo / Lote: Solo en creación. En edición se ocultan para evitar descuadres */}
-                {!editingSilo ? (
-                  <>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Stock Inicial (kg)
-                      </label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={siloForm.current_stock_kg}
-                        onChange={(e) => setSiloForm({ ...siloForm, current_stock_kg: e.target.value })}
-                        placeholder="0"
-                        className="!h-11 font-mono font-bold text-sm bg-background border-border"
-                      />
-                    </div>
+                {/* Stock de alerta */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                    <Icon name="notifications_active" size={14} className="text-orange-500" />
+                    Stock de Alerta (kg) *
+                  </label>
+                  <Input
+                    type="number"
+                    step="100"
+                    min={siloForm.min_capacity_kg || 0}
+                    max={siloForm.capacity_kg || undefined}
+                    required
+                    value={siloForm.alert_stock_kg}
+                    onChange={(e) => setSiloForm({ ...siloForm, alert_stock_kg: e.target.value })}
+                    placeholder="10000"
+                    className="!h-11 font-mono font-black text-sm bg-background border-orange-500/40 text-orange-600 dark:text-orange-400"
+                  />
+                  <span className="text-[10px] text-muted-foreground font-medium block">Debe ser igual o mayor al mínimo y no superar la capacidad máxima.</span>
+                </div>
 
-                    {allowCosts && (
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                          Costo Unitario ($/kg)
-                        </label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={siloForm.unit_cost}
-                          onChange={(e) => setSiloForm({ ...siloForm, unit_cost: e.target.value })}
-                          placeholder="28.50"
-                          className="!h-11 font-mono font-bold text-sm bg-background border-border"
-                        />
-                      </div>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Número de Lote Inicial
-                      </label>
-                      <Input
-                        value={siloForm.current_lot_number}
-                        onChange={(e) => setSiloForm({ ...siloForm, current_lot_number: e.target.value.toUpperCase() })}
-                        placeholder="LOTE-SILO-01"
-                        className="!h-11 font-mono uppercase font-bold text-sm bg-background border-border"
-                      />
-                    </div>
-                  </>
-                ) : (
+                {/* El stock, costos y folios solo cambian mediante movimientos */}
+                {editingSilo && (
                   <div className="sm:col-span-2 rounded-xl border border-blue-500/30 bg-blue-500/10 dark:bg-blue-950/30 p-3 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
                     <Icon name="lock" size={16} className="text-blue-500 shrink-0 mt-0.5" />
                     <div className="min-w-0">

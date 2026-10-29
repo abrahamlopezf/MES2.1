@@ -18,8 +18,8 @@ export const useExtruderQueuesQuery = () => {
   return useQuery({
     queryKey: EXTRUSION_QUERY_KEYS.queues,
     queryFn: extrusionApi.getExtruderQueues,
-    refetchInterval: 10000, // Refresca cada 10s para mantener el estado operativo del piso actualizado
-    refetchIntervalInBackground: true,
+    refetchInterval: 3000, // Refleja nuevas mezclas y cambios de cola casi en tiempo real
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: 'always',
   });
 };
@@ -32,10 +32,21 @@ export const usePtiRacksQuery = () => {
   });
 };
 
-export const useFloorFormulasQuery = () => {
+export const useFloorFormulasQuery = (params?: { is_active?: boolean | string }) => {
   return useQuery({
-    queryKey: EXTRUSION_QUERY_KEYS.formulas,
-    queryFn: extrusionApi.getFloorFormulas,
+    queryKey: [...EXTRUSION_QUERY_KEYS.formulas, params],
+    queryFn: () => extrusionApi.getFloorFormulas(params),
+  });
+};
+
+export const useCreateFormulaMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: extrusionApi.createFormula,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.formulas });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'mixing-formulas'] });
+    },
   });
 };
 
@@ -100,7 +111,9 @@ export const useMassBalanceQuery = (mixtureQr?: string) => {
 export const useExtrusionWipQuery = () => useQuery({
   queryKey: EXTRUSION_QUERY_KEYS.wipInventory,
   queryFn: extrusionApi.getExtrusionWip,
-  refetchInterval: 15000,
+  refetchInterval: 3000,
+  refetchIntervalInBackground: false,
+  refetchOnWindowFocus: 'always',
 });
 
 export const useRegisterScrapMutation = () => {

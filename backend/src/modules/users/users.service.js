@@ -148,14 +148,18 @@ const validateUniqueUserFields = async ({
 };
 
 const buildScopeWhereClause = (actorRole) => {
-  const isGlobal = isAdmin({ role: actorRole }) || (actorRole.area_id === null && actorRole.subarea_id === null);
+  const roleCode = String(actorRole?.code || '').toUpperCase();
+  const areaFallbacks = { ADMIN_EXT: 2, ADMIN_EXTRUSION: 2, SUPERVISOR_EXTRUSION: 2, OPERADOR_EXTRUSION: 2 };
+  const areaId = actorRole?.area_id ?? areaFallbacks[roleCode] ?? null;
+  const isKnownAreaScopedRole = [...Object.keys(areaFallbacks), 'ADMIN_ALM', 'ADMIN_ALMACEN', 'ADMIN_TELARES', 'ADMIN_TEL'].includes(roleCode);
+  const isGlobal = isAdmin({ role: actorRole }) || (!isKnownAreaScopedRole && actorRole.area_id === null && actorRole.subarea_id === null);
   if (isGlobal) {
     return {}; // No filter, can see everyone
   }
 
-  const isAreaAdmin = actorRole.area_id !== null && actorRole.subarea_id === null;
+  const isAreaAdmin = areaId !== null && actorRole.subarea_id === null;
   if (isAreaAdmin) {
-    return { '$role.area_id$': actorRole.area_id };
+    return { '$role.area_id$': areaId };
   }
 
   // Subarea admin
@@ -199,7 +203,16 @@ const createUser = async (payload, currentUser) => {
       throwHttpError('El rol seleccionado no existe o está inactivo.', 400);
     }
 
-    if (!AuthorizationService.canAssignRole(currentUser.role, roleToAssign)) {
+    const actorRoleCode = String(currentUser?.role?.code || '').toUpperCase();
+    if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(actorRoleCode)
+      && !['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(roleToAssign.code || '').toUpperCase())) {
+      throwHttpError('Solo se pueden crear supervisores u operadores de Extrusión.', 403);
+    }
+
+    const isSameAreaSupervisorCreation = actorRoleCode === 'SUPERVISOR_EXTRUSION'
+      && String(roleToAssign.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION'
+      && Number(roleToAssign.area_id) === Number(currentUser.role.area_id ?? 2);
+    if (!AuthorizationService.canAssignRole(currentUser.role, roleToAssign) && !isSameAreaSupervisorCreation) {
       throwHttpError('No tienes permisos para asignar este rol.', 403);
     }
 
@@ -259,7 +272,7 @@ const createUser = async (payload, currentUser) => {
       { transaction }
     );
 
-    const isGlobalAdmin = isAdmin(currentUser) || (currentUser.role.area_id === null && currentUser.role.subarea_id === null);
+    const isGlobalAdmin = isAdmin(currentUser);
     if (!isGlobalAdmin || isSupervisor) {
       const globalAdmins = await User.findAll({
         include: [{
@@ -318,6 +331,11 @@ const updateUser = async (userId, payload, currentUser) => {
       if (!AuthorizationService.canChangeRole(currentUser.role, user.role, targetRole)) {
         throwHttpError('No tienes permisos para cambiar a este rol.', 403);
       }
+      const actorRoleCode = String(currentUser?.role?.code || '').toUpperCase();
+      if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(actorRoleCode)
+        && !['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(targetRole.code || '').toUpperCase())) {
+        throwHttpError('Solo se pueden asignar roles de supervisor u operador de Extrusión.', 403);
+      }
     }
 
     if (payload.email || payload.username || payload.numero_nomina) {
@@ -330,7 +348,7 @@ const updateUser = async (userId, payload, currentUser) => {
       });
     }
 
-    const isGlobalAdmin = isAdmin(currentUser) || (currentUser.role.area_id === null && currentUser.role.subarea_id === null);
+    const isGlobalAdmin = isAdmin(currentUser);
 
     const updateData = {
       first_name: payload.first_name ?? user.first_name,

@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Boxes,
   QrCode,
-  AlertTriangle,
   CheckCircle2,
   Scale,
   RefreshCw,
@@ -20,7 +19,9 @@ import {
   BarChart3,
   Sliders,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Download,
+  Printer
 } from 'lucide-react';
 import {
   PtiRack,
@@ -29,7 +30,8 @@ import {
   ExtruderQueue,
   MassBalanceData,
   ExtrusionValuation,
-  PtiProduct
+  PtiProduct,
+  ScanRackPtiResponse
 } from '../../types/extrusion.types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,8 +45,8 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
-import { ExtrusionShiftClosurePanel } from './ExtrusionShiftClosurePanel';
 import { ProductionReconciliationPanel } from './ProductionReconciliationPanel';
+import { RackQrLabelsDialog } from '../components/RackQrLabelsDialog';
 
 export interface PtiIngressPresenterProps {
   racks: PtiRack[];
@@ -85,17 +87,17 @@ export interface PtiIngressPresenterProps {
   selectedFormula: Formula | null;
   theoreticalWeightPerPiece: number;
   estimatedRawMaterialConsumedKg: number;
-  isCapacityExceeded: boolean;
+  willSplitAcrossRacks: boolean;
   isPtiMismatched: boolean;
   mismatchErrorMessage: string;
   // Submitting & Results
-  onSubmitIngress: () => void;
+  onSubmitIngress: () => Promise<ScanRackPtiResponse | undefined>;
   isSubmitting: boolean;
   lastBackflushingResult: BackflushingResult | null;
   massBalance: MassBalanceData | null;
   onSelectRackFromGrid: (rack: PtiRack) => void;
   onSelectQueueFromList: (queue: ExtruderQueue) => void;
-  onCreateRack?: (data: { rack_code: string; max_capacity?: number; location_name?: string }) => Promise<void>;
+  onCreateRack?: (data: { rack_code: string; max_capacity?: number; location_name?: string }) => Promise<PtiRack>;
   isCreatingRack?: boolean;
   // Valorización y Edición de Precios
   valuation?: ExtrusionValuation | null;
@@ -143,7 +145,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   selectedFormula,
   theoreticalWeightPerPiece,
   estimatedRawMaterialConsumedKg,
-  isCapacityExceeded,
+  willSplitAcrossRacks,
   isPtiMismatched,
   mismatchErrorMessage,
   onSubmitIngress,
@@ -176,6 +178,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   // Filtros de Racks en Pestaña 2
   const [rackFilter, setRackFilter] = React.useState<'ALL' | 'VACIO' | 'DISPONIBLE' | 'LLENO'>('ALL');
   const [rackSearch, setRackSearch] = React.useState('');
+  const [selectedRackIds, setSelectedRackIds] = React.useState<number[]>([]);
+  const [rackQrLabels, setRackQrLabels] = React.useState<PtiRack[]>([]);
 
   // Modales
   const [isRackModalOpen, setIsRackModalOpen] = React.useState(false);
@@ -200,7 +204,16 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   const [editUnitPrice, setEditUnitPrice] = React.useState('');
   const [editUnitWeightKg, setEditUnitWeightKg] = React.useState('');
 
-  const pieces = ingressMode === 'WEIGHT' ? computedPiecesFromScale : (Number(quantityPieces) || 0);
+  // Sin peso unitario definido, el modo báscula pide capturar las bobinas
+  // contadas manualmente; ese valor también debe habilitar el botón de ingreso.
+  const pieces = ingressMode === 'WEIGHT'
+    ? (knownPtiUnitWeight > 0 ? computedPiecesFromScale : (Number(quantityPieces) || 0))
+    : (Number(quantityPieces) || 0);
+  const selectedRackCapacity = selectedRack ? Number(selectedRack.max_capacity || 100) : 0;
+  const selectedRackAvailable = selectedRack
+    ? Math.max(0, selectedRackCapacity - Number(selectedRack.current_quantity || 0))
+    : 0;
+  const splitOverflowPieces = Math.max(0, pieces - selectedRackAvailable);
 
   // Atajos para sumar piezas rápidamente
   const handleAddPieces = (delta: number) => {
@@ -235,16 +248,38 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     e.preventDefault();
     if (!newRackCode.trim() || !onCreateRack) return;
     try {
-      await onCreateRack({
+      const createdRack = await onCreateRack({
         rack_code: newRackCode.trim().toUpperCase(),
         max_capacity: Number(newMaxCapacity) || 100,
         location_name: newLocationName.trim() || undefined
       });
       setNewRackCode('');
       setIsRackModalOpen(false);
+      onSelectRackFromGrid(createdRack);
+      setActiveTab('INGRESS');
+      setRackQrLabels([createdRack]);
     } catch {
       // handled
     }
+  };
+
+  const toggleRackSelection = (rackId: number) => {
+    setSelectedRackIds((current) => current.includes(rackId)
+      ? current.filter((id) => id !== rackId)
+      : [...current, rackId]);
+  };
+
+  const handleSelectVisibleRacks = () => {
+    const visibleIds = filteredRacks.map((rack) => rack.id);
+    const allVisibleSelected = visibleIds.every((id) => selectedRackIds.includes(id));
+    setSelectedRackIds((current) => allVisibleSelected
+      ? current.filter((id) => !visibleIds.includes(id))
+      : [...new Set([...current, ...visibleIds])]);
+  };
+
+  const handleDownloadSelectedRackQrs = () => {
+    const selected = racks.filter((rack) => selectedRackIds.includes(rack.id));
+    if (selected.length) setRackQrLabels(selected);
   };
 
   // Seleccionar rack desde el mapa y pasar de inmediato a la terminal de ingreso
@@ -403,6 +438,20 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {activeTab === 'INGRESS' && (
         <div className="w-full max-w-[1400px] mx-auto space-y-5 animate-in fade-in duration-150">
+          {racks.length === 0 && (
+            <div className="flex flex-col gap-3 rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <strong className="block text-sm font-black text-foreground">Aún no hay racks registrados</strong>
+                <p className="mt-1 text-xs text-muted-foreground">Registra el rack; el sistema generará su QR para imprimir y colocarlo en el equipo.</p>
+              </div>
+              {onCreateRack && (
+                <Button type="button" onClick={() => setIsRackModalOpen(true)} className="min-h-11 shrink-0 gap-2 font-bold">
+                  <Boxes className="h-4 w-4" /> Registrar rack y generar QR
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Mensaje de Éxito de Backflushing si se acaba de registrar */}
           {lastBackflushingResult && (
             <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 dark:text-emerald-200">
@@ -631,19 +680,19 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </div>
               )}
 
-              {isCapacityExceeded && selectedRack && (
-                <div className="p-4 bg-amber-500/15 border-2 border-amber-500/40 rounded-xl space-y-1.5 text-amber-900 dark:text-amber-300 animate-in fade-in">
+              {willSplitAcrossRacks && selectedRack && (
+                <div className="p-4 bg-sky-500/10 border-2 border-sky-500/30 rounded-xl space-y-1.5 text-sky-900 dark:text-sky-200 animate-in fade-in">
                   <div className="flex items-center gap-2 font-black text-sm uppercase">
-                    <AlertTriangle className="h-5 w-5 shrink-0" />
-                    <span>¡Capacidad Máxima Excedida!</span>
+                    <Info className="h-5 w-5 shrink-0" />
+                    <span>El ingreso se distribuirá entre racks</span>
                   </div>
                   <p className="text-xs font-bold leading-relaxed">
-                    El Rack {selectedRack.rack_code} tiene capacidad para {selectedRack.max_capacity} piezas y actualmente posee {selectedRack.current_quantity} pzas.
+                    Se colocarán hasta {selectedRackAvailable} pzas en {selectedRack.rack_code} y las {splitOverflowPieces} restantes en racks compatibles. Si no hay capacidad disponible, se crearán racks con QR automáticamente.
                   </p>
                 </div>
               )}
 
-              {selectedRack && !isPtiMismatched && !isCapacityExceeded && (
+              {selectedRack && !isPtiMismatched && !willSplitAcrossRacks && (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -681,11 +730,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     {ptiProducts.length > 0 ? (
                       ptiProducts.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.code} - {p.name} · Color: {p.color || 'sin definir'} ({p.unit_weight_kg == null ? 'peso pendiente' : `${Number(p.unit_weight_kg).toFixed(2)} kg`}, índice ×{Number(p.transformed_cost_index || 1).toFixed(2)})
+                          {p.code} - {p.name} · Color: {p.color || 'sin definir'} ({p.unit_weight_kg == null ? 'peso pendiente' : `${Number(p.unit_weight_kg).toFixed(2)} kg`}{canViewCosts ? `, índice ×${Number(p.transformed_cost_index || 1).toFixed(2)}` : ''})
                         </option>
                       ))
                     ) : (
-                      <option value="" disabled>La fórmula activa no tiene un PTI enlazado. Completa el enlace en el catálogo de fórmulas.</option>
+                      <option value="" disabled>La fórmula activa no tiene un PTI enlazado. Completa el enlace desde el catálogo de PTI.</option>
                     )}
                   </select>
                 )}
@@ -919,17 +968,19 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             {/* ---------------------------------------------------- */}
             <Button
               size="lg"
-              onClick={onSubmitIngress}
+              onClick={async () => {
+                const result = await onSubmitIngress();
+                if (result?.created_racks?.length) setRackQrLabels(result.created_racks);
+              }}
               disabled={
                 isSubmitting ||
                 !rackQr ||
                 !selectedPtiMaterialId ||
                 pieces <= 0 ||
-                isPtiMismatched ||
-                isCapacityExceeded
+                isPtiMismatched
               }
               className={`w-full h-14 text-base sm:text-lg font-black uppercase tracking-wider shadow-md transition-all gap-2 ${
-                isSubmitting || !rackQr || !selectedPtiMaterialId || pieces <= 0 || isPtiMismatched || isCapacityExceeded
+                isSubmitting || !rackQr || !selectedPtiMaterialId || pieces <= 0 || isPtiMismatched
                   ? 'bg-muted text-muted-foreground cursor-not-allowed border border-border opacity-70'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }`}
@@ -1001,6 +1052,27 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 className="pl-9 h-9 text-xs border"
               />
             </div>
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-border pt-3 sm:w-auto sm:border-0 sm:pt-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSelectVisibleRacks}
+                disabled={filteredRacks.length === 0}
+                className="h-9 gap-1.5 text-xs font-bold"
+              >
+                {filteredRacks.length > 0 && filteredRacks.every((rack) => selectedRackIds.includes(rack.id)) ? 'Quitar selección visible' : 'Seleccionar visibles'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleDownloadSelectedRackQrs}
+                disabled={selectedRackIds.length === 0}
+                className="h-9 gap-1.5 text-xs font-bold"
+              >
+                <Download className="h-3.5 w-3.5" /> Descargar QRs ({selectedRackIds.length})
+              </Button>
+            </div>
           </div>
 
           {/* Grid de Racks */}
@@ -1037,12 +1109,21 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                         </span>
                       </div>
 
-                      <Badge
-                        variant={isLleno ? 'destructive' : isVacio ? 'secondary' : 'default'}
-                        className="text-[10px] font-black uppercase"
-                      >
-                        {isLleno ? 'Lleno' : isVacio ? 'Libre' : 'Disponible'}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedRackIds.includes(rack.id)}
+                          onChange={() => toggleRackSelection(rack.id)}
+                          aria-label={`Seleccionar rack ${rack.rack_code} para descargar su QR`}
+                          className="h-4 w-4 cursor-pointer accent-primary"
+                        />
+                        <Badge
+                          variant={isLleno ? 'destructive' : isVacio ? 'secondary' : 'default'}
+                          className="text-[10px] font-black uppercase"
+                        >
+                          {isLleno ? 'Lleno' : isVacio ? 'Libre' : 'Disponible'}
+                        </Badge>
+                      </div>
                     </div>
 
                     {/* Barra de Capacidad */}
@@ -1098,6 +1179,17 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     <Button
                       type="button"
                       size="sm"
+                      variant="outline"
+                      onClick={() => setRackQrLabels([rack])}
+                      className="h-9 gap-1.5 px-2.5 text-xs font-bold border-border"
+                      title={`Descargar QR de ${rack.rack_code}`}
+                      aria-label={`Descargar QR del rack ${rack.rack_code}`}
+                    >
+                      <QrCode className="h-3.5 w-3.5" /> QR
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
                       onClick={() => handlePickRackForIngress(rack)}
                       disabled={isLleno}
                       className="flex-1 h-9 text-xs font-bold bg-primary text-primary-foreground gap-1.5"
@@ -1129,7 +1221,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {activeTab === 'BALANCE' && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          <ExtrusionShiftClosurePanel />
           {/* Sección 1: Valorización Financiera en Extrusión (WIP) */}
           {canViewCosts && valuation && (
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
@@ -1618,6 +1709,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      <RackQrLabelsDialog
+        racks={rackQrLabels}
+        onOpenChange={(open) => { if (!open) setRackQrLabels([]); }}
+      />
 
     </div>
   );

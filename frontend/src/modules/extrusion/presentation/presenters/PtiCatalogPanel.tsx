@@ -71,7 +71,7 @@ export const PtiCatalogPanel: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const { data: products = [], isLoading } = usePtiProductsQuery({ is_active: 'ALL' });
-  const { data: formulas = [] } = useFloorFormulasQuery();
+  const { data: formulas = [] } = useFloorFormulasQuery({ is_active: 'ALL' });
   const createMutation = useCreatePtiProductMutation();
   const updateMutation = useUpdatePtiProductMutation();
   const deleteMutation = useDeletePtiProductMutation();
@@ -197,7 +197,7 @@ export const PtiCatalogPanel: React.FC = () => {
                 <label className="text-sm font-bold">Precio unitario histórico ($/bobina)<Input type="number" min="0" step="0.01" value={draft.unit_price} onChange={(e) => set('unit_price', e.target.value)} className="mt-1 min-h-12 text-base" /></label>
               )}
             </div>
-            <label className="block text-sm font-bold">Fórmula de Extrusión (opcional)<select value={draft.formula_id} onChange={(e) => set('formula_id', e.target.value)} className="mt-1 min-h-12 w-full rounded-md border border-border bg-background px-3 text-base"><option value="">Sin enlazar</option>{formulas.filter((formula: any) => !linkedFormulaIds.has(Number(formula.id))).map((formula: any) => <option key={formula.id} value={formula.id}>{formula.code} — {formula.name}</option>)}</select></label>
+            <label className="block text-sm font-bold">Fórmula de Extrusión (opcional)<select value={draft.formula_id} onChange={(e) => set('formula_id', e.target.value)} className="mt-1 min-h-12 w-full rounded-md border border-border bg-background px-3 text-base"><option value="">Sin enlazar</option>{formulas.filter((formula: any) => !linkedFormulaIds.has(Number(formula.id))).map((formula: any) => <option key={formula.id} value={formula.id}>{formula.code} — {formula.name}{formula.is_active === false ? ' (Inactiva)' : ''}</option>)}</select><span className="mt-1 block text-xs font-normal text-muted-foreground">Cada fórmula puede tener un solo PTI enlazado. El enlace se administra desde aquí.</span></label>
             <label className="block text-sm font-bold">Notas técnicas adicionales<textarea value={draft.specifications} onChange={(e) => set('specifications', e.target.value)} rows={3} className="mt-1 w-full rounded-md border border-border bg-background p-3 text-base" /></label>
             <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5" checked={draft.is_active} onChange={(e) => set('is_active', e.target.checked)} />PTI activo</label>
           </div>

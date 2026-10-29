@@ -757,12 +757,19 @@ const manualEntry = async (payload, currentUser) => {
 
     const matName = (material.name || '').toUpperCase();
     const matCode = (material.code || material.internal_code || '').toUpperCase();
-    const materialTags = await material.getTags({ attributes: ['name'], transaction: t });
+    const materialTags = await material.getTags({ attributes: ['id', 'name'], transaction: t });
     const hasPolypropyleneTag = materialTags.some(({ name }) => {
       const normalizedName = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
       return normalizedName === 'PP' || normalizedName.includes('POLIPROPILENO');
     });
-    const isPp = hasPolypropyleneTag || matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP') || matCode.includes('PP-');
+    const configuredSiloTags = await Silo.findAll({
+      attributes: ['material_tag_id'],
+      where: { is_active: true, material_tag_id: { [Op.not]: null } },
+      transaction: t,
+    });
+    const siloTagIds = new Set(configuredSiloTags.map((silo) => Number(silo.material_tag_id)));
+    const matchesSiloTag = materialTags.some((tag) => siloTagIds.has(Number(tag.id)));
+    const isPp = matchesSiloTag || hasPolypropyleneTag || matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP') || matCode.includes('PP-');
 
     // Para materiales distintos de Polipropileno, la localidad de almacén es obligatoria
     if (!isPp && !payload.location_id) {
@@ -783,28 +790,23 @@ const manualEntry = async (payload, currentUser) => {
       if (payload.silo_id) {
         targetSilo = await Silo.findByPk(payload.silo_id, { transaction: t, lock: t.LOCK.UPDATE });
       }
-      if (!targetSilo) {
+      const matchingTagIds = materialTags.map((tag) => Number(tag.id)).filter((id) => siloTagIds.has(id));
+      if (!targetSilo && matchingTagIds.length) {
         targetSilo = await Silo.findOne({
-          where: { material_id: material.id, is_active: true },
+          where: { material_tag_id: { [Op.in]: matchingTagIds }, is_active: true },
           transaction: t,
           lock: t.LOCK.UPDATE
         });
       }
       if (!targetSilo) {
-        targetSilo = await Silo.findOne({
-          where: { is_active: true },
-          order: [['id', 'ASC']],
-          transaction: t,
-          lock: t.LOCK.UPDATE
-        });
-      }
-      if (!targetSilo) {
-        throwHttpError(`No hay un silo activo asignado al material ${material.name}.`, 400);
+        throwHttpError(`El material ${material.name} no tiene una etiqueta vinculada a un silo activo. Asigna la etiqueta compatible en el catálogo de materiales.`, 400);
       }
       if (!targetSilo.is_active) {
         throwHttpError('El silo seleccionado está inactivo.', 400);
       }
-      if (hasPolypropyleneTag || matName.includes('POLIPROPILENO') || matName.includes('PP ')) targetSilo.material_id = material.id;
+      if (!targetSilo.material_tag_id || !matchingTagIds.includes(Number(targetSilo.material_tag_id))) {
+        throwHttpError(`El material no tiene la etiqueta requerida por el silo ${targetSilo.code}.`, 400);
+      }
     } else {
       // 1. Generate QR Batch and Codes ONLY for other materials (non-PP)
       const batchCode = `QRB-MAN-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${now.toISOString().slice(11, 19).replace(/:/g, '')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;

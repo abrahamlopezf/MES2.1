@@ -17,6 +17,7 @@ import { useMaterialsQuery } from '@/modules/materials/hooks/useMaterialsQueries
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { getClientTargetLabel, isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
 
 interface FormulaDetailsModalProps {
   isOpen: boolean;
@@ -36,6 +37,20 @@ interface DraftIngredient {
   is_restricted_on_machine_4: boolean;
 }
 
+const isPolypropyleneIngredient = (ingredient: any, material?: { name?: string; code?: string }) => {
+  const name = String(material?.name || ingredient?.material?.name || ingredient?.material_name || '').trim().toUpperCase();
+  const code = String(material?.code || ingredient?.material?.internal_code || ingredient?.material?.material_code || ingredient?.material_code || '').trim().toUpperCase();
+  return name.startsWith('POLIPROPILENO') || name === 'PP' || name.startsWith('PP ') || code.startsWith('MP-PP');
+};
+
+const IngredientSupplyBadge = ({ ingredient, material }: { ingredient: any; material?: { name?: string; code?: string } }) => (
+  <Badge variant="outline" className={isPolypropyleneIngredient(ingredient, material)
+    ? 'text-sm text-sky-700 dark:text-sky-300 border-sky-500/40'
+    : 'text-sm text-amber-700 dark:text-amber-300 border-amber-500/40'}>
+    {isPolypropyleneIngredient(ingredient, material) ? 'SILO · POLIPROPILENO' : 'WIP / ODC · ALMACÉN'}
+  </Badge>
+);
+
 export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -46,15 +61,22 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
 }) => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
+  const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
+  const canEditFormulaIngredients = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'SUPERADMIN'].includes(roleCode);
 
   // Edición inline de ingredientes
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [draftIngredients, setDraftIngredients] = useState<DraftIngredient[]>([]);
 
+  useEffect(() => {
+    if (!canEditFormulaIngredients) setIsEditingIngredients(false);
+  }, [canEditFormulaIngredients]);
+
   // Queries y Mutaciones
   const { data: materialsData, isLoading: isLoadingMaterials } = useMaterialsQuery({ pageSize: 250 }, { enabled: isOpen });
   const rawMaterials = materialsData?.items || [];
   const updateMutation = useUpdateFormulaMutation();
+  const usesClientCatalogRules = isClientFormula(formula?.code);
 
   // Catálogo unificado de materiales (incluye los materiales ya asociados a la fórmula)
   const availableMaterials = useMemo(() => {
@@ -88,14 +110,14 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
           quantity: Number(ing.quantity || ing.weight_kg || 0),
           percentage: Number(ing.percentage || 0),
           unit: ing.unit || 'KG',
-          is_restricted_on_machine_4: Boolean(ing.is_restricted_on_machine_4)
+          is_restricted_on_machine_4: usesClientCatalogRules ? false : Boolean(ing.is_restricted_on_machine_4)
         }))
       );
     } else {
       setDraftIngredients([]);
     }
     setIsEditingIngredients(false);
-  }, [formula?.id, isOpen]);
+  }, [formula?.id, isOpen, usesClientCatalogRules]);
 
   // Todos los Hooks se ejecutan antes de este retorno. El modal permanece montado
   // en la página y su estado abierto/cerrado cambia sin alterar el orden de Hooks.
@@ -113,7 +135,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   // Handlers para edición de filas
   const handleMaterialChange = (index: number, newMaterialId: number) => {
     const selectedMat = availableMaterials.find((m) => m.id === newMaterialId);
-    const isRestrictedM4 = Boolean(
+    const isRestrictedM4 = !usesClientCatalogRules && Boolean(
       selectedMat?.name?.toUpperCase().includes('POLIPROPILENO (B)')
     );
     setDraftIngredients((prev) => {
@@ -156,6 +178,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   };
 
   const handleToggleRestrictedM4 = (index: number) => {
+    if (usesClientCatalogRules) return;
     setDraftIngredients((prev) => {
       const copy = [...prev];
       copy[index] = {
@@ -173,7 +196,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
       quantity: 0,
       percentage: 0,
       unit: 'KG',
-      is_restricted_on_machine_4: Boolean(
+      is_restricted_on_machine_4: !usesClientCatalogRules && Boolean(
         defaultMat?.name?.toUpperCase().includes('POLIPROPILENO (B)')
       )
     };
@@ -197,7 +220,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
           quantity: Number(ing.quantity || ing.weight_kg || 0),
           percentage: Number(ing.percentage || 0),
           unit: ing.unit || 'KG',
-          is_restricted_on_machine_4: Boolean(ing.is_restricted_on_machine_4)
+          is_restricted_on_machine_4: usesClientCatalogRules ? false : Boolean(ing.is_restricted_on_machine_4)
         }))
       );
     }
@@ -205,6 +228,11 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   };
 
   const handleSaveIngredients = async () => {
+    if (!canEditFormulaIngredients) {
+      toast.error('Tu rol no puede modificar los ingredientes de una fórmula.');
+      setIsEditingIngredients(false);
+      return;
+    }
     if (draftIngredients.length === 0) {
       toast.error('Debes incluir al menos un ingrediente en la fórmula.');
       return;
@@ -216,6 +244,15 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
         toast.error(`La fila #${i + 1} no tiene un material válido asignado.`);
         return;
       }
+    }
+
+    if (usesClientCatalogRules && !isDraftBalancedKg) {
+      toast.error(`La receta debe sumar ${batchSizeKg.toFixed(2)} kg. Total actual: ${totalDraftKg.toFixed(2)} kg.`);
+      return;
+    }
+    if (usesClientCatalogRules && !isDraftBalancedPct) {
+      toast.error(`La composición debe sumar 100%. Total actual: ${totalDraftPct.toFixed(2)}%.`);
+      return;
     }
 
     try {
@@ -246,6 +283,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   const isDraftBalancedPct = Math.abs(totalDraftPct - 100) < 0.1;
 
   const getTargetMachine = () => {
+    const clientLabel = getClientTargetLabel(formula);
+    if (clientLabel) return clientLabel;
     if (formula.allowed_extruders && formula.allowed_extruders.length > 0) {
       return `Extrusora ${formula.allowed_extruders.join(', ')}`;
     }
@@ -434,8 +473,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
               </div>
 
               {/* Botón para iniciar o cancelar edición */}
-              <PermissionGate permission="extrusion.formulas.manage">
-                {!isEditingIngredients ? (
+              {canEditFormulaIngredients && (
+                !isEditingIngredients ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -477,8 +516,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       )}
                     </Button>
                   </div>
-                )}
-              </PermissionGate>
+                )
+              )}
             </div>
 
             {/* Tarjetas legibles para tablet y móvil */}
@@ -517,12 +556,12 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       </label>
                     </div>
                     <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                      <span className="text-sm font-semibold text-muted-foreground">Restricción M4</span>
-                      {isEditingIngredients ? <button type="button" onClick={() => handleToggleRestrictedM4(idx)}
+                      <span className="text-sm font-semibold text-muted-foreground">{usesClientCatalogRules ? 'Abastecimiento' : 'Restricción M4'}</span>
+                      {isEditingIngredients ? <button type="button" onClick={() => handleToggleRestrictedM4(idx)} disabled={usesClientCatalogRules}
                         aria-label={`Cambiar restricción M4 de ${name}`} className="min-h-12 rounded-lg px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                        {item.is_restricted_on_machine_4 ? <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
+                        {usesClientCatalogRules ? <IngredientSupplyBadge ingredient={item} material={material} /> : item.is_restricted_on_machine_4 ? <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
                           : <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400">PERMITIDO</Badge>}
-                      </button> : item.is_restricted_on_machine_4 ? <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
+                      </button> : usesClientCatalogRules ? <IngredientSupplyBadge ingredient={item} material={material} /> : item.is_restricted_on_machine_4 ? <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
                         : <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400">PERMITIDO</Badge>}
                     </div>
                   </section>
@@ -540,7 +579,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                     <TableHead className="font-bold text-sm uppercase">Material / Resina</TableHead>
                     <TableHead className="font-bold text-sm uppercase text-right w-36">Cantidad (Kg)</TableHead>
                     <TableHead className="font-bold text-sm uppercase text-right w-32">% Composición</TableHead>
-                    <TableHead className="font-bold text-sm uppercase text-center w-36">Restricción M4</TableHead>
+                    <TableHead className="font-bold text-sm uppercase text-center w-44">{usesClientCatalogRules ? 'Abastecimiento' : 'Restricción M4'}</TableHead>
                     {isEditingIngredients && (
                           <TableHead className="font-bold text-sm uppercase text-center w-14">Acción</TableHead>
                     )}
@@ -604,10 +643,13 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleToggleRestrictedM4(idx)}
+                            disabled={usesClientCatalogRules}
                             aria-label={`Cambiar restricción de máquina 4 para ${availableMaterials.find((material) => material.id === item.material_id)?.name || 'ingrediente'}`}
                             className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-lg px-2 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           >
-                            {item.is_restricted_on_machine_4 ? (
+                            {usesClientCatalogRules ? (
+                              <IngredientSupplyBadge ingredient={item} material={availableMaterials.find((candidate) => candidate.id === item.material_id)} />
+                            ) : item.is_restricted_on_machine_4 ? (
                               <Badge variant="destructive" className="text-sm cursor-pointer hover:opacity-80">
                                 PROHIBIDO M4
                               </Badge>
@@ -651,7 +693,9 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                             {Number(ing.percentage || 0).toFixed(2)}%
                           </TableCell>
                           <TableCell className="text-center py-2.5">
-                            {ing.is_restricted_on_machine_4 ? (
+                            {usesClientCatalogRules ? (
+                              <IngredientSupplyBadge ingredient={ing} material={availableMaterials.find((candidate) => candidate.id === ing.material_id)} />
+                            ) : ing.is_restricted_on_machine_4 ? (
                               <Badge variant="destructive" className="text-sm">PROHIBIDO M4</Badge>
                             ) : (
                               <Badge variant="outline" className="text-sm text-emerald-700 dark:text-emerald-400 border-emerald-500/40">PERMITIDO</Badge>

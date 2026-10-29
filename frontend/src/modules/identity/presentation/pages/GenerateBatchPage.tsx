@@ -35,6 +35,7 @@ export function GenerateBatchPage() {
   const userRoleCode = (user?.role?.code || '').toUpperCase();
   const isAdmin = isAdminUser(user);
   const isSupervisor = isSupervisorUser(user);
+  const isExtrusionSupervisor = !isAdmin && userRoleCode === 'SUPERVISOR_EXTRUSION';
   
   const isWarehouseUser = !isAdmin && !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
                           user?.area?.code === 'ALMACEN' || 
@@ -50,6 +51,12 @@ export function GenerateBatchPage() {
     if (!allBatches) return [];
     if (isAdmin) return allBatches;
     if (isSupervisor) {
+      if (isExtrusionSupervisor) {
+        return allBatches.filter(b => {
+          const area = String(b.areaId || b.area_code || b.area_id || b.assigned_area_id || '').toUpperCase();
+          return area === 'EXT' || area === 'EXTRUSION' || area === '2';
+        });
+      }
       return allBatches.filter(b => {
         const bCreatorId = b.created_by || b.creator_id || b.creator?.id;
         return bCreatorId && user?.id && Number(bCreatorId) === Number(user.id);
@@ -79,7 +86,7 @@ export function GenerateBatchPage() {
         (bCreatorId && user?.id && Number(bCreatorId) === Number(user.id))
       );
     });
-  }, [allBatches, isAdmin, isSupervisor, isWarehouseUser, isExtrusionAdmin, user]);
+  }, [allBatches, isAdmin, isSupervisor, isExtrusionSupervisor, isWarehouseUser, isExtrusionAdmin, user]);
 
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
   const expandedBatch = useMemo(() => {
@@ -122,11 +129,11 @@ export function GenerateBatchPage() {
     if (isWarehouseUser) {
       return nomenclature.areas.filter(a => a.id === 'ALM');
     }
-    if (isExtrusionAdmin) {
+    if (isExtrusionAdmin || isExtrusionSupervisor) {
       return nomenclature.areas.filter(a => a.id === 'EXT');
     }
     return nomenclature.areas;
-  }, [isWarehouseUser, isExtrusionAdmin]);
+  }, [isWarehouseUser, isExtrusionAdmin, isExtrusionSupervisor]);
   const availableSubcategories = useMemo(() => {
     if (selectedMainAreaId === 'EXT') {
       const extArea = availableAreas.find(a => a.id === 'EXT');

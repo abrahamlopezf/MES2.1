@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button, Input, Badge, Icon } from '@/design-system';
-import { usePtiProductsQuery, useUpdateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
+import { useUpdateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
 import { Formula } from '@/modules/extrusion/types/extrusion.types';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { apiClient } from '@/core/api/apiClient';
+import { getClientFormulaKind, isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
 
 interface EditFormulaModalProps {
   isOpen: boolean;
@@ -24,14 +27,29 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
   const [expectedYieldPieces, setExpectedYieldPieces] = useState<number>(5000);
   const [expectedYieldKg, setExpectedYieldKg] = useState<number>(490);
   const [isActive, setIsActive] = useState<boolean>(true);
-  const [outputPtiId, setOutputPtiId] = useState<number | ''>('');
+  const [assignmentMode, setAssignmentMode] = useState<'DYNAMIC' | 'FIXED' | 'EXTRUDER_1'>('DYNAMIC');
+  const [allowedExtruderIds, setAllowedExtruderIds] = useState<number[]>([]);
+  const fixedSelectionInitialized = useRef(false);
 
   const updateMutation = useUpdateFormulaMutation();
-  const { data: ptiProducts = [] } = usePtiProductsQuery({ is_active: true });
-
-  const availablePtis = ptiProducts.filter((pti: any) =>
-    !pti.formula_id || Number(pti.formula_id) === Number(formula?.id)
-  );
+  const { data: machineData = [], isLoading: machinesLoading, isError: machinesError, refetch: refetchMachines } = useQuery({
+    queryKey: ['extrusion', 'machines'],
+    queryFn: async () => {
+      const response = await apiClient.get<any>('/extrusion/machines');
+      if (Array.isArray(response)) return response;
+      if (Array.isArray(response?.data)) return response.data;
+      if (Array.isArray(response?.data?.data)) return response.data.data;
+      return [];
+    },
+  });
+  const machines: any[] = Array.isArray(machineData) ? machineData : [];
+  const formulaKind = getClientFormulaKind(formula);
+  const isExtruderOneFormula = formulaKind === 'EXTRUDER_1';
+  const fixedAssignmentCandidates = useMemo(() => machines.filter((machine) =>
+    machine.is_active !== false
+    && String(machine.status || 'ACTIVE').trim().toUpperCase() === 'ACTIVE'
+    && !['EXT-01', 'EXT-LIQ'].includes(String(machine.code || '').trim().toUpperCase())
+  ), [machines]);
 
   useEffect(() => {
     if (formula) {
@@ -42,9 +60,20 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
       setExpectedYieldPieces(Number(formula.expected_yield_pieces) || 5000);
       setExpectedYieldKg(Number(formula.expected_yield_kg) || 490);
       setIsActive(formula.is_active !== undefined ? formula.is_active : true);
-      setOutputPtiId(formula.output_pti_id || formula.ptiProducts?.[0]?.id || '');
+      const mode = formula.extruder_assignment_mode || (getClientFormulaKind(formula) === 'EXTRUDER_1' ? 'EXTRUDER_1' : 'DYNAMIC');
+      setAssignmentMode(mode as 'EXTRUDER_1' | 'DYNAMIC' | 'FIXED');
+      setAllowedExtruderIds((formula.allowed_extruders || []).map(Number));
+      fixedSelectionInitialized.current = (formula.allowed_extruders || []).length > 0;
     }
   }, [formula]);
+
+  useEffect(() => {
+    if (assignmentMode === 'FIXED' && allowedExtruderIds.length === 0 && !fixedSelectionInitialized.current && !machinesLoading && !machinesError) {
+      const dynamicIds = fixedAssignmentCandidates.filter((machine) => machine.is_dynamic_member).map((machine) => Number(machine.id));
+      if (dynamicIds.length > 0) setAllowedExtruderIds(dynamicIds);
+      fixedSelectionInitialized.current = true;
+    }
+  }, [assignmentMode, allowedExtruderIds.length, fixedAssignmentCandidates, machinesLoading, machinesError]);
 
   if (!isOpen || !formula) return null;
 
@@ -65,6 +94,10 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
       toast.error('El índice de multiplicación debe ser mayor o igual a 0.');
       return;
     }
+    if (isClientFormula(formula.code) && !isExtruderOneFormula && assignmentMode === 'FIXED' && allowedExtruderIds.length === 0) {
+      toast.error('Selecciona al menos una extrusora para enlazar esta fórmula fija.');
+      return;
+    }
 
     try {
       await updateMutation.mutateAsync({
@@ -77,7 +110,12 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
           expected_yield_pieces: Number(expectedYieldPieces),
           expected_yield_kg: Number(expectedYieldKg),
           is_active: isActive,
-          output_pti_id: outputPtiId === '' ? null : Number(outputPtiId)
+          ...(isClientFormula(formula.code) ? {
+            extruder_assignment_mode: isExtruderOneFormula ? 'EXTRUDER_1' : assignmentMode,
+            allowed_extruders: isExtruderOneFormula
+              ? [Number(machines.find((machine) => machine.code === 'EXT-01')?.id || 1)]
+              : assignmentMode === 'FIXED' ? allowedExtruderIds : [],
+          } : {}),
         }
       });
       toast.success(`Fórmula '${formula.code}' actualizada exitosamente.`);
@@ -85,6 +123,17 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
     } catch (error: any) {
       const msg = error.response?.data?.message || error.message || 'Error al actualizar la fórmula.';
       toast.error(msg);
+    }
+  };
+
+  const handleToggleFormulaStatus = async () => {
+    const nextIsActive = !isActive;
+    try {
+      await updateMutation.mutateAsync({ id: formula.id, payload: { is_active: nextIsActive } });
+      setIsActive(nextIsActive);
+      toast.success(`Fórmula '${formula.code}' ${nextIsActive ? 'activada' : 'desactivada'}; ${nextIsActive ? 'está disponible para nuevas mezclas' : 'ya no se ofrece para crear mezclas nuevas'}.`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'No se pudo cambiar el estado de la fórmula.');
     }
   };
 
@@ -134,6 +183,83 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           {/* Scrollable Body */}
           <div className="p-6 overflow-y-auto flex-1 space-y-5 bg-background">
+            <section className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${isActive ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/40 bg-amber-500/10'}`}>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <h3 className="text-sm font-black text-foreground">Fórmula {isActive ? 'activa' : 'inactiva'}</h3>
+                  <Badge variant={isActive ? 'success' : 'secondary'}>{isActive ? 'DISPONIBLE' : 'PAUSADA'}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isActive ? 'Se puede seleccionar en el Centro de Mezclado.' : 'No aparecerá para preparar mezclas nuevas; las que ya están en cola se conservan.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updateMutation.isPending}
+                onClick={() => void handleToggleFormulaStatus()}
+                className={`min-h-11 shrink-0 gap-2 font-bold ${isActive ? 'border-amber-500/50 text-amber-700 hover:bg-amber-500/10 dark:text-amber-300' : 'border-emerald-500/50 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300'}`}
+              >
+                <Icon name={updateMutation.isPending ? 'progress_activity' : 'power_settings_new'} size={17} className={updateMutation.isPending ? 'animate-spin' : ''} />
+                {updateMutation.isPending ? 'Actualizando…' : isActive ? 'Desactivar fórmula' : 'Activar fórmula'}
+              </Button>
+            </section>
+
+            {isClientFormula(formula.code) && (
+              <section className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-black text-foreground">Asignación de extrusoras</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Define si el sistema puede escoger cualquier máquina del grupo dinámico o si esta fórmula queda enlazada a máquinas específicas.</p>
+                </div>
+                {isExtruderOneFormula ? (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-bold text-amber-800 dark:text-amber-300">
+                    Fórmula exclusiva de Extrusora 1. Esta asignación no se puede cambiar.
+                  </div>
+                ) : (
+                  <>
+                    <label className="block space-y-1.5 text-xs font-bold text-foreground">
+                      Modo de asignación
+                      <select value={assignmentMode} onChange={(event) => {
+                        const nextMode = event.target.value as 'DYNAMIC' | 'FIXED';
+                        fixedSelectionInitialized.current = nextMode !== 'FIXED' || allowedExtruderIds.length > 0;
+                        setAssignmentMode(nextMode);
+                      }} className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm font-semibold">
+                        <option value="DYNAMIC">Dinámica — cualquier máquina del grupo</option>
+                        <option value="FIXED">Fija — extrusoras seleccionadas</option>
+                      </select>
+                    </label>
+                    {assignmentMode === 'FIXED' && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-muted-foreground">Enlazar a una o varias extrusoras activas:</p>
+                        {machinesLoading ? (
+                          <p className="rounded-lg border border-border bg-background p-3 text-xs font-semibold text-muted-foreground">Cargando extrusoras activas…</p>
+                        ) : machinesError ? (
+                          <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs font-semibold text-destructive">
+                            <span>No se pudo cargar el catálogo de extrusoras.</span>
+                            <Button type="button" variant="outline" onClick={() => refetchMachines()} className="min-h-9">Reintentar</Button>
+                          </div>
+                        ) : fixedAssignmentCandidates.length === 0 ? (
+                          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-semibold text-amber-800 dark:text-amber-300">No hay extrusoras activas disponibles para una asignación fija.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {fixedAssignmentCandidates.map((machine) => (
+                              <label key={machine.id} className="flex items-center gap-2 rounded-lg border border-border bg-background p-2.5 text-sm font-semibold">
+                                <input type="checkbox" checked={allowedExtruderIds.includes(Number(machine.id))} onChange={(event) => setAllowedExtruderIds((current) => event.target.checked
+                                  ? [...new Set([...current, Number(machine.id)])]
+                                  : current.filter((id) => id !== Number(machine.id)))} />
+                                <span>{machine.name}</span>
+                                {machine.is_dynamic_member && <Badge variant="outline" className="ml-auto text-[10px]">También dinámica</Badge>}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
             {/* SIMULACIÓN DE VALOR TRANSFORMADO EN TIEMPO REAL */}
             {allowCosts && (
               <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 via-card to-background border-2 border-primary/30 shadow-inner">
@@ -183,25 +309,6 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
 
             {/* CAMPOS DEL FORMULARIO */}
             <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                  PTI de salida enlazado
-                </label>
-                <select
-                  value={outputPtiId}
-                  onChange={(e) => setOutputPtiId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
-                >
-                  <option value="">-- Sin PTI enlazado --</option>
-                  {availablePtis.map((pti: any) => (
-                    <option key={pti.id} value={pti.id}>{pti.code} — {pti.name}</option>
-                  ))}
-                </select>
-                <span className="text-[11px] text-muted-foreground mt-1 block">
-                  Los PTI asignados a otra fórmula no aparecen disponibles.
-                </span>
-              </div>
-
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
                   Nombre de la Fórmula
@@ -327,23 +434,6 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border">
-                <div>
-                  <span className="font-bold text-sm text-foreground block">Estado de la Fórmula</span>
-                  <span className="text-xs text-muted-foreground">
-                    {isActive ? 'Fórmula activa y disponible en piso de producción' : 'Fórmula inactiva (oculta de piso)'}
-                  </span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
             </div>
           </div>
 

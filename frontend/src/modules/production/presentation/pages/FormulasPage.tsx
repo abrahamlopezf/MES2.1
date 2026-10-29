@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Input, Icon, renderAnyIcon } from '@/design-system';
 import {
@@ -11,6 +12,7 @@ import {
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { MixRequestModal } from '../components/MixRequestModal';
 import { EditFormulaModal } from '../components/EditFormulaModal';
+import { CreateFormulaModal } from '../components/CreateFormulaModal';
 import { PtiProductModal } from '../components/PtiProductModal';
 import { FormulaDetailsModal } from '../components/FormulaDetailsModal';
 import {
@@ -22,6 +24,8 @@ import {
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { getClientTargetLabel, isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
+import { apiClient } from '@/core/api/apiClient';
 
 interface MetricCardProps {
   title: string;
@@ -75,11 +79,12 @@ export const FormulasPage: React.FC = () => {
   const [selectedFormulaDetails, setSelectedFormulaDetails] = useState<Formula | null>(null);
   const [selectedMixFormula, setSelectedMixFormula] = useState<Formula | null>(null);
   const [editingFormula, setEditingFormula] = useState<Formula | null>(null);
+  const [isCreateFormulaOpen, setIsCreateFormulaOpen] = useState(false);
 
   // Estados de Catálogo PTI
   const [ptiSearchTerm, setPtiSearchTerm] = useState('');
   const [ptiFormulaFilter, setPtiFormulaFilter] = useState<string>('ALL');
-  const [ptiStatusFilter, setPtiStatusFilter] = useState<string>('ALL');
+  const [ptiStatusFilter, setPtiStatusFilter] = useState<string>('ACTIVE');
   const [editingPti, setEditingPti] = useState<PtiProduct | null>(null);
   const [isPtiModalOpen, setIsPtiModalOpen] = useState(false);
   const [deletingPtiId, setDeletingPtiId] = useState<number | null>(null);
@@ -91,7 +96,7 @@ export const FormulasPage: React.FC = () => {
     isError: isFormulasError,
     error: formulasError,
     refetch: refetchFormulas,
-  } = useFloorFormulasQuery();
+  } = useFloorFormulasQuery({ is_active: 'ALL' });
   const {
     data: ptiProducts = [],
     isLoading: isPtiLoading,
@@ -99,6 +104,13 @@ export const FormulasPage: React.FC = () => {
     error: ptiError,
     refetch: refetchPtis,
   } = usePtiProductsQuery({ is_active: 'ALL' });
+  const catalogFormulas = formulas.filter((formula) => isClientFormula(formula.code));
+  const { data: machineData = [] } = useQuery({
+    queryKey: ['extrusion', 'machines'],
+    queryFn: async () => (await apiClient.get('/extrusion/machines')).data?.data || [],
+  });
+  const dynamicMachines = (Array.isArray(machineData) ? machineData : [])
+    .filter((machine: any) => machine.is_dynamic_member && machine.is_active !== false && machine.status === 'ACTIVE');
 
   // Mutations
   const updatePtiMutation = useUpdatePtiProductMutation();
@@ -106,9 +118,12 @@ export const FormulasPage: React.FC = () => {
 
   // Helper para máquina destino
   const getTargetMachine = (formula: any) => {
-    if (formula.allowed_extruders && formula.allowed_extruders.length > 0) {
-      return `Extrusora ${formula.allowed_extruders.join(', ')}`;
+    const clientTarget = getClientTargetLabel(formula);
+    if (clientTarget === 'Grupo dinámico de extrusoras') {
+      return dynamicMachines.map((machine: any) => machine.name).join(', ') || 'Grupo dinámico sin extrusoras activas';
     }
+    if (clientTarget) return clientTarget;
+    if (formula.allowed_extruders && formula.allowed_extruders.length > 0) return `Extrusora ${formula.allowed_extruders.join(', ')}`;
     if (formula.description && formula.description.includes('Extrusora')) {
       return formula.description;
     }
@@ -120,7 +135,7 @@ export const FormulasPage: React.FC = () => {
   };
 
   // Filtrado de Fórmulas
-  const filteredFormulas = formulas.filter((f: Formula) => {
+  const filteredFormulas = catalogFormulas.filter((f: Formula) => {
     const matchesSearch =
       f.name.toLowerCase().includes(formulaSearchTerm.toLowerCase()) ||
       f.code.toLowerCase().includes(formulaSearchTerm.toLowerCase());
@@ -129,7 +144,7 @@ export const FormulasPage: React.FC = () => {
     return matchesSearch && matchesMachine;
   });
 
-  const machines = ['Extrusora 1', 'Extrusora 3', 'Extrusora 4', 'Extrusora 5', 'Liquitank'];
+  const machines = ['Extrusora 1', ...dynamicMachines.map((machine: any) => machine.name)];
 
   // Filtrado de PTIs
   const filteredPtis = ptiProducts.filter((p: PtiProduct) => {
@@ -153,25 +168,27 @@ export const FormulasPage: React.FC = () => {
   });
 
   // Métricas generales de Fórmulas
-  const totalFormulas = formulas.length;
-  const avgCostIndex = formulas.length > 0
-    ? (formulas.reduce((acc, f) => acc + (Number(f.cost_index) || 1.15), 0) / formulas.length).toFixed(4)
+  const totalFormulas = catalogFormulas.length;
+  const avgCostIndex = catalogFormulas.length > 0
+    ? (catalogFormulas.reduce((acc, f) => acc + (Number(f.cost_index) || 1.15), 0) / catalogFormulas.length).toFixed(4)
     : 'Pendiente';
-  const valuedFormulas = formulas.filter((formula) => formula.transformed_mixture_value != null);
+  const valuedFormulas = catalogFormulas.filter((formula) => formula.transformed_mixture_value != null);
   const avgMixValue = valuedFormulas.length > 0
     ? (valuedFormulas.reduce((acc, formula) => acc + Number(formula.transformed_mixture_value), 0) / valuedFormulas.length).toFixed(2)
     : null;
-  const totalLinkedPtis = formulas.reduce((acc, f) => acc + (f.ptiProducts?.length || 0), 0);
+  const totalLinkedPtis = catalogFormulas.reduce((acc, f) => acc + (f.ptiProducts?.length || 0), 0);
 
   // Métricas de Catálogo PTI
-  const totalPtisCount = ptiProducts.length;
-  const activePtisCount = ptiProducts.filter((p) => p.is_active).length;
-  const weightedPtis = ptiProducts.filter((p) => p.unit_weight_kg != null && Number(p.unit_weight_kg) > 0);
+  const activePtiProducts = ptiProducts.filter((p) => p.is_active);
+  const totalPtisCount = activePtiProducts.length;
+  const activePtisCount = totalPtisCount;
+  const inactivePtisCount = ptiProducts.length - activePtisCount;
+  const weightedPtis = activePtiProducts.filter((p) => p.unit_weight_kg != null && Number(p.unit_weight_kg) > 0);
   const avgWeightKg = weightedPtis.length > 0
     ? (weightedPtis.reduce((acc, p) => acc + Number(p.unit_weight_kg), 0) / weightedPtis.length).toFixed(3)
     : 'Pendiente';
-  const avgPtiCostIndex = ptiProducts.length > 0
-    ? (ptiProducts.reduce((acc, p) => acc + Number(p.transformed_cost_index || 1), 0) / ptiProducts.length).toFixed(4)
+  const avgPtiCostIndex = activePtiProducts.length > 0
+    ? (activePtiProducts.reduce((acc, p) => acc + Number(p.transformed_cost_index || 1), 0) / activePtiProducts.length).toFixed(4)
     : '1.0000';
 
   const getQueryErrorMessage = (error: any) =>
@@ -317,7 +334,7 @@ export const FormulasPage: React.FC = () => {
               <>
                 <MetricCard
                   title="Recetas Operativas"
-                  value={formulas.filter(f => f.is_active !== false).length}
+                  value={catalogFormulas.filter(f => f.is_active !== false).length}
                   subtitle="Disponibles en piso de extrusión"
                   icon="precision_manufacturing"
                   iconBg="bg-purple-500/10 text-purple-600"
@@ -373,7 +390,14 @@ export const FormulasPage: React.FC = () => {
               </div>
 
               {/* CONMUTADOR DE VISTAS (TARJETAS / LISTA) */}
-              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border shrink-0 self-end sm:self-auto shadow-xs">
+              <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+                <PermissionGate permission="extrusion.formulas.manage">
+                  <Button type="button" className="min-h-11 gap-2 font-bold" onClick={() => setIsCreateFormulaOpen(true)}>
+                    <Icon name="add" size={18} />
+                    Nueva fórmula
+                  </Button>
+                </PermissionGate>
+                <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border shrink-0 shadow-xs">
                 <button
                   type="button"
                   data-testid="toggle-view-cards"
@@ -400,6 +424,7 @@ export const FormulasPage: React.FC = () => {
                 >
                   <Icon name="format_list_bulleted" size={18} />
                 </button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -445,6 +470,7 @@ export const FormulasPage: React.FC = () => {
                             <div className="flex items-center gap-1.5 flex-wrap mb-1">
                               <Badge variant="outline" className="font-mono text-sm font-bold">{formula.code}</Badge>
                               <Badge variant="secondary" className="text-sm font-semibold">{formula.batch_size_kg || 500} Kg</Badge>
+                              <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-xs font-bold">{formula.is_active === false ? 'INACTIVA' : 'ACTIVA'}</Badge>
                             </div>
                             <h3 className="font-black text-lg text-foreground leading-snug line-clamp-2">
                               {formula.name}
@@ -553,6 +579,7 @@ export const FormulasPage: React.FC = () => {
                       <article key={formula.id} className="rounded-xl border border-border bg-background p-4">
                         <p className="break-words font-mono text-sm font-bold text-primary">{formula.code}</p>
                         <h4 className="mt-1 text-lg font-bold leading-snug text-foreground">{formula.name}</h4>
+                        <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="mt-2 w-fit text-xs font-bold">{formula.is_active === false ? 'INACTIVA' : 'ACTIVA'}</Badge>
 
                         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-3 text-base">
                           <div className="col-span-2">
@@ -652,6 +679,7 @@ export const FormulasPage: React.FC = () => {
                                   {formula.name}
                                 </span>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold flex-wrap">
+                                  <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-[10px] font-bold">{formula.is_active === false ? 'INACTIVA' : 'ACTIVA'}</Badge>
                                   <span className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-purple-500"></span>
                                     <span>{getTargetMachine(formula)}</span>
@@ -749,7 +777,7 @@ export const FormulasPage: React.FC = () => {
             <MetricCard
               title="Carretes / Bobinas"
               value={totalPtisCount}
-              subtitle={`${activePtisCount} activos en planta`}
+              subtitle={`${inactivePtisCount} históricos archivados`}
               icon="inventory_2"
               iconBg="bg-primary/10 text-primary"
               subIcon="check_circle"
@@ -757,7 +785,7 @@ export const FormulasPage: React.FC = () => {
             />
             <MetricCard
               title="Fórmulas Vinculadas"
-              value={new Set(ptiProducts.map((p) => p.formula_id)).size}
+              value={new Set(activePtiProducts.map((p) => p.formula_id).filter(Boolean)).size}
               subtitle="Con trazabilidad genealógica"
               icon="link"
               iconBg="bg-purple-500/10 text-purple-600"
@@ -1177,6 +1205,16 @@ export const FormulasPage: React.FC = () => {
       {/* ========================================================= */}
 
       {/* Modal de Solicitud de Mezcla */}
+      <CreateFormulaModal
+        isOpen={isCreateFormulaOpen}
+        onClose={() => setIsCreateFormulaOpen(false)}
+        allowCosts={allowCosts}
+        onCreated={(formula) => {
+          setIsCreateFormulaOpen(false);
+          setSelectedFormulaDetails(formula);
+        }}
+      />
+
       <MixRequestModal
         isOpen={Boolean(selectedMixFormula)}
         onClose={() => setSelectedMixFormula(null)}
@@ -1205,7 +1243,7 @@ export const FormulasPage: React.FC = () => {
       <FormulaDetailsModal
         isOpen={Boolean(selectedFormulaDetails)}
         onClose={() => setSelectedFormulaDetails(null)}
-        formula={formulas.find((f: Formula) => f.id === selectedFormulaDetails?.id) || selectedFormulaDetails}
+        formula={catalogFormulas.find((f: Formula) => f.id === selectedFormulaDetails?.id) || selectedFormulaDetails}
         onEditFormula={(f) => {
           setSelectedFormulaDetails(null);
           setEditingFormula(f);

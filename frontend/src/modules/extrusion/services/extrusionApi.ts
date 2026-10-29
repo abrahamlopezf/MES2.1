@@ -41,8 +41,23 @@ export const extrusionApi = {
     return response.data.data;
   },
 
-  getFloorFormulas: async (): Promise<Formula[]> => {
-    const response = await axiosClient.get('/extrusion/floor-formulas');
+  getFloorFormulas: async (params?: { is_active?: boolean | string }): Promise<Formula[]> => {
+    const response = await axiosClient.get('/extrusion/floor-formulas', { params });
+    return response.data.data;
+  },
+
+  createFormula: async (payload: {
+    code: string;
+    name: string;
+    description?: string;
+    batch_size_kg: number;
+    expected_yield_pieces: number;
+    expected_yield_kg: number;
+    cost_index?: number;
+    extruder_assignment_mode: 'DYNAMIC' | 'FIXED';
+    allowed_extruders?: number[];
+  }): Promise<Formula> => {
+    const response = await axiosClient.post('/extrusion/floor-formulas', payload);
     return response.data.data;
   },
 
@@ -137,7 +152,6 @@ export const extrusionApi = {
     expected_yield_pieces?: number;
     expected_yield_kg?: number;
     is_active?: boolean;
-    output_pti_id?: number | null;
   }): Promise<Formula> => {
     const response = await axiosClient.put(`/extrusion/floor-formulas/${id}`, payload);
     return response.data.data;

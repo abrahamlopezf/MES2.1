@@ -53,6 +53,7 @@ const ROUTE_DICTIONARY = {
   tokens: 'Códigos QR',
   traceability: 'Trazabilidad',
   types: 'Tipos',
+  wip: 'WIP',
   units: 'Unidades',
   usuarios: 'Usuarios',
   'viajero-tracker': 'Seguimiento de viajero',

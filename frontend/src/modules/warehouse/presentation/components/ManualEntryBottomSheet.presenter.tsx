@@ -14,6 +14,8 @@ export interface ManualEntryBottomSheetPresenterProps {
   locationId: string;
   entries: { folio: string; quantity: string; supplier_id: string; unit_cost: string; currency: 'MXN' | 'USD'; invoice_date: string }[];
   exchangeRatesByDate: Record<string, { rate: number; date: string; requestedDate: string; source: string }>;
+  isExchangeRateLoading: boolean;
+  exchangeRatePreviewFailed: boolean;
   notes: string;
   materials: any[];
   loadingMaterials: boolean;
@@ -45,6 +47,8 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   locationId,
   entries,
   exchangeRatesByDate,
+  isExchangeRateLoading,
+  exchangeRatePreviewFailed,
   notes,
   materials,
   loadingMaterials,
@@ -346,7 +350,11 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                               const usd = entry.currency === 'USD' ? amount : amount / rate.rate;
                               return `DOF ${rate.rate} MXN/USD (${rate.date}) · Guardará $${mxn.toFixed(4)} MXN y $${usd.toFixed(6)} USD`;
                             })()
-                          : 'Consultando el tipo de cambio del DOF para la fecha de factura…'}
+                          : exchangeRatePreviewFailed
+                            ? 'No se pudo cargar la vista previa; el servidor reintentará la consulta DOF al guardar.'
+                            : isExchangeRateLoading
+                              ? 'Consultando el tipo de cambio del DOF para la fecha de factura…'
+                              : 'Tipo de cambio pendiente; se validará nuevamente al guardar.'}
                       </span>
                     </div>
 
@@ -416,7 +424,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
           <Button 
             variant="default" 
             onClick={onConfirmEntry}
-            disabled={isSubmitting || !materialId || (!isPp && !locationId) || (isPp && !selectedSiloId) || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
+            disabled={isSubmitting || isExchangeRateLoading || !materialId || (!isPp && !locationId) || (isPp && !selectedSiloId) || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
             className={`flex-[1.5] font-bold py-6 rounded-xl shadow-md ${isPp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
           >
             {isSubmitting ? (

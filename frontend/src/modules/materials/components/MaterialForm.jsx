@@ -122,7 +122,7 @@ const MaterialForm = ({
   const { data: locationsData } = useOperationalAreasQuery({ pageSize: 10000 });
   const { data: unitsData } = useMaterialUnitsQuery({ pageSize: 10000 });
   const { data: rankingsData } = useRankingsQuery();
-  const { data: tagsData } = useActiveTagsQuery();
+  const { data: tagsData, isLoading: isTagsLoading, isError: tagsLoadError } = useActiveTagsQuery();
 
   const families = familiesData?.items || [];
   const codes = codesData?.items || [];
@@ -146,7 +146,7 @@ const MaterialForm = ({
     minimum_stock: initialData?.minimum_stock ?? '',
     maximum_stock: initialData?.maximum_stock ?? '',
     reorder_point: initialData?.reorder_point ?? '',
-    tags: initialData?.tags?.map(t => t.uuid || t.id) || [],
+    tags: initialData?.tags?.map(t => String(t.uuid || t.id)) || [],
     is_active: initialData?.is_active ?? true,
   });
 
@@ -261,7 +261,7 @@ const MaterialForm = ({
         minimum_stock: initialData.minimum_stock ?? current.minimum_stock,
         maximum_stock: initialData.maximum_stock ?? current.maximum_stock,
         reorder_point: initialData.reorder_point ?? current.reorder_point,
-        tags: initialData.tags?.map(t => t.uuid || String(t.id)) || current.tags,
+        tags: initialData.tags?.map(t => String(t.uuid || t.id)) || current.tags,
         is_active: initialData.is_active ?? current.is_active,
       }));
     }
@@ -799,6 +799,7 @@ const MaterialForm = ({
             label="Etiquetas (Opcional)"
             name="tags"
             placeholder="Buscar etiquetas..."
+            helperText={isTagsLoading ? 'Cargando etiquetas…' : tagsLoadError ? 'No se pudieron cargar las etiquetas. Cierra y vuelve a abrir el formulario para reintentar.' : undefined}
             value={formData.tags}
             onChange={(e) => updateField('tags', e.target.value)}
             options={activeTags.map(tag => ({
@@ -806,7 +807,7 @@ const MaterialForm = ({
               label: tag.name
             }))}
             isMulti={true}
-            allowCreate={!isEditing}
+            allowCreate={!isEditing || canEditRestrictedFields}
             createLabel="Nueva Etiqueta"
             disabled={isSubmitting || (isEditing && !canEditRestrictedFields)}
           />

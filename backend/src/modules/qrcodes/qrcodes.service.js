@@ -29,11 +29,15 @@ const canManageAllAreas = (currentUser) => {
 };
 
 const getUserAreaId = (currentUser) => {
+  const roleCode = String(currentUser?.role?.code || '').toUpperCase();
   return (
     currentUser?.area?.id ||
     currentUser?.areaId ||
     currentUser?.role?.area_id ||
     currentUser?.role?.area?.id ||
+    (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(roleCode) ? 2 : null) ||
+    (['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES', 'OPERADOR_TELARES'].includes(roleCode) ? 3 : null) ||
+    (['ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN'].includes(roleCode) ? 1 : null) ||
     null
   );
 };
@@ -65,6 +69,15 @@ const assertCanUseArea = async (areaId, currentUser, transaction = null) => {
 const getQrVisibilityWhere = (currentUser) => {
   if (canManageAllAreas(currentUser)) return {};
 
+  const roleCode = String(currentUser?.role?.code || '').toUpperCase();
+  if (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode)) {
+    return { assigned_area_id: getUserAreaId(currentUser) || 2 };
+  }
+
+  if (roleCode === 'SUPERVISOR_EXTRUSION') {
+    return { assigned_area_id: getUserAreaId(currentUser) || 2 };
+  }
+
   // El supervisor solo puede ver los lotes de QR creados por él
   if (isSupervisor(currentUser)) {
     return {
@@ -73,8 +86,6 @@ const getQrVisibilityWhere = (currentUser) => {
   }
 
   const userAreaId = getUserAreaId(currentUser);
-  const roleCode = (currentUser?.role?.code || '').toUpperCase();
-
 
   // Para usuarios de Almacén (ADMIN_ALM / WAREHOUSEMAN), SOLO mostrar los QR asignados a Almacén
   if (roleCode === 'ADMIN_ALM' || roleCode === 'WAREHOUSEMAN' || Number(userAreaId) === 1) {
@@ -528,7 +539,13 @@ const getQrBatchById = async (batchId, currentUser) => {
 
   const plainBatch = batch.get({ plain: true });
 
-  if (isSupervisor(currentUser)) {
+  const roleCode = String(currentUser?.role?.code || '').toUpperCase();
+  if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode)
+    && Number(plainBatch.assigned_area_id) !== Number(getUserAreaId(currentUser) || 2)) {
+    throwHttpError('Solo puedes consultar lotes de QR asignados a Extrusión.', 403);
+  }
+
+  if (isSupervisor(currentUser) && roleCode !== 'SUPERVISOR_EXTRUSION') {
     const creatorId = plainBatch.created_by?.id || plainBatch.created_by;
     if (creatorId && Number(creatorId) !== Number(currentUser.id)) {
       throwHttpError('Solo puedes consultar los lotes creados por ti.', 403);

@@ -52,7 +52,11 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const [catalogReminder, setCatalogReminder] = useState<any>(null);
 
   const invoiceDates = [...new Set(entries.map((entry) => entry.invoice_date).filter(Boolean))].sort();
-  const { data: exchangeRatesByDate = {} } = useQuery<Record<string, { rate: number; date: string; requestedDate: string; source: string }>>({
+  const {
+    data: exchangeRatesByDate = {},
+    isFetching: isExchangeRateLoading,
+    isError: exchangeRatePreviewFailed,
+  } = useQuery<Record<string, { rate: number; date: string; requestedDate: string; source: string }>>({
     queryKey: ['warehouse', 'usd-mxn-rates', invoiceDates],
     queryFn: async () => Object.fromEntries(await Promise.all(invoiceDates.map(async (date) => {
       const response = await axiosClient.get('/warehouse/silos/exchange-rate', { params: { date } });
@@ -60,7 +64,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     }))),
     enabled: isOpen && invoiceDates.length > 0,
     staleTime: 60_000,
-    retry: 1,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(750 * (attempt + 1), 2_000),
   });
 
   // Clear state when opened
@@ -280,9 +285,18 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       return;
     }
 
-    if (entries.some((entry) => !entry.invoice_date || !exchangeRatesByDate[entry.invoice_date]?.rate)) {
-      toast.error('No se pudo consultar en el DOF el tipo de cambio de la fecha de alguna factura. Verifica las fechas y vuelve a intentar.');
+    if (entries.some((entry) => !entry.invoice_date)) {
+      toast.error('Selecciona la fecha de factura para cada ingreso.');
       return;
+    }
+    if (isExchangeRateLoading) {
+      toast.info('Espera a que termine la consulta del tipo de cambio antes de confirmar el ingreso.');
+      return;
+    }
+    if (exchangeRatePreviewFailed || entries.some((entry) => !exchangeRatesByDate[entry.invoice_date]?.rate)) {
+      // La vista previa es orientativa; el servidor volverá a consultar al
+      // DOF con reintentos antes de iniciar cualquier escritura en la BD.
+      toast.info('No se cargó la vista previa del tipo de cambio. El servidor volverá a validarlo al guardar.');
     }
 
     const confirmed = await confirm({
@@ -308,6 +322,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         locationId={locationId}
         entries={entries}
         exchangeRatesByDate={exchangeRatesByDate}
+        isExchangeRateLoading={isExchangeRateLoading}
+        exchangeRatePreviewFailed={exchangeRatePreviewFailed}
         notes={notes}
         materials={materials}
         loadingMaterials={loadingMaterials}

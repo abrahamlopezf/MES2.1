@@ -8,6 +8,8 @@ export interface MaterialRef {
 export interface FormulaIngredient {
   id: number;
   formula_id: number;
+  output_pti_product_id?: number | null;
+  output_pti_color?: string | null;
   material_id: number;
   percentage?: number;
   weight_kg: number;
@@ -29,8 +31,8 @@ export interface Formula {
   expected_yield_kg: number;
   allowed_extruders?: number[];
   restricted_extruders?: number[];
+  extruder_assignment_mode?: 'EXTRUDER_1' | 'DYNAMIC' | 'FIXED';
   is_active: boolean;
-  output_pti_id?: number | null;
   ingredients?: FormulaIngredient[];
   ptiProducts?: PtiProduct[];
 }
@@ -157,7 +159,7 @@ export interface ExtruderMachineInfo {
 export interface MachineQueueGroup {
   machine: ExtruderMachineInfo;
   active: ExtruderQueue | null;
-  active_formula_group?: { formula_id: number; formula_name: string | null; batch_count: number; quantity_kg: number; mixture_qrs: string[] } | null;
+  active_formula_group?: { formula_id: number; output_pti_product_id?: number | null; output_pti_color?: string | null; formula_name: string | null; batch_count: number; quantity_kg: number; mixture_qrs: string[] } | null;
   paused: ExtruderQueue[];
   waiting: ExtruderQueue[];
   total_in_queue: number;
@@ -181,7 +183,10 @@ export interface BackflushingResult {
 export interface ScanRackPtiResponse {
   message: string;
   rack: PtiRack;
+  racks?: Array<PtiRack & { pieces_added?: number }>;
+  created_racks?: Array<PtiRack & { pieces_added?: number }>;
   backflushing: BackflushingResult | null;
+  production_entries?: any[];
   queue_completion?: QueueCompletion | null;
 }
 
@@ -196,6 +201,8 @@ export interface SwitchQueuePriorityPayload {
   queue_id: number;
   scanned_qr?: string;
   prioritize_formula_id?: number;
+  purge_percentage?: number;
+  notes?: string;
   scrap_weight_kg?: number;
   scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; shift_code?: string; notes?: string }[];
   shift_code?: string;

@@ -4,16 +4,31 @@ import { toast } from 'sonner';
 import { Card, CardContent, Badge, Button, Input, Icon } from '../../../../design-system';
 import { apiClient } from '../../../../core/api/apiClient';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
+import { isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
 
 export const MachinesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMachineForFormulas, setSelectedMachineForFormulas] = useState<any | null>(null);
   const [isFormulasModalOpen, setIsFormulasModalOpen] = useState(false);
+  const [isCreateMachineOpen, setIsCreateMachineOpen] = useState(false);
   const [editingMachine, setEditingMachine] = useState<any | null>(null);
-  const [machineDraft, setMachineDraft] = useState({ name: '', type: '', notes: '', status: 'ACTIVE' });
+  const [machineDraft, setMachineDraft] = useState({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false });
   const [selectedFormulaIds, setSelectedFormulaIds] = useState<number[]>([]);
 
   const queryClient = useQueryClient();
+
+  const createMachineMutation = useMutation({
+    mutationFn: async (payload: typeof machineDraft) => (await apiClient.post('/extrusion/machines', payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'machines'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'floor-formulas'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'queues'] });
+      toast.success('Extrusora creada y catálogo actualizado.');
+      setIsCreateMachineOpen(false);
+      setMachineDraft({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'No se pudo crear la extrusora.'),
+  });
 
   const { data: formulaOptions = [] } = useQuery({
     queryKey: ['extrusion', 'floor-formulas'],
@@ -30,6 +45,7 @@ export const MachinesPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'machines'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'queues'] });
       toast.success('Extrusora actualizada.');
       setEditingMachine(null);
     },
@@ -75,7 +91,7 @@ export const MachinesPage = () => {
 
   const handleEditMachine = (machine: any) => {
     setEditingMachine(machine);
-    setMachineDraft({ name: machine.name || '', type: machine.type || 'STANDARD', notes: machine.notes || '', status: machine.status || 'ACTIVE' });
+    setMachineDraft({ code: machine.code || '', name: machine.name || '', type: machine.type || 'STANDARD', notes: machine.notes || '', status: machine.status || 'ACTIVE', is_dynamic_member: Boolean(machine.is_dynamic_member) });
   };
 
   return (
@@ -96,6 +112,11 @@ export const MachinesPage = () => {
           <Badge variant="outline" className="px-3 py-1 text-xs font-bold border-border bg-card">
             Total: {machines.length} Extrusoras
           </Badge>
+          <PermissionGate permission="extrusion.runs.manage">
+            <Button type="button" onClick={() => { setMachineDraft({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false }); setIsCreateMachineOpen(true); }} className="min-h-11 gap-2">
+              <Icon name="add" size={18} /> Nueva extrusora
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -143,8 +164,6 @@ export const MachinesPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredMachines.map((machine: any) => {
             const hasActiveOrders = Number(machine.active_orders_count || 0) > 0;
-            const isMachine4 = machine.id === 4;
-
             return (
               <Card 
                 key={machine.id} 
@@ -167,6 +186,9 @@ export const MachinesPage = () => {
                         <p className="text-sm text-muted-foreground font-semibold mt-1 truncate">
                           Tipo: {machine.type}
                         </p>
+                        <Badge variant={machine.is_dynamic_member ? 'success' : 'outline'} className="mt-2 text-[10px]">
+                          {machine.is_dynamic_member ? 'Grupo dinámico' : machine.code === 'EXT-01' ? 'Fórmulas exclusivas' : 'Fuera del grupo dinámico'}
+                        </Badge>
                       </div>
                     </div>
 
@@ -184,14 +206,6 @@ export const MachinesPage = () => {
                       </PermissionGate>
                     </div>
                   </div>
-
-                  {/* Restricciones especiales (Extrusora 4) */}
-                  {isMachine4 && (
-                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-400 flex items-start gap-2 text-sm font-bold leading-relaxed">
-                      <Icon name="block" size={16} className="shrink-0 mt-0.5 text-red-500" />
-                      <span>Restricción: esta extrusora no procesa fórmulas con Polipropileno tipo B.</span>
-                    </div>
-                  )}
 
                   {hasActiveOrders && <p className="text-sm text-muted-foreground">{machine.active_orders_count} mezcla(s) en cola o proceso.</p>}
 
@@ -233,6 +247,10 @@ export const MachinesPage = () => {
               <h3 className="font-black text-lg">Editar {editingMachine.code}</h3>
               <button type="button" onClick={() => setEditingMachine(null)} className="text-muted-foreground hover:text-foreground">✕</button>
             </div>
+            <label className={`flex items-start gap-3 rounded-lg border border-border p-3 text-sm ${editingMachine.code === 'EXT-01' ? 'opacity-60' : ''}`}>
+              <input type="checkbox" checked={machineDraft.is_dynamic_member} disabled={editingMachine.code === 'EXT-01'} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
+              <span><strong>Incluir en el grupo dinámico</strong><span className="block text-xs text-muted-foreground">Habilita las fórmulas generales del cliente para esta máquina. No aplica a Extrusora 1.</span></span>
+            </label>
             <label className="block space-y-2 text-sm font-bold text-foreground">
               Nombre
               <Input value={machineDraft.name} onChange={(e) => setMachineDraft({ ...machineDraft, name: e.target.value })} required />
@@ -253,6 +271,29 @@ export const MachinesPage = () => {
         </div>
       )}
 
+      {isCreateMachineOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl p-5 space-y-4" onSubmit={(event) => { event.preventDefault(); createMachineMutation.mutate(machineDraft); }}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-black text-lg">Nueva extrusora</h3>
+              <button type="button" onClick={() => setIsCreateMachineOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <label className="block space-y-2 text-sm font-bold text-foreground">Código <Input value={machineDraft.code} onChange={(e) => setMachineDraft({ ...machineDraft, code: e.target.value.toUpperCase() })} placeholder="Ej. EXT-06" required maxLength={50} /></label>
+            <label className="block space-y-2 text-sm font-bold text-foreground">Nombre <Input value={machineDraft.name} onChange={(e) => setMachineDraft({ ...machineDraft, name: e.target.value })} placeholder="Ej. Extrusora 6" required maxLength={100} /></label>
+            <label className="block space-y-2 text-sm font-bold text-foreground">Tipo / uso <Input value={machineDraft.type} onChange={(e) => setMachineDraft({ ...machineDraft, type: e.target.value })} placeholder="STANDARD" maxLength={50} /></label>
+            <label className="flex items-start gap-3 rounded-lg border border-border p-3 text-sm">
+              <input type="checkbox" checked={machineDraft.is_dynamic_member} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
+              <span><strong>Incluir en el grupo dinámico</strong><span className="block text-xs text-muted-foreground">Podrá recibir fórmulas generales; la Extrusora 1 seguirá siendo exclusiva.</span></span>
+            </label>
+            <label className="block space-y-2 text-sm font-bold text-foreground">Notas <textarea value={machineDraft.notes} onChange={(e) => setMachineDraft({ ...machineDraft, notes: e.target.value })} rows={2} className="w-full rounded-md border border-border bg-background p-3 text-sm font-medium text-foreground" /></label>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsCreateMachineOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={createMachineMutation.isPending}>{createMachineMutation.isPending ? 'Guardando…' : 'Crear extrusora'}</Button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Modal: Matriz de Recetas Compatibles de la Máquina */}
       {isFormulasModalOpen && selectedMachineForFormulas && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -267,7 +308,7 @@ export const MachinesPage = () => {
                     Recetas Compatibles: {selectedMachineForFormulas.name}
                   </h3>
                   <p className="text-xs text-muted-foreground font-semibold">
-                    Matriz de Compatibilidad Técnica Oficial (extrusoras_formulas)
+                    Matriz heredada de compatibilidad (no controla las fórmulas del cliente)
                   </p>
                 </div>
               </div>
@@ -285,18 +326,11 @@ export const MachinesPage = () => {
             <div className="p-4 overflow-y-auto space-y-3 flex-1">
               <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-xs font-bold text-primary flex items-center gap-2">
                 <Icon name="tune" size={16} className="shrink-0" />
-                <span>Selecciona las recetas autorizadas por el cliente para esta máquina. La lista controla el mezclado y el encolado.</span>
+                <span>Esta matriz aplica a recetas heredadas. Las fórmulas entregadas por el cliente siguen Extrusora 1 exclusiva o pertenencia al grupo dinámico.</span>
               </div>
 
-              {selectedMachineForFormulas.id === 4 && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
-                  <Icon name="block" size={16} className="shrink-0 text-red-500" />
-                  <span>Hard-block: Prohibido Polipropileno B. Fórmulas como DIN-PPB, NEGRO y VERDE-OPT están deshabilitadas.</span>
-                </div>
-              )}
-
               <div className="divide-y divide-border border border-border rounded-xl overflow-hidden">
-                {formulaOptions.map((formula: any) => {
+                {formulaOptions.filter((formula: any) => !isClientFormula(formula.code)).map((formula: any) => {
                   const selected = selectedFormulaIds.includes(Number(formula.id));
                   return (
                     <label key={formula.id} className="p-3 flex items-center gap-3 hover:bg-muted/30 cursor-pointer">

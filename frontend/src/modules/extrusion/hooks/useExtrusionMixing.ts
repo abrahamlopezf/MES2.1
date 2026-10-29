@@ -40,11 +40,18 @@ export const useMixFormula = () => {
       const res = await apiClient.post<{ success: boolean; data: any; message: string }>('/extrusion/mix', payload);
       return res;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['extrusion', 'formulas'] });
-      queryClient.invalidateQueries({ queryKey: ['extrusion', 'queues'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['wip', 'inventory'] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'formulas'] }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'mixing-formulas'] }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'formula-details'] }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'queues'] }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'prepared-mix-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'silos'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['wip', 'inventory'] }),
+      ]);
     },
   });
 };
@@ -57,16 +64,20 @@ export const useFormulaDetails = (formulaId: string | number | undefined) => {
       const res: any = await apiClient.get(`/extrusion/formulas/${formulaId}`);
       return res?.data || res;
     },
+    // Keep the QR-backed WIP and FIFO suggestions fresh while the mixing
+    // terminal is open; the backend still validates/locks stock on submit.
+    refetchInterval: 2500,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
     enabled: Boolean(formulaId),
   });
 };
 
 export const fetchWipChildQr = async (qrCode: string) => {
-  const cleanQr = (qrCode || '').trim().toUpperCase();
+  const scannedValue = (qrCode || '').trim();
+  // Encrypted QR payloads are case-sensitive; normalize only the AGY prefix.
+  const cleanQr = /^AGY:/i.test(scannedValue) ? `AGY:${scannedValue.slice(4)}` : scannedValue.toUpperCase();
   if (!cleanQr) throw new Error('Código QR requerido.');
-  if (!cleanQr.includes('-SN')) {
-    throw new Error('Solo se admiten QRs Hijos (-SN) para la preparación de mezclas.');
-  }
   const res: any = await apiClient.get(`/extrusion/wip-child-qr/${encodeURIComponent(cleanQr)}`);
   return res?.data || res;
 };
@@ -89,6 +100,9 @@ export const usePreparedMixHistory = (params: number | { limit?: number; formula
       const res: any = await apiClient.get(`/extrusion/mix-history${queryString ? `?${queryString}` : ''}`);
       return res?.data || res || [];
     },
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
   });
 };
 

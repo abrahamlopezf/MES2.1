@@ -57,10 +57,11 @@ export const PtiIngressContainer: React.FC = () => {
 
   const handleCreateRack = async (payload: { rack_code: string; max_capacity?: number; location_name?: string }) => {
     try {
-      await createRackMutation.mutateAsync(payload);
+      const createdRack = await createRackMutation.mutateAsync(payload);
       toast.success(`Rack ${payload.rack_code} creado exitosamente.`);
       refetchRacks();
       if (canViewCosts) refetchValuation();
+      return createdRack;
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al registrar el rack.';
       toast.error(msg);
@@ -176,20 +177,19 @@ export const PtiIngressContainer: React.FC = () => {
   }, [selectedPtiProduct, unitPrice]);
 
   // Fórmula activa según el QR de mezcla
-  const selectedFormula: Formula | null = useMemo(() => {
+  const selectedQueue: ExtruderQueue | null = useMemo(() => {
     if (!mixtureQr) return null;
     const cleanMix = mixtureQr.trim();
-    const active = activeQueues.find((q) => q.consumption_order_qr_id === cleanMix);
-    if (active && active.formula) {
-      return active.formula;
-    }
-    return null;
+    return activeQueues.find((q) => q.consumption_order_qr_id === cleanMix) || null;
   }, [mixtureQr, activeQueues]);
+  const selectedFormula: Formula | null = selectedQueue?.formula || null;
   const compatiblePtiProducts = useMemo(() => {
     if (!selectedFormula) return [];
-    return ptiProducts.filter((product) => Number(product.formula_id) === Number(selectedFormula.id)
-      || Number(selectedFormula.output_pti_id || 0) === Number(product.id));
-  }, [ptiProducts, selectedFormula]);
+    if (selectedQueue?.output_pti_product_id) {
+      return ptiProducts.filter((product) => Number(product.id) === Number(selectedQueue.output_pti_product_id));
+    }
+    return ptiProducts.filter((product) => Number(product.formula_id) === Number(selectedFormula.id));
+  }, [ptiProducts, selectedFormula, selectedQueue]);
 
   // Regla 6: Peso teórico por pieza = batch_size_kg / expected_yield_pieces
   const theoreticalWeightPerPiece: number = useMemo(() => {
@@ -216,19 +216,23 @@ export const PtiIngressContainer: React.FC = () => {
     return Number((pieces * theoreticalWeightPerPiece).toFixed(2));
   }, [pieces, theoreticalWeightPerPiece]);
 
-  // Regla 5: Validar si excede capacidad máxima
-  const isCapacityExceeded: boolean = useMemo(() => {
+  // El ingreso puede completar el rack seleccionado y continuar en racks
+  // compatibles; esta condición solo informa al operador que habrá reparto.
+  const willSplitAcrossRacks: boolean = useMemo(() => {
     if (!selectedRack || pieces <= 0) return false;
-    const current = Number(selectedRack.current_quantity) || 0;
-    const max = Number(selectedRack.max_capacity) || 100;
-    return selectedRack.status === 'LLENO' || current + pieces > max;
+    const available = Math.max(0, (Number(selectedRack.max_capacity) || 100) - (Number(selectedRack.current_quantity) || 0));
+    return pieces > available;
   }, [selectedRack, pieces]);
 
   // Regla 5: Validar incompatibilidad de condicionamiento del rack
   const isPtiMismatched: boolean = useMemo(() => {
-    if (!selectedFormula || !selectedPtiProduct) return true;
-    const linkedToFormula = Number(selectedPtiProduct.formula_id) === Number(selectedFormula.id)
-      || Number(selectedFormula.output_pti_id || 0) === Number(selectedPtiProduct.id);
+    // No se puede afirmar que exista incompatibilidad mientras aún no se
+    // identifican la mezcla y el PTI. La validación de campos requeridos y la
+    // validación definitiva del QR siguen ocurriendo al registrar el ingreso.
+    if (!selectedFormula || !selectedPtiProduct) return false;
+    const linkedToFormula = selectedQueue?.output_pti_product_id
+      ? Number(selectedPtiProduct.id) === Number(selectedQueue.output_pti_product_id)
+      : Number(selectedPtiProduct.formula_id) === Number(selectedFormula.id);
     if (!linkedToFormula) return true;
     if (!selectedRack || selectedRack.status === 'VACIO' || !selectedRack.current_pti_type_id) {
       return false;
@@ -242,14 +246,15 @@ export const PtiIngressContainer: React.FC = () => {
       Number(selectedRack.current_pti_type_id) !== Number(selectedPtiMaterialId) &&
       Number(selectedRack.current_pti_type_id) !== Number(effectiveMatId)
     );
-  }, [selectedRack, selectedPtiMaterialId, selectedPtiProduct, selectedFormula]);
+  }, [selectedRack, selectedPtiMaterialId, selectedPtiProduct, selectedFormula, selectedQueue]);
 
   const mismatchErrorMessage = useMemo(() => {
     if (!isPtiMismatched) return '';
     if (!selectedFormula) return 'Selecciona una mezcla activa para identificar su fórmula y color.';
     if (!selectedPtiProduct) return 'Selecciona un PTI activo enlazado a la fórmula ' + selectedFormula.name + '.';
-    if (Number(selectedPtiProduct.formula_id || 0) !== Number(selectedFormula.id)
-      && Number(selectedFormula.output_pti_id || 0) !== Number(selectedPtiProduct.id)) {
+    const isExpectedQueuePti = selectedQueue?.output_pti_product_id
+      && Number(selectedPtiProduct.id) === Number(selectedQueue.output_pti_product_id);
+    if (!isExpectedQueuePti && Number(selectedPtiProduct.formula_id || 0) !== Number(selectedFormula.id)) {
       return 'El PTI ' + selectedPtiProduct.code + ' (' + (selectedPtiProduct.color || 'color sin definir') + ') no está enlazado a la fórmula ' + selectedFormula.name + '.';
     }
     if (!selectedRack) return '';
@@ -308,11 +313,6 @@ export const PtiIngressContainer: React.FC = () => {
       return;
     }
 
-    if (isCapacityExceeded) {
-      toast.error('Capacidad Excedida: El rack no puede almacenar esa cantidad.');
-      return;
-    }
-
     try {
       const payload: any = {
         rack_qr: rackQr.trim(),
@@ -350,9 +350,11 @@ export const PtiIngressContainer: React.FC = () => {
       setNotes('');
       refetchMassBalance();
       if (canViewCosts) refetchValuation();
+      return response;
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al registrar el ingreso en el Rack.';
       toast.error(msg);
+      return undefined;
     }
   };
 
@@ -402,7 +404,7 @@ export const PtiIngressContainer: React.FC = () => {
       selectedFormula={selectedFormula}
       theoreticalWeightPerPiece={theoreticalWeightPerPiece}
       estimatedRawMaterialConsumedKg={estimatedRawMaterialConsumedKg}
-      isCapacityExceeded={isCapacityExceeded}
+      willSplitAcrossRacks={willSplitAcrossRacks}
       isPtiMismatched={isPtiMismatched}
       mismatchErrorMessage={mismatchErrorMessage}
       onSubmitIngress={handleSubmitIngress}

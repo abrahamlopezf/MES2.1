@@ -27,10 +27,21 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 5000.00,
         comment: 'Nivel mínimo de seguridad / punto de reorden para evitar desabasto',
       },
+      alert_stock_kg: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 10000.00,
+        comment: 'Umbral preventivo de stock antes del mínimo crítico',
+      },
+      material_tag_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Etiqueta compartida que autoriza los materiales compatibles con este silo',
+      },
       current_stock_kg: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
-        defaultValue: 25000.00,
+        defaultValue: 0,
       },
       material_id: {
         type: DataTypes.INTEGER,
@@ -39,18 +50,18 @@ module.exports = (sequelize, DataTypes) => {
       current_lot_number: {
         type: DataTypes.STRING(100),
         allowNull: true,
-        defaultValue: 'LOT-SILO-01',
+        defaultValue: null,
       },
       current_lot_type: {
         type: DataTypes.STRING(10),
-        allowNull: false,
-        defaultValue: 'A',
-        comment: 'Tipo de Lote cargado en el silo: A, B o C (Extrusora 4 prohíbe B)',
+        allowNull: true,
+        defaultValue: null,
+        comment: 'Campo legado; la compatibilidad se determina mediante la etiqueta del material',
       },
       unit_cost: {
         type: DataTypes.DECIMAL(10, 4),
         allowNull: false,
-        defaultValue: 28.5000,
+        defaultValue: 0,
       },
       location_id: {
         type: DataTypes.INTEGER,

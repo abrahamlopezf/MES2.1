@@ -48,6 +48,12 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: [1, 3, 4, 5],
         comment: 'Lista de IDs de extrusoras autorizadas para esta fórmula'
       },
+      extruder_assignment_mode: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'FIXED',
+        comment: 'EXTRUDER_1, DYNAMIC (grupo dinámico) o FIXED (extrusoras elegidas).',
+      },
       restricted_extruders: {
         type: DataTypes.JSON,
         allowNull: true,
@@ -58,11 +64,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
-      },
-      output_pti_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: 'ID del Producto Terminado Intermedio (PTI) enlazado 1:1 a esta fórmula',
       },
     },
     {

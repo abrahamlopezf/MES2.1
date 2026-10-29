@@ -27,8 +27,16 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [formulaId, setFormulaId] = useState<number | ''>('');
-  const [unitWeightKg, setUnitWeightKg] = useState<number>(6.800);
-  const [unitPrice, setUnitPrice] = useState<number>(195.00);
+  const [extrusionMachineNumber, setExtrusionMachineNumber] = useState<number | ''>('');
+  const [tapeType, setTapeType] = useState('');
+  const [color, setColor] = useState('');
+  const [denier, setDenier] = useState<number | ''>('');
+  const [tapeCount, setTapeCount] = useState<number | ''>('');
+  const [tapeCountTolerance, setTapeCountTolerance] = useState<number>(10);
+  const [tapeWidthMm, setTapeWidthMm] = useState<number | ''>('');
+  const [transformedCostIndex, setTransformedCostIndex] = useState<number | ''>('');
+  const [unitWeightKg, setUnitWeightKg] = useState<number | ''>('');
+  const [unitPrice, setUnitPrice] = useState<number | ''>('');
   const [specifications, setSpecifications] = useState('');
   const [isActive, setIsActive] = useState<boolean>(true);
 
@@ -41,16 +49,32 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
       setName(pti.name || '');
       setCode(pti.code || '');
       setFormulaId(pti.formula_id || '');
-      setUnitWeightKg(Number(pti.unit_weight_kg) || 6.800);
-      setUnitPrice(Number(pti.unit_price) || 0);
+      setExtrusionMachineNumber(pti.extrusion_machine_number == null ? '' : Number(pti.extrusion_machine_number));
+      setTapeType(pti.tape_type || '');
+      setColor(pti.color || '');
+      setDenier(pti.denier == null ? '' : Number(pti.denier));
+      setTapeCount(pti.tape_count == null ? '' : Number(pti.tape_count));
+      setTapeCountTolerance(Number(pti.tape_count_tolerance ?? 10));
+      setTapeWidthMm(pti.tape_width_mm == null ? '' : Number(pti.tape_width_mm));
+      setTransformedCostIndex(pti.transformed_cost_index == null ? '' : Number(pti.transformed_cost_index));
+      setUnitWeightKg(pti.unit_weight_kg == null ? '' : Number(pti.unit_weight_kg));
+      setUnitPrice(pti.unit_price == null ? '' : Number(pti.unit_price));
       setSpecifications(pti.specifications || '');
       setIsActive(pti.is_active !== undefined ? pti.is_active : true);
     } else {
       setName('');
       setCode('');
       setFormulaId('');
-      setUnitWeightKg(6.800);
-      setUnitPrice(195.00);
+      setExtrusionMachineNumber('');
+      setTapeType('');
+      setColor('');
+      setDenier('');
+      setTapeCount('');
+      setTapeCountTolerance(10);
+      setTapeWidthMm('');
+      setTransformedCostIndex('');
+      setUnitWeightKg('');
+      setUnitPrice('');
       setSpecifications('');
       setIsActive(true);
     }
@@ -59,8 +83,8 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
   // Encontrar fórmula seleccionada para datos sugeridos
   const selectedFormula = formulas.find((f) => f.id === Number(formulaId));
   const availableFormulas = formulas.filter((f) => {
-    const linkedPtiId = Number(f.output_pti_id || f.ptiProducts?.[0]?.id || 0);
-    return !linkedPtiId || linkedPtiId === Number(pti?.id) || Number(pti?.formula_id) === Number(f.id);
+    const linkedPti = (f.ptiProducts || [])[0];
+    return !linkedPti || Number(linkedPti.id) === Number(pti?.id) || Number(pti?.formula_id) === Number(f.id);
   });
 
   const handleApplySuggestedPrice = () => {
@@ -80,12 +104,35 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
       toast.error('El nombre del producto PTI (carrete/bobina) es obligatorio.');
       return;
     }
-    if (unitWeightKg <= 0) {
+    if (unitWeightKg === '' || !Number.isFinite(Number(unitWeightKg)) || Number(unitWeightKg) <= 0) {
       toast.error('El peso unitario en kg debe ser mayor a 0.');
       return;
     }
-    if (unitPrice < 0) {
+    if (unitPrice !== '' && (!Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0)) {
       toast.error('El precio unitario no puede ser negativo.');
+      return;
+    }
+    const technicalProfile = {
+      extrusion_machine_number: Number(extrusionMachineNumber),
+      tape_type: tapeType.trim(),
+      color: color.trim(),
+      denier: Number(denier),
+      tape_count: Number(tapeCount),
+      tape_count_tolerance: Number(tapeCountTolerance),
+      tape_width_mm: Number(tapeWidthMm),
+      transformed_cost_index: allowCosts
+        ? (transformedCostIndex === '' ? 1 : Number(transformedCostIndex))
+        : Number(pti?.transformed_cost_index || 1),
+    };
+    const profileIsComplete = Number.isInteger(technicalProfile.extrusion_machine_number) && technicalProfile.extrusion_machine_number > 0
+      && Boolean(technicalProfile.tape_type && technicalProfile.color)
+      && Number.isInteger(technicalProfile.denier) && technicalProfile.denier > 0
+      && Number.isInteger(technicalProfile.tape_count) && technicalProfile.tape_count > 0
+      && Number.isInteger(technicalProfile.tape_count_tolerance) && technicalProfile.tape_count_tolerance >= 0
+      && Number.isFinite(technicalProfile.tape_width_mm) && technicalProfile.tape_width_mm > 0
+      && Number.isFinite(technicalProfile.transformed_cost_index) && technicalProfile.transformed_cost_index > 0;
+    if (!profileIsComplete) {
+      toast.error('Completa extrusora de referencia, tipo/color de cinta, denier, número de cintas, tolerancia, ancho e índice de transformación.');
       return;
     }
 
@@ -98,8 +145,9 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
             code: code.trim().toUpperCase() || undefined,
             formula_id: formulaId ? Number(formulaId) : null,
             unit_weight_kg: Number(unitWeightKg),
-            unit_price: Number(unitPrice),
+            unit_price: unitPrice === '' ? 0 : Number(unitPrice),
             specifications: specifications.trim() || undefined,
+            ...technicalProfile,
             is_active: isActive
           }
         });
@@ -110,8 +158,9 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
           code: code.trim().toUpperCase() || undefined,
           formula_id: formulaId ? Number(formulaId) : null,
           unit_weight_kg: Number(unitWeightKg),
-          unit_price: Number(unitPrice),
+          unit_price: unitPrice === '' ? 0 : Number(unitPrice),
           specifications: specifications.trim() || undefined,
+          ...technicalProfile,
           is_active: isActive
         });
         toast.success(`Nuevo producto PTI '${name}' registrado en el catálogo.`);
@@ -185,7 +234,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
 
               <select
                 value={formulaId}
-                onChange={(e) => setFormulaId(Number(e.target.value))}
+                onChange={(e) => setFormulaId(e.target.value ? Number(e.target.value) : '')}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
               >
                 <option value="">-- Sin enlazar (puedes hacerlo desde Editar Fórmula) --</option>
@@ -263,6 +312,51 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
               </div>
             </div>
 
+            {/* PERFIL TÉCNICO OBLIGATORIO PARA ALTA PTI */}
+            <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wide text-foreground">Perfil técnico de la cinta</h3>
+                <p className="text-xs text-muted-foreground mt-1">Estos datos son requeridos por producción; no se precargan valores que el cliente aún no haya confirmado.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Extrusora de referencia *
+                  <select value={extrusionMachineNumber} onChange={(e) => setExtrusionMachineNumber(e.target.value ? Number(e.target.value) : '')} required className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="">Seleccionar extrusora</option>
+                    {[1, 2, 4, 5, 6].map((machine) => <option key={machine} value={machine}>{machine === 6 ? 'Extrusora Liquitank' : `Extrusora ${machine}`}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Tipo de cinta *
+                  <Input value={tapeType} onChange={(e) => setTapeType(e.target.value)} placeholder="Ej. Rafia / trama / urdimbre" required className="bg-background" />
+                </label>
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Color y variante *
+                  <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Ej. Blanco anti-UV" required className="bg-background" />
+                </label>
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Denier *
+                  <Input type="number" min="1" step="1" value={denier} onChange={(e) => setDenier(e.target.value ? Number(e.target.value) : '')} placeholder="Ej. 2300" required className="bg-background" />
+                </label>
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Número de cintas *
+                  <Input type="number" min="1" step="1" value={tapeCount} onChange={(e) => setTapeCount(e.target.value ? Number(e.target.value) : '')} placeholder="Ej. 96" required className="bg-background" />
+                </label>
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Tolerancia de cintas *
+                  <Input type="number" min="0" step="1" value={tapeCountTolerance} onChange={(e) => setTapeCountTolerance(e.target.value ? Number(e.target.value) : 0)} required className="bg-background" />
+                </label>
+                <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Ancho de cinta (mm) *
+                  <Input type="number" min="0.01" step="0.01" value={tapeWidthMm} onChange={(e) => setTapeWidthMm(e.target.value ? Number(e.target.value) : '')} placeholder="Ej. 2.5" required className="bg-background" />
+                </label>
+                {allowCosts && <label className="text-xs font-bold text-muted-foreground space-y-1">
+                  Índice de costo transformado *
+                  <Input type="number" min="0.0001" step="0.0001" value={transformedCostIndex} onChange={(e) => setTransformedCostIndex(e.target.value ? Number(e.target.value) : '')} placeholder="Captura el índice" required className="bg-background" />
+                </label>}
+              </div>
+            </section>
+
             {/* PESO Y PRECIO UNITARIOS */}
             <div className={`grid grid-cols-1 ${allowCosts ? 'sm:grid-cols-2' : ''} gap-4`}>
               <div className="p-3.5 rounded-xl bg-card border border-border space-y-1.5">
@@ -275,7 +369,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                   step="0.001"
                   min="0.1"
                   value={unitWeightKg}
-                  onChange={(e) => setUnitWeightKg(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setUnitWeightKg(e.target.value === '' ? '' : parseFloat(e.target.value))}
                   className="font-mono font-bold text-lg text-foreground bg-background"
                   required
                 />
@@ -295,7 +389,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                     step="0.5"
                     min="0"
                     value={unitPrice}
-                    onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setUnitPrice(e.target.value === '' ? '' : parseFloat(e.target.value))}
                     className="font-mono font-bold text-lg text-emerald-600 dark:text-emerald-400 bg-background"
                     required
                   />

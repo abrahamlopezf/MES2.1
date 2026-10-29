@@ -106,7 +106,7 @@ class ConsumptionService {
 
     // 5. Trazabilidad Financiera (Costos del Batch y PTI)
     const formulaCostIndex = Number(formula.cost_index) > 0 ? Number(formula.cost_index) : 1.15;
-    const siloUnitCost = silo ? Number(silo.unit_cost || 28.5) : 28.5;
+    const siloUnitCost = silo ? Number(silo.unit_cost || 0) : 0;
 
     // Costo del PP consumido en este reporte
     const ppFinancialCost = Number((totalPpConsumedKg * siloUnitCost * formulaCostIndex).toFixed(2));

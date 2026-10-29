@@ -4,6 +4,12 @@ import { getMeRequest, loginRequest, logoutRequest } from '../modules/auth/servi
 const storedToken = localStorage.getItem('auth_token');
 const storedUser = localStorage.getItem('auth_user');
 
+const supervisorExtrusionPermission = (user, code) => {
+  if (user?.role?.code !== 'SUPERVISOR_EXTRUSION') return false;
+  if (['users.read', 'users.create', 'users.update', 'qr.read', 'qr.create', 'qr.generate', 'qr.history.read', 'qr.events.read'].includes(code)) return true;
+  return code.startsWith('extrusion.') && !/(cost|price|financial|valuation|costo|precio|dinero)/i.test(code);
+};
+
 export const useAuthStore = create((set, get) => ({
   token: storedToken || null,
   user: storedUser ? JSON.parse(storedUser) : null,
@@ -120,6 +126,7 @@ export const useAuthStore = create((set, get) => ({
     // Bypass para SuperAdmin y Administrador General / Admin
     if (['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(user?.role?.code)) return true;
     if (!permissionCode) return true;
+    if (supervisorExtrusionPermission(user, permissionCode)) return true;
     
     return user?.permissions?.includes(permissionCode) ?? false;
   },
@@ -131,7 +138,7 @@ export const useAuthStore = create((set, get) => ({
     if (!permissionCodes || permissionCodes.length === 0 || permissionCodes.includes('')) return true;
 
     return permissionCodes.some((permissionCode) =>
-      user?.permissions?.includes(permissionCode)
+      supervisorExtrusionPermission(user, permissionCode) || user?.permissions?.includes(permissionCode)
     );
   },
 }));

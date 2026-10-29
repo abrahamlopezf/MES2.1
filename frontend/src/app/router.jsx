@@ -44,7 +44,9 @@ import { ExtrusionTerminalPage } from '../modules/production/presentation/pages/
 import { TraceabilityTreePage } from '../modules/traceability/presentation/pages/TraceabilityTreePage';
 import ExtrusionBoardContainer from '../modules/extrusion/presentation/containers/ExtrusionBoardContainer';
 import PtiIngressContainer from '../modules/extrusion/presentation/containers/PtiIngressContainer';
-import { SuperAdminRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute } from './SuperAdminRoute';
+import { ExtrusionWipInventoryPage } from '../modules/extrusion/presentation/pages/ExtrusionWipInventoryPage';
+import ExtrusionScrapControlPage from '../modules/extrusion/presentation/pages/ExtrusionScrapControlPage';
+import { SuperAdminRoute, GlobalAdminRoute, UsersManagementRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
 import PermissionRoute from './PermissionRoute';
 
@@ -104,9 +106,9 @@ export const router = createBrowserRouter([
           {
             path: '/users',
             element: (
-              <SuperAdminRoute>
+              <UsersManagementRoute>
                 <UsersPage />
-              </SuperAdminRoute>
+              </UsersManagementRoute>
             ),
           },
           {
@@ -136,9 +138,9 @@ export const router = createBrowserRouter([
           {
             path: '/roles',
             element: (
-              <SuperAdminRoute>
+              <GlobalAdminRoute>
                 <RolesPage />
-              </SuperAdminRoute>
+              </GlobalAdminRoute>
             ),
           },
           {
@@ -244,6 +246,22 @@ export const router = createBrowserRouter([
             element: (
               <ExtrusionRoute>
                 <ExtrusionBoardContainer />
+              </ExtrusionRoute>
+            )
+          },
+          {
+            path: '/extrusion/wip',
+            element: (
+              <ExtrusionRoute>
+                <ExtrusionWipInventoryPage />
+              </ExtrusionRoute>
+            )
+          },
+          {
+            path: '/extrusion/scrap-control',
+            element: (
+              <ExtrusionRoute>
+                <ExtrusionScrapControlPage />
               </ExtrusionRoute>
             )
           },

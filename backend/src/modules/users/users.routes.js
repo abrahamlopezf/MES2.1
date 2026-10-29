@@ -14,37 +14,52 @@ const router = express.Router();
 router.use(authMiddleware);
 
 router.use((req, res, next) => {
-  if (isSupervisor(req.user)) {
+  const roleCode = String(req.user?.role?.code || '').toUpperCase();
+  const isExtrusionSupervisor = roleCode === 'SUPERVISOR_EXTRUSION';
+  const allowedSupervisorRequest = isExtrusionSupervisor && (
+    (req.method === 'GET' && (req.path === '/' || /^\/\d+$/.test(req.path)))
+    || (req.method === 'POST' && req.path === '/')
+    || (req.method === 'PUT' && /^\/\d+$/.test(req.path))
+  );
+  if (isSupervisor(req.user) && !allowedSupervisorRequest) {
     return res.status(403).json({
       success: false,
-      message: 'Los supervisores no tienen acceso a la gestión de usuarios.',
+      message: isExtrusionSupervisor
+        ? 'El supervisor de Extrusión puede consultar, crear y editar usuarios de su área; no puede gestionar bajas.'
+        : 'Los supervisores no tienen acceso a la gestión de usuarios.',
     });
   }
   next();
 });
 
+const permissionAuthorizer = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
+const authorizeUserPermission = (permission) => (req, res, next) => {
+  if (String(req.user?.role?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION') return next();
+  return permissionAuthorizer(permission)(req, res, next);
+};
+
 router.get(
   '/',
-  permissionMiddleware('users.read'),
+  authorizeUserPermission('users.read'),
   usersController.getUsers
 );
 
 router.get(
   '/:id',
-  permissionMiddleware('users.read'),
+  authorizeUserPermission('users.read'),
   usersController.getUserById
 );
 
 router.post(
   '/',
-  permissionMiddleware('users.create'),
+  authorizeUserPermission('users.create'),
   validate(createUserSchema),
   usersController.createUser
 );
 
 router.put(
   '/:id',
-  permissionMiddleware('users.update'),
+  authorizeUserPermission('users.update'),
   validate(updateUserSchema),
   usersController.updateUser
 );

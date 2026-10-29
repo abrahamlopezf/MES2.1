@@ -1,6 +1,7 @@
 'use strict';
 
 const CACHE_MS = 24 * 60 * 60 * 1000;
+const DOF_HOSTS = ['www.dof.gob.mx', 'dof.gob.mx'];
 const cache = new Map();
 
 const localDate = () => {
@@ -51,32 +52,41 @@ const getUsdMxnRate = async (requestedDate = localDate()) => {
 
   const target = new Date(`${targetDate}T00:00:00.000Z`);
   const start = new Date(target);
-  start.setUTCDate(start.getUTCDate() - 14);
+  // Abarca cierres prolongados y días inhábiles; se usa la publicación DOF
+  // más reciente que sea igual o anterior a la fecha de la factura.
+  start.setUTCDate(start.getUTCDate() - 31);
   const startDate = start.toISOString().slice(0, 10);
-  const url = new URL('https://dof.gob.mx/indicadores_detalle.php');
-  url.searchParams.set('cod_tipo_indicador', '158');
-  url.searchParams.set('dfecha', toDofDate(startDate));
-  url.searchParams.set('hfecha', toDofDate(targetDate));
-
-  let response;
-  try {
-    response = await fetch(url, {
-      headers: { Accept: 'text/html', 'User-Agent': 'TraceFlow-MES/1.0 (consulta de tipo de cambio oficial)' },
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch (error) {
-    throw Object.assign(new Error('No fue posible consultar el Diario Oficial de la Federación para obtener el tipo de cambio.'), { statusCode: 502, cause: error });
+  let latest = null;
+  let lastError = null;
+  for (const host of DOF_HOSTS) {
+    const url = new URL(`https://${host}/indicadores_detalle.php`);
+    url.searchParams.set('cod_tipo_indicador', '158');
+    url.searchParams.set('dfecha', toDofDate(startDate));
+    url.searchParams.set('hfecha', toDofDate(targetDate));
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'text/html,application/xhtml+xml',
+          'User-Agent': 'TraceFlow-MES/1.0 (consulta de tipo de cambio oficial)',
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const rates = parseDofRates(await response.text())
+        .filter(({ date }) => date <= targetDate)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      latest = rates[0] || null;
+      if (latest) break;
+      lastError = new Error(`La respuesta de ${host} no incluyó cotizaciones en el formato esperado.`);
+    } catch (error) {
+      lastError = error;
+    }
   }
-  if (!response.ok) {
-    throw Object.assign(new Error(`El DOF no respondió la consulta del tipo de cambio (HTTP ${response.status}).`), { statusCode: 502 });
-  }
-
-  const rates = parseDofRates(await response.text())
-    .filter(({ date }) => date <= targetDate)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const latest = rates[0];
   if (!latest) {
-    throw Object.assign(new Error(`El DOF no publicó un tipo de cambio disponible para la fecha ${targetDate} ni los 14 días anteriores.`), { statusCode: 502 });
+    throw Object.assign(
+      new Error(`No se pudo obtener del DOF una cotización para ${targetDate} ni para los 31 días anteriores. No se guardó el ingreso; intenta de nuevo más tarde.`),
+      { statusCode: 502, cause: lastError }
+    );
   }
 
   const value = {
