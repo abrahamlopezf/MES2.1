@@ -9,6 +9,7 @@ import { InfoBottomSheet } from '../components/InfoBottomSheet.container';
 import { ConsumoBottomSheet } from '../components/ConsumoBottomSheet.container';
 import { ManualEntryBottomSheet } from '../components/ManualEntryBottomSheet.container';
 import { useAuthStore } from '../../../../store/authStore';
+import { canViewCosts } from '../../../../utils/authHelpers';
 import { useDebouncedValue } from '../../../../hooks/useDebouncedValue';
 import { useActiveTagsQuery, useMaterialFamiliesQuery, useRankingsQuery } from '../../../materials/hooks/useMaterialsQueries';
 import { TFSelect } from '../../../../components/tf-ui';
@@ -19,6 +20,7 @@ export const WarehouseInventoryPage: React.FC = () => {
   const { hasPermission, user } = useAuthStore();
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
   const isAdminAlm = ['ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(userRole);
+  const allowCosts = canViewCosts(user);
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
   const [family, setFamily] = useState('');
@@ -202,29 +204,30 @@ export const WarehouseInventoryPage: React.FC = () => {
                   <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Código</th>
                   <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Ranking</th>
                   <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cantidad</th>
-                  <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Valor (Total)</th>
+                  {allowCosts && <th className="bg-secondary/50 px-4 py-3 text-left font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Valor (Total)</th>}
                   <th className="bg-secondary/50 px-4 py-3 text-right font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                    <td colSpan={allowCosts ? 6 : 5} className="py-12 text-center text-muted-foreground">
                       <Loader2 className="animate-spin mx-auto mb-4" size={32} />
                       Cargando inventario...
                     </td>
                   </tr>
                 ) : data?.items?.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                    <td colSpan={allowCosts ? 6 : 5} className="py-12 text-center text-muted-foreground">
                       No se encontraron unidades en stock.
                     </td>
                   </tr>
                 ) : (
                   data?.items?.map((item: any, index: number) => (
-                    <tr key={item.material_id ?? item.material?.id ?? item.material?.internal_code ?? `inventory-${index}`} className="group hover:bg-muted/20 transition-colors">
+                    <tr key={item.inventory_source === 'SILO' ? `silo-${item.silo_id}` : item.material_id ?? item.material?.id ?? item.material?.internal_code ?? `inventory-${index}`} className="group hover:bg-muted/20 transition-colors">
                       <td className="border-b border-border/50 px-4 py-3 align-middle font-bold text-foreground">
                         {item.material?.name || '---'}
+                        {item.inventory_source === 'SILO' && <span className="ml-2 rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-cyan-600">Custodia Almacén</span>}
                       </td>
                       <td className="border-b border-border/50 px-4 py-3 align-middle text-muted-foreground">
                         {item.material?.internal_code || '---'}
@@ -236,10 +239,11 @@ export const WarehouseInventoryPage: React.FC = () => {
                       </td>
                       <td className="border-b border-border/50 px-4 py-3 align-middle">
                         <span className="font-bold text-lg text-primary">{Number(item.amount).toFixed(2)} <span className="text-sm text-muted-foreground">{item.material?.base_unit?.code || ''}</span></span>
+                        {item.inventory_source === 'SILO' && <p className="mt-1 text-[11px] text-muted-foreground">Consumo directo en Extrusión · Lote(s): {item.silo?.current_lot_number || 'sin folio'}</p>}
                       </td>
-                      <td className="border-b border-border/50 px-4 py-3 align-middle">
+                      {allowCosts && <td className="border-b border-border/50 px-4 py-3 align-middle">
                         <span className="font-bold text-lg text-emerald-500">${Number(item.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </td>
+                      </td>}
                       <td className="border-b border-border/50 px-4 py-3 align-middle text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
@@ -250,14 +254,15 @@ export const WarehouseInventoryPage: React.FC = () => {
                           >
                             <Info size={16} />
                           </Button>
-                          <Button 
+                          {Number(item.warehouse_amount) > 0 && <Button
                             variant="destructive" 
                             size="sm"
-                            onClick={() => setSelectedBajaItem(item)}
+                            onClick={() => setSelectedBajaItem({ ...item, amount: Number(item.warehouse_amount) })}
                             className="whitespace-nowrap"
                           >
                             <ShieldAlert size={16} className="mr-1" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
-                          </Button>
+                          </Button>}
+                          {item.inventory_source === 'SILO' && <span className="self-center text-xs font-semibold text-muted-foreground">Consumo directo desde Extrusión</span>}
                         </div>
                       </td>
                     </tr>
@@ -281,7 +286,7 @@ export const WarehouseInventoryPage: React.FC = () => {
             ) : (
               data?.items?.map((item: any, index: number) => {
                 const materialId = item.material_id ?? item.material?.id;
-                const itemKey = materialId ?? item.material?.internal_code ?? `inventory-${index}`;
+                const itemKey = item.inventory_source === 'SILO' ? `silo-${item.silo_id}` : materialId ?? item.material?.internal_code ?? `inventory-${index}`;
                 return <div key={itemKey} className="bg-card rounded-xl p-4 border border-border shadow-sm flex flex-col gap-3">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1 min-w-0">
@@ -289,6 +294,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                         {item.material?.name || '---'}
                       </h4>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.material?.internal_code || '---'}</p>
+                      {item.inventory_source === 'SILO' && <span className="mt-1 inline-flex w-fit rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-cyan-600">Custodia Almacén · Consumo directo</span>}
                     </div>
                     <Badge variant="secondary" className="whitespace-nowrap shrink-0 text-[10px]">
                       {item.material?.ranking?.nomenclature || '---'}
@@ -301,13 +307,14 @@ export const WarehouseInventoryPage: React.FC = () => {
                       <div className="flex items-baseline gap-1">
                         <span className="font-bold text-foreground text-base leading-none">{Number(item.amount).toFixed(2)} <span className="text-xs text-muted-foreground ml-0.5">{item.material?.base_unit?.code || ''}</span></span>
                       </div>
+                      {item.inventory_source === 'SILO' && <p className="mt-1 text-[10px] text-muted-foreground">{item.silo?.code} · Lote(s): {item.silo?.current_lot_number || 'sin folio'}</p>}
                     </div>
-                    <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
+                    {allowCosts && <div className="bg-secondary/30 p-2.5 rounded-lg flex flex-col">
                       <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Valor Total</span>
                       <div className="flex items-baseline gap-1">
                         <span className="font-bold text-emerald-500 text-base leading-none">${Number(item.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
-                    </div>
+                    </div>}
                   </div>
 
                   <div className="flex flex-col mt-1 border-t border-border pt-1 gap-2">
@@ -323,14 +330,14 @@ export const WarehouseInventoryPage: React.FC = () => {
                     
                     {expandedCardId === itemKey && (
                       <div className="flex flex-col gap-2 pb-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <Button variant="outline" size="sm" className="w-full justify-start h-10 bg-secondary/5" onClick={() => navigate(`/warehouse/materials/${materialId}/lotes`)}>
+                        {item.inventory_source !== 'SILO' && <Button variant="outline" size="sm" className="w-full justify-start h-10 bg-secondary/5" onClick={() => navigate(`/warehouse/materials/${materialId}/lotes`)}>
                           <Layers size={16} className="mr-2 text-muted-foreground" /> Ver lotes
-                        </Button>
+                        </Button>}
                         <Button variant="secondary" size="sm" className="w-full justify-start h-10" onClick={() => setSelectedInfoItem(item)}>
                           <Info size={16} className="mr-2 text-muted-foreground" /> Detalles
                         </Button>
-                        {isAdminAlm && (
-                          <Button variant="destructive" size="sm" className="w-full justify-start h-10 bg-red-600 hover:bg-red-700 text-white" onClick={() => setSelectedBajaItem(item)}>
+                        {isAdminAlm && Number(item.warehouse_amount) > 0 && (
+                          <Button variant="destructive" size="sm" className="w-full justify-start h-10 bg-red-600 hover:bg-red-700 text-white" onClick={() => setSelectedBajaItem({ ...item, amount: Number(item.warehouse_amount) })}>
                             <ShieldAlert size={16} className="mr-2" /> Dar de baja
                           </Button>
                         )}

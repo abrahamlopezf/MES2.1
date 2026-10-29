@@ -48,61 +48,140 @@ const applyMaterialCatalogFilters = (where, query = {}) => {
   where.material_id = { [Op.and]: conditions };
 };
 
-const getInventory = async (query = {}) => {
+const getInventory = async (query = {}, currentUser) => {
   const { material_id } = query;
-
-  const where = {
-    amount: { [Op.gt]: 0 }
-  };
-  if (material_id) where.material_id = material_id;
-
+  const allowCosts = canViewCosts(currentUser);
   const limit = Math.min(Number(query.limit) || 100, 1000);
-  const offset = Number(query.offset) || 0;
+  const offset = Math.max(0, Number(query.offset) || 0);
+  const conditions = ["m.is_active = true", "m.deleted_at IS NULL", "COALESCE(i.amount, 0) > 0"];
+  const replacements = {};
 
-  applyMaterialCatalogFilters(where, query);
-
-  if (query.search) {
-    const sSafe = String(query.search).replace(/'/g, "''");
-    const s = `%${sSafe}%`;
-    where[Op.or] = [
-      { '$material.name$': { [Op.iLike]: s } },
-      { '$material.internal_code$': { [Op.iLike]: s } },
-      { '$material.description$': { [Op.iLike]: s } },
-      { material_id: { [Op.in]: sequelize.literal(`(SELECT material_id FROM lotes LEFT JOIN qr_codes ON lotes.qr_id = qr_codes.id WHERE lotes.folio ILIKE '${s}' OR qr_codes.qr_code ILIKE '${s}')`) } }
-    ];
+  if (material_id) {
+    conditions.push('m.id = :materialId');
+    replacements.materialId = material_id;
   }
 
-  const result = await Inventory.findAndCountAll({
-    where,
-    attributes: [
-      'material_id',
-      [sequelize.fn('SUM', sequelize.col('amount')), 'amount'],
-      [sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'updated_at'],
-      [sequelize.literal('(SELECT COALESCE(SUM(available_amount * unit_cost), 0) FROM lotes WHERE lotes.material_id = "Inventory"."material_id" AND lotes.is_active = true)'), 'total_value']
-    ],
+  const tags = parseUuidList(query.tag);
+  if (query.tag) {
+    if (!tags.length) conditions.push('1 = 0');
+    else conditions.push(`m.id IN (SELECT mt.material_id FROM material_tags mt JOIN tags t ON t.id = mt.tag_id WHERE t.uuid IN (${tags.map((_, index) => `:tag${index}`).join(', ')}))`);
+    tags.forEach((tag, index) => { replacements[`tag${index}`] = tag; });
+  }
+
+  const families = parseUuidList(query.family);
+  if (query.family) {
+    if (!families.length) conditions.push('1 = 0');
+    else conditions.push(`m.family_id IN (SELECT f.id FROM material_families f WHERE f.uuid IN (${families.map((_, index) => `:family${index}`).join(', ')}))`);
+    families.forEach((family, index) => { replacements[`family${index}`] = family; });
+  }
+
+  const rankings = parseIntList(query.ranking);
+  if (query.ranking) {
+    if (!rankings.length) conditions.push('1 = 0');
+    else conditions.push(`m.ranking_id IN (${rankings.map((_, index) => `:ranking${index}`).join(', ')})`);
+    rankings.forEach((ranking, index) => { replacements[`ranking${index}`] = ranking; });
+  }
+
+  if (query.search) {
+    conditions.push(`(
+      m.name ILIKE :search OR m.internal_code ILIKE :search OR COALESCE(m.description, '') ILIKE :search
+      OR m.id IN (SELECT l.material_id FROM lotes l LEFT JOIN qr_codes q ON l.qr_id = q.id WHERE l.folio ILIKE :search OR q.qr_code ILIKE :search)
+    )`);
+    replacements.search = `%${String(query.search).trim()}%`;
+  }
+
+  const fromAndWhere = `
+    FROM materials m
+    LEFT JOIN (SELECT material_id, SUM(amount) AS amount, MAX(updated_at) AS updated_at FROM inventories GROUP BY material_id) i ON i.material_id = m.id
+    WHERE ${conditions.join(' AND ')}
+  `;
+  const [rows] = await sequelize.query(`
+    SELECT m.id AS material_id,
+      COALESCE(i.amount, 0) AS warehouse_amount,
+      0::numeric AS silo_stock_kg,
+      COALESCE(i.amount, 0) AS amount,
+      COALESCE((SELECT SUM(l.available_amount * l.unit_cost) FROM lotes l WHERE l.material_id = m.id AND l.is_active = true), 0) AS warehouse_value,
+      0::numeric AS silo_value,
+      COALESCE((SELECT SUM(l.available_amount * l.unit_cost) FROM lotes l WHERE l.material_id = m.id AND l.is_active = true), 0) AS total_value,
+      i.updated_at AS updated_at
+    ${fromAndWhere}
+    ORDER BY i.updated_at DESC NULLS LAST, m.id
+  `, { replacements });
+
+  const materialIds = rows.map((row) => Number(row.material_id));
+  const materialRows = materialIds.length ? await Material.findAll({
+    where: { id: { [Op.in]: materialIds } },
+    attributes: ['id', 'internal_code', 'name', 'description'],
     include: [
-      {
-        model: Material,
-        as: 'material',
-        attributes: ['id', 'internal_code', 'name', 'description'],
-        include: [
-          { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
-          { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }
-        ]
-      }
-    ],
-    group: ['material_id', 'material.id', 'material.description', 'material->ranking.id', 'material->base_unit.id'],
-    order: [[sequelize.fn('MAX', sequelize.col('Inventory.updated_at')), 'DESC']],
-    limit,
-    offset,
+      { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
+      { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }
+    ]
+  }) : [];
+  const materialById = new Map(materialRows.map((material) => [Number(material.id), material]));
+
+  const items = rows.map((row) => ({
+      inventory_source: 'WAREHOUSE',
+      material_id: Number(row.material_id),
+      warehouse_amount: Number(row.warehouse_amount || 0),
+      amount: Number(row.amount || 0),
+      warehouse_value: allowCosts ? Number(row.warehouse_value || 0) : null,
+      total_value: allowCosts ? Number(row.total_value || 0) : null,
+      updated_at: row.updated_at,
+      material: materialById.get(Number(row.material_id)) || null
+    }));
+
+  const { Silo, Tag, MaterialFamily } = require('../../database/models');
+  const silos = await Silo.findAll({
+    where: { is_active: true, current_stock_kg: { [Op.gt]: 0 } },
+    include: [
+      { model: Material, as: 'material', required: false, include: [{ model: MaterialFamily, as: 'family', attributes: ['uuid'], required: false }] },
+      { model: Tag, as: 'materialTag', attributes: ['id', 'uuid', 'name'], required: false }
+    ]
   });
+  const requestedTags = parseUuidList(query.tag);
+  const tagIds = requestedTags.length
+    ? new Set((await Tag.findAll({ where: { uuid: { [Op.in]: requestedTags } }, attributes: ['id'] })).map((tag) => Number(tag.id)))
+    : null;
+  for (const siloModel of silos) {
+    const silo = siloModel.toJSON ? siloModel.toJSON() : siloModel;
+    if (material_id && Number(silo.material_id) !== Number(material_id)) continue;
+    if (query.tag && (!tagIds || !tagIds.has(Number(silo.material_tag_id)))) continue;
+    if (query.family && (!families.length || !silo.material || !families.includes(String(silo.material.family?.uuid || '')))) continue;
+    if (query.ranking && (!rankings.length || !rankings.includes(Number(silo.material?.ranking_id)))) continue;
+    if (query.search) {
+      const searchTerm = String(query.search).trim().toLocaleLowerCase();
+      const searchable = [silo.code, silo.name, silo.current_lot_number, silo.material?.name, silo.material?.internal_code].filter(Boolean).join(' ').toLocaleLowerCase();
+      if (!searchable.includes(searchTerm)) continue;
+    }
 
-  // Because of group by, count is an array of groups, so we need result.count.length
-  const totalCount = Array.isArray(result.count) ? result.count.length : result.count;
+    const siloStockKg = Number(silo.current_stock_kg || 0);
+    const siloValue = Number((siloStockKg * Number(silo.unit_cost || 0)).toFixed(2));
+    items.push({
+      inventory_source: 'SILO',
+      material_id: silo.material_id || null,
+      silo_id: silo.id,
+      silo_stock_kg: siloStockKg,
+      warehouse_amount: 0,
+      amount: siloStockKg,
+      warehouse_value: allowCosts ? 0 : null,
+      silo_value: allowCosts ? siloValue : null,
+      total_value: allowCosts ? siloValue : null,
+      updated_at: silo.updated_at || silo.updatedAt || null,
+      silo: { id: silo.id, code: silo.code, name: silo.name, current_lot_number: silo.current_lot_number },
+      material: {
+        name: `Polipropileno a granel · ${silo.name}`,
+        internal_code: silo.code,
+        description: `Existencia bajo custodia de Almacén, consumida directamente desde el silo ${silo.code}.`,
+        ranking: { name: 'Silos de PP', nomenclature: 'SILO' },
+        base_unit: { code: 'KG' }
+      }
+    });
+  }
 
+  items.sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
   return {
-    items: result.rows,
-    total: totalCount,
+    items: items.slice(offset, offset + limit),
+    total: items.length,
     limit,
     offset,
   };

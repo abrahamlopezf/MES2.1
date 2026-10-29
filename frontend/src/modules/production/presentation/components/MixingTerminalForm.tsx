@@ -213,8 +213,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   }, [formulaItems]);
   const ppIngredient = ppIngredients[0] || null;
   const requiredKgPerBatch = (item: any) => Number(item?.required_quantity || 0);
-  const ppRequiredKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + requiredKgPerBatch(item), 0).toFixed(2));
-  const ppSiloStockKg = Number(silos.reduce((sum: number, silo: any) => sum + (Number(silo.current_stock_kg) || 0), 0).toFixed(2));
+  const ppRequiredKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + requiredKgPerBatch(item), 0).toFixed(3));
+  const ppSiloStockKg = Number(silos.reduce((sum: number, silo: any) => sum + (Number(silo.current_stock_kg) || 0), 0).toFixed(3));
 
   const nonPpIngredients = useMemo(() => {
     return (formulaItems || []).filter((it: any) => !isPpMaterial(it));
@@ -238,7 +238,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   // Verificación de stock en Silo para el PP de este lote
   const hasSufficientPpInSilo = useMemo(() => {
-    return ppRequiredKg <= 0 || (silos.length === 2 && ppSiloStockKg >= ppRequiredKg);
+    return ppRequiredKg <= 0 || (silos.length === 2 && ppSiloStockKg + 0.0005 >= ppRequiredKg);
   }, [ppRequiredKg, ppSiloStockKg, silos.length]);
 
   // Validar cada aditivo por separado; un exceso en un material no debe
@@ -1466,7 +1466,9 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
           ) : !hasSufficientPpInSilo ? (
             <span className="inline-flex items-center gap-1.5 text-amber-500 font-bold">
               <Icon name="warning" size={16} />
-              Stock insuficiente en Silo {selectedSilo?.name || ''} ({selectedSilo?.current_stock_kg || 0} kg disp. &lt; {ppRequiredKg} kg)
+              {silos.length !== 2
+                ? `Configuración incompleta: se requieren 2 silos activos y se detectaron ${silos.length}.`
+                : `Stock combinado insuficiente: se requieren ${ppRequiredKg.toFixed(3)} kg entre ambos silos y hay ${ppSiloStockKg.toFixed(3)} kg disponibles.`}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium">
