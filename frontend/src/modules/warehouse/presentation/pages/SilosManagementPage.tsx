@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -163,6 +163,22 @@ export const SilosManagementPage: React.FC = () => {
     ));
   };
   const selectedSiloMaterials = getMaterialsForSilo(Number(invoiceForm.silo_id));
+  const selectedInvoiceSilo = silos.find((silo) => String(silo.id) === invoiceForm.silo_id);
+  const siloAllowedTag = selectedInvoiceSilo?.materialTag || (Array.isArray(materialTags)
+    ? materialTags.find((tag: any) => Number(tag.id) === Number(selectedInvoiceSilo?.material_tag_id))
+    : null);
+
+  useEffect(() => {
+    if (!isInvoiceModalOpen || !invoiceForm.silo_id || selectedSiloMaterials.length === 0) return;
+    const currentMaterialIsCompatible = selectedSiloMaterials.some(
+      (material: any) => String(material.id) === invoiceForm.material_id
+    );
+    if (!currentMaterialIsCompatible) {
+      setInvoiceForm((current) => current.silo_id === invoiceForm.silo_id
+        ? { ...current, material_id: String(selectedSiloMaterials[0].id) }
+        : current);
+    }
+  }, [isInvoiceModalOpen, invoiceForm.silo_id, invoiceForm.material_id, materialsData]);
 
   // Mutación: Registrar Factura PP (Entrada directa al Silo sin etiquetas QR)
   const invoiceEntryMutation = useMutation({
@@ -944,6 +960,10 @@ export const SilosManagementPage: React.FC = () => {
                     <Icon name="label" size={14} className="text-primary" />
                     <span>Polipropileno compatible con la etiqueta del silo *</span>
                   </label>
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                    Etiqueta requerida por <strong className="text-foreground">{selectedInvoiceSilo?.code || 'el silo'}</strong>:{' '}
+                    <strong className="text-primary">{siloAllowedTag?.name || 'Etiqueta no disponible'}</strong>
+                  </div>
                   <select
                     required
                     value={invoiceForm.material_id}
@@ -957,7 +977,9 @@ export const SilosManagementPage: React.FC = () => {
                   </select>
                   {selectedSiloMaterials.length === 0 && (
                     <p className="text-xs text-amber-600 mt-1">
-                      No hay materiales con la etiqueta asignada a este silo. En Master Data, asigna exactamente esa etiqueta al material que indica la factura.
+                      {siloAllowedTag?.name
+                        ? `No hay materiales con la etiqueta “${siloAllowedTag.name}”. En Master Data, asigna exactamente esa etiqueta al material que indica la factura.`
+                        : 'No se pudo cargar la etiqueta configurada para este silo. Actualiza los datos del silo e inténtalo de nuevo.'}
                     </p>
                   )}
                 </div>
