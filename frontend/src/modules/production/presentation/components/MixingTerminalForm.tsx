@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Input, Badge, Icon } from '@/design-system';
 import { apiClient } from '@/core/api/apiClient';
 import { getClientAllowedExtruders, getClientFormulaKind, isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
+import { getFormulaColorLabel } from '@/modules/extrusion/domain/colorRules';
 import { useFormulas, useFormulaDetails, fetchWipChildQr, useMixFormula } from '../../../extrusion/hooks/useExtrusionMixing';
 import { useExtruderQueuesQuery, usePtiProductsQuery } from '../../../extrusion/hooks/useExtrusionFloorQueries';
 import { CameraScanner } from '@/design-system/components/scanner-overlay/CameraScanner';
@@ -80,8 +81,13 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     ? rawFormulas.filter((formula: any) => isClientFormula(formula.code) || Number(formula.id) === Number(ticket?.formula_id))
     : [];
   const silos: any[] = Array.isArray(silosData) ? silosData : [];
+  const formulaColorOptions = useMemo(() => [...new Set(formulas
+    .map((formula: any) => getFormulaColorLabel(formula))
+    .filter((color): color is string => Boolean(color)))].sort((a, b) => a.localeCompare(b, 'es')),
+  [formulas]);
 
   const [formulaId, setFormulaId] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
   // 1. Selector de QRs para dividir un solo lote total entre N contenedores.
   const [containerCount, setContainerCount] = useState<number>(1);
   // 2. Extrusora seleccionada (sugerida automáticamente según compatibilidad y restricciones)
@@ -137,11 +143,20 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   useEffect(() => {
     if (ticket) {
       setFormulaId(ticket.formula_id ? String(ticket.formula_id) : '');
+      const ticketFormula = formulas.find((formula: any) => Number(formula.id) === Number(ticket.formula_id));
+      setSelectedColor(getFormulaColorLabel(ticketFormula) || '');
       setNotes(`Atendiendo solicitud: ${ticket.folio}`);
     } else if (formulas.length > 0 && !formulaId) {
-      setFormulaId(String(formulas[0].id));
+      const firstAvailable = formulas.find((formula: any) => registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(formula.id))) || formulas[0];
+      setFormulaId(String(firstAvailable.id));
+      setSelectedColor(getFormulaColorLabel(firstAvailable) || '');
     }
-  }, [ticket, formulas]);
+  }, [ticket, formulas, registeredPtis]);
+
+  const formulasForSelectedColor = useMemo(() => selectedColor
+    ? formulas.filter((formula: any) => getFormulaColorLabel(formula) === selectedColor)
+    : formulas.filter((formula: any) => !getFormulaColorLabel(formula)),
+  [formulas, selectedColor]);
 
   const selectedFormula = formulas.find((f: any) => String(f.id) === String(formulaId));
   const hasLinkedActivePti = Boolean(selectedFormula && registeredPtis.some((pti: any) =>
@@ -668,6 +683,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       toast.error('Selecciona una fórmula de extrusión.');
       return;
     }
+    if (formulaColorOptions.length > 0 && !selectedColor) {
+      toast.error('Selecciona el color de producción para cargar su receta y masterbatch correctos.');
+      return;
+    }
+    if (selectedFormula && getFormulaColorLabel(selectedFormula) !== selectedColor) {
+      toast.error('El color seleccionado no corresponde a la fórmula elegida.');
+      return;
+    }
     if (availableExtruders.length === 0) {
       toast.error('No hay una extrusora compatible activa para esta fórmula.');
       return;
@@ -683,6 +706,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
     mutation.mutate({
       formula_id: formulaId,
+      output_color: getFormulaColorLabel(selectedFormula) || undefined,
       // El backend distribuye el consumo entre ambos silos por stock disponible.
       silo_inputs: [],
       preparation_id: ticket?.id,
@@ -839,6 +863,36 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
             <div className="p-4 space-y-4">
               {/* 1. Selector de Fórmula de Extrusión */}
               <div className="space-y-2">
+                <label className="text-sm font-bold text-foreground flex items-center gap-2" htmlFor="mix-output-color">
+                  <Icon name="palette" size={14} className="text-primary" />
+                  Color de producción *
+                </label>
+                <select
+                  id="mix-output-color"
+                  required={formulaColorOptions.length > 0}
+                  value={selectedColor}
+                  disabled={Boolean(ticket) || formulaColorOptions.length === 0}
+                  onChange={(event) => {
+                    const nextColor = event.target.value;
+                    setSelectedColor(nextColor);
+                    const currentFormula = formulas.find((formula: any) => String(formula.id) === String(formulaId));
+                    if (getFormulaColorLabel(currentFormula) !== nextColor) {
+                      const nextFormula = formulas.find((formula: any) => getFormulaColorLabel(formula) === nextColor
+                        && registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(formula.id)))
+                        || formulas.find((formula: any) => getFormulaColorLabel(formula) === nextColor);
+                      if (nextFormula) setFormulaId(String(nextFormula.id));
+                    }
+                  }}
+                  className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-60"
+                >
+                  <option value="">-- Seleccione color --</option>
+                  {formulaColorOptions.map((color) => <option key={color} value={color}>{color}</option>)}
+                </select>
+                {selectedColor && (
+                  <p className="text-xs text-muted-foreground">
+                    El color selecciona la fórmula y su masterbatch. La receta conserva sus cantidades aprobadas.
+                  </p>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Icon name="menu_book" size={14} className="text-primary" />
@@ -860,7 +914,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer disabled:opacity-60"
                   >
                     <option value="" disabled>-- Seleccione Fórmula --</option>
-                    {formulas.map((f: any) => (
+                    {formulasForSelectedColor.map((f: any) => (
                       <option
                         key={f.id}
                         value={f.id}
@@ -879,6 +933,15 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 {selectedFormula && !hasLinkedActivePti && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
                     Esta fórmula no tiene un PTI activo enlazado. Regístralo en el catálogo de Extrusión antes de preparar la mezcla.
+                  </div>
+                )}
+
+                {selectedFormula && formulaItems.some((item: any) => String(item.material_name || item.material?.name || '').toUpperCase().includes('MASTERBATCH')) && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+                    <span className="font-bold text-foreground">Masterbatch de {getFormulaColorLabel(selectedFormula) || 'la receta'}: </span>
+                    {formulaItems.filter((item: any) => String(item.material_name || item.material?.name || '').toUpperCase().includes('MASTERBATCH'))
+                      .map((item: any) => `${item.material_name || item.material?.name} (${Number(item.required_quantity || item.quantity || 0).toFixed(2)} kg)`)
+                      .join(', ')}
                   </div>
                 )}
 
@@ -1527,7 +1590,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
           <Button
             type="submit"
-            disabled={mutation.isPending || loadingFormulas || !formulaId || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
+            disabled={mutation.isPending || loadingFormulas || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
             className="w-full sm:w-auto font-bold text-xs sm:text-sm h-11 px-6 gap-2 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {mutation.isPending ? (

@@ -28,14 +28,14 @@ async function fetchQueueOutputSnapshots(sequelize, queueIds, transaction = null
   return new Map(rows.map((row) => [Number(row.id), row]));
 }
 
-async function persistQueueOutputSnapshot(sequelize, queueId, product, transaction = null) {
+async function persistQueueOutputSnapshot(sequelize, queueId, product, transaction = null, outputColor = null) {
   if (!product || !(await supportsOutputSnapshots(sequelize, transaction))) return false;
   await sequelize.query(
     'UPDATE extruder_queues SET output_pti_product_id = :productId, output_pti_color = :color WHERE id = :queueId',
     {
       replacements: {
         productId: product.id || null,
-        color: product.color || null,
+        color: outputColor || product.color || null,
         queueId: Number(queueId),
       },
       transaction,

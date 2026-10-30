@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
 import { apiClient } from '@/core/api/apiClient';
 import { getClientFormulaKind, isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
+import { getNamedColors } from '@/modules/extrusion/domain/colorRules';
 
 interface EditFormulaModalProps {
   isOpen: boolean;
@@ -88,6 +89,11 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
     e.preventDefault();
     if (!name.trim()) {
       toast.error('El nombre de la fórmula es obligatorio.');
+      return;
+    }
+    const formulaColors = [...new Set([...getNamedColors(name), ...getNamedColors(description)])];
+    if (formulaColors.length > 1) {
+      toast.error(`La fórmula solo puede describir un color. Se detectaron: ${formulaColors.join(', ')}.`);
       return;
     }
     if (costIndex < 0) {

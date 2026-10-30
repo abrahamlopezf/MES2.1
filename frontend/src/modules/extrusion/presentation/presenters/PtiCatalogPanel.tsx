@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
+import { colorNamesMatch, getNamedColors } from '../../domain/colorRules';
 
 type Draft = {
   code: string;
@@ -84,6 +85,16 @@ export const PtiCatalogPanel: React.FC = () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = makeName(draft);
+    const fieldColors = getNamedColors(draft.color);
+    const nameColors = getNamedColors(name);
+    if (fieldColors.length !== 1) {
+      toast.error('Cada ficha PTI debe registrar exactamente un color. Separa los colores en fichas PTI diferentes.');
+      return;
+    }
+    if (nameColors.length > 1 || (nameColors.length === 1 && !colorNamesMatch(name, draft.color))) {
+      toast.error('El nombre de la ficha PTI debe corresponder a un solo color y coincidir con el campo Color.');
+      return;
+    }
     const payload: CreatePtiProductPayload = {
       code: draft.code.trim() || undefined,
       name,
@@ -145,7 +156,16 @@ export const PtiCatalogPanel: React.FC = () => {
                   <tr key={product.id} className="align-top">
                     <td className="p-3"><strong className="block">{product.tape_type || product.name}</strong><span className="font-mono text-xs text-muted-foreground">{product.code}</span></td>
                     <td className="p-3">{product.extrusion_machine_number ?? '—'}</td>
-                    <td className="max-w-56 whitespace-normal p-3">{product.color || '—'}</td>
+                    <td className="max-w-56 whitespace-normal p-3">
+                      {product.color || '—'}
+                      {(getNamedColors(product.color).length !== 1
+                        || getNamedColors(product.name).length > 1
+                        || (getNamedColors(product.name).length === 1 && !colorNamesMatch(product.name, product.color))) && (
+                        <span className="mt-1 block rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                          Requiere separar/corregir: un PTI por color
+                        </span>
+                      )}
+                    </td>
                     <td className="p-3 tabular-nums">{product.denier ?? '—'}</td>
                     <td className="p-3 tabular-nums">{product.tape_count ?? '—'} <span className="text-muted-foreground">±{product.tape_count_tolerance ?? 10}</span></td>
                     <td className="p-3 tabular-nums">{product.tape_width_mm == null ? '—' : `${Number(product.tape_width_mm)} mm`}</td>
@@ -176,7 +196,7 @@ export const PtiCatalogPanel: React.FC = () => {
             <label className="text-sm font-bold">Código interno<Input value={draft.code} onChange={(e) => set('code', e.target.value.toUpperCase())} placeholder="Automático si queda vacío" className="mt-1 min-h-12 text-base" /></label>
             <label className="text-sm font-bold">Extrusora *<select required value={draft.extrusion_machine_number} onChange={(e) => set('extrusion_machine_number', e.target.value)} className="mt-1 min-h-12 w-full rounded-md border border-border bg-background px-3 text-base"><option value="">Selecciona</option>{[1, 2, 4, 5].map((machine) => <option key={machine} value={machine}>Extrusora {machine}</option>)}</select></label>
             <label className="text-sm font-bold">Tipo de cinta *<Input required value={draft.tape_type} onChange={(e) => set('tape_type', e.target.value)} placeholder="Rafia, Trama, Urdimbre…" className="mt-1 min-h-12 text-base" /></label>
-            <label className="text-sm font-bold">Color *<Input required value={draft.color} onChange={(e) => set('color', e.target.value)} placeholder="Conserva todos los colores indicados" className="mt-1 min-h-12 text-base" /></label>
+            <label className="text-sm font-bold">Color *<Input required value={draft.color} onChange={(e) => set('color', e.target.value)} placeholder="Ej. Azul" className="mt-1 min-h-12 text-base" /><span className="mt-1 block text-xs font-normal text-muted-foreground">Registra un color por ficha PTI; crea otra ficha para cada color adicional.</span></label>
             <label className="text-sm font-bold">Denier *<Input required type="number" min="1" step="1" value={draft.denier} onChange={(e) => set('denier', e.target.value)} className="mt-1 min-h-12 text-base" /></label>
             <label className="text-sm font-bold">Número de cintas *<Input required type="number" min="1" step="1" value={draft.tape_count} onChange={(e) => set('tape_count', e.target.value)} className="mt-1 min-h-12 text-base" /></label>
             <label className="text-sm font-bold">Tolerancia (±) *<Input required type="number" min="0" step="1" value={draft.tape_count_tolerance} onChange={(e) => set('tape_count_tolerance', e.target.value)} className="mt-1 min-h-12 text-base" /></label>

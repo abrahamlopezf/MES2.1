@@ -6,6 +6,7 @@ import { useCreatePtiProductMutation, useUpdatePtiProductMutation } from '@/modu
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { colorNamesMatch, getNamedColors } from '@/modules/extrusion/domain/colorRules';
 
 interface PtiProductModalProps {
   isOpen: boolean;
@@ -133,6 +134,16 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
       && Number.isFinite(technicalProfile.transformed_cost_index) && technicalProfile.transformed_cost_index > 0;
     if (!profileIsComplete) {
       toast.error('Completa extrusora de referencia, tipo/color de cinta, denier, número de cintas, tolerancia, ancho e índice de transformación.');
+      return;
+    }
+    const fieldColors = getNamedColors(technicalProfile.color);
+    const nameColors = getNamedColors(name);
+    if (fieldColors.length !== 1) {
+      toast.error('Cada PTI debe corresponder a un solo color. Registra una ficha distinta para cada color.');
+      return;
+    }
+    if (nameColors.length > 1 || (nameColors.length === 1 && !colorNamesMatch(name, technicalProfile.color))) {
+      toast.error('El nombre del PTI incluye colores distintos al campo Color. Corrige el nombre para que corresponda a uno solo.');
       return;
     }
 

@@ -6,6 +6,7 @@ import { apiClient } from '@/core/api/apiClient';
 import { Badge, Button, Icon, Input } from '@/design-system';
 import { useCreateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
 import { Formula } from '@/modules/extrusion/types/extrusion.types';
+import { getNamedColors } from '@/modules/extrusion/domain/colorRules';
 
 interface CreateFormulaModalProps {
   isOpen: boolean;
@@ -50,6 +51,11 @@ export const CreateFormulaModal: React.FC<CreateFormulaModalProps> = ({ isOpen, 
     event.preventDefault();
     if (assignmentMode === 'FIXED' && allowedExtruderIds.length === 0) {
       toast.error('Selecciona al menos una extrusora para esta fórmula fija.');
+      return;
+    }
+    const formulaColors = [...new Set([...getNamedColors(name), ...getNamedColors(description)])];
+    if (formulaColors.length > 1) {
+      toast.error(`La fórmula solo puede describir un color. Se detectaron: ${formulaColors.join(', ')}.`);
       return;
     }
     try {

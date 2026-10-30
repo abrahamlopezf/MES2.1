@@ -2,6 +2,7 @@ const { sequelize, ProcessFormula, ProcessFormulaItem, ProcessPreparation, Proce
 const { allocateBalancedSiloConsumption } = require('./services/siloConsumptionAllocator');
 const { getClientFormulaKind, isClientFormulaAllowedOnMachine, selectLeastLoadedMachine } = require('./services/formulaMachinePolicy');
 const { fetchQueueOutputSnapshots, persistQueueOutputSnapshot } = require('./services/queueOutputSnapshot.service');
+const { getFormulaOutputColorLabel, validateRequestedOutputColor } = require('./services/formulaColorRules');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const { Op } = sequelize.Sequelize;
@@ -13,6 +14,45 @@ const isPpFormulaIngredient = (ingredient) => {
 };
 
 const isFormulaEquivalenceTag = (tag) => String(tag?.name || '').trim().toUpperCase().startsWith('EQ-');
+
+const EXTRUSION_COLOR_NAMES = [
+  'amarillo', 'azul', 'blanco', 'naranja', 'negro', 'verde', 'rojo',
+  'morado', 'natural', 'gris', 'cafe', 'beige', 'rosa', 'violeta',
+];
+
+const getNamedExtrusionColors = (value) => {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\bblanca\b/g, 'blanco')
+    .replace(/\bamarilla\b/g, 'amarillo')
+    .replace(/\bnegra\b/g, 'negro')
+    .replace(/\broja\b/g, 'rojo')
+    .replace(/\bmorada\b/g, 'morado');
+  return EXTRUSION_COLOR_NAMES.filter((color) => new RegExp(`(^|[^a-z])${color}([^a-z]|$)`).test(normalized));
+};
+
+const validateFormulaColorDescription = (name, description) => {
+  const colors = [...new Set([...getNamedExtrusionColors(name), ...getNamedExtrusionColors(description)])];
+  if (colors.length > 1) {
+    throw Object.assign(new Error(`La fórmula solo puede describir un color. Se detectaron: ${colors.join(', ')}.`), { statusCode: 400 });
+  }
+};
+
+const validatePtiSingleColor = (name, color) => {
+  const colors = getNamedExtrusionColors(color);
+  if (colors.length !== 1) {
+    throw Object.assign(new Error('Cada PTI debe tener exactamente un color en el campo Color.'), { statusCode: 400 });
+  }
+  const nameColors = getNamedExtrusionColors(name);
+  if (nameColors.length > 1) {
+    throw Object.assign(new Error(`El nombre del PTI incluye varios colores (${nameColors.join(', ')}). Registra una ficha PTI por color.`), { statusCode: 400 });
+  }
+  if (nameColors.length === 1 && nameColors[0] !== colors[0]) {
+    throw Object.assign(new Error(`El nombre del PTI indica ${nameColors[0]}, pero el campo Color indica ${colors[0]}. Deben coincidir.`), { statusCode: 400 });
+  }
+};
 
 const getActiveMaterialIdsForTag = async (tagId, transaction = null) => {
   if (!tagId) return [];
@@ -196,7 +236,7 @@ class ExtrusionService {
 
   async mixFormula(payload, userId) {
     return sequelize.transaction(async (transaction) => {
-      const { formula_id, preparation_id, destination_qr_code, container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes } = payload;
+      const { formula_id, output_color, preparation_id, destination_qr_code, container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes } = payload;
       let effectiveAreaId = area_id;
       if (!effectiveAreaId) {
         const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction });
@@ -220,6 +260,7 @@ class ExtrusionService {
       if (!formula || (formula.is_active !== undefined && !formula.is_active)) {
         throw new Error('Fórmula no válida o inactiva.');
       }
+      const formulaOutputColor = validateRequestedOutputColor(formula, output_color);
 
       const eligibleMaterialIdsByIngredient = new Map();
       if (isOfficialExtrusionFormula) {
@@ -750,6 +791,7 @@ class ExtrusionService {
         id: formula.id,
         code: formula.code || null,
         name: formula.name,
+        output_color: formulaOutputColor,
         batch_size_kg: Number(formula.batch_size_kg) || 500,
         cost_index: costIndexSnapshot,
         expected_yield_pieces: Number(formula.expected_yield_pieces) || null,
@@ -762,6 +804,14 @@ class ExtrusionService {
           percentage: Number(ingredient.percentage) || 0,
           unit: ingredient.unit || 'KG',
         })),
+        color_masterbatch_materials: (formula.ingredients || [])
+          .filter((ingredient) => String(ingredient.material?.name || '').toUpperCase().includes('MASTERBATCH'))
+          .map((ingredient) => ({
+            material_id: ingredient.material_id,
+            material_name: ingredient.material?.name || null,
+            quantity: Number(ingredient.quantity) || 0,
+            unit: ingredient.unit || 'KG',
+          })),
       };
       preparation.cost_index_snapshot = costIndexSnapshot;
       preparation.material_cost_snapshot = materialCostSnapshot;
@@ -2691,7 +2741,7 @@ class ExtrusionService {
       notes
     }, { transaction });
 
-    await persistQueueOutputSnapshot(sequelize, newQueue.id, outputPti, transaction);
+    await persistQueueOutputSnapshot(sequelize, newQueue.id, outputPti, transaction, preparation?.formula_snapshot?.output_color);
 
     return newQueue;
   }
@@ -3183,7 +3233,10 @@ class ExtrusionService {
 
     const enriched = [];
     for (const f of formulas) {
-      enriched.push(await this.calculateFormulaCosts(f));
+      enriched.push({
+        ...await this.calculateFormulaCosts(f),
+        output_color: getFormulaOutputColorLabel(f),
+      });
     }
     return enriched;
   }
@@ -4005,6 +4058,8 @@ class ExtrusionService {
       preparation_id: prep?.id || null,
       folio: prep?.folio || null,
       formula_name: formulaName,
+      output_color: prep?.formula_snapshot?.output_color || null,
+      color_masterbatch_materials: prep?.formula_snapshot?.color_masterbatch_materials || [],
       batch_size_kg: initialBatchKg,
       mixture_cost_per_kg: transformedCostPerKg,
       transformed_mixture_value: prep?.transformed_value_snapshot == null ? null : Number(prep.transformed_value_snapshot),
@@ -4126,6 +4181,7 @@ class ExtrusionService {
     const code = String(payload.code || '').trim().toUpperCase();
     const name = String(payload.name || '').trim();
     const assignmentMode = String(payload.extruder_assignment_mode || 'DYNAMIC').trim().toUpperCase();
+    const description = payload.description ? String(payload.description).trim() : '';
     const batchSize = Number(payload.batch_size_kg ?? 500);
     const yieldPieces = Number(payload.expected_yield_pieces ?? 5000);
     const yieldKg = Number(payload.expected_yield_kg ?? 490);
@@ -4135,6 +4191,7 @@ class ExtrusionService {
       throw Object.assign(new Error('El código debe iniciar con F-EXT-CUSTOM- y contener solo letras, números y guiones.'), { statusCode: 400 });
     }
     if (!name) throw Object.assign(new Error('El nombre de la fórmula es obligatorio.'), { statusCode: 400 });
+    validateFormulaColorDescription(name, description);
     if (!['DYNAMIC', 'FIXED'].includes(assignmentMode)) {
       throw Object.assign(new Error('Selecciona una asignación dinámica o fija.'), { statusCode: 400 });
     }
@@ -4169,7 +4226,7 @@ class ExtrusionService {
       const formula = await Formula.create({
         code,
         name,
-        description: payload.description ? String(payload.description).trim() : null,
+        description: description || null,
         batch_size_kg: batchSize,
         cost_index: costIndex,
         expected_yield_pieces: yieldPieces,
@@ -4213,8 +4270,10 @@ class ExtrusionService {
       }
 
       if (payload.description !== undefined) {
-        formula.description = payload.description;
+        formula.description = payload.description == null ? null : String(payload.description).trim();
       }
+
+      validateFormulaColorDescription(formula.name, formula.description);
 
       if (payload.cost_index !== undefined) {
         const idx = Number(payload.cost_index);
@@ -4576,6 +4635,7 @@ class ExtrusionService {
       || !Number.isFinite(numericProfile.transformed_cost_index) || numericProfile.transformed_cost_index <= 0) {
       throw Object.assign(new Error('Completa extrusora, tipo, color, denier, número de cintas, tolerancia, ancho e índice de costo con valores válidos.'), { statusCode: 400 });
     }
+    validatePtiSingleColor(name, color);
 
     const formula = formula_id ? await Formula.findByPk(formula_id) : null;
     if (formula_id && !formula) {
@@ -4690,6 +4750,10 @@ class ExtrusionService {
       const value = payload[field] == null ? '' : String(payload[field]).trim();
       if (!value) throw Object.assign(new Error(`${field === 'color' ? 'El color' : 'El tipo de cinta'} no puede quedar vacío.`), { statusCode: 400 });
       pti[field] = value;
+    }
+
+    if (payload.color !== undefined || payload.name !== undefined) {
+      validatePtiSingleColor(pti.name, pti.color);
     }
 
     if (payload.formula_id !== undefined) {
