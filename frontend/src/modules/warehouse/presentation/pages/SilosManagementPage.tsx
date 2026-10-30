@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '../../../../core/api/apiClient';
@@ -821,7 +822,7 @@ export const SilosManagementPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* MODAL 1: REGISTRAR FACTURA DE POLIPROPILENO (ENTRADA A SILO - CERO QR)   */}
       {/* ========================================================================= */}
-      {isInvoiceModalOpen && (
+      {isInvoiceModalOpen && createPortal(
         <div
           onClick={() => setIsInvoiceModalOpen(false)}
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -1091,13 +1092,14 @@ export const SilosManagementPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* MODAL 2: DAR DE ALTA / EDITAR SILO                                       */}
       {/* ========================================================================= */}
-      {isSiloModalOpen && (
+      {isSiloModalOpen && createPortal(
         <div
           onClick={() => setIsSiloModalOpen(false)}
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -1301,7 +1303,8 @@ export const SilosManagementPage: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
