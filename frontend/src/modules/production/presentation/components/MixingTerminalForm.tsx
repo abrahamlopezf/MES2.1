@@ -81,10 +81,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     ? rawFormulas.filter((formula: any) => isClientFormula(formula.code) || Number(formula.id) === Number(ticket?.formula_id))
     : [];
   const silos: any[] = Array.isArray(silosData) ? silosData : [];
-  const formulaColorOptions = useMemo(() => [...new Set(formulas
-    .map((formula: any) => getFormulaColorLabel(formula))
-    .filter((color): color is string => Boolean(color)))].sort((a, b) => a.localeCompare(b, 'es')),
-  [formulas]);
 
   const [formulaId, setFormulaId] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -104,6 +100,13 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const { data: formulaDetails, isLoading: loadingDetails, refetch: refetchFormulaDetails } = useFormulaDetails(formulaId);
 
   const formulaItems: any[] = formulaDetails?.items || [];
+
+  const selectedFormula = formulas.find((f: any) => String(f.id) === String(formulaId));
+  const formulaColorOptions = useMemo(() => {
+    if (!selectedFormula) return [];
+    const formulaColor = getFormulaColorLabel(selectedFormula);
+    return formulaColor ? [formulaColor] : [];
+  }, [selectedFormula]);
 
   // Estado para modal de Orden de Consumo (ODC) hacia Almacén con insumos precargados
   const [isOdcModalOpen, setIsOdcModalOpen] = useState(false);
@@ -152,13 +155,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       setSelectedColor(getFormulaColorLabel(firstAvailable) || '');
     }
   }, [ticket, formulas, registeredPtis]);
-
-  const formulasForSelectedColor = useMemo(() => selectedColor
-    ? formulas.filter((formula: any) => getFormulaColorLabel(formula) === selectedColor)
-    : formulas.filter((formula: any) => !getFormulaColorLabel(formula)),
-  [formulas, selectedColor]);
-
-  const selectedFormula = formulas.find((f: any) => String(f.id) === String(formulaId));
   const hasLinkedActivePti = Boolean(selectedFormula && registeredPtis.some((pti: any) =>
     Number(pti.formula_id) === Number(selectedFormula.id)
   ));
@@ -861,38 +857,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
             </div>
 
             <div className="p-4 space-y-4">
-              {/* 1. Selector de Fórmula de Extrusión */}
+              {/* 1. Seleccionar fórmula y después confirmar su color de salida */}
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground flex items-center gap-2" htmlFor="mix-output-color">
-                  <Icon name="palette" size={14} className="text-primary" />
-                  Color de producción *
-                </label>
-                <select
-                  id="mix-output-color"
-                  required={formulaColorOptions.length > 0}
-                  value={selectedColor}
-                  disabled={Boolean(ticket) || formulaColorOptions.length === 0}
-                  onChange={(event) => {
-                    const nextColor = event.target.value;
-                    setSelectedColor(nextColor);
-                    const currentFormula = formulas.find((formula: any) => String(formula.id) === String(formulaId));
-                    if (getFormulaColorLabel(currentFormula) !== nextColor) {
-                      const nextFormula = formulas.find((formula: any) => getFormulaColorLabel(formula) === nextColor
-                        && registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(formula.id)))
-                        || formulas.find((formula: any) => getFormulaColorLabel(formula) === nextColor);
-                      if (nextFormula) setFormulaId(String(nextFormula.id));
-                    }
-                  }}
-                  className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-60"
-                >
-                  <option value="">-- Seleccione color --</option>
-                  {formulaColorOptions.map((color) => <option key={color} value={color}>{color}</option>)}
-                </select>
-                {selectedColor && (
-                  <p className="text-xs text-muted-foreground">
-                    El color selecciona la fórmula y su masterbatch. La receta conserva sus cantidades aprobadas.
-                  </p>
-                )}
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Icon name="menu_book" size={14} className="text-primary" />
@@ -909,12 +875,17 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   <select
                     required
                     value={formulaId}
-                    onChange={(e) => setFormulaId(e.target.value)}
+                    onChange={(e) => {
+                      const nextFormulaId = e.target.value;
+                      const nextFormula = formulas.find((formula: any) => String(formula.id) === nextFormulaId);
+                      setFormulaId(nextFormulaId);
+                      setSelectedColor(getFormulaColorLabel(nextFormula) || '');
+                    }}
                     disabled={Boolean(ticket)}
                     className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer disabled:opacity-60"
                   >
                     <option value="" disabled>-- Seleccione Fórmula --</option>
-                    {formulasForSelectedColor.map((f: any) => (
+                    {formulas.map((f: any) => (
                       <option
                         key={f.id}
                         value={f.id}
@@ -929,6 +900,27 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     <Icon name="expand_more" size={20} />
                   </div>
                 </div>
+
+                <label className="text-sm font-bold text-foreground flex items-center gap-2" htmlFor="mix-output-color">
+                  <Icon name="palette" size={14} className="text-primary" />
+                  Color de producción {formulaColorOptions.length > 0 ? '*' : ''}
+                </label>
+                <select
+                  id="mix-output-color"
+                  required={formulaColorOptions.length > 0}
+                  value={selectedColor}
+                  disabled={Boolean(ticket) || !selectedFormula || formulaColorOptions.length === 0}
+                  onChange={(event) => setSelectedColor(event.target.value)}
+                  className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-60"
+                >
+                  <option value="">{selectedFormula ? '-- Sin color configurado --' : '-- Seleccione primero una fórmula --'}</option>
+                  {formulaColorOptions.map((color) => <option key={color} value={color}>{color}</option>)}
+                </select>
+                {selectedFormula && formulaColorOptions.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Color disponible para esta fórmula. La receta y su masterbatch se muestran abajo.
+                  </p>
+                )}
 
                 {selectedFormula && !hasLinkedActivePti && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
