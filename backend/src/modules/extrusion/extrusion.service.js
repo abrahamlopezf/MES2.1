@@ -5196,7 +5196,7 @@ class ExtrusionService {
       throw err;
     }
 
-    const { Silo, Material, Tag } = require('../../database/models');
+    const { Silo, Material, Tag, Supplier } = require('../../database/models');
 
     return await sequelize.transaction(async (t) => {
       const silo = await Silo.findByPk(silo_id, { transaction: t, lock: t.LOCK.UPDATE });
@@ -5213,6 +5213,13 @@ class ExtrusionService {
       const material = receivedMaterialId ? await Material.findByPk(receivedMaterialId, { transaction: t }) : null;
       if (!material) {
         throw Object.assign(new Error('Selecciona el material de polipropileno recibido.'), { statusCode: 400 });
+      }
+      const supplierId = Number(supplier_id);
+      const supplier = Number.isInteger(supplierId) && supplierId > 0
+        ? await Supplier.findByPk(supplierId, { transaction: t })
+        : null;
+      if (!supplier || !supplier.is_active) {
+        throw Object.assign(new Error('Selecciona un proveedor activo del catálogo.'), { statusCode: 400 });
       }
       const materialTags = await material.getTags({ attributes: ['id', 'name'], transaction: t });
       const allowedTag = await Tag.findByPk(silo.material_tag_id, { transaction: t });
@@ -5268,6 +5275,8 @@ class ExtrusionService {
         after_data: { current_stock_kg: finalStock, current_lot_number: silo.current_lot_number, material_id: material.id },
         metadata: {
           folio,
+          supplier_id: supplier.id,
+          supplier_name: supplier.name,
           material_id: material.id,
           material_name: material.name,
           matches_silo_material_tag: true,

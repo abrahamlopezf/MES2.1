@@ -59,12 +59,14 @@ export const SilosManagementPage: React.FC = () => {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isSiloModalOpen, setIsSiloModalOpen] = useState(false);
   const [editingSilo, setEditingSilo] = useState<SiloItem | null>(null);
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [isSupplierDropdownOpen, setIsSupplierDropdownOpen] = useState(false);
 
   // Formulario Factura PP (Entrada a Silo - Cero QR)
   const [invoiceForm, setInvoiceForm] = useState({
     folio: '',
     invoice_date: localDateValue(),
-    supplier_name: '',
+    supplier_id: '',
     silo_id: '',
     material_id: '',
     quantity_kg: '',
@@ -125,6 +127,21 @@ export const SilosManagementPage: React.FC = () => {
     }
   });
 
+  const { data: suppliersResponse, isLoading: loadingSuppliers } = useQuery({
+    queryKey: ['materials', 'suppliers'],
+    queryFn: async () => {
+      const res = await apiClient.get('/suppliers?pageSize=10000');
+      return res.data?.data || res.data || [];
+    },
+    enabled: isInvoiceModalOpen,
+    staleTime: 5 * 60 * 1000,
+  });
+  const suppliers: any[] = Array.isArray(suppliersResponse) ? suppliersResponse : [];
+  const filteredSuppliers = suppliers.filter((supplier) =>
+    `${supplier.code || ''} ${supplier.name || ''}`.toLowerCase().includes(supplierSearch.trim().toLowerCase())
+  );
+  const selectedSupplier = suppliers.find((supplier) => String(supplier.id) === invoiceForm.supplier_id);
+
 
   const rawMaterials: any[] = Array.isArray(materialsData) ? materialsData : [];
   // Priorizar materias primas de polipropileno y resinas
@@ -163,7 +180,7 @@ export const SilosManagementPage: React.FC = () => {
       setInvoiceForm({
         folio: '',
         invoice_date: localDateValue(),
-        supplier_name: '',
+        supplier_id: '',
         silo_id: '',
         material_id: '',
         quantity_kg: '',
@@ -172,6 +189,8 @@ export const SilosManagementPage: React.FC = () => {
         currency: 'MXN',
         notes: ''
       });
+      setSupplierSearch('');
+      setIsSupplierDropdownOpen(false);
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Error al registrar ingreso de factura al Silo.';
@@ -297,6 +316,10 @@ export const SilosManagementPage: React.FC = () => {
       toast.error('Selecciona el material de polipropileno que indica la factura.');
       return;
     }
+    if (!invoiceForm.supplier_id) {
+      toast.error('Selecciona el proveedor de la factura.');
+      return;
+    }
     const qty = Number(invoiceForm.quantity_kg);
     if (isNaN(qty) || qty <= 0) {
       toast.error('Ingresa una cantidad de kilos válida mayor a 0.');
@@ -318,7 +341,7 @@ export const SilosManagementPage: React.FC = () => {
       silo_id: Number(invoiceForm.silo_id),
       material_id: Number(invoiceForm.material_id),
       quantity_kg: qty,
-      supplier_name: invoiceForm.supplier_name.trim() || undefined,
+      supplier_id: Number(invoiceForm.supplier_id),
       lot_number: invoiceForm.lot_number.trim() || undefined,
       unit_cost: unitCost,
       currency: invoiceForm.currency,
@@ -967,18 +990,61 @@ export const SilosManagementPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Proveedor */}
-                <div className="space-y-1.5">
+                {/* Proveedor obligatorio con búsqueda en el catálogo activo */}
+                <div className="space-y-1.5 relative">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Icon name="local_shipping" size={14} className="text-muted-foreground" />
-                    <span>Proveedor (Opcional)</span>
+                    <span>Proveedor *</span>
                   </label>
-                  <Input
-                    value={invoiceForm.supplier_name}
-                    onChange={(e) => setInvoiceForm({ ...invoiceForm, supplier_name: e.target.value })}
-                    placeholder="Ej. Indelpro / Braskem"
-                    className="!h-11 text-xs sm:text-sm font-semibold bg-background border-border"
-                  />
+                  <button
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={isSupplierDropdownOpen}
+                    aria-required="true"
+                    onClick={() => setIsSupplierDropdownOpen((open) => !open)}
+                    className="w-full !h-11 flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 text-left text-xs sm:text-sm font-semibold"
+                  >
+                    <span className={selectedSupplier ? 'text-foreground truncate' : 'text-muted-foreground'}>
+                      {selectedSupplier ? `${selectedSupplier.code ? `${selectedSupplier.code} · ` : ''}${selectedSupplier.name}` : 'Selecciona un proveedor'}
+                    </span>
+                    <Icon name="expand_more" size={18} className="shrink-0 text-muted-foreground" />
+                  </button>
+                  {isSupplierDropdownOpen && (
+                    <div className="absolute z-30 top-full left-0 right-0 mt-1 rounded-xl border border-border bg-card p-2 shadow-2xl">
+                      <Input
+                        autoFocus
+                        value={supplierSearch}
+                        onChange={(e) => setSupplierSearch(e.target.value)}
+                        placeholder="Buscar por código o nombre..."
+                        className="!h-10 text-sm bg-background border-border"
+                      />
+                      <div role="listbox" aria-label="Proveedores activos" className="mt-2 max-h-48 overflow-y-auto">
+                        {loadingSuppliers ? (
+                          <p className="px-3 py-4 text-xs text-muted-foreground">Cargando proveedores...</p>
+                        ) : filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier) => (
+                          <button
+                            key={supplier.id}
+                            type="button"
+                            role="option"
+                            aria-selected={String(supplier.id) === invoiceForm.supplier_id}
+                            onClick={() => {
+                              setInvoiceForm({ ...invoiceForm, supplier_id: String(supplier.id) });
+                              setSupplierSearch('');
+                              setIsSupplierDropdownOpen(false);
+                            }}
+                            className="w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          >
+                            <span className="font-mono text-xs text-primary">{supplier.code || 'PROV'}</span>
+                            <span className="ml-2 font-semibold text-foreground">{supplier.name}</span>
+                          </button>
+                        )) : (
+                          <p className="px-3 py-4 text-xs text-muted-foreground">
+                            {suppliers.length ? 'No hay coincidencias.' : 'No hay proveedores activos en el catálogo.'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Número de Lote */}
