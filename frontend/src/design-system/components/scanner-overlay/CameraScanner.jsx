@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, Camera, RefreshCw, AlertTriangle, SwitchCamera, Keyboard, Check, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,7 +72,12 @@ export const CameraScanner = ({
         console.warn('No se pudo enumerar cámaras previas:', err);
       }
 
-      const instance = new Html5Qrcode(containerId);
+      // Limitar el decodificador a QR evita perder tiempo intentando formatos
+      // que no se usan en los flujos de trazabilidad del sistema.
+      const instance = new Html5Qrcode(containerId, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false,
+      });
       scannerRef.current = instance;
 
       const successCallback = (decodedText) => {
@@ -99,13 +104,19 @@ export const CameraScanner = ({
       };
 
       const qrConfig = {
-        fps: 15,
+        fps: 12,
         qrbox: (viewfinderWidth, viewfinderHeight) => {
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.max(180, Math.floor(minEdge * 0.72));
+          // Una zona algo más amplia tolera etiquetas QR de varios tamaños sin
+          // exigir que el operador las alinee con precisión milimétrica.
+          const size = Math.max(150, Math.min(360, Math.floor(minEdge * 0.84)));
           return { width: size, height: size };
         },
         aspectRatio: 1.0,
+        videoConstraints: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
       };
 
       // Determinar qué cámara usar
