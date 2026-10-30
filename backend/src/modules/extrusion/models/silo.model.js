@@ -38,6 +38,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'Etiqueta compartida que autoriza los materiales compatibles con este silo',
       },
+      is_extrusion_feed: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Indica si el silo abastece directamente la mezcladora de Extrusión',
+      },
       current_stock_kg: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,

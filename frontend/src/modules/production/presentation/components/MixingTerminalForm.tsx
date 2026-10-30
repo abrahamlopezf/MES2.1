@@ -67,7 +67,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const { data: silosData = [] } = useQuery({
     queryKey: ['warehouse', 'silos'],
     queryFn: async () => {
-      const res = await apiClient.get('/warehouse/silos');
+      const res = await apiClient.get('/warehouse/silos', { params: { purpose: 'EXTRUSION' } });
       return res.data?.data || res.data || [];
     },
     refetchInterval: 2500,
@@ -1063,7 +1063,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 {silos.length === 0 ? (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
                     <Icon name="warning" size={16} className="shrink-0" />
-                    <span>No hay Silos registrados en Almacén. Regístralos en Control de Silos.</span>
+                    <span>No hay silos designados para alimentar la mezcladora. En Control de Silos, edita y marca los dos silos físicos de PP.</span>
                   </div>
                 ) : (
                   <div className={`p-3 rounded-xl border space-y-3 ${hasSufficientPpInSilo ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/40'}`}>

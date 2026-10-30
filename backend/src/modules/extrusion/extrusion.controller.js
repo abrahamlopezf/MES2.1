@@ -610,7 +610,7 @@ class ExtrusionController {
   async getSilos(req, res, next) {
     try {
       const allowCosts = canViewCosts(req.user);
-      const silos = await extrusionService.getSilos(req.user);
+      const silos = await extrusionService.getSilos(req.user, req.query.purpose);
 
       let totalStockKg = 0;
       let totalCapacityKg = 0;

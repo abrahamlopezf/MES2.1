@@ -16,6 +16,7 @@ interface SiloItem {
   min_capacity_kg: number;
   alert_stock_kg: number;
   material_tag_id: number | null;
+  is_extrusion_feed: boolean;
   current_stock_kg: number;
   current_lot_number: string;
   current_lot_type: string;
@@ -77,6 +78,7 @@ export const SilosManagementPage: React.FC = () => {
     code: '',
     name: '',
     material_tag_id: '',
+    is_extrusion_feed: false,
     capacity_kg: '40000',
     min_capacity_kg: '5000',
     alert_stock_kg: '10000'
@@ -242,6 +244,7 @@ export const SilosManagementPage: React.FC = () => {
       code: '',
       name: '',
       material_tag_id: materialTags.find((tag: any) => /^(PP|POLIPROPILENO)$/i.test(String(tag.name || '').trim()))?.id?.toString() || '',
+      is_extrusion_feed: false,
       capacity_kg: '40000',
       min_capacity_kg: '5000',
       alert_stock_kg: '10000'
@@ -255,6 +258,7 @@ export const SilosManagementPage: React.FC = () => {
       code: silo.code || '',
       name: silo.name || '',
       material_tag_id: silo.material_tag_id ? String(silo.material_tag_id) : '',
+      is_extrusion_feed: Boolean(silo.is_extrusion_feed),
       capacity_kg: String(silo.capacity_kg || 40000),
       min_capacity_kg: String(silo.min_capacity_kg || 5000),
       alert_stock_kg: String(silo.alert_stock_kg || 10000)
@@ -341,6 +345,7 @@ export const SilosManagementPage: React.FC = () => {
       code: siloForm.code.trim().toUpperCase(),
       name: siloForm.name.trim(),
       material_tag_id: Number(siloForm.material_tag_id),
+      is_extrusion_feed: Boolean(siloForm.is_extrusion_feed),
       capacity_kg: capacity,
       min_capacity_kg: minimum,
       alert_stock_kg: alert,
@@ -654,6 +659,9 @@ export const SilosManagementPage: React.FC = () => {
                       >
                         {isCritical ? '⚠️ MÍNIMO CRÍTICO' : isWarning ? '⚠️ ALERTA DE STOCK' : '✅ NIVEL ÓPTIMO'}
                       </Badge>
+                      {silo.is_extrusion_feed && (
+                        <Badge variant="success" className="text-[9px] font-bold">ALIMENTA MEZCLADORA</Badge>
+                      )}
                     </div>
                     <h3 className="font-black text-base text-foreground truncate">
                       {silo.name}
@@ -1174,6 +1182,19 @@ export const SilosManagementPage: React.FC = () => {
                   </div>
                   <span className="text-[10px] text-muted-foreground block">Cualquier material con esta etiqueta podrá ingresar al silo, aunque cambie su tipo o código de PP.</span>
                 </div>
+
+                <label className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(siloForm.is_extrusion_feed)}
+                    onChange={(e) => setSiloForm({ ...siloForm, is_extrusion_feed: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 accent-emerald-600"
+                  />
+                  <span>
+                    <span className="block text-xs font-black text-foreground">Silo de alimentación directa a Mezcladora</span>
+                    <span className="block mt-0.5 text-[10px] text-muted-foreground">Marca únicamente los dos silos físicos que suministran PP a Extrusión. Los demás siguen visibles y valorizados en Almacén, pero no se suman ni se consumen en fórmulas.</span>
+                  </span>
+                </label>
 
                 {/* Capacidad Máxima */}
                 <div className="space-y-1.5">

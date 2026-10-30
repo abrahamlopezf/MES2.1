@@ -4,6 +4,7 @@ const { getClientFormulaKind, isClientFormulaAllowedOnMachine, selectLeastLoaded
 const { fetchQueueOutputSnapshots, persistQueueOutputSnapshot } = require('./services/queueOutputSnapshot.service');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
+const { Op } = sequelize.Sequelize;
 
 const getWipQrContext = async (qrIds = []) => {
   const ids = [...new Set(qrIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
@@ -386,7 +387,7 @@ class ExtrusionService {
         });
         const totalPpKg = Number(requirements.reduce((sum, item) => sum + item.requiredKg, 0).toFixed(3));
         const activeSilos = await Silo.findAll({
-          where: { is_active: true },
+          where: { is_active: true, is_extrusion_feed: true },
           order: [['code', 'ASC'], ['id', 'ASC']],
           transaction,
           lock: transaction.LOCK.UPDATE,
@@ -4780,11 +4781,13 @@ class ExtrusionService {
   /**
    * Obtiene todos los Silos con su stock, lote, material y alertas de reorden.
    */
-  async getSilos(currentUser) {
+  async getSilos(currentUser, purpose = null) {
     const allowCosts = canViewCosts(currentUser);
     const { Silo, Material, Tag } = require('../../database/models');
+    const where = { is_active: true };
+    if (String(purpose || '').toUpperCase() === 'EXTRUSION') where.is_extrusion_feed = true;
     const silos = await Silo.findAll({
-      where: { is_active: true },
+      where,
       include: [
         { model: Material, as: 'material' },
         { model: Tag, as: 'materialTag', attributes: ['id', 'uuid', 'name', 'color'] },
@@ -4842,8 +4845,9 @@ class ExtrusionService {
     if (!Number.isInteger(Number(material_tag_id)) || Number(material_tag_id) <= 0) throw invalid('Selecciona la etiqueta de material que permitirá ingresar al silo.');
 
     const { Silo, Material, Tag } = require('../../database/models');
-    if (await Silo.count({ where: { is_active: true } }) >= 2) {
-      throw Object.assign(new Error('La operación está configurada para dos silos activos. Desactiva uno antes de registrar otro.'), { statusCode: 409 });
+    const isExtrusionFeed = Boolean(payload.is_extrusion_feed);
+    if (isExtrusionFeed && await Silo.count({ where: { is_active: true, is_extrusion_feed: true } }) >= 2) {
+      throw Object.assign(new Error('La mezcladora admite exactamente dos silos de alimentación. Desmarca uno antes de habilitar otro.'), { statusCode: 409 });
     }
     const existing = await Silo.findOne({ where: { code: code.trim().toUpperCase() } });
     if (existing) {
@@ -4859,6 +4863,7 @@ class ExtrusionService {
       code: code.trim().toUpperCase(),
       name: name.trim(),
       material_tag_id: materialTag.id,
+      is_extrusion_feed: isExtrusionFeed,
       capacity_kg: capacity,
       min_capacity_kg: minimum,
       alert_stock_kg: alert,
@@ -4896,10 +4901,17 @@ class ExtrusionService {
     if (payload.alert_stock_kg !== undefined) silo.alert_stock_kg = Number(payload.alert_stock_kg);
     if (payload.material_tag_id !== undefined) silo.material_tag_id = payload.material_tag_id ? Number(payload.material_tag_id) : null;
     if (payload.is_active !== undefined) silo.is_active = Boolean(payload.is_active);
+    if (payload.is_extrusion_feed !== undefined) silo.is_extrusion_feed = Boolean(payload.is_extrusion_feed);
 
     if (silo.is_active && !wasActive) {
-      const activeCount = await Silo.count({ where: { is_active: true } });
-      if (activeCount >= 2) throw invalid('La operación está configurada para dos silos activos.');
+      const activeCount = await Silo.count({ where: { is_active: true, is_extrusion_feed: true } });
+      if (silo.is_extrusion_feed && activeCount >= 2) throw Object.assign(invalid('La mezcladora admite exactamente dos silos de alimentación. Desmarca uno antes de habilitar otro.'), { statusCode: 409 });
+    }
+    if (silo.is_active && silo.is_extrusion_feed && payload.is_extrusion_feed === true && wasActive) {
+      const otherFeedSilos = await Silo.count({
+        where: { is_active: true, is_extrusion_feed: true, id: { [Op.ne]: silo.id } },
+      });
+      if (otherFeedSilos >= 2) throw Object.assign(invalid('La mezcladora admite exactamente dos silos de alimentación. Desmarca uno antes de habilitar otro.'), { statusCode: 409 });
     }
 
     if (!Number.isFinite(Number(silo.capacity_kg)) || Number(silo.capacity_kg) <= 0) throw invalid('La capacidad máxima debe ser mayor que cero.');
