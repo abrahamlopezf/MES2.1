@@ -11,6 +11,8 @@ export interface FormulaIngredient {
   output_pti_product_id?: number | null;
   output_pti_color?: string | null;
   material_id: number;
+  equivalence_tag_id?: number | null;
+  equivalenceTag?: { id: number; name: string } | null;
   percentage?: number;
   weight_kg: number;
   is_restricted_on_machine_4: boolean;

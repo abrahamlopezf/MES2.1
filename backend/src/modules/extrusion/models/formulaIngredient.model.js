@@ -15,6 +15,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      equivalence_tag_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Only materials tagged with this tag may substitute for the formula ingredient.'
+      },
       quantity: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,

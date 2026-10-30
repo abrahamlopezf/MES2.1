@@ -111,6 +111,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [targetMaterialForScan, setTargetMaterialForScan] = useState<{
     id: number;
+    ingredient_id?: number;
+    allowed_material_ids?: number[];
     name: string;
     required: number;
     pending: number;
@@ -243,15 +245,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   // Validar cada aditivo por separado; un exceso en un material no debe
   // compensar el faltante de otro aunque el total de kg coincida.
-  const requiredNonPpByMaterial = new Map<number, number>();
-  nonPpIngredients.forEach((item: any) => {
-    const id = Number(item.material_id);
-    requiredNonPpByMaterial.set(id, (requiredNonPpByMaterial.get(id) || 0) + requiredKgPerBatch(item));
-  });
-  const isNonPpBalanced = [...requiredNonPpByMaterial.entries()].every(([materialId, required]) => {
+  const isNonPpBalanced = nonPpIngredients.every((item: any) => {
+    const allowedIds = new Set((item.allowed_material_ids || [item.material_id]).map(Number));
     const dosedForMaterial = inputs.reduce((sum, input) =>
-      Number(input.material_id) === materialId ? sum + (Number(input.quantity) || 0) : sum, 0);
-    return Math.abs(dosedForMaterial - required) < 0.05;
+      allowedIds.has(Number(input.material_id)) ? sum + (Number(input.quantity) || 0) : sum, 0);
+    return Math.abs(dosedForMaterial - requiredKgPerBatch(item)) < 0.05;
   });
 
   const totalBatchKg = batchTargetKg;
@@ -259,25 +257,23 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const isBatchBalanced = isNonPpBalanced && hasSufficientPpInSilo;
   const progressPercent = Math.min(100, Math.round(((ppRequiredKg + totalScannedNonPpKg) / (totalBatchKg || 1)) * 100));
 
-  // Mapa de insumos dosificados por material_id
-  const dosedByMaterial = useMemo(() => {
-    const map: Record<number, number> = {};
-    for (const inp of inputs) {
-      if (inp.material_id) {
-        map[inp.material_id] = (map[inp.material_id] || 0) + Number(inp.quantity || 0);
-      }
-    }
-    return map;
-  }, [inputs]);
-
   // Conjunto de QRs ya dosificados en este batch
   const scannedQrCodesSet = useMemo(() => {
     return new Set(inputs.map(i => (i.qr_code || '').trim().toUpperCase()));
   }, [inputs]);
 
   // Helper para obtener la cola de sacos FIFO disponibles y el siguiente saco prioritario no agregado
-  const getMaterialFifoState = (matId: number) => {
-    const item = (formulaItems || []).find((it: any) => Number(it.material_id) === Number(matId));
+  const getMaterialFifoState = (materialOrIngredient: any) => {
+    const isObject = materialOrIngredient !== null && typeof materialOrIngredient === 'object';
+    const requestedId = isObject ? Number(materialOrIngredient.material_id ?? materialOrIngredient.id) : Number(materialOrIngredient);
+    const ingredientId = isObject
+      ? Number(materialOrIngredient.ingredient_id ?? (materialOrIngredient.required_quantity !== undefined ? materialOrIngredient.id : 0))
+      : 0;
+    const item = (formulaItems || []).find((it: any) =>
+      (ingredientId > 0 && Number(it.id) === ingredientId) ||
+      Number(it.material_id) === requestedId ||
+      (it.allowed_material_ids || []).map(Number).includes(requestedId)
+    );
     if (!item) return { remainingFifoList: [], nextFifoSack: null, totalFifoAvailable: 0 };
     const allFifo = Array.isArray(item.fifo_qrs) ? item.fifo_qrs : [];
     const remainingFifoList = allFifo.filter((f: any) => !scannedQrCodesSet.has((f.qr_code || '').trim().toUpperCase()));
@@ -289,6 +285,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   // Abrir escáner para un material específico o general (predeterminadamente abre la cámara)
   const handleOpenScanner = (mat?: {
     id: number;
+    ingredient_id?: number;
+    allowed_material_ids?: number[];
     name: string;
     required: number;
     suggested_fifo_qr?: string | null;
@@ -301,12 +299,17 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         return;
       }
 
-      const alreadyDosed = dosedByMaterial[mat.id] || 0;
+      const item = formulaItems.find((candidate: any) => Number(candidate.id) === Number(mat.ingredient_id || 0))
+        || formulaItems.find((candidate: any) => Number(candidate.material_id) === Number(mat.id));
+      const allowedIds = new Set((item?.allowed_material_ids || [mat.id]).map(Number));
+      const alreadyDosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
       const pending = Math.max(0, Number((mat.required - alreadyDosed).toFixed(2)));
-      const { remainingFifoList, nextFifoSack } = getMaterialFifoState(mat.id);
+      const { remainingFifoList, nextFifoSack } = getMaterialFifoState(item || mat.id);
 
       setTargetMaterialForScan({
         id: mat.id,
+        ingredient_id: item?.id,
+        allowed_material_ids: item?.allowed_material_ids || [mat.id],
         name: mat.name,
         required: mat.required,
         pending,
@@ -328,10 +331,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   // Sincronizar targetMaterialForScan con la última información de FIFO cuando se refrescan los detalles o cambian los inputs
   useEffect(() => {
     if (targetMaterialForScan && formulaDetails?.items) {
-      const updatedItem = formulaDetails.items.find((it: any) => Number(it.material_id) === Number(targetMaterialForScan.id));
+      const updatedItem = formulaDetails.items.find((it: any) =>
+        Number(it.id) === Number(targetMaterialForScan.ingredient_id || 0) ||
+        Number(it.material_id) === Number(targetMaterialForScan.id)
+      );
       if (updatedItem) {
-        const { remainingFifoList, nextFifoSack } = getMaterialFifoState(targetMaterialForScan.id);
-        const alreadyDosed = dosedByMaterial[targetMaterialForScan.id] || 0;
+        const { remainingFifoList, nextFifoSack } = getMaterialFifoState(updatedItem);
+        const allowedIds = new Set((updatedItem.allowed_material_ids || [updatedItem.material_id]).map(Number));
+        const alreadyDosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
         const pending = Math.max(0, Number((targetMaterialForScan.required - alreadyDosed).toFixed(2)));
 
         setTargetMaterialForScan(prev => prev ? ({
@@ -343,7 +350,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         }) : null);
       }
     }
-  }, [formulaDetails, inputs, targetMaterialForScan?.id]);
+  }, [formulaDetails, inputs, targetMaterialForScan?.id, targetMaterialForScan?.ingredient_id]);
 
   // Abrir modal de Orden de Consumo (ODC) hacia Almacén con insumos precargados y editables
   const handleOpenOdcModal = (mode: 'missing' | 'full' | 'single', singleItem?: any) => {
@@ -371,6 +378,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
       const preloaded: PreloadedOdcItem[] = [{
         material_id: singleItem.material_id,
+        eligible_material_ids: singleItem.allowed_material_ids || [singleItem.material_id],
+        eligible_materials: singleItem.eligible_materials || [],
+        equivalence_tag_id: singleItem.equivalence_tag_id || null,
+        equivalence_tag_name: singleItem.equivalenceTag?.name || null,
         req_quantity: missing,
         material: {
           id: singleItem.material_id,
@@ -406,6 +417,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         const req = requiredKgPerBatch(item);
         return {
           material_id: item.material_id,
+          eligible_material_ids: item.allowed_material_ids || [item.material_id],
+          eligible_materials: item.eligible_materials || [],
+          equivalence_tag_id: item.equivalence_tag_id || null,
+          equivalence_tag_name: item.equivalenceTag?.name || null,
           req_quantity: req,
           material: {
             id: item.material_id,
@@ -444,6 +459,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       preloaded = candidateItems.map(({ item, req, wip, missing }: any) => {
         return {
           material_id: item.material_id,
+          eligible_material_ids: item.allowed_material_ids || [item.material_id],
+          eligible_materials: item.eligible_materials || [],
+          equivalence_tag_id: item.equivalence_tag_id || null,
+          equivalence_tag_name: item.equivalenceTag?.name || null,
           req_quantity: missing,
           material: {
             id: item.material_id,
@@ -502,7 +521,9 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
       // Calcular cantidad sugerida inteligentemente y verificar pertenencia a receta
       const formulaItems = formulaDetails?.items || [];
-      const matchingItem = formulaItems.find((it: any) => Number(it.material_id) === Number(childData.material_id));
+      const matchingItem = formulaItems.find((it: any) =>
+        (it.allowed_material_ids || [it.material_id]).map(Number).includes(Number(childData.material_id))
+      );
 
       if (!matchingItem) {
         const err = `El material escaneado "${childData.material_name}" (${childData.material_code || 'S/C'}) no forma parte de la receta de esta fórmula.`;
@@ -512,12 +533,15 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         return;
       }
 
-      if (targetMaterialForScan && Number(childData.material_id) !== Number(targetMaterialForScan.id)) {
+      if (targetMaterialForScan && Number(matchingItem.id) !== Number(targetMaterialForScan.ingredient_id || 0)) {
         toast.info(`Insumo detectado: "${childData.material_name}". Se sincronizó la dosificación a este insumo de la receta.`);
-        const alreadyDosed = dosedByMaterial[childData.material_id] || 0;
+        const allowedIds = new Set((matchingItem.allowed_material_ids || [matchingItem.material_id]).map(Number));
+        const alreadyDosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
         const pending = Math.max(0, requiredKgPerBatch(matchingItem) - alreadyDosed);
         setTargetMaterialForScan({
           id: matchingItem.material_id,
+          ingredient_id: matchingItem.id,
+          allowed_material_ids: matchingItem.allowed_material_ids || [matchingItem.material_id],
           name: matchingItem.material_name,
           required: requiredKgPerBatch(matchingItem),
           pending
@@ -528,7 +552,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
       let suggestedQty = Number(childData.available_amount);
       if (matchingItem) {
-        const alreadyDosed = dosedByMaterial[childData.material_id] || 0;
+        const allowedIds = new Set((matchingItem.allowed_material_ids || [matchingItem.material_id]).map(Number));
+        const alreadyDosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
         const pending = Math.max(0, requiredKgPerBatch(matchingItem) - alreadyDosed);
         if (pending > 0 && pending < suggestedQty) {
           suggestedQty = Number(pending.toFixed(2));
@@ -587,9 +612,12 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
     // Calcular estado restante del insumo dosificado
     const matId = recognizedChildQr.material_id;
-    const formulaItem = (formulaItems || []).find((it: any) => Number(it.material_id) === Number(matId));
+    const formulaItem = (formulaItems || []).find((it: any) =>
+      (it.allowed_material_ids || [it.material_id]).map(Number).includes(Number(matId))
+    );
     const targetReq = Number(targetMaterialForScan?.required || requiredKgPerBatch(formulaItem));
-    const newAlreadyDosed = (dosedByMaterial[matId] || 0) + qty;
+    const allowedIds = new Set((formulaItem?.allowed_material_ids || [matId]).map(Number));
+    const newAlreadyDosed = newInputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
     const newPending = Math.max(0, Number((targetReq - newAlreadyDosed).toFixed(2)));
 
     // Obtener los siguientes sacos FIFO disponibles que no estén en newInputs
@@ -1199,7 +1227,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     </thead>
                     <tbody className="divide-y divide-border">
                       {formulaItems.map((item: any) => {
-                        const dosed = dosedByMaterial[item.material_id] || 0;
+                        const allowedIds = new Set((item.allowed_material_ids || [item.material_id]).map(Number));
+                        const dosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
                         const req = requiredKgPerBatch(item);
                         const wip = Number(item.available_wip_kg || 0);
                         const physicalWip = Number(item.physical_wip_kg ?? wip);
@@ -1210,7 +1239,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                         const isExcess = dosed > req + 0.05;
                         const isPp = isPpMaterial(item);
                         const isSiloItem = isPp; // Polipropileno siempre se surte desde Silo a Mezcladora
-                        const { remainingFifoList, nextFifoSack } = getMaterialFifoState(item.material_id);
+                        const { remainingFifoList, nextFifoSack } = getMaterialFifoState(item);
 
                         return (
                           <tr key={item.id || item.material_id} className={`transition-colors ${isSiloItem ? 'bg-emerald-500/5 hover:bg-emerald-500/10' : 'hover:bg-muted/20'}`}>
@@ -1228,6 +1257,9 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                   <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50 whitespace-nowrap">
                                     {item.material_code}
                                   </span>
+                                )}
+                                {item.equivalenceTag?.name && (
+                                  <Badge variant="outline" className="text-[9px]">Equivalentes: {item.equivalenceTag.name}</Badge>
                                 )}
                                 {isSiloItem ? (
                                   <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1">
@@ -1366,6 +1398,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                   variant="outline"
                                   onClick={() => handleOpenScanner({
                                     id: item.material_id,
+                                    ingredient_id: item.id,
+                                    allowed_material_ids: item.allowed_material_ids || [item.material_id],
                                     name: item.material_name,
                                     required: req,
                                     suggested_fifo_qr: nextFifoSack?.qr_code || item.suggested_fifo_qr,

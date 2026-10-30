@@ -723,6 +723,10 @@ db.FormulaIngredient.belongsTo(db.Material, {
   foreignKey: 'material_id',
   as: 'material',
 });
+db.FormulaIngredient.belongsTo(db.Tag, {
+  foreignKey: 'equivalence_tag_id',
+  as: 'equivalenceTag',
+});
 
 // PtiRack -> Material (PTI Type)
 db.PtiRack.belongsTo(db.Material, {

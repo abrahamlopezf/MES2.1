@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { useUpdateFormulaMutation } from '@/modules/extrusion/hooks/useExtrusionFloorQueries';
-import { useMaterialsQuery } from '@/modules/materials/hooks/useMaterialsQueries';
+import { useActiveTagsQuery, useMaterialsQuery } from '@/modules/materials/hooks/useMaterialsQueries';
 import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
@@ -35,6 +35,7 @@ interface DraftIngredient {
   percentage: number;
   unit: string;
   is_restricted_on_machine_4: boolean;
+  equivalence_tag_id: number | null;
 }
 
 const isPolypropyleneIngredient = (ingredient: any, material?: { name?: string; code?: string }) => {
@@ -42,6 +43,8 @@ const isPolypropyleneIngredient = (ingredient: any, material?: { name?: string; 
   const code = String(material?.code || ingredient?.material?.internal_code || ingredient?.material?.material_code || ingredient?.material_code || '').trim().toUpperCase();
   return name.startsWith('POLIPROPILENO') || name === 'PP' || name.startsWith('PP ') || code.startsWith('MP-PP');
 };
+
+const isFormulaEquivalenceTag = (tag: any) => String(tag?.name || '').trim().toUpperCase().startsWith('EQ-');
 
 const IngredientSupplyBadge = ({ ingredient, material }: { ingredient: any; material?: { name?: string; code?: string } }) => (
   <Badge variant="outline" className={isPolypropyleneIngredient(ingredient, material)
@@ -74,6 +77,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
 
   // Queries y Mutaciones
   const { data: materialsData, isLoading: isLoadingMaterials } = useMaterialsQuery({ pageSize: 250 }, { enabled: isOpen });
+  const { data: activeTags = [] } = useActiveTagsQuery();
+  const equivalenceTags = activeTags.filter(isFormulaEquivalenceTag);
   const rawMaterials = materialsData?.items || [];
   const updateMutation = useUpdateFormulaMutation();
   const usesClientCatalogRules = isClientFormula(formula?.code);
@@ -110,7 +115,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
           quantity: Number(ing.quantity || ing.weight_kg || 0),
           percentage: Number(ing.percentage || 0),
           unit: ing.unit || 'KG',
-          is_restricted_on_machine_4: usesClientCatalogRules ? false : Boolean(ing.is_restricted_on_machine_4)
+          is_restricted_on_machine_4: usesClientCatalogRules ? false : Boolean(ing.is_restricted_on_machine_4),
+          equivalence_tag_id: ing.equivalence_tag_id ? Number(ing.equivalence_tag_id) : null
         }))
       );
     } else {
@@ -143,10 +149,18 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
       copy[index] = {
         ...copy[index],
         material_id: newMaterialId,
-        is_restricted_on_machine_4: isRestrictedM4
+        is_restricted_on_machine_4: isRestrictedM4,
+        equivalence_tag_id: null
       };
       return copy;
     });
+  };
+
+  const handleEquivalenceTagChange = (index: number, rawTagId: string) => {
+    const tagId = rawTagId ? Number(rawTagId) : null;
+    setDraftIngredients((prev) => prev.map((row, rowIndex) =>
+      rowIndex === index ? { ...row, equivalence_tag_id: tagId } : row
+    ));
   };
 
   const handleQuantityChange = (index: number, newQty: number) => {
@@ -198,7 +212,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
       unit: 'KG',
       is_restricted_on_machine_4: !usesClientCatalogRules && Boolean(
         defaultMat?.name?.toUpperCase().includes('POLIPROPILENO (B)')
-      )
+      ),
+      equivalence_tag_id: null
     };
     setDraftIngredients((prev) => [...prev, newRow]);
   };
@@ -220,7 +235,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
           quantity: Number(ing.quantity || ing.weight_kg || 0),
           percentage: Number(ing.percentage || 0),
           unit: ing.unit || 'KG',
-          is_restricted_on_machine_4: usesClientCatalogRules ? false : Boolean(ing.is_restricted_on_machine_4)
+          is_restricted_on_machine_4: usesClientCatalogRules ? false : Boolean(ing.is_restricted_on_machine_4),
+          equivalence_tag_id: ing.equivalence_tag_id ? Number(ing.equivalence_tag_id) : null
         }))
       );
     }
@@ -264,7 +280,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
             quantity: Number(row.quantity),
             percentage: Number(row.percentage),
             unit: row.unit || 'KG',
-            is_restricted_on_machine_4: Boolean(row.is_restricted_on_machine_4)
+            is_restricted_on_machine_4: Boolean(row.is_restricted_on_machine_4),
+            equivalence_tag_id: row.equivalence_tag_id || null
           }))
         }
       });
@@ -531,13 +548,32 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       <div className="min-w-0 flex-1">
                         <p className="mb-1 text-sm font-semibold text-muted-foreground">Material / resina</p>
                         {isEditingIngredients ? (
-                          <select value={item.material_id} onChange={(e) => handleMaterialChange(idx, Number(e.target.value))}
-                            aria-label={`Material de ingrediente ${idx + 1}`}
-                            className="min-h-12 w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary outline-none">
-                            <option value={0}>Selecciona material</option>
-                            {availableMaterials.map((m) => <option key={m.id} value={m.id}>{m.code ? `[${m.code}] ` : ''}{m.name}</option>)}
-                          </select>
-                        ) : <p className="text-lg font-bold text-foreground">{name}</p>}
+                          <>
+                            <select value={item.material_id} onChange={(e) => handleMaterialChange(idx, Number(e.target.value))}
+                              aria-label={`Material de ingrediente ${idx + 1}`}
+                              className="min-h-12 w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary outline-none">
+                              <option value={0}>Selecciona material</option>
+                              {availableMaterials.map((m) => <option key={m.id} value={m.id}>{m.code ? `[${m.code}] ` : ''}{m.name}</option>)}
+                            </select>
+                            <label className="mt-2 block space-y-1 text-xs font-semibold text-muted-foreground">
+                              Materiales equivalentes (etiqueta)
+                              <select value={item.equivalence_tag_id || ''}
+                                onChange={(e) => handleEquivalenceTagChange(idx, e.target.value)}
+                                disabled={isPolypropyleneIngredient(item, material)}
+                                aria-label={`Etiqueta de equivalencia de ${name}`}
+                                className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50">
+                                <option value="">Solo este código</option>
+                                {equivalenceTags.map((tag: any) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                              </select>
+                              <span className="block font-normal">Solo códigos con esta etiqueta podrán sustituir el material. PP se abastece desde silos.</span>
+                            </label>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-lg font-bold text-foreground">{name}</p>
+                            {item.equivalenceTag?.name && <Badge variant="outline" className="mt-1 text-xs">Equivalencia: {item.equivalenceTag.name}</Badge>}
+                          </>
+                        )}
                       </div>
                       {isEditingIngredients && <Button type="button" variant="ghost" size="icon" aria-label={`Eliminar ${name}`}
                         className="min-h-12 min-w-12 shrink-0 text-destructive focus-visible:ring-2 focus-visible:ring-primary"
@@ -605,6 +641,17 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                               </option>
                             ))}
                           </select>
+                          <label className="mt-2 block space-y-1 text-xs font-semibold text-muted-foreground">
+                            Etiqueta de equivalencia (opcional)
+                            <select value={item.equivalence_tag_id || ''}
+                              onChange={(e) => handleEquivalenceTagChange(idx, e.target.value)}
+                              disabled={isPolypropyleneIngredient(item, availableMaterials.find((material) => material.id === item.material_id))}
+                              aria-label={`Etiqueta de equivalencia de ingrediente ${idx + 1}`}
+                              className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50">
+                              <option value="">Solo este código</option>
+                              {equivalenceTags.map((tag: any) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                            </select>
+                          </label>
                         </TableCell>
 
                         {/* Input Cantidad (Kg) */}
@@ -685,6 +732,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                         <TableRow key={idx} className="hover:bg-muted/30 transition-colors">
                           <TableCell className="font-semibold text-foreground py-2.5">
                             {ing.material?.name || `Material #${ing.material_id}`}
+                            {ing.equivalenceTag?.name && <Badge variant="outline" className="ml-2 text-[10px]">Equivalencia: {ing.equivalenceTag.name}</Badge>}
                           </TableCell>
                           <TableCell className="text-right font-mono font-bold text-primary py-2.5">
                             {Number(ing.quantity || ing.weight_kg || 0).toFixed(2)} kg

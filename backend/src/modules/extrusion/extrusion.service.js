@@ -6,6 +6,32 @@ const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const { Op } = sequelize.Sequelize;
 
+const isPpFormulaIngredient = (ingredient) => {
+  const name = String(ingredient?.material?.name || ingredient?.material_name || '').trim().toUpperCase();
+  const code = String(ingredient?.material?.internal_code || ingredient?.material_code || '').trim().toUpperCase();
+  return name.startsWith('POLIPROPILENO') || name === 'PP' || name.startsWith('PP ') || code.startsWith('MP-PP');
+};
+
+const isFormulaEquivalenceTag = (tag) => String(tag?.name || '').trim().toUpperCase().startsWith('EQ-');
+
+const getActiveMaterialIdsForTag = async (tagId, transaction = null) => {
+  if (!tagId) return [];
+  const { MaterialTag, Material } = require('../../database/models');
+  const assignments = await MaterialTag.findAll({
+    where: { tag_id: Number(tagId) },
+    attributes: ['material_id'],
+    transaction,
+  });
+  const assignedIds = [...new Set(assignments.map((assignment) => Number(assignment.material_id)))];
+  if (!assignedIds.length) return [];
+  const activeMaterials = await Material.findAll({
+    where: { id: { [Op.in]: assignedIds }, is_active: true },
+    attributes: ['id'],
+    transaction,
+  });
+  return activeMaterials.map((material) => Number(material.id));
+};
+
 const getWipQrContext = async (qrIds = []) => {
   const ids = [...new Set(qrIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
   if (!ids.length) return new Map();
@@ -183,7 +209,7 @@ class ExtrusionService {
         include: [{
           model: FormulaIngredient,
           as: 'ingredients',
-          include: [{ model: Material, as: 'material' }],
+          include: [{ model: Material, as: 'material' }, { model: require('../../database/models').Tag, as: 'equivalenceTag' }],
         }],
         transaction
       });
@@ -193,6 +219,40 @@ class ExtrusionService {
       }
       if (!formula || (formula.is_active !== undefined && !formula.is_active)) {
         throw new Error('Fórmula no válida o inactiva.');
+      }
+
+      const eligibleMaterialIdsByIngredient = new Map();
+      if (isOfficialExtrusionFormula) {
+        for (const ingredient of formula.ingredients || []) {
+          const materialIds = new Set([Number(ingredient.material_id)]);
+          if (ingredient.equivalence_tag_id) {
+            if (!ingredient.equivalenceTag || !ingredient.equivalenceTag.is_active) {
+              throw Object.assign(new Error(`La etiqueta de equivalencia del ingrediente ${ingredient.material?.name || ingredient.material_id} está inactiva o ya no existe. Actualiza la fórmula antes de preparar mezclas.`), { statusCode: 409 });
+            }
+            if (!isFormulaEquivalenceTag(ingredient.equivalenceTag)) {
+              throw Object.assign(new Error(`La etiqueta ${ingredient.equivalenceTag.name} no está designada para equivalencias de fórmula. Usa una etiqueta dedicada con prefijo EQ-.`), { statusCode: 409 });
+            }
+            if (isPpFormulaIngredient(ingredient)) {
+              throw Object.assign(new Error(`El Polipropileno ${ingredient.material?.name || ''} no admite equivalencias por etiqueta; su compatibilidad se controla con las etiquetas de los silos.`), { statusCode: 409 });
+            }
+            const activeTaggedMaterialIds = await getActiveMaterialIdsForTag(ingredient.equivalence_tag_id, transaction);
+            activeTaggedMaterialIds.forEach((materialId) => materialIds.add(materialId));
+            if (!materialIds.has(Number(ingredient.material_id))) {
+              throw Object.assign(new Error(`El material base ${ingredient.material?.internal_code || ingredient.material_id} no tiene la etiqueta de equivalencia ${ingredient.equivalenceTag?.name || ingredient.equivalence_tag_id}.`), { statusCode: 409 });
+            }
+          }
+          eligibleMaterialIdsByIngredient.set(Number(ingredient.id), materialIds);
+        }
+        const ingredientOwners = new Map();
+        for (const [ingredientId, materialIds] of eligibleMaterialIdsByIngredient) {
+          for (const candidateId of materialIds) {
+            const previousOwner = ingredientOwners.get(candidateId);
+            if (previousOwner && previousOwner !== ingredientId) {
+              throw Object.assign(new Error(`Configuración ambigua: el material ID ${candidateId} puede cubrir más de un ingrediente de esta fórmula. Separa las etiquetas de equivalencia.`), { statusCode: 409 });
+            }
+            ingredientOwners.set(candidateId, ingredientId);
+          }
+        }
       }
 
       // No se prepara mezcla si la fórmula todavía no tiene PTI de salida.
@@ -488,7 +548,9 @@ class ExtrusionService {
           if (siloMaterialIds.has(consumedMaterialId)) {
             throw Object.assign(new Error(`El Polipropileno del QR ${input.qr_code} debe consumirse desde los silos, no mediante un QR hijo.`), { statusCode: 400 });
           }
-          const recipeIngredient = formula.ingredients.find((ingredient) => Number(ingredient.material_id) === consumedMaterialId);
+          const recipeIngredient = formula.ingredients.find((ingredient) =>
+            eligibleMaterialIdsByIngredient.get(Number(ingredient.id))?.has(consumedMaterialId)
+          );
           if (!recipeIngredient) {
             throw Object.assign(new Error(`El material del QR ${input.qr_code} no pertenece a la fórmula seleccionada.`), { statusCode: 400 });
           }
@@ -505,9 +567,13 @@ class ExtrusionService {
         // Descontar
         const balanceBefore = Number(wipItem.amount);
         const consumedQuantity = Number(input.quantity);
+        const matchedRecipeIngredient = isOfficialExtrusionFormula
+          ? formula.ingredients.find((ingredient) => eligibleMaterialIdsByIngredient.get(Number(ingredient.id))?.has(consumedMaterialId))
+          : null;
+        const consumedIngredientKey = matchedRecipeIngredient ? Number(matchedRecipeIngredient.id) : consumedMaterialId;
         consumedNonPpByMaterial.set(
-          consumedMaterialId,
-          Number(((consumedNonPpByMaterial.get(consumedMaterialId) || 0) + consumedQuantity).toFixed(3)),
+          consumedIngredientKey,
+          Number(((consumedNonPpByMaterial.get(consumedIngredientKey) || 0) + consumedQuantity).toFixed(3)),
         );
         const newAmount = Number((balanceBefore - consumedQuantity).toFixed(3));
         wipItem.amount = newAmount;
@@ -623,11 +689,11 @@ class ExtrusionService {
       if (isOfficialExtrusionFormula) {
         const expectedByMaterial = new Map();
         for (const ingredient of formula.ingredients || []) {
-          const materialId = Number(ingredient.material_id);
-          if (siloMaterialIds.has(materialId)) continue;
+          const ingredientKey = Number(ingredient.id);
+          if (siloMaterialIds.has(Number(ingredient.material_id))) continue;
           expectedByMaterial.set(
-            materialId,
-            Number(((expectedByMaterial.get(materialId) || 0) + Number(ingredient.quantity || 0)).toFixed(3)),
+            ingredientKey,
+            Number(((expectedByMaterial.get(ingredientKey) || 0) + Number(ingredient.quantity || 0)).toFixed(3)),
           );
         }
         const materialIds = new Set([...expectedByMaterial.keys(), ...consumedNonPpByMaterial.keys()]);
@@ -635,8 +701,8 @@ class ExtrusionService {
           const expectedKg = Number(expectedByMaterial.get(materialId) || 0);
           const consumedKg = Number(consumedNonPpByMaterial.get(materialId) || 0);
           if (Math.abs(consumedKg - expectedKg) <= 0.05) continue;
-          const ingredient = (formula.ingredients || []).find((item) => Number(item.material_id) === materialId);
-          const materialName = ingredient?.material?.name || `material #${materialId}`;
+          const ingredient = (formula.ingredients || []).find((item) => Number(item.id) === materialId);
+          const materialName = ingredient?.material?.name || `ingrediente #${materialId}`;
           const remainingKg = Math.max(0, Number((expectedKg - consumedKg).toFixed(2)));
           const detail = consumedKg > expectedKg
             ? `excede por ${(consumedKg - expectedKg).toFixed(2)} kg`
@@ -690,6 +756,8 @@ class ExtrusionService {
         ingredients: (formula.ingredients || []).map((ingredient) => ({
           material_id: ingredient.material_id,
           material_name: ingredient.material?.name || null,
+          equivalence_tag_id: ingredient.equivalence_tag_id || null,
+          equivalence_tag_name: ingredient.equivalenceTag?.name || null,
           quantity: Number(ingredient.quantity) || 0,
           percentage: Number(ingredient.percentage) || 0,
           unit: ingredient.unit || 'KG',
@@ -896,7 +964,7 @@ class ExtrusionService {
   }
 
   async getFormulaDetails(id) {
-    const { Formula, FormulaIngredient, Material, WipInventory, QrCode, ProcessFormula, ProcessFormulaItem } = require('../../database/models');
+    const { Formula, FormulaIngredient, Material, WipInventory, QrCode, Lote, ProcessFormula, ProcessFormulaItem } = require('../../database/models');
     const { Op } = require('sequelize');
     
     // 1. Buscar en el catálogo oficial de Fórmulas de Extrusión (500kg)
@@ -905,7 +973,7 @@ class ExtrusionService {
         {
           model: FormulaIngredient,
           as: 'ingredients',
-          include: [{ model: Material, as: 'material' }]
+          include: [{ model: Material, as: 'material' }, { model: require('../../database/models').Tag, as: 'equivalenceTag' }]
         }
       ]
     });
@@ -930,9 +998,26 @@ class ExtrusionService {
 
       for (const ing of ingredients) {
         const mat = ing.material;
+        const eligibleMaterialIds = new Set([Number(ing.material_id)]);
+        if (ing.equivalence_tag_id && ing.equivalenceTag?.is_active) {
+          const activeTaggedMaterialIds = await getActiveMaterialIdsForTag(ing.equivalence_tag_id);
+          activeTaggedMaterialIds.forEach((materialId) => eligibleMaterialIds.add(materialId));
+        }
+        const eligibleMaterials = await Material.findAll({
+          where: { id: { [Op.in]: [...eligibleMaterialIds] }, is_active: true },
+          attributes: ['id', 'name', 'internal_code'],
+        });
+        const eligibleMaterialStock = await Promise.all(eligibleMaterials.map(async (candidate) => ({
+          material_id: Number(candidate.id),
+          name: candidate.name,
+          code: candidate.internal_code || null,
+          warehouse_available_kg: Number((await Lote.sum('available_amount', {
+            where: { material_id: candidate.id, is_active: true, available_amount: { [Op.gt]: 0 } },
+          })) || 0),
+        })));
         const physicalWipSum = (await WipInventory.sum('amount', {
           where: {
-            material_id: ing.material_id,
+            material_id: { [Op.in]: [...eligibleMaterialIds] },
             area_id: 2
           }
         })) || 0;
@@ -943,7 +1028,7 @@ class ExtrusionService {
         // Obtener todos los sacos hijos (-SN) activos con existencias en Área 2 ordenados por FIFO
         const fifoWipList = await WipInventory.findAll({
           where: {
-            material_id: ing.material_id,
+            material_id: { [Op.in]: [...eligibleMaterialIds] },
             area_id: 2,
             amount: { [Op.gt]: 0 }
           },
@@ -957,6 +1042,10 @@ class ExtrusionService {
               qr_code: { [Op.like]: '%-SN%' }
             },
             attributes: ['id', 'qr_code']
+          }, {
+            model: Material,
+            as: 'material',
+            attributes: ['id', 'name', 'internal_code'],
           }],
           order: [['created_at', 'ASC']]
         });
@@ -977,6 +1066,9 @@ class ExtrusionService {
           }
           fifoQrs.push({
             qr_code: itemWip.qr_code?.qr_code,
+            material_id: Number(itemWip.material_id),
+            material_name: itemWip.material?.name || mat?.name || null,
+            material_code: itemWip.material?.internal_code || null,
             amount: sackQty,
             accumulated_kg: accumulatedKg,
             is_priority: fifoQrs.length === 0,
@@ -994,6 +1086,10 @@ class ExtrusionService {
           material_id: ing.material_id,
           material_name: mat ? mat.name : 'Desconocido',
           material_code: mat ? (mat.internal_code || mat.material_code) : '',
+          equivalence_tag_id: ing.equivalence_tag_id || null,
+          equivalenceTag: ing.equivalenceTag ? { id: ing.equivalenceTag.id, name: ing.equivalenceTag.name } : null,
+          allowed_material_ids: [...eligibleMaterialIds],
+          eligible_materials: eligibleMaterialStock,
           required_quantity: reqQty,
           percentage: Number(ing.percentage || 0),
           is_restricted: Boolean(ing.is_restricted_on_machine_4),
@@ -3061,7 +3157,7 @@ class ExtrusionService {
    * y valor transformado calculado con su índice de multiplicación.
    */
   async getExtrusionFormulas(query = {}) {
-    const { Formula, FormulaIngredient, Material, PtiProduct } = require('../../database/models');
+    const { Formula, FormulaIngredient, Material, PtiProduct, Tag } = require('../../database/models');
     const where = {};
     if (query.is_active !== 'ALL' && query.is_active !== undefined) {
       where.is_active = query.is_active === 'true' || query.is_active === true;
@@ -3075,7 +3171,7 @@ class ExtrusionService {
         {
           model: FormulaIngredient,
           as: 'ingredients',
-          include: [{ model: Material, as: 'material' }]
+          include: [{ model: Material, as: 'material' }, { model: Tag, as: 'equivalenceTag' }]
         },
         {
           model: PtiProduct,
@@ -4003,13 +4099,13 @@ class ExtrusionService {
    * Obtiene una fórmula de extrusión por ID con sus costos calculados y PTIs asociados.
    */
   async getFormulaDetailsById(id) {
-    const { Formula, FormulaIngredient, Material, PtiProduct } = require('../../database/models');
+    const { Formula, FormulaIngredient, Material, PtiProduct, Tag } = require('../../database/models');
     const formula = await Formula.findByPk(id, {
       include: [
         {
           model: FormulaIngredient,
           as: 'ingredients',
-          include: [{ model: Material, as: 'material' }]
+          include: [{ model: Material, as: 'material' }, { model: Tag, as: 'equivalenceTag' }]
         },
         {
           model: PtiProduct,
@@ -4097,7 +4193,7 @@ class ExtrusionService {
    * Permite ajustar materiales, cantidades, composición y el índice de multiplicación para dar el valor transformado a la mezcla.
    */
   async updateFormula(id, payload) {
-    const { Formula, FormulaIngredient, Material, Extruder, ExtruderQueue, sequelize } = require('../../database/models');
+    const { Formula, FormulaIngredient, Material, Tag, Extruder, ExtruderQueue, sequelize } = require('../../database/models');
     const formula = await Formula.findByPk(id);
     if (!formula) {
       const error = new Error(`Fórmula con ID ${id} no encontrada.`);
@@ -4245,6 +4341,7 @@ class ExtrusionService {
         let totalPercentage = 0;
 
         const newIngredients = [];
+        const equivalentMaterialSets = [];
         for (const item of payload.ingredients) {
           const materialId = Number(item.material_id);
           if (!materialId) {
@@ -4259,6 +4356,32 @@ class ExtrusionService {
             error.statusCode = 400;
             throw error;
           }
+
+          const equivalenceTagId = item.equivalence_tag_id == null || item.equivalence_tag_id === ''
+            ? null
+            : Number(item.equivalence_tag_id);
+          const eligibleMaterialIds = new Set([materialId]);
+          if (equivalenceTagId !== null) {
+            if (!Number.isInteger(equivalenceTagId) || equivalenceTagId <= 0) {
+              throw Object.assign(new Error(`La etiqueta de equivalencia para ${material.name} no es válida.`), { statusCode: 400 });
+            }
+            if (isPpFormulaIngredient({ material })) {
+              throw Object.assign(new Error('El Polipropileno usa las etiquetas de compatibilidad de silos; no configures equivalencias de fórmula para PP.'), { statusCode: 400 });
+            }
+            const tag = await Tag.findByPk(equivalenceTagId, { transaction: t });
+            if (!tag || !tag.is_active) {
+              throw Object.assign(new Error(`La etiqueta de equivalencia seleccionada para ${material.name} no existe o está inactiva.`), { statusCode: 400 });
+            }
+            if (!isFormulaEquivalenceTag(tag)) {
+              throw Object.assign(new Error(`La etiqueta ${tag.name} es de uso general y no puede usarse como equivalencia de fórmula. Crea una etiqueta dedicada con prefijo EQ-.`), { statusCode: 400 });
+            }
+            const activeTaggedMaterialIds = await getActiveMaterialIdsForTag(equivalenceTagId, t);
+            activeTaggedMaterialIds.forEach((candidateId) => eligibleMaterialIds.add(candidateId));
+            if (!eligibleMaterialIds.has(materialId)) {
+              throw Object.assign(new Error(`Agrega la etiqueta "${tag.name}" al material base ${material.internal_code || material.name} en el catálogo antes de enlazarla a la fórmula.`), { statusCode: 400 });
+            }
+          }
+          equivalentMaterialSets.push({ materialName: material.name, materialIds: eligibleMaterialIds });
 
           const qty = Number(item.quantity !== undefined ? item.quantity : item.weight_kg);
           if (!Number.isFinite(qty) || qty <= 0) {
@@ -4277,12 +4400,22 @@ class ExtrusionService {
           newIngredients.push({
             formula_id: formula.id,
             material_id: materialId,
+            equivalence_tag_id: equivalenceTagId,
             quantity: Number(qty.toFixed(2)),
             percentage: Number(pct.toFixed(2)),
             unit: item.unit || 'KG',
             is_restricted_on_machine_4: false,
             restricted_machine_ids: []
           });
+        }
+
+        for (let i = 0; i < equivalentMaterialSets.length; i += 1) {
+          for (let j = i + 1; j < equivalentMaterialSets.length; j += 1) {
+            const overlap = [...equivalentMaterialSets[i].materialIds].some((materialId) => equivalentMaterialSets[j].materialIds.has(materialId));
+            if (overlap) {
+              throw Object.assign(new Error(`Las equivalencias de "${equivalentMaterialSets[i].materialName}" y "${equivalentMaterialSets[j].materialName}" se traslapan. Cada material solo puede cubrir un ingrediente de la fórmula.`), { statusCode: 409 });
+            }
+          }
         }
 
         if (getClientFormulaKind(formula) && Math.abs(totalQuantity - batchSize) > 0.05) {

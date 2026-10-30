@@ -12,6 +12,10 @@ export interface PreloadedOdcItem {
   material?: any;
   unit?: any;
   amount?: number;
+  eligible_material_ids?: number[];
+  eligible_materials?: Array<{ material_id: number; name: string; code?: string | null; warehouse_available_kg: number }>;
+  equivalence_tag_id?: number | null;
+  equivalence_tag_name?: string | null;
   isConfirmed?: boolean;
 }
 
@@ -78,6 +82,14 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
   const [showExtraSearch, setShowExtraSearch] = useState(false);
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const chooseEquivalentMaterial = (item: any, materialId: number) => {
+    const candidate = (item.eligible_inventory || []).find((entry: any) => sameMaterialId(entry.material_id, materialId));
+    if (!candidate) return;
+    setItems(items.map((current) => current.material_id === item.material_id
+      ? { ...current, material_id: Number(candidate.material_id), material: candidate.material, amount: Number(candidate.amount || 0) }
+      : current));
+  };
 
   const filteredInventory = inventory.filter(inv => 
     inv.material?.name?.toLowerCase().includes(search.toLowerCase()) || 
@@ -251,6 +263,26 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
                     {item.material?.description && (
                       <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                         {item.material?.description}
+                      </div>
+                    )}
+
+                    {item.equivalence_tag_name && (
+                      <div className="mt-2 space-y-1">
+                        <label className="block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          Material autorizado · {item.equivalence_tag_name}
+                        </label>
+                        {item.eligible_inventory?.length > 1 ? (
+                          <select value={item.material_id} onChange={(e) => chooseEquivalentMaterial(item, Number(e.target.value))}
+                            className="min-h-10 w-full rounded-md border border-border bg-background px-2 text-xs font-semibold text-foreground">
+                            {item.eligible_inventory.map((candidate: any) => (
+                              <option key={candidate.material_id} value={candidate.material_id}>
+                                {candidate.material?.internal_code || `MAT-${candidate.material_id}`} · {candidate.material?.name} · {Number(candidate.amount || 0).toLocaleString()} {unitCode}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground">Se solicitará el código elegido: {item.material?.internal_code || `MAT-${item.material_id}`}.</div>
+                        )}
                       </div>
                     )}
 
@@ -504,6 +536,11 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
           // Never invent availability: this value is replaced by the inventory
           // response when a matching material exists.
           amount: initItem.amount !== undefined ? initItem.amount : 0,
+          eligible_material_ids: initItem.eligible_material_ids || [initItem.material_id],
+          eligible_materials: initItem.eligible_materials || [],
+          equivalence_tag_id: initItem.equivalence_tag_id || null,
+          equivalence_tag_name: initItem.equivalence_tag_name || null,
+          eligible_inventory: [],
           req_quantity: Number(initItem.req_quantity) || 0,
           isConfirmed: initItem.isConfirmed !== undefined ? initItem.isConfirmed : false,
           unit: initItem.unit || { code: 'KG' }
@@ -588,16 +625,53 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
 
       // Sincronizar items precargados con datos de almacén si ya existen
       setItems(prevItems => prevItems.map(item => {
-        const match = invList.find((inv: any) => sameMaterialId(inv.material_id, item.material_id));
+        const eligibleIds = new Set((item.eligible_material_ids || [item.material_id]).map(Number));
+        const candidates = invList.filter((inv: any) => eligibleIds.has(Number(inv.material_id)));
+        const exactMatch = candidates.find((inv: any) => sameMaterialId(inv.material_id, item.material_id));
+        const inventoryById = new Map(candidates.map((candidate: any) => [Number(candidate.material_id), candidate]));
+        const stockSources = item.eligible_materials?.length
+          ? item.eligible_materials.map((candidate: any) => {
+              const inventoryItem: any = inventoryById.get(Number(candidate.material_id));
+              return {
+                material_id: Number(candidate.material_id),
+                amount: Number(candidate.warehouse_available_kg || 0),
+                material: inventoryItem?.material || {
+                  id: Number(candidate.material_id),
+                  name: candidate.name,
+                  internal_code: candidate.code,
+                  base_unit: item.unit,
+                },
+              };
+            })
+          : candidates.map((candidate: any) => ({
+              material_id: Number(candidate.material_id),
+              amount: Number(candidate.amount || 0),
+              material: candidate.material,
+            }));
+        const stockedCandidates = stockSources.filter((candidate: any) => Number(candidate.amount || 0) > 0)
+          .sort((a: any, b: any) => Number(b.amount || 0) - Number(a.amount || 0));
+        const exactStockSource = stockSources.find((candidate: any) => sameMaterialId(candidate.material_id, item.material_id));
+        const selectedSource = stockedCandidates.find((candidate: any) => sameMaterialId(candidate.material_id, item.material_id))
+          || (item.equivalence_tag_id ? stockedCandidates[0] : null);
+        const match = selectedSource
+          ? { ...selectedSource, material: { ...(inventoryById.get(Number(selectedSource.material_id)) as any)?.material, ...selectedSource.material } }
+          : (item.eligible_materials?.length ? exactStockSource : exactMatch);
+        const eligibleInventory = stockedCandidates.map((candidate: any) => ({
+          material_id: Number(candidate.material_id),
+          amount: Number(candidate.amount || 0),
+          material: candidate.material,
+        }));
         if (match) {
           return {
             ...item,
+            material_id: Number(match.material_id),
             amount: match.amount !== undefined ? match.amount : item.amount,
-            material: { ...match.material, ...item.material },
-            unit: match.material?.base_unit || item.unit
+            material: { ...item.material, ...match.material },
+            unit: match.material?.base_unit || item.unit,
+            eligible_inventory: eligibleInventory,
           };
         }
-        return item;
+        return { ...item, eligible_inventory: eligibleInventory };
       }));
     } catch (err) {
       console.error(err);
