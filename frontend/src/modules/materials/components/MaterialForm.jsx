@@ -443,13 +443,21 @@ const MaterialForm = ({
       ['artículo', payload.material_code_uuid],
       ['tipo', payload.type_uuid],
       ['marca', payload.brand_uuid],
-      ['unidad', payload.base_unit_uuid],
       ['localidad', payload.location_uuid],
     ];
     const invalidUuid = uuidFields.find(([, value]) => value && value !== null && !String(value).startsWith('NEW:')
       && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value)));
     if (invalidUuid) {
       setFormError(`No se pudo validar el catálogo de ${invalidUuid[0]}. Actualiza los catálogos e inténtalo de nuevo.`);
+      return;
+    }
+
+    // MaterialUnit no tiene UUID en su modelo: su catálogo se identifica por ID
+    // numérico. El backend acepta ese ID y lo resuelve a base_unit_id.
+    const unitIdentifier = payload.base_unit_uuid;
+    if (unitIdentifier && !/^\d+$/.test(String(unitIdentifier))
+      && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(unitIdentifier))) {
+      setFormError('No se pudo validar el catálogo de unidad. Actualiza las unidades e inténtalo de nuevo.');
       return;
     }
 
