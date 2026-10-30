@@ -154,7 +154,7 @@ class DashboardService {
   /**
    * Obtiene el payload del Dashboard Financiero Ejecutivo
    */
-  static async getFinancialDashboard() {
+  static async getFinancialDashboard(currentUser) {
     try {
       const { Lote, InventoryMovement, Location, Area } = require('../../database/models');
       const { sequelize } = require('../../config/database');
@@ -175,15 +175,71 @@ class DashboardService {
         ]
       });
       const warehouseInventoryValue = Number(currentInventoryResult?.get('currentValue') || 0);
-      const [wipInventoryValueRows] = await sequelize.query(`
+      const [siloInventoryRows] = await sequelize.query(`
+        SELECT COALESCE(SUM(current_stock_kg * COALESCE(unit_cost, 0)), 0) AS value
+        FROM silos
+        WHERE is_active = true
+      `);
+      const silosInventoryValue = Number(siloInventoryRows[0]?.value || 0);
+      const [rawMaterialWipValueRows] = await sequelize.query(`
         SELECT COALESCE(SUM(w.amount * COALESCE(l.unit_cost, 0)), 0) AS value
         FROM wip_inventories w
         JOIN materials m ON m.id = w.material_id
         JOIN lotes l ON l.id = w.lote_id
         WHERE m.family_id = 43 OR COALESCE(m.internal_code, '') LIKE 'MP-%'
       `);
-      const wipInventoryValue = Number(wipInventoryValueRows[0]?.value || 0);
-      const currentInventoryValue = warehouseInventoryValue + wipInventoryValue;
+      const rawMaterialWipValue = Number(rawMaterialWipValueRows[0]?.value || 0);
+      // WIP de producto transformado que ya tiene costo real registrado.
+      // Los rollos de Globo/Laminado usan el costo de su trazabilidad, no las
+      // tarifas demostrativas que muestran algunos resúmenes operativos.
+      const [valuedWipRows] = await sequelize.query(`
+        SELECT 'EXTRUSION' AS area_code,
+          COALESCE((
+            SELECT SUM(GREATEST(COALESCE(remaining_quantity_kg, total_quantity), 0) * transformed_cost_per_kg)
+            FROM process_preparations
+            WHERE remaining_quantity_kg > 0 AND transformed_cost_per_kg IS NOT NULL
+              AND to_area_id = (SELECT id FROM areas WHERE code = 'EXTRUSION' LIMIT 1)
+          ), 0)
+          + COALESCE((
+            SELECT SUM(current_quantity * unit_weight_kg * unit_cost_per_kg)
+            FROM pti_racks
+            WHERE current_quantity > 0 AND unit_weight_kg IS NOT NULL AND unit_cost_per_kg IS NOT NULL
+          ), 0) AS value
+        UNION ALL
+        SELECT 'TELARES' AS area_code,
+          COALESCE((
+            SELECT SUM(quantity_remaining_spools * unit_weight_kg * unit_cost_per_kg)
+            FROM loom_pti_wip_items
+            WHERE quantity_remaining_spools > 0 AND unit_cost_per_kg IS NOT NULL
+          ), 0)
+          + COALESCE((
+            SELECT SUM(calculated_roll_cost)
+            FROM viajero_rolls
+            WHERE current_stage = 'TELARES' AND status <> 'TRANSFORMADO'
+              AND is_active = true AND cost_data_complete = true
+          ), 0) AS value
+        UNION ALL
+        SELECT 'GLOBO' AS area_code,
+          COALESCE((
+            SELECT SUM(calculated_roll_cost)
+            FROM viajero_rolls
+            WHERE current_stage = 'GLOBO' AND status <> 'TRANSFORMADO'
+              AND is_active = true AND cost_data_complete = true
+          ), 0) AS value
+        UNION ALL
+        SELECT 'LAMINADO' AS area_code,
+          COALESCE((
+            SELECT SUM(calculated_roll_cost)
+            FROM viajero_rolls
+            WHERE current_stage = 'LAMINADO' AND status <> 'TRANSFORMADO'
+              AND is_active = true AND cost_data_complete = true
+          ), 0) AS value
+      `);
+      const valuedWipByArea = new Map(valuedWipRows.map((item) => [item.area_code, Number(item.value || 0)]));
+      const valuedWipInventoryValue = [...valuedWipByArea.values()].reduce((sum, value) => sum + value, 0);
+      const wipInventoryValue = rawMaterialWipValue + valuedWipInventoryValue;
+      const warehouseCustodyValue = warehouseInventoryValue + silosInventoryValue;
+      const currentInventoryValue = warehouseCustodyValue + wipInventoryValue;
 
       // 3. Pérdidas desglosadas por Merma, Scrap y Bajas (Cálculo exacto alineado con Almacén)
       const [lossBreakdownResult] = await sequelize.query(`
@@ -238,6 +294,25 @@ class DashboardService {
         const name = item.name || 'Sin Área';
         inventoryValueByArea.set(name, (inventoryValueByArea.get(name) || 0) + Number(item.value || 0));
       }
+      // Los silos están bajo custodia y facturación de Almacén, aunque Extrusión
+      // los consuma directamente. Se valoran aquí una sola vez y se asignan a Almacén.
+      const normalizeAreaName = (name) => String(name || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+      for (const [areaCode, value] of valuedWipByArea) {
+        const areaName = [...inventoryValueByArea.keys()]
+          .find(name => normalizeAreaName(name) === areaCode)
+          || ({ EXTRUSION: 'Extrusión', TELARES: 'Telares', GLOBO: 'Globo', LAMINADO: 'Laminado' }[areaCode] || areaCode);
+        inventoryValueByArea.set(areaName, (inventoryValueByArea.get(areaName) || 0) + value);
+      }
+      const warehouseAreaName = [...inventoryValueByArea.keys()]
+        .find(name => normalizeAreaName(name) === 'ALMACEN') || 'Almacén';
+      inventoryValueByArea.set(
+        warehouseAreaName,
+        (inventoryValueByArea.get(warehouseAreaName) || 0) + silosInventoryValue,
+      );
       const inventoryByAreaGraph = [...inventoryValueByArea].map(([name, value]) => ({ name, value }));
 
       // Los consumibles se cargan al área al surtirse y no reciben índice de transformación.
@@ -289,7 +364,7 @@ class DashboardService {
       let warehouseMetrics = null;
       try {
         const warehouseService = require('../warehouse/warehouse.service');
-        warehouseMetrics = await warehouseService.getDashboardMetrics();
+        warehouseMetrics = await warehouseService.getDashboardMetrics(currentUser);
       } catch (wErr) {
         console.warn('Advertencia al consultar warehouse metrics:', wErr.message);
       }
@@ -316,6 +391,11 @@ class DashboardService {
           kpis: {
             totalInvested,
             currentInventoryValue,
+            warehouseInventoryValue,
+            silosInventoryValue,
+            warehouseCustodyValue,
+            wipInventoryValue,
+            rawMaterialWipValue,
             totalLoss,
             totalLostScrap,
             totalLostMerma,

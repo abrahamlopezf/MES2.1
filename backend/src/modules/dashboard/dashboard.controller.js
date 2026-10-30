@@ -30,7 +30,7 @@ class DashboardController {
 
   static async getFinancialDashboard(req, res) {
     try {
-      const payload = await DashboardService.getFinancialDashboard();
+      const payload = await DashboardService.getFinancialDashboard(req.user);
       
       return res.status(200).json(payload);
     } catch (error) {
