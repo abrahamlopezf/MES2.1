@@ -39,6 +39,15 @@ const getUnitCode = (item: any) => {
   );
 };
 
+const sameMaterialId = (left: unknown, right: unknown) =>
+  left !== null && left !== undefined && right !== null && right !== undefined && Number(left) === Number(right);
+
+const normalizeMaterialName = (value: unknown) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLocaleLowerCase();
+
 interface DirectMixConsumptionViewProps {
   items: any[];
   setItems: React.Dispatch<React.SetStateAction<any[]>>;
@@ -213,6 +222,13 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
               const reqQty = Number(item.req_quantity) || 0;
               const hasInsufficientStock = availableWarehouse < reqQty;
               const isZeroStock = availableWarehouse <= 0;
+              const itemName = normalizeMaterialName(item.material?.name);
+              const sameNameOtherCodes = itemName
+                ? inventory.filter((inv: any) =>
+                    !sameMaterialId(inv.material_id, item.material_id) &&
+                    normalizeMaterialName(inv.material?.name) === itemName
+                  )
+                : [];
 
               return (
                 <div 
@@ -256,6 +272,13 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
                         </span>
                       )}
                     </div>
+                    {isZeroStock && sameNameOtherCodes.length > 0 && (
+                      <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
+                        Hay material con el mismo nombre en almacén, pero con otro código ({sameNameOtherCodes
+                          .map((inv: any) => inv.material?.internal_code || inv.material?.material_code || `MAT-${inv.material_id}`)
+                          .join(', ')}). El sistema no lo considera disponible para esta fórmula porque es otro registro de catálogo. Verifica el material enlazado a la fórmula.
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
@@ -478,7 +501,9 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
         const mapped = initialItems.map(initItem => ({
           material_id: initItem.material_id,
           material: initItem.material || { id: initItem.material_id, name: `Material #${initItem.material_id}` },
-          amount: initItem.amount !== undefined ? initItem.amount : 9999,
+          // Never invent availability: this value is replaced by the inventory
+          // response when a matching material exists.
+          amount: initItem.amount !== undefined ? initItem.amount : 0,
           req_quantity: Number(initItem.req_quantity) || 0,
           isConfirmed: initItem.isConfirmed !== undefined ? initItem.isConfirmed : false,
           unit: initItem.unit || { code: 'KG' }
@@ -527,11 +552,11 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
     if (!formula || !formula.ingredients) return;
 
     const newItems = formula.ingredients.map((ing: any) => {
-      const invMatch = inventory.find((inv: any) => inv.material_id === ing.material_id);
+      const invMatch = inventory.find((inv: any) => sameMaterialId(inv.material_id, ing.material_id));
       return {
         material_id: ing.material_id,
         material: ing.material || invMatch?.material || { name: `Material #${ing.material_id}` },
-        amount: invMatch ? invMatch.amount : 9999,
+        amount: invMatch ? Number(invMatch.amount) || 0 : 0,
         req_quantity: Number(ing.quantity) || 0,
         isConfirmed: false,
         unit: ing.material?.base_unit || invMatch?.material?.base_unit || { code: 'KG' }
@@ -563,7 +588,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
 
       // Sincronizar items precargados con datos de almacén si ya existen
       setItems(prevItems => prevItems.map(item => {
-        const match = invList.find((inv: any) => inv.material_id === item.material_id);
+        const match = invList.find((inv: any) => sameMaterialId(inv.material_id, item.material_id));
         if (match) {
           return {
             ...item,

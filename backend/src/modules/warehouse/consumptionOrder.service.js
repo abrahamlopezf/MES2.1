@@ -59,6 +59,12 @@ class ConsumptionOrderService {
     // Process Items and FIFO Allocation
     for (const item of items) {
       const { material_id, quantity } = item;
+
+      const materialRecord = await Material.findByPk(material_id, {
+        attributes: ['id', 'name', 'family_id', 'base_unit_id', 'internal_code'],
+        transaction
+      });
+      const inventoryRecord = await Inventory.findOne({ where: { material_id }, transaction });
       
       // Find available lots ordered by date (FIFO)
       const availableLots = await Lote.findAll({
@@ -74,14 +80,17 @@ class ConsumptionOrderService {
       // Sum total available
       const totalAvailable = availableLots.reduce((acc, l) => acc + Number(l.available_amount), 0);
       if (totalAvailable < quantity) {
-        throw new Error(`Inventario insuficiente para el material ID ${material_id}. Solicitado: ${quantity}, Disponible: ${totalAvailable}.`);
+        const materialLabel = materialRecord
+          ? `${materialRecord.name || 'Material'} (${materialRecord.internal_code || `ID ${material_id}`})`
+          : `material ID ${material_id}`;
+        const globalAmount = Number(inventoryRecord?.amount || 0);
+        const mismatchHint = globalAmount > totalAvailable
+          ? ` El inventario global indica ${globalAmount}, pero sus lotes FIFO solo suman ${totalAvailable}; solicita a Almacén conciliar el inventario con sus lotes antes de generar la ODC.`
+          : '';
+        throw new Error(`Existencia insuficiente en lotes de almacén para ${materialLabel}. Solicitado: ${quantity}, disponible para surtir: ${totalAvailable}.${mismatchHint}`);
       }
 
       // Get material to have fallback base_unit_id and check if Raw Material
-      const materialRecord = await Material.findByPk(material_id, { 
-        attributes: ['id', 'family_id', 'base_unit_id', 'internal_code'], 
-        transaction 
-      });
       const isRawMaterial = materialRecord?.family_id === 43 || 
                             (materialRecord?.internal_code && materialRecord.internal_code.startsWith('MP-'));
       if (isRawMaterial && !requesting_area_id) {
