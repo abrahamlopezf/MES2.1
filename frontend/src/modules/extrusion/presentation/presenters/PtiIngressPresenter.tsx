@@ -652,12 +652,15 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 >
                   <option value="">-- Toca aquí para seleccionar el Rack Físico --</option>
                   {racks.map((rack) => {
-                    const isCond = rack.status !== 'VACIO' && rack.current_pti_type_id;
-                    const condName = rack.currentPtiType?.name || (isCond ? `PTI #${rack.current_pti_type_id}` : 'Libre');
-                    const isFull = rack.status === 'LLENO';
+                    const occupied = Number(rack.current_quantity || 0) > 0;
+                    const isCond = occupied && Boolean(rack.current_pti_product_id);
+                    const condName = rack.currentPtiProduct
+                      ? `${rack.currentPtiProduct.name} · ${rack.currentPtiProduct.color || 'color sin definir'}`
+                      : rack.currentPtiType?.name || (occupied ? 'PTI sin identificar · BLOQUEADO' : 'Libre');
+                    const isFull = rack.status === 'LLENO' || Number(rack.current_quantity || 0) >= Number(rack.max_capacity || 100);
                     return (
-                      <option key={rack.id} value={rack.qr_code} disabled={isFull}>
-                        {rack.rack_code} • {isFull ? '[LLENO]' : rack.status === 'VACIO' ? '[LIBRE]' : '[EN USO]'} ({rack.current_quantity}/{rack.max_capacity} pzas) — {isCond ? condName : 'Vacío'}
+                      <option key={rack.id} value={rack.qr_code} disabled={isFull || (occupied && !rack.current_pti_product_id)}>
+                        {rack.rack_code} • {isFull ? '[LLENO]' : !occupied ? '[LIBRE]' : !rack.current_pti_product_id ? '[PTI SIN IDENTIFICAR]' : '[EN USO]'} ({rack.current_quantity}/{rack.max_capacity} pzas) — {isCond ? condName : occupied ? condName : 'Vacío'}
                       </option>
                     );
                   })}
@@ -711,14 +714,18 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 <label className="text-xs font-black uppercase text-foreground block mb-1">
                   Tipo de Producto PTI *
                 </label>
-                {selectedRack && selectedRack.status !== 'VACIO' && selectedRack.currentPtiType ? (
+                {selectedRack && Number(selectedRack.current_quantity || 0) > 0 && selectedRack.currentPtiProduct ? (
                   <div className="p-3 bg-muted/30 border border-border rounded-xl flex items-center justify-between text-xs font-bold">
                     <span className="text-foreground">
-                      {selectedRack.currentPtiProduct?.name || selectedRack.currentPtiType.name} · Color {selectedRack.currentPtiProduct?.color || 'por identificar'} (Fijado por el rack)
+                      {selectedRack.currentPtiProduct.name} · Color {selectedRack.currentPtiProduct.color || 'por identificar'} (Fijado por el rack hasta vaciarse en Telares)
                     </span>
                     <Badge variant="outline" className="text-[10px] font-mono">
                       Bloqueado por Condicionamiento
                     </Badge>
+                  </div>
+                ) : selectedRack && Number(selectedRack.current_quantity || 0) > 0 ? (
+                  <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-semibold text-destructive">
+                    Este rack tiene {Number(selectedRack.current_quantity).toFixed(0)} bobinas sin PTI exacto identificado. No se puede combinar ni cambiar el PTI; debe consumirse/vaciarse en Telares y conciliarse antes de reutilizarlo.
                   </div>
                 ) : (
                   <select
@@ -1083,8 +1090,12 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 Math.round(((rack.current_quantity || 0) / (rack.max_capacity || 100)) * 100)
               );
               const isSelected = selectedRack?.id === rack.id || rackQr === rack.qr_code;
-              const isVacio = rack.status === 'VACIO';
-              const isLleno = rack.status === 'LLENO';
+              const isVacio = Number(rack.current_quantity || 0) <= 0;
+              const isLleno = rack.status === 'LLENO' || Number(rack.current_quantity || 0) >= Number(rack.max_capacity || 100);
+              const hasUnidentifiedPti = !isVacio && !rack.current_pti_product_id;
+              const rackPtiLabel = rack.currentPtiProduct
+                ? `${rack.currentPtiProduct.name} · Color ${rack.currentPtiProduct.color || 'sin definir'}`
+                : rack.currentPtiType?.name || (hasUnidentifiedPti ? 'PTI sin identificar · bloqueado' : 'Libre (Sin Condicionar)');
 
               return (
                 <div
@@ -1118,10 +1129,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                           className="h-4 w-4 cursor-pointer accent-primary"
                         />
                         <Badge
-                          variant={isLleno ? 'destructive' : isVacio ? 'secondary' : 'default'}
+                          variant={isLleno || hasUnidentifiedPti ? 'destructive' : isVacio ? 'secondary' : 'default'}
                           className="text-[10px] font-black uppercase"
                         >
-                          {isLleno ? 'Lleno' : isVacio ? 'Libre' : 'Disponible'}
+                          {isLleno ? 'Lleno' : hasUnidentifiedPti ? 'Bloqueado · conciliar' : isVacio ? 'Libre' : 'Condicionado'}
                         </Badge>
                       </div>
                     </div>
@@ -1151,12 +1162,12 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     </div>
 
                     {/* Condicionamiento */}
-                    <div className="p-2.5 bg-muted/20 border border-border rounded-xl text-xs space-y-0.5">
+                    <div className={`p-2.5 border rounded-xl text-xs space-y-0.5 ${hasUnidentifiedPti ? 'bg-destructive/10 border-destructive/40' : 'bg-muted/20 border-border'}`}>
                       <span className="text-muted-foreground block text-[10px] font-bold uppercase">
                         Condicionado a:
                       </span>
                       <strong className="text-foreground block truncate">
-                        {rack.currentPtiType?.name || (isVacio ? 'Libre (Sin Condicionar)' : 'Sin Asignar')}
+                        {rackPtiLabel}
                       </strong>
                     </div>
 
@@ -1191,11 +1202,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       type="button"
                       size="sm"
                       onClick={() => handlePickRackForIngress(rack)}
-                      disabled={isLleno}
-                      className="flex-1 h-9 text-xs font-bold bg-primary text-primary-foreground gap-1.5"
+                      disabled={isLleno || hasUnidentifiedPti}
+                      className={`flex-1 h-9 text-xs font-bold gap-1.5 ${hasUnidentifiedPti ? 'bg-destructive/10 text-destructive border border-destructive/40' : 'bg-primary text-primary-foreground'}`}
                     >
                       <Boxes className="h-3.5 w-3.5" />
-                      <span>{isLleno ? 'Rack Lleno' : 'Usar este Rack'}</span>
+                      <span>{isLleno ? 'Rack Lleno' : hasUnidentifiedPti ? 'PTI sin identificar' : 'Usar este Rack'}</span>
                     </Button>
 
                     {canViewCosts && <Button

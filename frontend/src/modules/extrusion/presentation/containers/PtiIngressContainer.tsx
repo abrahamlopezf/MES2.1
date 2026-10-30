@@ -123,8 +123,8 @@ export const PtiIngressContainer: React.FC = () => {
       const available = racks.find(r => r.status !== 'LLENO') || racks[0];
       if (available) {
         setRackQr(available.qr_code);
-        if (available.current_pti_type_id && available.status !== 'VACIO') {
-          setSelectedPtiMaterialId(available.current_pti_type_id);
+        if (Number(available.current_quantity || 0) > 0) {
+          setSelectedPtiMaterialId(Number(available.current_pti_product_id || available.current_pti_type_id) || '');
         }
         if (available.unit_price) {
           setUnitPrice(Number(available.unit_price).toString());
@@ -148,7 +148,7 @@ export const PtiIngressContainer: React.FC = () => {
 
   // Si el rack ya tiene un material asignado, sincronizar la sugerencia
   React.useEffect(() => {
-    if (selectedRack && selectedRack.current_pti_type_id && selectedRack.status !== 'VACIO') {
+    if (selectedRack && Number(selectedRack.current_quantity || 0) > 0) {
       const matchingProduct = ptiProducts.find((p) => p.id === selectedRack.current_pti_product_id)
         || ptiProducts.find((p) => p.material_id === selectedRack.current_pti_type_id || p.id === selectedRack.current_pti_type_id);
       if (matchingProduct) {
@@ -234,18 +234,14 @@ export const PtiIngressContainer: React.FC = () => {
       ? Number(selectedPtiProduct.id) === Number(selectedQueue.output_pti_product_id)
       : Number(selectedPtiProduct.formula_id) === Number(selectedFormula.id);
     if (!linkedToFormula) return true;
-    if (!selectedRack || selectedRack.status === 'VACIO' || !selectedRack.current_pti_type_id) {
+    if (!selectedRack || Number(selectedRack.current_quantity || 0) <= 0) {
       return false;
     }
+    // Todo rack ocupado queda condicionado a su PTI exacto. Inventario legado
+    // sin identificador no se puede reutilizar hasta vaciarlo/conciliarlo.
+    if (!selectedRack.current_pti_product_id) return true;
     if (!selectedPtiMaterialId) return false;
-    if (Number(selectedRack.current_quantity || 0) > 0 && selectedRack.current_pti_product_id
-      && Number(selectedRack.current_pti_product_id) !== Number(selectedPtiProduct.id)) return true;
-    if (Number(selectedRack.current_quantity || 0) > 0 && !selectedRack.current_pti_product_id) return true;
-    const effectiveMatId = selectedPtiProduct?.material_id || Number(selectedPtiMaterialId);
-    return (
-      Number(selectedRack.current_pti_type_id) !== Number(selectedPtiMaterialId) &&
-      Number(selectedRack.current_pti_type_id) !== Number(effectiveMatId)
-    );
+    return Number(selectedRack.current_pti_product_id) !== Number(selectedPtiProduct.id);
   }, [selectedRack, selectedPtiMaterialId, selectedPtiProduct, selectedFormula, selectedQueue]);
 
   const mismatchErrorMessage = useMemo(() => {
@@ -259,7 +255,7 @@ export const PtiIngressContainer: React.FC = () => {
     }
     if (!selectedRack) return '';
     if (Number(selectedRack.current_quantity || 0) > 0 && !selectedRack.current_pti_product_id) {
-      return 'Este rack contiene bobinas antiguas sin identificación exacta de PTI/color. Debe vaciarse antes de recibir nueva producción.';
+      return `El rack conserva ${Number(selectedRack.current_quantity).toFixed(0)} bobinas sin PTI exacto identificado. No recibirá otro PTI hasta que Telares consuma y retire todo el saldo; requiere conciliación para conocer el PTI actual.`;
     }
     const name = selectedRack.currentPtiProduct
       ? selectedRack.currentPtiProduct.name + ' · ' + (selectedRack.currentPtiProduct.color || 'color no definido')
@@ -269,13 +265,15 @@ export const PtiIngressContainer: React.FC = () => {
 
   const handleSelectRackFromGrid = (rack: PtiRack) => {
     setRackQr(rack.qr_code);
-    if (rack.current_pti_type_id && rack.status !== 'VACIO') {
+    if (Number(rack.current_quantity || 0) > 0) {
       const matchingProduct = ptiProducts.find((p) => p.id === rack.current_pti_product_id)
         || ptiProducts.find((p) => p.material_id === rack.current_pti_type_id || p.id === rack.current_pti_type_id);
       if (matchingProduct) {
         setSelectedPtiMaterialId(matchingProduct.id);
+      } else if (rack.current_pti_product_id || rack.current_pti_type_id) {
+        setSelectedPtiMaterialId(Number(rack.current_pti_product_id || rack.current_pti_type_id));
       } else {
-        setSelectedPtiMaterialId(rack.current_pti_type_id);
+        setSelectedPtiMaterialId('');
       }
     }
     if (rack.unit_price && Number(rack.unit_price) > 0) {
