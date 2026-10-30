@@ -33,10 +33,16 @@ module.exports = {
       -- Zero-balance rows do not increase warehouse on-hand stock; silo balances
       -- remain the source of truth for this PP.
       INSERT INTO inventories (uuid, material_id, amount, created_at, updated_at)
-      SELECT gen_random_uuid(), ppi.material_id, 0, NOW(), NOW()
-      FROM process_preparation_inputs ppi
-      WHERE ppi.source_silo_id IS NOT NULL AND ppi.material_id IS NOT NULL
-      ON CONFLICT (material_id) DO NOTHING;
+      SELECT gen_random_uuid(), pending_material.material_id, 0, NOW(), NOW()
+      FROM (
+        SELECT DISTINCT material_id
+        FROM process_preparation_inputs
+        WHERE source_silo_id IS NOT NULL AND material_id IS NOT NULL
+      ) pending_material
+      WHERE NOT EXISTS (
+          SELECT 1 FROM inventories existing_inventory
+          WHERE existing_inventory.material_id = pending_material.material_id
+        );
 
       -- Backfill each historic silo deduction once so old mixtures also appear
       -- in Warehouse movement reports with their original operator and costs.
@@ -68,11 +74,19 @@ module.exports = {
       FROM process_preparation_inputs ppi
       JOIN process_preparations prep ON prep.id = ppi.preparation_id
       JOIN silos s ON s.id = ppi.source_silo_id
-      JOIN inventories inv ON inv.material_id = ppi.material_id
+      JOIN LATERAL (
+        SELECT id FROM inventories existing_inventory
+        WHERE existing_inventory.material_id = ppi.material_id
+        ORDER BY id
+        LIMIT 1
+      ) inv ON TRUE
       WHERE ppi.source_silo_id IS NOT NULL
         AND ppi.material_id IS NOT NULL
         AND COALESCE(prep.prepared_by, (SELECT id FROM users ORDER BY id LIMIT 1)) IS NOT NULL
-      ON CONFLICT (process_preparation_input_id) WHERE process_preparation_input_id IS NOT NULL DO NOTHING;
+        AND NOT EXISTS (
+          SELECT 1 FROM inventory_movements existing_movement
+          WHERE existing_movement.process_preparation_input_id = ppi.id
+        );
     `);
   },
 
