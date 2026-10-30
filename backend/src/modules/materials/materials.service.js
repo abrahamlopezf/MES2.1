@@ -277,8 +277,16 @@ const getMaterials = async ({ query = {}, currentUser }) => {
         model: db.Location,
         as: 'default_location',
         attributes: ['id', 'uuid', 'code', 'name'],
+      },
+      {
+        model: db.Tag,
+        as: 'tags',
+        attributes: ['id', 'uuid', 'name', 'color'],
+        through: { attributes: [] },
+        required: false,
       }
     ],
+    distinct: true,
     order: [
       ['is_active', 'DESC'],
       ['name', 'ASC'],

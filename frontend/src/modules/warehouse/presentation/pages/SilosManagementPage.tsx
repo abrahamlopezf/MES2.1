@@ -921,40 +921,28 @@ export const SilosManagementPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Silo Destino */}
+                {/* Silo destino queda fijado al abrir la recepción desde su tarjeta */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Icon name="propane_tank" size={14} className="text-primary" />
-                    <span>Silo Destino *</span>
+                    <span>Silo destino</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      required
-                      value={invoiceForm.silo_id}
-                      onChange={(e) => setInvoiceForm({
-                        ...invoiceForm,
-                        silo_id: e.target.value,
-                        material_id: String(getMaterialsForSilo(Number(e.target.value))[0]?.id || '')
-                      })}
-                      className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="" disabled>-- Selecciona un Silo --</option>
-                      {silos.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.code} - {s.name} ({Number(s.current_stock_kg).toLocaleString()} kg disp. / Máx: {Number(s.capacity_kg).toLocaleString()} kg)
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                      <Icon name="expand_more" size={20} />
-                    </div>
-                  </div>
+                  {(() => {
+                    const selectedSilo = silos.find((silo) => String(silo.id) === invoiceForm.silo_id);
+                    return (
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-xs sm:text-sm font-bold text-foreground">
+                        {selectedSilo
+                          ? `${selectedSilo.code} · ${selectedSilo.name} (${Number(selectedSilo.current_stock_kg).toLocaleString()} kg disponibles / Máx. ${Number(selectedSilo.capacity_kg).toLocaleString()} kg)`
+                          : 'No se encontró el silo seleccionado'}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Icon name="label" size={14} className="text-primary" />
-                    <span>Polipropileno de la factura *</span>
+                    <span>Polipropileno compatible con la etiqueta del silo *</span>
                   </label>
                   <select
                     required
@@ -962,13 +950,15 @@ export const SilosManagementPage: React.FC = () => {
                     onChange={(e) => setInvoiceForm({ ...invoiceForm, material_id: e.target.value })}
                     className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-xs sm:text-sm font-bold text-foreground"
                   >
-                    <option value="" disabled>Selecciona un material con la etiqueta del silo</option>
+                    <option value="" disabled>Selecciona un material etiquetado para este silo</option>
                     {selectedSiloMaterials.map((material: any) => (
                       <option key={material.id} value={material.id}>{material.internal_code || material.code || 'MP'} · {material.name}</option>
                     ))}
                   </select>
                   {selectedSiloMaterials.length === 0 && (
-                    <p className="text-xs text-amber-600 mt-1">No hay materiales con la etiqueta del silo. Asigna esa etiqueta al material antes de registrar el ingreso.</p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      No hay materiales con la etiqueta asignada a este silo. En Master Data, asigna exactamente esa etiqueta al material que indica la factura.
+                    </p>
                   )}
                 </div>
 
