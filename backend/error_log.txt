@@ -6628,4 +6628,18 @@ notNull Violation: InventoryMovement.performed_by cannot be null
     at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
     at async Formula.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
     at async ExtrusionService.getExtrusionFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:3168:22)
+    at async getExtrusionFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:217:24)\n\n2026-10-30T14:08:48.153Z\nMessage: no existe la columna ingredients.equivalence_tag_id\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Formula.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async ExtrusionService.getExtrusionFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:3202:22)
+    at async getExtrusionFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:217:24)\n\n2026-10-30T14:09:25.534Z\nMessage: no existe la columna ingredients.equivalence_tag_id\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Formula.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async ExtrusionService.getExtrusionFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:3202:22)
     at async getExtrusionFormulas (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:217:24)\n\n

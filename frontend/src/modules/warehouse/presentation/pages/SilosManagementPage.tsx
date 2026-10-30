@@ -240,16 +240,22 @@ export const SilosManagementPage: React.FC = () => {
   });
 
   const resetSiloForm = () => {
+    const availableTags = Array.isArray(materialTags) ? materialTags : [];
     setSiloForm({
       code: '',
       name: '',
-      material_tag_id: materialTags.find((tag: any) => /^(PP|POLIPROPILENO)$/i.test(String(tag.name || '').trim()))?.id?.toString() || '',
+      material_tag_id: availableTags.find((tag: any) => /^(PP|POLIPROPILENO)$/i.test(String(tag.name || '').trim()))?.id?.toString() || '',
       is_extrusion_feed: false,
       capacity_kg: '40000',
       min_capacity_kg: '5000',
       alert_stock_kg: '10000'
     });
     setEditingSilo(null);
+  };
+
+  const handleOpenCreateSilo = () => {
+    resetSiloForm();
+    setIsSiloModalOpen(true);
   };
 
   const handleOpenEditSilo = (silo: SiloItem) => {
@@ -410,10 +416,7 @@ export const SilosManagementPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2.5">
           <Button
             type="button"
-            onClick={() => {
-              resetSiloForm();
-              setIsSiloModalOpen(true);
-            }}
+            onClick={handleOpenCreateSilo}
             className="font-black text-xs sm:text-sm h-11 px-4 bg-primary text-primary-foreground hover:bg-primary/90 gap-2 shadow-sm"
           >
             <Icon name="add_circle" size={18} />
@@ -615,10 +618,7 @@ export const SilosManagementPage: React.FC = () => {
           </p>
           <Button
             type="button"
-            onClick={() => {
-              resetSiloForm();
-              setIsSiloModalOpen(true);
-            }}
+            onClick={handleOpenCreateSilo}
             className="font-bold text-xs h-10 px-4 mt-2"
           >
             Dar de Alta Primer Silo
