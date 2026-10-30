@@ -327,6 +327,7 @@ db.InventoryMovement.belongsTo(db.Location, {
 db.InventoryMovement.belongsTo(db.Area, { foreignKey: 'area_id', as: 'costArea' });
 db.InventoryMovement.belongsTo(db.ConsumptionOrder, { foreignKey: 'consumption_order_id', as: 'consumptionOrder' });
 db.InventoryMovement.belongsTo(db.ConsumptionOrderItem, { foreignKey: 'consumption_order_item_id', as: 'consumptionOrderItem' });
+db.InventoryMovement.belongsTo(db.ProcessPreparation, { foreignKey: 'process_preparation_id', as: 'preparation' });
 
 db.Inventory.hasMany(db.InventoryMovement, {
   foreignKey: 'inventory_id',
@@ -673,6 +674,7 @@ db.Extruder = initExtruderModel(sequelize, DataTypes);
 db.ExtruderFormula = initExtruderFormulaModel(sequelize, DataTypes);
 
 // Silo -> Material
+db.InventoryMovement.belongsTo(db.Silo, { foreignKey: 'silo_id', as: 'silo' });
 db.Silo.belongsTo(db.Material, {
   foreignKey: 'material_id',
   as: 'material',

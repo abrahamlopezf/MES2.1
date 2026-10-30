@@ -184,6 +184,8 @@ class WarehouseReportService {
         COALESCE(NULLIF(im.total_cost, 0), ABS(im.quantity_change) * COALESCE(im.unit_cost, 0)) as total_cost,
         im.notes,
         im.created_at,
+        s.code as silo_code,
+        prep.folio as preparation_folio,
         m.name as material_name,
         m.internal_code,
         u.first_name,
@@ -191,6 +193,8 @@ class WarehouseReportService {
       FROM inventory_movements im
       JOIN inventories inv ON im.inventory_id = inv.id
       JOIN materials m ON inv.material_id = m.id
+      LEFT JOIN silos s ON im.silo_id = s.id
+      LEFT JOIN process_preparations prep ON im.process_preparation_id = prep.id
       LEFT JOIN users u ON im.performed_by = u.id
       WHERE ${dateFilterSqlMovements}
       ORDER BY im.created_at DESC
@@ -241,6 +245,8 @@ class WarehouseReportService {
         createdAt: m.created_at,
         materialName: m.material_name,
         internalCode: m.internal_code,
+        siloCode: m.silo_code || null,
+        preparationFolio: m.preparation_folio || null,
         performedBy: m.first_name ? `${m.first_name} ${m.last_name || ''}`.trim() : 'Sistema'
       }))
     };

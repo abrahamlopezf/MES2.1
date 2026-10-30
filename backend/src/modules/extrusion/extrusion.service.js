@@ -285,7 +285,7 @@ class ExtrusionService {
       // Material is imported at module scope and is also used above while
       // loading formula ingredients. Redeclaring it here would shadow that
       // binding for the whole transaction callback and trigger a TDZ error.
-      const { Silo } = require('../../database/models');
+      const { Silo, Inventory, InventoryMovement } = require('../../database/models');
       const ppIngredients = (formula.ingredients || []).filter(ing => {
         const matName = (ing.material?.name || ing.material_name || '').trim().toUpperCase();
         const matCode = (ing.material?.internal_code || ing.material_code || '').trim().toUpperCase();
@@ -397,6 +397,7 @@ class ExtrusionService {
         }
         const siloPlan = allocateBalancedSiloConsumption(totalPpKg, activeSilos);
         const remainingBySilo = siloPlan.map((entry) => entry.quantityKg);
+        const warehouseInventoryByMaterial = new Map();
 
         for (const { ingredient, requiredKg } of requirements) {
           let remaining = requiredKg;
@@ -408,20 +409,46 @@ class ExtrusionService {
             const after = Math.max(0, Number((before - deductedKg).toFixed(3)));
             targetSilo.current_stock_kg = after;
             await targetSilo.save({ transaction });
-            await ProcessPreparationInput.create({
+            const consumedMaterialId = Number(targetSilo.material_id || ingredient.material_id);
+            let warehouseInventory = warehouseInventoryByMaterial.get(consumedMaterialId);
+            if (!warehouseInventory) {
+              [warehouseInventory] = await Inventory.findOrCreate({
+                where: { material_id: consumedMaterialId },
+                defaults: { material_id: consumedMaterialId, amount: 0 },
+                transaction,
+              });
+              warehouseInventoryByMaterial.set(consumedMaterialId, warehouseInventory);
+            }
+            const siloUnitCost = targetSilo.unit_cost == null ? null : Number(targetSilo.unit_cost);
+            const extendedCost = siloUnitCost == null ? null : Number((deductedKg * siloUnitCost).toFixed(4));
+            const preparationInput = await ProcessPreparationInput.create({
               preparation_id: preparation.id,
               source_traceable_item_id: null,
               source_qr_code_id: null,
-              material_id: targetSilo.material_id || ingredient.material_id,
+              material_id: consumedMaterialId,
               quantity: deductedKg,
               unit: 'KG',
               balance_before: before,
               balance_after: after,
               source_silo_id: targetSilo.id,
               source_lot_number: targetSilo.current_lot_number || null,
-              unit_cost_snapshot: targetSilo.unit_cost == null ? null : Number(targetSilo.unit_cost),
-              extended_cost_snapshot: targetSilo.unit_cost == null ? null : Number((deductedKg * Number(targetSilo.unit_cost)).toFixed(4)),
+              unit_cost_snapshot: siloUnitCost,
+              extended_cost_snapshot: extendedCost,
               notes: `Consumo equilibrado de PP desde Silo ${targetSilo.code}; ingrediente de receta: ${ingredient.material?.name || 'PP'}; Lote: ${targetSilo.current_lot_number || 'N/A'}`
+            }, { transaction });
+            await InventoryMovement.create({
+              inventory_id: warehouseInventory.id,
+              type: 'CONSUMPTION',
+              quantity_change: -deductedKg,
+              performed_by: userId || 1,
+              notes: `Consumo directo de PP desde silo ${targetSilo.code}; preparación ${preparation.folio}; lote/factura ${targetSilo.current_lot_number || 'S/R'}; fórmula ${formula.code || formula.name}.`,
+              unit_cost: siloUnitCost,
+              total_cost: extendedCost,
+              area_id: effectiveAreaId,
+              cost_treatment: 'WIP_TRANSFER',
+              silo_id: targetSilo.id,
+              process_preparation_id: preparation.id,
+              process_preparation_input_id: preparationInput.id,
             }, { transaction });
             remaining = Number((remaining - deductedKg).toFixed(3));
             remainingBySilo[i] = Number((remainingBySilo[i] - deductedKg).toFixed(3));

@@ -176,7 +176,9 @@ export const WarehouseReportsPage: React.FC = () => {
     .filter((movement: any) =>
       !searchTerm ||
       movement.materialName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.internalCode?.toLowerCase().includes(searchTerm.toLowerCase())
+      movement.internalCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.siloCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.preparationFolio?.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .slice(0, 20);
 
@@ -487,13 +489,13 @@ export const WarehouseReportsPage: React.FC = () => {
               <div className="p-5 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <h3 className="font-bold text-base text-foreground">Detalle de Movimientos en el Período</h3>
-                  <p className="text-xs text-muted-foreground">Últimas transacciones registradas de almacén</p>
+                    <p className="text-xs text-muted-foreground">Últimas transacciones de almacén, incluidos consumos directos desde silos</p>
                 </div>
                 <div className="relative w-full sm:w-64">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input 
                     type="text"
-                    placeholder="Filtrar por material o código..."
+                    placeholder="Material, silo o folio de mezcla..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-1.5 text-xs bg-background rounded-xl border border-border outline-none focus:ring-1 focus:ring-primary"
@@ -516,6 +518,7 @@ export const WarehouseReportsPage: React.FC = () => {
                           </p>
                           <h4 className="mt-1 text-base leading-snug font-bold text-foreground break-words">{row.materialName}</h4>
                           <p className="text-sm text-muted-foreground mt-0.5">{row.internalCode}</p>
+                          {row.siloCode && <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-1">Silo {row.siloCode} · Preparación {row.preparationFolio || 'S/R'}</p>}
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs leading-snug font-bold uppercase shrink-0 ${
                           row.type === 'MANUAL_ENTRY' || row.type === 'RECEPTION' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
@@ -583,6 +586,7 @@ export const WarehouseReportsPage: React.FC = () => {
                           <td className="py-3 px-4">
                             <div className="font-bold text-foreground">{row.materialName}</div>
                             <div className="text-[10px] text-muted-foreground">{row.internalCode}</div>
+                            {row.siloCode && <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Silo {row.siloCode} · Preparación {row.preparationFolio || 'S/R'}</div>}
                           </td>
                           <td className="py-3 px-4 text-right font-bold text-foreground">
                             {formatNumber(row.quantity)}

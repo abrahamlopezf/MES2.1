@@ -65,7 +65,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   // Consulta de Silos disponibles en planta (suministran a la Mezcladora)
   const { data: silosData = [] } = useQuery({
-    queryKey: ['warehouse', 'silos'],
+    queryKey: ['warehouse', 'silos', 'extrusion-feed'],
     queryFn: async () => {
       const res = await apiClient.get('/warehouse/silos', { params: { purpose: 'EXTRUSION' } });
       return res.data?.data || res.data || [];

@@ -66,6 +66,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'WIP_TRANSFER mantiene valor en proceso; DIRECT_EXPENSE carga costo al área.',
       },
+      silo_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      process_preparation_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      process_preparation_input_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
     },
     {
       tableName: 'inventory_movements',
