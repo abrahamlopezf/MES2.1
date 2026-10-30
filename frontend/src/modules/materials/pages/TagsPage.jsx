@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
 import { Tag } from 'lucide-react';
+import { useAuthStore } from '../../../store/authStore';
 import { 
   useTagsQuery, 
   useCreateTagMutation, 
@@ -9,6 +10,8 @@ import {
 } from '../hooks/useMaterialsQueries';
 
 const TagsPage = () => {
+  const { user } = useAuthStore();
+  const isWarehouseAdministrator = ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(user?.role?.code);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20,
@@ -37,6 +40,7 @@ const TagsPage = () => {
       onFilterChange={handleFilterChange}
       onClearFilters={handleClearFilters}
       entityName="etiquetas"
+      canCreateOverride={isWarehouseAdministrator ? true : undefined}
       title="Etiquetas de Material"
       description="Define etiquetas para clasificar materiales (ej. Cortesía, Inflamable)."
       icon={Tag}

@@ -29,6 +29,7 @@ const SubcatalogPageTemplate = ({
 }) => {
   const { hasPermission, user } = useAuthStore();
   const canManageCatalogs = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(user?.role?.code) || hasPermission('masterdata.manage') || hasPermission('materials.create');
+  const canCreateCatalog = props.canCreateOverride ?? canManageCatalogs;
   const canDelete = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN_ALM'].includes(user?.role?.code) || hasPermission('materials.delete');
 
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
@@ -156,7 +157,7 @@ const SubcatalogPageTemplate = ({
         total={total}
         activeCount={activeCount}
         inactiveCount={inactiveCount}
-        canCreate={canManageCatalogs}
+        canCreate={canCreateCatalog}
         onCreateMaterial={handleOpenCreate}
         createButtonText={`Nueva ${title.replace(/s$/, '')}`.replace('Nueva Articulo', 'Nuevo Artículo').replace('Nueva Artículo', 'Nuevo Artículo').replace('Nueva Tipo', 'Nuevo Tipo').replace('Nueva Proveedore', 'Nuevo Proveedor').replace('Nueva Lote', 'Nuevo Lote').replace('Nueva Materiale', 'Nuevo Material').replace('Nueva Role', 'Nuevo Rol').replace('Nueva Almacene', 'Nuevo Almacén').replace('Nueva Movimiento', 'Nuevo Movimiento').replace('Nueva Unidade', 'Nueva Unidad').replace('Nueva Unidad', 'Nueva Unidad')}
         onRefresh={() => dataQuery.refetch()}
