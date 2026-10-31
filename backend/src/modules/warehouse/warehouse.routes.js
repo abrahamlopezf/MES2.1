@@ -130,17 +130,37 @@ router.post(
 
 router.get(
   '/tipo-baja',
-  authorizePermission('warehouse.read', 'inventory.view'),
+  authorizePermission('warehouse.read', 'inventory.view', 'warehouse.waste', 'warehouse.waste.request', 'warehouse.dispose'),
   async (req, res, next) => {
     try {
-      const { TipoBaja } = require('../../database/models');
-      await TipoBaja.findOrCreate({
-        where: { name: 'Devolución' },
-        defaults: {
-          description: 'Devolución a proveedor o salida por rechazo tras ingreso',
-          is_active: true
-        }
-      });
+      const { TipoBaja, sequelize } = require('../../database/models');
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS tipos_baja (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          description VARCHAR(255),
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        SELECT setval(
+          pg_get_serial_sequence('tipos_baja', 'id'),
+          COALESCE((SELECT MAX(id) FROM tipos_baja), 1),
+          (SELECT COUNT(*) > 0 FROM tipos_baja)
+        );
+        INSERT INTO tipos_baja (name, description, is_active, created_at, updated_at)
+        VALUES
+          ('Material dañado', 'Daño físico al material', TRUE, NOW(), NOW()),
+          ('Merma', 'Pérdida en proceso', TRUE, NOW(), NOW()),
+          ('Caducidad', 'Material expirado', TRUE, NOW(), NOW()),
+          ('Contaminación', 'Material contaminado', TRUE, NOW(), NOW()),
+          ('Error de recepción', 'Ajuste por error al recibir', TRUE, NOW(), NOW()),
+          ('Otro', 'Motivo no clasificado', TRUE, NOW(), NOW()),
+          ('Devolución', 'Devolución a proveedor o salida por rechazo tras ingreso', TRUE, NOW(), NOW())
+        ON CONFLICT (name) DO UPDATE
+          SET is_active = TRUE,
+              description = COALESCE(tipos_baja.description, EXCLUDED.description);
+      `);
       const tipos = await TipoBaja.findAll({ where: { is_active: true }, order: [['id', 'ASC']] });
       res.status(200).json({ success: true, data: tipos });
     } catch (e) {

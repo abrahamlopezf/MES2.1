@@ -78,14 +78,26 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
     });
   }, [inventoryData]);
 
-  const { data: tiposBaja = [], isLoading: loadingTipos } = useQuery({
+  const DEFAULT_TIPOS_BAJA = [
+    { id: 1, name: 'Material dañado', description: 'Daño físico al material' },
+    { id: 2, name: 'Merma', description: 'Pérdida en proceso' },
+    { id: 3, name: 'Caducidad', description: 'Material expirado' },
+    { id: 4, name: 'Contaminación', description: 'Material contaminado' },
+    { id: 5, name: 'Error de recepción', description: 'Ajuste por error al recibir' },
+    { id: 6, name: 'Otro', description: 'Motivo no clasificado' },
+    { id: 7, name: 'Devolución', description: 'Devolución a proveedor o salida por rechazo tras ingreso' },
+  ];
+
+  const { data: tiposBajaData, isLoading: loadingTipos } = useQuery({
     queryKey: ['warehouse', 'tipo-baja'],
     queryFn: async () => {
       const response = await axiosClient.get(`/warehouse/tipo-baja`);
-      return response.data.data;
+      const list = response.data?.data ?? response.data;
+      return Array.isArray(list) && list.length > 0 ? list : DEFAULT_TIPOS_BAJA;
     },
     enabled: isOpen
   });
+  const tiposBaja = Array.isArray(tiposBajaData) && tiposBajaData.length > 0 ? tiposBajaData : DEFAULT_TIPOS_BAJA;
 
   useEffect(() => {
     if (isOpen) {
