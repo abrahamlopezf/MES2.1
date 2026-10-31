@@ -277,16 +277,8 @@ const getMaterials = async ({ query = {}, currentUser }) => {
         model: db.Location,
         as: 'default_location',
         attributes: ['id', 'uuid', 'code', 'name'],
-      },
-      {
-        model: db.Tag,
-        as: 'tags',
-        attributes: ['id', 'uuid', 'name', 'color'],
-        through: { attributes: [] },
-        required: false,
       }
     ],
-    distinct: true,
     order: [
       ['is_active', 'DESC'],
       ['name', 'ASC'],
@@ -294,6 +286,25 @@ const getMaterials = async ({ query = {}, currentUser }) => {
     limit,
     offset,
   });
+
+  // Load tags separately to avoid Sequelize dropping many-to-many associations
+  // when the paginated material query builds its count/subquery.
+  if (result.rows.length > 0) {
+    const taggedMaterials = await Material.findAll({
+      where: { id: result.rows.map((material) => material.id) },
+      include: [{
+        model: db.Tag,
+        as: 'tags',
+        required: false,
+        attributes: ['id', 'uuid', 'name', 'color'],
+      }],
+      order: [['name', 'ASC']],
+    });
+    const tagsByMaterialId = new Map(taggedMaterials.map((material) => [Number(material.id), material.tags || []]));
+    for (const material of result.rows) {
+      material.dataValues.tags = tagsByMaterialId.get(Number(material.id)) || [];
+    }
+  }
 
   return {
     items: result.rows,

@@ -5209,9 +5209,17 @@ class ExtrusionService {
         throw Object.assign(new Error(`El Silo ${silo.code} está inactivo y no puede recibir material.`), { statusCode: 400 });
       }
 
+      const allowedTag = await Tag.findByPk(silo.material_tag_id, { transaction: t });
+      if (!allowedTag || !allowedTag.is_active) {
+        throw Object.assign(new Error(`El Silo ${silo.code} no tiene una etiqueta activa configurada.`), { statusCode: 400 });
+      }
       const receivedMaterialId = Number(payload.material_id || 0);
-      const material = receivedMaterialId ? await Material.findByPk(receivedMaterialId, { transaction: t }) : null;
-      if (!material) {
+      let material = receivedMaterialId ? await Material.findByPk(receivedMaterialId, { transaction: t }) : null;
+      if (!material && silo.material_tag_id && typeof allowedTag.getMaterials === 'function') {
+        const taggedMaterials = await allowedTag.getMaterials({ where: { is_active: true }, limit: 1, transaction: t });
+        material = taggedMaterials?.[0] || null;
+      }
+      if (receivedMaterialId && !material) {
         throw Object.assign(new Error('Selecciona el material de polipropileno recibido.'), { statusCode: 400 });
       }
       const supplierId = Number(supplier_id);
@@ -5221,10 +5229,11 @@ class ExtrusionService {
       if (!supplier || !supplier.is_active) {
         throw Object.assign(new Error('Selecciona un proveedor activo del catálogo.'), { statusCode: 400 });
       }
-      const materialTags = await material.getTags({ attributes: ['id', 'name'], transaction: t });
-      const allowedTag = await Tag.findByPk(silo.material_tag_id, { transaction: t });
-      if (!allowedTag || !allowedTag.is_active || !materialTags.some((tag) => Number(tag.id) === Number(silo.material_tag_id))) {
-        throw Object.assign(new Error(`El material no tiene la etiqueta "${allowedTag?.name || 'configurada en el silo'}" requerida para ingresar a ${silo.code}.`), { statusCode: 400 });
+      if (material && receivedMaterialId) {
+        const materialTags = await material.getTags({ attributes: ['id', 'name'], transaction: t });
+        if (!materialTags.some((tag) => Number(tag.id) === Number(silo.material_tag_id))) {
+          throw Object.assign(new Error(`El material no tiene la etiqueta "${allowedTag?.name || 'configurada en el silo'}" requerida para ingresar a ${silo.code}.`), { statusCode: 400 });
+        }
       }
       const initialStock = Number(silo.current_stock_kg);
       const maxCap = Number(silo.capacity_kg);
@@ -5272,13 +5281,15 @@ class ExtrusionService {
         user_id: userId,
         description: `Ingreso directo por Factura ${folio}: ${qty} kg de PP en Silo ${silo.code}.`,
         before_data: { current_stock_kg: initialStock },
-        after_data: { current_stock_kg: finalStock, current_lot_number: silo.current_lot_number, material_id: material.id },
+        after_data: { current_stock_kg: finalStock, current_lot_number: silo.current_lot_number, material_id: material?.id || null, material_tag_id: allowedTag.id },
         metadata: {
           folio,
           supplier_id: supplier.id,
           supplier_name: supplier.name,
-          material_id: material.id,
-          material_name: material.name,
+          material_id: material?.id || null,
+          material_name: material?.name || allowedTag.name,
+          material_tag_id: allowedTag.id,
+          material_tag_name: allowedTag.name,
           matches_silo_material_tag: true,
           quantity_kg: qty,
           invoice_date: invoiceDate,

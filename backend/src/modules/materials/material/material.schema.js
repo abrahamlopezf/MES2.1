@@ -56,15 +56,21 @@ const updateSchema = z.object({
   tags: z.array(z.union([z.string(), z.number()])).optional()
 });
 
+const pageLimitSchema = z.union([
+  z.literal('all'),
+  z.string().regex(/^\d+$/).transform(Number),
+]);
+
 const searchSchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
-  pageSize: z.string().regex(/^\d+$/).transform(Number).optional().default('20'),
+  pageSize: pageLimitSchema.optional().default('20'),
+  limit: pageLimitSchema.optional(),
   search: z.string().optional(),
   status: z.string().optional(),
   family: z.string().uuid().optional(),
-
   brand: z.string().uuid().optional(),
-  type: z.string().uuid().optional()
+  type: z.string().uuid().optional(),
+  tag: z.string().optional()
 });
 
 module.exports = {

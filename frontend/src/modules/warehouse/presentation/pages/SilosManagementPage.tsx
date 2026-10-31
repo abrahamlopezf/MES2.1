@@ -122,7 +122,7 @@ export const SilosManagementPage: React.FC = () => {
   const { data: materialsData } = useQuery({
     queryKey: ['materials', 'all-list'],
     queryFn: async () => {
-      const res = await apiClient.get('/materials?limit=all');
+      const res = await apiClient.get('/materials?pageSize=10000');
       return res.data?.data?.items || res.data?.data || res.data || [];
     }
   });
@@ -167,18 +167,28 @@ export const SilosManagementPage: React.FC = () => {
   const siloAllowedTag = selectedInvoiceSilo?.materialTag || (Array.isArray(materialTags)
     ? materialTags.find((tag: any) => Number(tag.id) === Number(selectedInvoiceSilo?.material_tag_id))
     : null);
+  const getDefaultMaterialChoiceForSilo = (siloId?: number) => {
+    const materials = getMaterialsForSilo(siloId);
+    if (materials.length > 0) return String(materials[0].id);
+    const silo = silos.find((item) => item.id === siloId);
+    const tagId = silo?.material_tag_id || silo?.materialTag?.id;
+    return tagId ? `tag:${tagId}` : '';
+  };
 
   useEffect(() => {
-    if (!isInvoiceModalOpen || !invoiceForm.silo_id || selectedSiloMaterials.length === 0) return;
+    if (!isInvoiceModalOpen || !invoiceForm.silo_id) return;
     const currentMaterialIsCompatible = selectedSiloMaterials.some(
       (material: any) => String(material.id) === invoiceForm.material_id
     );
     if (!currentMaterialIsCompatible) {
-      setInvoiceForm((current) => current.silo_id === invoiceForm.silo_id
-        ? { ...current, material_id: String(selectedSiloMaterials[0].id) }
-        : current);
+      const fallbackChoice = getDefaultMaterialChoiceForSilo(Number(invoiceForm.silo_id));
+      if (fallbackChoice && invoiceForm.material_id !== fallbackChoice) {
+        setInvoiceForm((current) => current.silo_id === invoiceForm.silo_id
+          ? { ...current, material_id: fallbackChoice }
+          : current);
+      }
     }
-  }, [isInvoiceModalOpen, invoiceForm.silo_id, invoiceForm.material_id, materialsData]);
+  }, [isInvoiceModalOpen, invoiceForm.silo_id, invoiceForm.material_id, materialsData, silos, materialTags]);
 
   // Mutación: Registrar Factura PP (Entrada directa al Silo sin etiquetas QR)
   const invoiceEntryMutation = useMutation({
@@ -313,7 +323,7 @@ export const SilosManagementPage: React.FC = () => {
     setInvoiceForm(prev => ({
       ...prev,
       silo_id: chosenSiloId ? String(chosenSiloId) : '',
-      material_id: String(getMaterialsForSilo(chosenSiloId)[0]?.id || '')
+      material_id: getDefaultMaterialChoiceForSilo(chosenSiloId)
     }));
     setIsInvoiceModalOpen(true);
   };
@@ -328,8 +338,8 @@ export const SilosManagementPage: React.FC = () => {
       toast.error('Selecciona el silo destino.');
       return;
     }
-    if (!invoiceForm.material_id) {
-      toast.error('Selecciona el material de polipropileno que indica la factura.');
+    if (!invoiceForm.material_id && !siloAllowedTag?.id) {
+      toast.error('Selecciona el material o etiqueta de polipropileno que indica la factura.');
       return;
     }
     if (!invoiceForm.supplier_id) {
@@ -351,11 +361,16 @@ export const SilosManagementPage: React.FC = () => {
       return;
     }
 
+    const parsedMaterialId = invoiceForm.material_id && !String(invoiceForm.material_id).startsWith('tag:')
+      ? Number(invoiceForm.material_id)
+      : (selectedSiloMaterials[0]?.id ? Number(selectedSiloMaterials[0].id) : undefined);
+
     invoiceEntryMutation.mutate({
       folio: invoiceForm.folio.trim().toUpperCase(),
       invoice_date: invoiceForm.invoice_date,
       silo_id: Number(invoiceForm.silo_id),
-      material_id: Number(invoiceForm.material_id),
+      material_id: parsedMaterialId,
+      material_tag_id: siloAllowedTag?.id ? Number(siloAllowedTag.id) : undefined,
       quantity_kg: qty,
       supplier_id: Number(invoiceForm.supplier_id),
       lot_number: invoiceForm.lot_number.trim() || undefined,
@@ -958,10 +973,10 @@ export const SilosManagementPage: React.FC = () => {
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Icon name="label" size={14} className="text-primary" />
-                    <span>Polipropileno compatible con la etiqueta del silo *</span>
+                    <span>Etiqueta / Polipropileno del Silo *</span>
                   </label>
                   <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-                    Etiqueta requerida por <strong className="text-foreground">{selectedInvoiceSilo?.code || 'el silo'}</strong>:{' '}
+                    Etiqueta registrada en <strong className="text-foreground">{selectedInvoiceSilo?.code || 'el silo'}</strong>:{' '}
                     <strong className="text-primary">{siloAllowedTag?.name || 'Etiqueta no disponible'}</strong>
                   </div>
                   <select
@@ -970,18 +985,20 @@ export const SilosManagementPage: React.FC = () => {
                     onChange={(e) => setInvoiceForm({ ...invoiceForm, material_id: e.target.value })}
                     className="w-full !h-11 bg-background border border-border rounded-lg px-3 text-xs sm:text-sm font-bold text-foreground"
                   >
-                    <option value="" disabled>Selecciona un material etiquetado para este silo</option>
-                    {selectedSiloMaterials.map((material: any) => (
-                      <option key={material.id} value={material.id}>{material.internal_code || material.code || 'MP'} · {material.name}</option>
-                    ))}
+                    {selectedSiloMaterials.length > 0 ? (
+                      selectedSiloMaterials.map((material: any) => (
+                        <option key={material.id} value={String(material.id)}>
+                          {siloAllowedTag?.name ? `${siloAllowedTag.name} · ` : ''}{material.internal_code || material.code || 'MP'} · {material.name}
+                        </option>
+                      ))
+                    ) : siloAllowedTag ? (
+                      <option value={`tag:${siloAllowedTag.id}`}>
+                        {siloAllowedTag.name}
+                      </option>
+                    ) : (
+                      <option value="" disabled>Selecciona un material etiquetado para este silo</option>
+                    )}
                   </select>
-                  {selectedSiloMaterials.length === 0 && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      {siloAllowedTag?.name
-                        ? `No hay materiales con la etiqueta “${siloAllowedTag.name}”. En Master Data, asigna exactamente esa etiqueta al material que indica la factura.`
-                        : 'No se pudo cargar la etiqueta configurada para este silo. Actualiza los datos del silo e inténtalo de nuevo.'}
-                    </p>
-                  )}
                 </div>
 
                 {/* Kilos Recibidos */}

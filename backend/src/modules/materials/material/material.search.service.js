@@ -8,6 +8,7 @@ class MaterialSearchService {
     const { 
       page = 1, 
       pageSize = 20,
+      limit: queryLimit,
       search,
       status, 
       family, 
@@ -18,7 +19,8 @@ class MaterialSearchService {
 
     const { MaterialType, Location } = require('../../../database/models');
 
-    const parsedPageSize = pageSize === 'all' ? 10000 : parseInt(pageSize, 10);
+    const effectivePageSize = queryLimit !== undefined ? queryLimit : pageSize;
+    const parsedPageSize = effectivePageSize === 'all' ? 10000 : (parseInt(effectivePageSize, 10) || 20);
     const offset = (page - 1) * parsedPageSize;
     const limit = parsedPageSize;
 
