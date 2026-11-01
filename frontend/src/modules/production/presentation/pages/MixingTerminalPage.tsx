@@ -15,7 +15,7 @@ export const MixingTerminalPage: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [isCreatingDirectMix, setIsCreatingDirectMix] = useState(false);
   const [activeTab, setActiveTab] = useState<'tickets' | 'history'>('history');
-  const [historySortOrder, setHistorySortOrder] = useState<'ASC' | 'DESC'>('ASC'); // Predeterminado: De las más antiguas a las más recientes
+  const [historySortOrder, setHistorySortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [historyFormulaFilter, setHistoryFormulaFilter] = useState<string>('ALL');
   const [historyDateFrom, setHistoryDateFrom] = useState<string>('');
   const [historyDateTo, setHistoryDateTo] = useState<string>('');
@@ -65,7 +65,7 @@ export const MixingTerminalPage: React.FC = () => {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [formulaCatalog, preparedMixes]);
 
-  // Filtrado y ordenamiento de historial (orden predeterminado: de más antigua a más reciente)
+  // Prioriza las preparaciones recientes; FIFO sigue disponible en el selector.
   const filteredHistory = useMemo(() => {
     let list = [...preparedMixes];
 
@@ -95,7 +95,7 @@ export const MixingTerminalPage: React.FC = () => {
       });
     }
 
-    // 3. Ordenamiento por fecha (Predeterminado: ASC - de la más antigua a la más reciente)
+    // 3. Ordenamiento por fecha, recientes primero de forma predeterminada.
     list.sort((a: any, b: any) => {
       const timeA = new Date(a.prepared_at || a.createdAt).getTime() || 0;
       const timeB = new Date(b.prepared_at || b.createdAt).getTime() || 0;
@@ -105,13 +105,13 @@ export const MixingTerminalPage: React.FC = () => {
     return list;
   }, [preparedMixes, historyFormulaFilter, historyDateFrom, historyDateTo, historySortOrder]);
 
-  const hasActiveFilters = historyFormulaFilter !== 'ALL' || Boolean(historyDateFrom) || Boolean(historyDateTo) || historySortOrder !== 'ASC';
+  const hasActiveFilters = historyFormulaFilter !== 'ALL' || Boolean(historyDateFrom) || Boolean(historyDateTo) || historySortOrder !== 'DESC';
 
   const handleResetFilters = () => {
     setHistoryFormulaFilter('ALL');
     setHistoryDateFrom('');
     setHistoryDateTo('');
-    setHistorySortOrder('ASC');
+    setHistorySortOrder('DESC');
   };
 
   const handleOpenMixQrs = (mix: any) => {
@@ -127,7 +127,7 @@ export const MixingTerminalPage: React.FC = () => {
   };
 
   return (
-      <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
+      <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32">
       {/* Header Banner Estandarizado */}
       <section className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:px-6 sm:py-4 w-full shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -135,23 +135,18 @@ export const MixingTerminalPage: React.FC = () => {
             <div className="p-3 rounded-2xl bg-primary/10 text-primary border border-primary/20 shrink-0">
               <Icon name="blender" size={28} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-primary">Módulo de Extrusión</span>
-                <span className="text-muted-foreground/40">•</span>
-                <span className="text-xs text-muted-foreground font-semibold">Planta de Producción</span>
-              </div>
+              <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
                 {showForm 
-                  ? (selectedTicket ? `Atender Solicitud de Mezcla (${selectedTicket.folio})` : 'Preparación Directa de Mezcla (Batch 500 Kg)')
+                  ? (selectedTicket ? `Atender solicitud ${selectedTicket.folio}` : 'Preparar mezcla')
                   : 'Centro de Mezclado'}
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base font-medium mt-1 leading-relaxed">
                 {showForm
-                  ? 'Dosificación y pesaje de materias primas con descuento de inventario en piso (WIP).'
+                  ? 'Selecciona la fórmula, asigna el destino y valida los materiales del lote.'
                   : SHOW_TICKETS
                     ? 'Cola de solicitudes, preparación de mezclas y recuperación de etiquetas QR de contenedores.'
-                    : 'Preparación de mezclas y consulta de etiquetas QR de contenedores.'}
+                    : 'Prepara mezclas y consulta o reimprime las etiquetas de sus contenedores.'}
               </p>
             </div>
           </div>
@@ -185,7 +180,7 @@ export const MixingTerminalPage: React.FC = () => {
                   <span>Actualizar</span>
                 </Button>
 
-                <PermissionGate permission="extrusion.mix.create">
+                <PermissionGate permission="extrusion.formulas.manage">
                   <Button
                     onClick={() => {
                       setSelectedTicket(null);
@@ -282,7 +277,7 @@ export const MixingTerminalPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground max-w-md mt-1 mb-6">
                       Como supervisor del área, puedes iniciar y registrar una mezcla directamente en cualquier momento seleccionando la fórmula y escaneando los insumos de piso.
                     </p>
-                    <PermissionGate permission="extrusion.mix.create">
+                    <PermissionGate permission="extrusion.formulas.manage">
                       <Button
                         onClick={() => {
                           setSelectedTicket(null);
@@ -317,7 +312,7 @@ export const MixingTerminalPage: React.FC = () => {
                             <p className="text-2xl font-black text-foreground">{ticket.total_quantity} {ticket.unit}</p>
                             <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">A Preparar</p>
                           </div>
-                          <PermissionGate permission="extrusion.mix.create">
+                          <PermissionGate permission="extrusion.formulas.manage">
                             <Button
                               onClick={() => {
                                 setIsCreatingDirectMix(false);
@@ -349,7 +344,11 @@ export const MixingTerminalPage: React.FC = () => {
                     <div>
                       <CardTitle className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
                         <span>Historial de Mezclas Preparadas</span>
-                        <Badge variant="secondary" className="font-mono text-xs font-bold px-2.5 py-0.5 bg-background border border-border">
+                        <Badge
+                          variant="default"
+                          aria-label={`${filteredHistory.length} mezclas encontradas`}
+                          className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-full border border-primary/30 bg-primary px-2.5 py-1 font-mono text-sm font-bold tabular-nums text-primary-foreground shadow-sm"
+                        >
                           {filteredHistory.length}
                         </Badge>
                       </CardTitle>
@@ -372,7 +371,7 @@ export const MixingTerminalPage: React.FC = () => {
                 </div>
 
                 {/* Barra de Filtros Operativos: Fórmulas, Orden de Fecha y Rango de Fechas */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                <div className="grid grid-cols-1 gap-3 pt-1 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(27rem,1.3fr)]">
                   {/* 1. Filtro por Fórmula */}
                   <div className="space-y-1">
                     <label className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -398,7 +397,7 @@ export const MixingTerminalPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 2. Orden por Fecha (Predeterminado: Más antigua a más reciente) */}
+                  {/* 2. Orden por Fecha */}
                   <div className="space-y-1">
                     <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="sort" size={14} className="text-primary" />
@@ -410,8 +409,8 @@ export const MixingTerminalPage: React.FC = () => {
                         onChange={(e) => setHistorySortOrder(e.target.value as 'ASC' | 'DESC')}
                         className="w-full min-h-12 bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
                       >
+                        <option value="DESC">Más recientes primero</option>
                         <option value="ASC">Más antiguas primero (FIFO)</option>
-                        <option value="DESC">Recientes primero</option>
                       </select>
                       <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                         <Icon name="expand_more" size={18} />
@@ -420,28 +419,34 @@ export const MixingTerminalPage: React.FC = () => {
                   </div>
 
                   {/* 3. Filtro por Rango de Fechas (Desde / Hasta) */}
-                  <div className="space-y-1">
+                  <div className="space-y-1 md:col-span-2 xl:col-span-1">
                     <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="calendar_today" size={14} className="text-primary" />
-                      <span>Fecha de Creación</span>
+                      <span>Rango de fechas</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <Input
-                        type="date"
-                        title="Fecha Desde"
-                        value={historyDateFrom}
-                        onChange={(e) => setHistoryDateFrom(e.target.value)}
-                        aria-label="Fecha desde"
-                        className="min-h-12 text-base font-medium bg-background border border-border px-2 rounded-xl"
-                      />
-                      <Input
-                        type="date"
-                        title="Fecha Hasta"
-                        value={historyDateTo}
-                        onChange={(e) => setHistoryDateTo(e.target.value)}
-                        aria-label="Fecha hasta"
-                        className="min-h-12 text-base font-medium bg-background border border-border px-2 rounded-xl"
-                      />
+                    <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
+                      <label className="block min-w-0 space-y-1 text-sm font-semibold text-muted-foreground">
+                        <span>Desde</span>
+                        <Input
+                          type="date"
+                          title="Fecha Desde"
+                          value={historyDateFrom}
+                          onChange={(e) => setHistoryDateFrom(e.target.value)}
+                          aria-label="Fecha desde"
+                          className="min-h-12 w-full min-w-0 text-base font-medium bg-background border border-border px-2 rounded-xl"
+                        />
+                      </label>
+                      <label className="block min-w-0 space-y-1 text-sm font-semibold text-muted-foreground">
+                        <span>Hasta</span>
+                        <Input
+                          type="date"
+                          title="Fecha Hasta"
+                          value={historyDateTo}
+                          onChange={(e) => setHistoryDateTo(e.target.value)}
+                          aria-label="Fecha hasta"
+                          className="min-h-12 w-full min-w-0 text-base font-medium bg-background border border-border px-2 rounded-xl"
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -486,32 +491,35 @@ export const MixingTerminalPage: React.FC = () => {
                       const formattedDate = mix.prepared_at
                         ? new Date(mix.prepared_at).toLocaleString('es-MX', {
                             day: '2-digit',
-                            month: '2-digit',
+                            month: 'short',
                             year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
                           })
                         : 'Fecha no registrada';
+                      const rawNotes = String(mix.notes || '');
+                      const cameFromSilo = /\[PP suministrado al mezclador desde silo\]/i.test(rawNotes);
+                      const operatorNote = rawNotes.replace(/\s*\[PP suministrado al mezclador desde silo\]\s*/ig, '').trim();
 
                       return (
                         <div
                           key={mix.id || mix.folio}
                           className="p-4 sm:p-5 hover:bg-muted/15 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
                         >
-                          <div className="space-y-2 flex-1 min-w-0">
+                          <div className="space-y-3 flex-1 min-w-0">
                             {/* Folio, Estado y Fecha */}
                             <div className="flex items-center gap-2.5 flex-wrap">
-                              <span className="font-mono font-black text-sm text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border">
+                              <span className="font-mono font-black text-sm text-foreground bg-muted/60 px-2 py-1 rounded border border-border">
                                 {mix.folio}
                               </span>
-                              <Badge variant="success" className="font-bold text-xs px-2.5 py-0.5">
+                              <Badge variant="success" className="min-h-8 font-bold text-sm px-2.5 py-1">
                                 PREPARADA
                               </Badge>
-                                <span className="text-sm text-muted-foreground font-medium">
-                                • {formattedDate}
+                              <span className="text-sm text-muted-foreground font-medium">
+                                {formattedDate}
                               </span>
-                              <span className="text-xs font-bold text-primary">
-                                • {mix.extruder_name}
+                              <span className="text-sm font-bold text-primary">
+                                {mix.extruder_name || 'Extrusora sin asignar'}
                               </span>
                             </div>
 
@@ -520,48 +528,58 @@ export const MixingTerminalPage: React.FC = () => {
                               <h3 className="font-black text-base text-foreground leading-snug">
                                 {mix.formula_code ? `[${mix.formula_code}] ` : ''}{mix.formula_name}
                               </h3>
-                              {mix.notes && (
-                                <p className="text-sm text-muted-foreground italic mt-1">
-                                  Nota: {mix.notes}
-                                </p>
-                              )}
                             </div>
 
-                            {/* Contenedores Generados para esta mezcla */}
-                            <div className="pt-1">
-                              <span className="text-sm font-bold text-muted-foreground block mb-2">
-                                Contenedores Asignados ({containers.length}):
-                              </span>
-                              <div className="flex flex-wrap gap-2">
-                                {containers.map((c: any, cIdx: number) => (
-                                  <div
-                                    key={c.qr_code || cIdx}
-                                    className="inline-flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg bg-card border-2 border-border text-sm font-mono shadow-xs hover:border-primary/50 transition-colors"
-                                  >
-                                    <Icon name="inventory_2" size={15} className="text-primary shrink-0" />
-                                    <span className="font-black text-foreground">
-                                      C{c.container_number || (cIdx + 1)}:
-                                    </span>
-                                    <span className="text-primary font-black">
-                                      {c.qr_code}
-                                    </span>
-                                    <span className="text-muted-foreground font-bold">
-                                      ({Number(c.capacity_kg).toFixed(1)} kg)
-                                    </span>
+                            <details className="rounded-lg border border-border bg-background/40">
+                              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 text-base font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                <span>Ver contenedores y notas</span>
+                                <span className="flex shrink-0 items-center gap-2">
+                                  <span className="rounded-md bg-muted px-2 py-1 font-mono text-sm text-foreground">{containers.length}</span>
+                                  <Icon name="expand_more" size={20} className="text-muted-foreground" aria-hidden="true" />
+                                </span>
+                              </summary>
+                              <div className="space-y-3 border-t border-border p-3">
+                                {cameFromSilo && (
+                                  <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                    <Icon name="hub" size={17} />
+                                    Polipropileno alimentado desde silo
+                                  </p>
+                                )}
+                                {operatorNote && (
+                                  <div>
+                                    <p className="text-sm font-semibold text-muted-foreground">Nota del operador</p>
+                                    <p className="mt-1 break-words text-base text-foreground">{operatorNote}</p>
                                   </div>
-                                ))}
+                                )}
+                                {containers.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {containers.map((c: any, cIdx: number) => (
+                                      <div
+                                        key={c.qr_code || cIdx}
+                                        className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                                      >
+                                        <Icon name="inventory_2" size={17} className="shrink-0 text-primary" />
+                                        <span className="font-bold text-foreground">Contenedor {c.container_number || (cIdx + 1)}</span>
+                                        <span className="min-w-0 break-all font-mono font-bold text-primary">{c.qr_code}</span>
+                                        <span className="font-mono text-foreground">{Number(c.capacity_kg).toFixed(1)} kg</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">Esta mezcla no tiene contenedores asociados.</p>
+                                )}
                               </div>
-                            </div>
+                            </details>
                           </div>
 
                           {/* Botón de Acción Principal para Recuperar / Reimprimir QR */}
                           <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-3 shrink-0">
                             <div className="text-left md:text-right">
-                              <p className="text-2xl font-black text-foreground font-mono">
+                              <p className="text-2xl font-black text-foreground font-mono tabular-nums">
                                 {Number(mix.total_quantity).toFixed(2)} Kg
                               </p>
-                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                                {containers.length} {containers.length === 1 ? 'Contenedor' : 'Contenedores'}
+                              <p className="text-sm font-semibold text-muted-foreground">
+                                {containers.length} {containers.length === 1 ? 'contenedor' : 'contenedores'}
                               </p>
                             </div>
 

@@ -86,6 +86,7 @@ export const telaresApi = {
   },
 
   finishRoll: async (payload: {
+    idempotency_key: string;
     run_id: number;
     meters: number;
     weight_kg: number;
@@ -110,6 +111,32 @@ export const telaresApi = {
   }> => {
     const response = await axiosClient.post('/telares/runs/finish-roll', payload);
     return response.data;
+  },
+
+  finishRun: async (payload: {
+    run_id: number;
+    notes?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    run: any;
+  }> => {
+    const response = await axiosClient.post(`/telares/runs/${payload.run_id}/finish`, {
+      notes: payload.notes,
+    });
+    return response.data;
+  },
+
+  getViajeroRolls: async (params?: {
+    loom_id?: number;
+    shift_number?: number;
+    product_kind?: string;
+    status?: string;
+    search?: string;
+    limit?: number;
+  }): Promise<ViajeroRoll[]> => {
+    const response = await axiosClient.get('/telares/rolls', { params });
+    return response.data || [];
   },
 
   validateViajeroScan: async (payload: {

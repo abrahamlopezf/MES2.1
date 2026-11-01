@@ -74,6 +74,7 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const [prioritizeFormulaId, setPrioritizeFormulaId] = useState<number | null>(null);
   const [shiftCode, setShiftCode] = useState(() => getCdmxShift().shiftCode);
   const [purgePercentage, setPurgePercentage] = useState('');
+  const [remainingMixDisposition, setRemainingMixDisposition] = useState<'WIP' | 'SCRAP_ESPECIAL' | ''>('');
 
   // State para Modal de Encolar
   const [isEnqueueModalOpen, setIsEnqueueModalOpen] = useState(false);
@@ -120,6 +121,7 @@ export const ExtrusionBoardContainer: React.FC = () => {
     setScannedPausedQr(null);
     setPrioritizeFormulaId(formulaId ?? null);
     setPurgePercentage('');
+    setRemainingMixDisposition('');
     setIsSwitchModalOpen(true);
   };
 
@@ -218,21 +220,32 @@ export const ExtrusionBoardContainer: React.FC = () => {
       toast.error('Escanea el QR original de la mezcla pausada antes de confirmar su reanudación.');
       return;
     }
+    const remainingKg = Number(activeQueue?.container_remaining_quantity_kg ?? activeQueue?.preparation?.remaining_quantity_kg ?? 0);
+    if (activeQueue && activeQueue.id !== targetQueue.id && remainingKg > 0.001 && !remainingMixDisposition) {
+      toast.error('Decide qué hacer con el saldo del contenedor activo: conservarlo en WIP o registrarlo como scrap especial.');
+      return;
+    }
     const scrapItems: any[] = [];
 
     try {
-      await switchMutation.mutateAsync({
+      const switchResult = await switchMutation.mutateAsync({
         queue_id: targetQueue.id,
         ...(targetQueue.status === 'PAUSADA' ? { scanned_qr: scannedPausedQr || undefined } : {}),
         ...(prioritizeFormulaId == null ? {} : { prioritize_formula_id: prioritizeFormulaId }),
         scrap_items: scrapItems,
         ...(activeQueue && activeQueue.id !== targetQueue.id ? { purge_percentage: percentage } : {}),
+        ...(activeQueue && activeQueue.id !== targetQueue.id && remainingKg > 0.001 ? { remaining_mix_disposition: remainingMixDisposition } : {}),
         shift_code: shiftCode
       });
 
+      const dispositionMessage = switchResult?.data?.displaced_container_disposition === 'WIP'
+        ? ' El contenedor restante volvió al WIP y podrá reencolarse con su QR.'
+        : switchResult?.data?.displaced_container_disposition === 'SCRAP_ESPECIAL'
+          ? ' El saldo quedó registrado como scrap especial, pendiente de conciliación al cierre.'
+          : '';
       toast.success(targetQueue.status === 'PAUSADA'
         ? `${targetQueue.consumption_order_qr_id} reanudada en la extrusora ${targetQueue.extruder_id}.${activeQueue ? ' Transición registrada.' : ' No había otra mezcla activa.'}`
-        : `${targetQueue.consumption_order_qr_id} activada. Registra la merma real por color al cierre del turno.`);
+        : `${targetQueue.consumption_order_qr_id} activada. Registra la merma real por color al cierre del turno.${dispositionMessage}`);
       handleCloseSwitchModal();
     } catch (error: any) {
       const msg = error.friendlyMessage || error.response?.data?.message || 'Error al realizar el cambio de prioridad.';
@@ -314,6 +327,8 @@ export const ExtrusionBoardContainer: React.FC = () => {
       activeQueue={activeQueue}
       purgePercentage={purgePercentage}
       onPurgePercentageChange={setPurgePercentage}
+      remainingMixDisposition={remainingMixDisposition}
+      onRemainingMixDispositionChange={setRemainingMixDisposition}
       estimatedTransitionScrapKg={Number(((Number(targetQueue?.preparation?.remaining_quantity_kg || 0) * (Number(purgePercentage) || 0)) / 100).toFixed(3))}
       pendingPtiStep={pendingPtiStep}
       quickRacks={ptiRacks}

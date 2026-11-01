@@ -70,6 +70,7 @@ const DashboardPage = () => {
   const isDark = theme === 'dark';
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState('EXECUTIVE'); // 'EXECUTIVE' | 'WAREHOUSE'
+  const [selectedArea, setSelectedArea] = useState('GENERAL');
 
   const roleCode = String(typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
   const isExecutive = ['ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'SUPERADMIN'].includes(roleCode);
@@ -250,6 +251,26 @@ const DashboardPage = () => {
     },
   ];
 
+  const dashboardAreas = [
+    { key: 'GENERAL', title: 'General', icon: Activity },
+    { key: 'almacen', title: 'Almacén', icon: Boxes },
+    ...areaCards.map(({ key, title, icon }) => ({ key, title, icon })),
+  ];
+  const focusedArea = areaCards.find(({ key }) => key === selectedArea);
+  const focusedAreaData = focusedArea ? areaOverview?.[focusedArea.key] : null;
+  const focusedAreaMetrics = selectedArea === 'almacen'
+    ? (Object.keys(kpisFin).length > 0 ? [
+        ['Valor bajo custodia', formatCurrency(kpisFin.warehouseCustodyValue ?? currentInventoryValue)],
+        ['Inventario en lotes', formatCurrency(kpisFin.warehouseInventoryValue ?? 0)],
+        ['Inventario en silos', formatCurrency(kpisFin.silosInventoryValue ?? 0)],
+        ['Pérdidas registradas', formatCurrency(totalLoss)],
+        ['Lotes recibidos', Number(totalEntradas).toLocaleString('es-MX')],
+        ['Materiales bajo mínimo', Number(materialesStockBajo).toLocaleString('es-MX')],
+      ] : null)
+    : focusedArea && focusedAreaData?.available
+      ? focusedArea.metrics(focusedAreaData)
+      : null;
+
   // Nombre y rol del usuario
   const roleLabel = ['ADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL'].includes(roleCode) 
     ? 'Administrador General' 
@@ -269,7 +290,8 @@ const DashboardPage = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
-            className="lg:hidden p-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:text-primary transition-colors shrink-0 flex items-center justify-center h-10 w-10 cursor-pointer"
+            data-ignore-accessibility-min-height
+            className="lg:hidden size-12 rounded-xl bg-secondary/80 border border-border p-0 text-foreground hover:text-primary transition-colors shrink-0 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Abrir Menú Principal"
             title="Menú"
           >
@@ -277,7 +299,7 @@ const DashboardPage = () => {
           </button>
           <div className="min-w-0 flex-1 pr-12 sm:pr-0">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
-              Visión Global <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Estado del Sistema</span>
+              {selectedArea === 'GENERAL' ? 'Visión Global' : `Dashboard de ${selectedArea === 'almacen' ? 'Almacén' : focusedArea?.title}`} <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Estado del Sistema</span>
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
               Hola, <span className="text-foreground font-bold">{user?.first_name || user?.username || 'Usuario'}</span> · <span className="text-primary font-semibold">{roleLabel}</span>
@@ -311,8 +333,60 @@ const DashboardPage = () => {
         </div>
       </div>
 
+      <section aria-labelledby="dashboard-area-filter-title" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <div className="mb-3">
+          <h2 id="dashboard-area-filter-title" className="text-lg font-black text-foreground">Área del tablero</h2>
+          <p className="mt-1 text-sm text-muted-foreground">General reúne los indicadores consolidados. Elige un área para enfocarte en sus datos.</p>
+        </div>
+        <div role="group" aria-label="Filtrar dashboard por área" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          {dashboardAreas.map(({ key, title, icon: AreaIcon }) => {
+            const isSelected = selectedArea === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => setSelectedArea(key)}
+                className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-base font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isSelected ? 'border-primary bg-primary text-primary-foreground shadow-sm' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+              >
+                <AreaIcon size={19} aria-hidden="true" />
+                {title}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {selectedArea !== 'GENERAL' && (
+        <section aria-labelledby="focused-area-title" aria-live="polite" className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 id="focused-area-title" className="text-xl font-black text-foreground">Indicadores de {selectedArea === 'almacen' ? 'Almacén' : focusedArea?.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Vista enfocada en esta área; los indicadores generales se muestran al elegir General.</p>
+            </div>
+            {areaOverview?.refreshed_at && selectedArea !== 'almacen' && (
+              <span className="text-sm text-muted-foreground">Actualizado {new Date(areaOverview.refreshed_at).toLocaleTimeString('es-MX')}</span>
+            )}
+          </div>
+          {focusedAreaMetrics ? (
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {focusedAreaMetrics.map(([label, value]) => (
+                <div key={label} className="flex min-h-28 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm">
+                  <dt className="text-base font-semibold text-muted-foreground">{label}</dt>
+                  <dd className="mt-3 break-words text-2xl font-black tabular-nums text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <div role="status" className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-5 text-base font-semibold text-amber-900 dark:text-amber-100">
+              No hay datos disponibles para esta área en este momento. Actualiza la vista o vuelve a General para consultar las demás áreas.
+            </div>
+          )}
+        </section>
+      )}
+
       {/* TOP FILTERS */}
-      <div className="w-full shrink-0">
+      {selectedArea === 'GENERAL' && <div className="w-full shrink-0">
         <div className="bg-secondary/40 p-4 sm:p-5 rounded-2xl border border-border/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="shrink-0 flex justify-between items-center w-full lg:w-auto">
             <div>
@@ -333,10 +407,10 @@ const DashboardPage = () => {
             <TFSelect label="Moneda" options={[{value: 'mxn', label: 'MXN'}]} value="mxn" onChange={() => {}} />
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* TOP KPIs - Reflejo Real de Almacén y Finanzas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {selectedArea === 'GENERAL' && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ExecutiveKpiCard
           title="Pérdidas Consolidadas" 
           value={totalLoss} 
@@ -370,10 +444,10 @@ const DashboardPage = () => {
           icon={TrendingUp}
           subtitle={`${bajasRegistradas} movimientos de salida/baja`}
         />
-      </div>
+      </div>}
 
       {/* CHARTS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {selectedArea === 'GENERAL' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Evolution Chart */}
         <Card className="lg:col-span-2 p-5 shadow-sm border-border/50">
@@ -450,8 +524,9 @@ const DashboardPage = () => {
           </div>
         </Card>
 
-      </div>
+      </div>}
 
+      {selectedArea === 'GENERAL' && <>
       {/* AREAS GRID (RESUMEN NETO CONECTADO A ALMACÉN) */}
       <div className="flex items-center justify-between mt-2">
         <h3 className="text-xs font-bold text-foreground opacity-70 uppercase tracking-wider">
@@ -573,6 +648,7 @@ const DashboardPage = () => {
           })}
         </div>
       </section>
+      </>}
     </div>
   );
 };

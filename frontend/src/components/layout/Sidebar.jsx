@@ -88,7 +88,7 @@ const menuGroups = [
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN"],
     isGroup: true,
     children: [
-      { label: "WIP de Extrusión", path: "/extrusion/wip", icon: "inventory_2", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION", "OPERADOR_EXTRUSION"] },
+      { label: "Inventario WIP", path: "/extrusion/wip", icon: "inventory_2", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION", "OPERADOR_EXTRUSION"] },
       { label: "Máquinas Extrusoras", path: "/production/machines", icon: "precision_manufacturing", permission: "extrusion.view" },
       { label: "Fórmulas y PTI", path: "/production/formulas", icon: "science", permission: "extrusion.formulas.view" },
       { label: "Centro de Mezclado", path: "/production/mixing", icon: "blender", permission: "extrusion.wip.manage" },
@@ -266,7 +266,12 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
               return (
                 <button
                   key={child.label}
-                  onClick={child.onClick}
+                  onClick={() => {
+                    child.onClick();
+                    if (window.innerWidth < 1024 && typeof onMobileClick === 'function') {
+                      onMobileClick();
+                    }
+                  }}
                   className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {renderAnyIcon(child.icon, { size: 20, className: "shrink-0" })}
@@ -432,7 +437,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
   return (
     <aside
       className={`
-        fixed lg:relative top-0 left-0 bottom-0 z-40
+        fixed lg:relative top-0 left-0 bottom-0 z-[70] lg:z-40
         w-[280px] ${isCompact ? 'lg:w-[80px]' : 'lg:w-[280px]'} h-full flex-shrink-0 flex flex-col justify-between overflow-hidden
         bg-card border-r border-border
         transition-[width,transform] duration-200 ease-out shadow-md lg:shadow-none group
@@ -474,7 +479,8 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
           )}
           <button
             onClick={() => setMobileIsOpen(false)}
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+            data-ignore-accessibility-min-height
+            className="flex size-12 shrink-0 items-center justify-center rounded-lg p-0 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
             aria-label="Cerrar menú de navegación"
             title="Cerrar menú"
           >

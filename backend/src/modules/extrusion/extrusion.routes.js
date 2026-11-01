@@ -138,11 +138,14 @@ router.delete('/pti-products/:id', extrusionController.deletePtiProduct);
 // Merma / Scrap y Balance de Masa
 router.post('/scrap', extrusionController.registerScrap);
 router.get('/scrap-logs', extrusionController.getScrapLogs);
+router.get('/dashboard/metrics', extrusionController.getExtrusionDashboardMetrics);
 router.patch('/scrap/:id/weigh', extrusionController.adjustScrapWeight);
+router.get('/shifts/activity', extrusionController.getExtrusionShiftActivity);
 router.post('/shifts/close', extrusionController.closeExtrusionShift);
 router.patch('/production/:id', extrusionController.adjustProductionEntry);
 router.get('/mass-balance/:mixQr', extrusionController.getMassBalance);
 router.get('/wip/inventory', extrusionController.getExtrusionWip);
+router.post('/wip/mixtures/:id/scrap', authorizePermission('scrap.create', 'scrap.manage'), extrusionController.scrapWipMixture);
 
 // Precios de Rack / PTI y Valorización (Puntos 3, 5, 6, 7)
 router.put('/racks/:id/price', extrusionController.updatePtiRackPrice);

@@ -26,23 +26,43 @@ export const AndonBoardPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'RUNNING': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      case 'IDLE': return 'bg-slate-100 text-slate-800 border-slate-300';
-      case 'RESERVED': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'PAUSED': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default: return 'bg-slate-100 text-slate-800 border-slate-300';
+      case 'RUNNING': return 'border-success/50';
+      case 'IDLE': return 'border-border';
+      case 'RESERVED': return 'border-info/50';
+      case 'PAUSED': return 'border-warning/50';
+      default: return 'border-border';
     }
   };
 
   const getMachineHealthColor = (status: string) => {
     switch (status) {
-      case 'ONLINE': return 'text-emerald-500';
-      case 'OFFLINE': return 'text-slate-400';
-      case 'FAULT': return 'text-red-500';
-      case 'MAINTENANCE': return 'text-orange-500';
-      default: return 'text-slate-400';
+      case 'ONLINE': return 'text-success';
+      case 'OFFLINE': return 'text-muted-foreground';
+      case 'FAULT': return 'text-danger';
+      case 'MAINTENANCE': return 'text-warning';
+      default: return 'text-muted-foreground';
     }
   };
+
+  const getStatusLabel = (status: string) => ({
+    RUNNING: 'En marcha',
+    IDLE: 'En espera',
+    RESERVED: 'Reservada',
+    PAUSED: 'Pausada',
+    OFFLINE: 'Sin conexión',
+  }[status] || 'Estado no disponible');
+
+  const getHealthLabel = (status: string) => ({
+    ONLINE: 'Conectado',
+    OFFLINE: 'Desconectado',
+    FAULT: 'Falla',
+    MAINTENANCE: 'Mantenimiento',
+  }[status] || 'Estado no disponible');
+
+  const getCapabilityLabel = (capability: string) => ({
+    MIXING: 'Mezclado',
+    EXTRUSION: 'Extrusión',
+  }[capability] || capability);
 
   const getMachineIcon = (status: string) => {
     switch (status) {
@@ -74,47 +94,51 @@ export const AndonBoardPage: React.FC = () => {
           const executionStatus = execution?.status || 'OFFLINE';
 
           return (
-            <div 
+            <article
               key={station.id} 
-              className={`border-2 rounded-xl transition-all shadow-sm bg-white overflow-hidden ${getStatusColor(executionStatus)}`}
+              className={`overflow-hidden rounded-xl border-2 bg-card text-card-foreground shadow-sm ${getStatusColor(executionStatus)}`}
             >
-              <div 
-                className="p-5 cursor-pointer flex flex-col h-full"
+              <button
+                type="button"
+                aria-expanded={isExpanded}
+                aria-controls={`andon-equipment-${station.id}`}
                 onClick={() => setExpandedStationId(isExpanded ? null : station.id)}
+                className="flex min-h-11 w-full flex-col p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h2 className="text-xl font-bold">{station.name}</h2>
-                  <span className="text-xs font-bold px-2 py-1 bg-white/50 rounded-full uppercase tracking-widest">
-                    {executionStatus}
+                  <h2 className="text-xl font-bold text-foreground">{station.name}</h2>
+                  <span className={`rounded-full border px-3 py-1 text-sm font-bold ${executionStatus === 'RUNNING' ? 'border-success/40 bg-success/10 text-success' : executionStatus === 'RESERVED' ? 'border-info/40 bg-info/10 text-info' : executionStatus === 'PAUSED' ? 'border-warning/40 bg-warning/10 text-warning' : 'border-border bg-muted text-muted-foreground'}`}>
+                    {getStatusLabel(executionStatus)}
                   </span>
                 </div>
                 
-                <p className="text-sm opacity-80 mb-4 font-mono">{station.id} • {station.areaId}</p>
+                <p className="mb-4 text-sm text-muted-foreground font-mono">{station.id} • {station.areaId}</p>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {station.capabilities?.map(cap => (
-                    <span key={cap} className="text-xs font-semibold bg-white/60 px-2 py-1 rounded-md border border-black/10">
-                      {cap}
+                    <span key={cap} className="rounded-md border border-border bg-muted/50 px-2 py-1 text-sm font-semibold text-foreground">
+                      {getCapabilityLabel(cap)}
                     </span>
                   ))}
                 </div>
 
                 {executionStatus === 'RUNNING' && execution?.currentTransformationId && (
-                  <div className="mt-auto bg-white/60 p-3 rounded-lg border border-black/10">
-                    <p className="text-xs uppercase font-bold opacity-70 mb-1">Ejecutando</p>
+                  <div className="mt-auto rounded-lg border border-border bg-muted/40 p-3">
+                    <p className="mb-1 text-sm font-bold text-muted-foreground">Ejecutando</p>
                     <p className="text-sm font-mono font-bold truncate" title={execution.currentTransformationId}>
                       {execution.currentTransformationId}
                     </p>
-                    <p className="text-xs mt-1">Operador: {execution.operatorId}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Operador: {execution.operatorId}</p>
                   </div>
                 )}
-              </div>
+                <span className="mt-3 text-sm font-semibold text-primary">{isExpanded ? 'Ocultar equipos' : 'Ver equipos'}</span>
+              </button>
 
               {isExpanded && (
-                <div className="bg-white p-4 border-t-2 border-inherit">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Salud de Equipos</h4>
+                <div id={`andon-equipment-${station.id}`} className="border-t border-border bg-muted/20 p-4">
+                  <h4 className="mb-3 text-base font-bold text-foreground">Salud de equipos</h4>
                   {machines.length === 0 ? (
-                    <p className="text-sm text-slate-400 italic">No hay máquinas registradas en esta estación.</p>
+                    <p className="text-base italic text-muted-foreground">No hay máquinas registradas en esta estación.</p>
                   ) : (
                     <ul className="space-y-3">
                       {machines.map(machine => {
@@ -122,14 +146,14 @@ export const AndonBoardPage: React.FC = () => {
                         const healthStatus = health?.status || 'OFFLINE';
                         
                         return (
-                          <li key={machine.id} className="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100">
+                          <li key={machine.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
                             <div>
-                              <p className="font-semibold text-sm text-slate-800">{machine.name}</p>
-                              <p className="text-xs text-slate-500 font-mono">{machine.id}</p>
+                              <p className="text-base font-semibold text-foreground">{machine.name}</p>
+                              <p className="text-sm text-muted-foreground font-mono">{machine.id}</p>
                             </div>
                             <div className={`flex items-center gap-1.5 font-bold text-xs ${getMachineHealthColor(healthStatus)}`}>
                               {getMachineIcon(healthStatus)}
-                              {healthStatus}
+                              <span>{getHealthLabel(healthStatus)}</span>
                             </div>
                           </li>
                         )
@@ -138,7 +162,7 @@ export const AndonBoardPage: React.FC = () => {
                   )}
                 </div>
               )}
-            </div>
+            </article>
           );
         })}
       </div>

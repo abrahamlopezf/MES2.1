@@ -53,6 +53,8 @@ export interface ExtrusionBoardPresenterProps {
   activeQueue: ExtruderQueue | null;
   purgePercentage: string;
   onPurgePercentageChange: (val: string) => void;
+  remainingMixDisposition: 'WIP' | 'SCRAP_ESPECIAL' | '';
+  onRemainingMixDispositionChange: (value: 'WIP' | 'SCRAP_ESPECIAL' | '') => void;
   estimatedTransitionScrapKg: number;
   onOpenSwitchModal: (targetQueue: ExtruderQueue, activeQueue: ExtruderQueue | null, prioritizeFormulaId?: number) => void;
   onScanPausedQr: (scannedCode: string, expectedQueue: ExtruderQueue) => void;
@@ -88,6 +90,22 @@ interface GroupedFormulaQueue {
   entries: Array<{ queue: ExtruderQueue; status: QueueEntryStatus; position?: number }>;
   activeFormulaSummary?: MachineQueueGroup['active_formula_group'];
 }
+
+const samePreparedQueueBatch = (left: ExtruderQueue, right: ExtruderQueue): boolean => {
+  const leftPreparationId = Number(left.process_preparation_id ?? left.preparation?.id ?? 0);
+  const rightPreparationId = Number(right.process_preparation_id ?? right.preparation?.id ?? 0);
+  if (!leftPreparationId || leftPreparationId !== rightPreparationId || Number(left.formula_id) !== Number(right.formula_id)) return false;
+  const leftProductId = Number(left.output_pti_product_id || 0);
+  const rightProductId = Number(right.output_pti_product_id || 0);
+  const normalize = (value?: string | null) => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  const leftColor = normalize(left.output_pti_color);
+  const rightColor = normalize(right.output_pti_color);
+  if (leftProductId || rightProductId) {
+    if (leftProductId <= 0 || rightProductId <= 0 || leftProductId !== rightProductId) return false;
+    return !leftColor || !rightColor || leftColor === rightColor;
+  }
+  return Boolean(leftColor && rightColor && leftColor === rightColor);
+};
 
 const groupQueuesByFormula = (machineQueue: MachineQueueGroup): GroupedFormulaQueue[] => {
   const grouped = new Map<string, GroupedFormulaQueue>();
@@ -156,7 +174,8 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
         const pausedCount = formulaGroup.entries.filter((entry) => entry.status === 'PAUSADA').length;
         const waitingCount = formulaGroup.entries.filter((entry) => entry.status === 'EN_ESPERA').length;
         const firstWaiting = formulaGroup.entries.find((entry) => entry.status === 'EN_ESPERA');
-        const groupAlreadyActive = Number(machineQueue.active?.formula_id) === Number(formulaGroup.formulaId);
+        const firstWaitingBatch = firstWaiting && formulaGroup.entries.filter((entry) => entry.status === 'EN_ESPERA' && samePreparedQueueBatch(entry.queue, firstWaiting.queue));
+        const activeBatchAlreadyInGroup = Boolean(machineQueue.active && formulaGroup.entries.some((entry) => samePreparedQueueBatch(entry.queue, machineQueue.active!)));
         const formulaColors = [...new Set(formulaGroup.entries
           .filter((entry) => Boolean(entry?.queue))
           .map(({ queue }) => queue?.output_pti_color || queue?.formula?.ptiProducts?.find((pti) => Number(pti.id) === Number(queue?.output_pti_product_id))?.color || queue?.formula?.ptiProducts?.[0]?.color)
@@ -189,7 +208,7 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
         );
         const containers = (
           <div className="space-y-3 border-t border-border p-3 sm:p-4">
-            {formulaGroup.entries.length > 1 && firstWaiting && !groupAlreadyActive && (
+            {(firstWaitingBatch?.length || 0) > 1 && firstWaiting && !activeBatchAlreadyInGroup && (
               <Button
                 type="button"
                 variant="secondary"
@@ -201,6 +220,9 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
               </Button>
             )}
             {formulaGroup.entries.map(({ queue, status, position }) => (
+              (() => {
+                const autoContinuesWithActive = status === 'EN_ESPERA' && Boolean(machineQueue.active && samePreparedQueueBatch(queue, machineQueue.active));
+                return (
               <article key={queue.id} className="border-b border-border py-3 last:border-b-0 sm:py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="break-all font-mono text-base font-black text-foreground">{queue.consumption_order_qr_id}</span>
@@ -228,7 +250,8 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
                       onScan={(code) => onScanPausedQr(code, queue)}
                     />
                   )}
-                  {status === 'EN_ESPERA' && (
+                  {autoContinuesWithActive && <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm font-semibold text-emerald-800 dark:text-emerald-200">Este contenedor pertenece a la mezcla dividida activa y se procesará automáticamente al terminar el actual.</p>}
+                  {status === 'EN_ESPERA' && !autoContinuesWithActive && (
                     <Button
                       variant="secondary"
                       onClick={() => onOpenSwitchModal(queue, machineQueue.active)}
@@ -252,6 +275,8 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
                   )}
                 </div>
               </article>
+                );
+              })()
             ))}
             {formulaGroup.activeFormulaSummary && formulaGroup.activeFormulaSummary.batch_count > 1 && (
               <p className="px-1 text-sm font-semibold text-muted-foreground">
@@ -311,6 +336,8 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   activeQueue,
   purgePercentage,
   onPurgePercentageChange,
+  remainingMixDisposition,
+  onRemainingMixDispositionChange,
   estimatedTransitionScrapKg,
   onOpenSwitchModal,
   onScanPausedQr,
@@ -614,8 +641,20 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
               {purgePercentage !== '' && <div className="rounded-lg border border-primary/30 bg-primary/5 p-3" aria-live="polite">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Merma de transición estimada</p>
                 <p className="mt-1 text-xl font-black tabular-nums">{estimatedTransitionScrapKg.toFixed(3)} kg</p>
-                <p className="mt-1 text-xs text-muted-foreground">Saldo disponible de la mezcla nueva × porcentaje de purgante. Se ajustará con el pesaje real al cierre del turno.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Saldo del contenedor entrante × porcentaje de purgante. Se ajustará con el pesaje real al cierre del turno.</p>
               </div>}
+              {Number(activeQueue.container_remaining_quantity_kg || 0) > 0.001 && <fieldset className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+                <legend className="px-1 text-sm font-black text-foreground">Saldo restante del contenedor activo</legend>
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-200">{Number(activeQueue.container_remaining_quantity_kg).toFixed(3)} kg · el supervisor debe decidir qué hacer antes del cambio.</p>
+                <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-background/50 p-2 text-sm">
+                  <input type="radio" name="remaining-mix-disposition" checked={remainingMixDisposition === 'WIP'} onChange={() => onRemainingMixDispositionChange('WIP')} className="mt-1" />
+                  <span><strong>Devolver a WIP los contenedores restantes de esta preparación.</strong> Se liberarán de la cola y podrán reencolarse después mediante sus QR.</span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-background/50 p-2 text-sm">
+                  <input type="radio" name="remaining-mix-disposition" checked={remainingMixDisposition === 'SCRAP_ESPECIAL'} onChange={() => onRemainingMixDispositionChange('SCRAP_ESPECIAL')} className="mt-1" />
+                  <span><strong>Registrar como scrap especial.</strong> Se descontará del WIP y quedará pendiente de pesaje/conciliación al cierre.</span>
+                </label>
+              </fieldset>}
             </div> : targetQueue.status === 'PAUSADA' ? (
               <p className="rounded-xl border border-border bg-muted/30 p-3 text-sm font-semibold text-muted-foreground">
                 No se registrará merma de transición porque no hay otra mezcla activa que interrumpir.
@@ -634,7 +673,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
               </Button>
               <Button
                 onClick={onConfirmSwitch}
-                disabled={isSwitching || (Boolean(activeQueue && activeQueue.id !== targetQueue.id) && (purgePercentage === '' || Number(purgePercentage) < 0 || Number(purgePercentage) > 100)) || (targetQueue.status === 'PAUSADA' && !resumeQrVerified)}
+                disabled={isSwitching || (Boolean(activeQueue && activeQueue.id !== targetQueue.id) && (purgePercentage === '' || Number(purgePercentage) < 0 || Number(purgePercentage) > 100 || (Number(activeQueue.container_remaining_quantity_kg || 0) > 0.001 && !remainingMixDisposition))) || (targetQueue.status === 'PAUSADA' && !resumeQrVerified)}
                 className="font-black bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {isSwitching ? 'Procesando Transición...' : targetQueue.status === 'PAUSADA' ? 'Confirmar y reanudar mezcla' : 'Confirmar e Iniciar Nueva Mezcla'}

@@ -71,8 +71,18 @@ export const extrusionApi = {
     return response.data.data;
   },
 
+  scrapWipMixture: async (preparationId: number): Promise<any> => {
+    const response = await axiosClient.post(`/extrusion/wip/mixtures/${preparationId}/scrap`);
+    return response.data.data;
+  },
+
   getScrapLogs: async (params?: Record<string, string | number | boolean>): Promise<any[]> => {
     const response = await axiosClient.get('/extrusion/scrap-logs', { params });
+    return response.data.data;
+  },
+
+  getShiftActivity: async (params: { shift_date: string; shift_code: string }): Promise<any> => {
+    const response = await axiosClient.get('/extrusion/shifts/activity', { params });
     return response.data.data;
   },
 

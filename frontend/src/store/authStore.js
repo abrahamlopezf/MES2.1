@@ -10,6 +10,15 @@ const supervisorExtrusionPermission = (user, code) => {
   return code.startsWith('extrusion.') && !/(cost|price|financial|valuation|costo|precio|dinero)/i.test(code);
 };
 
+const extrusionAdminPermission = (user, code) => {
+  const roleCode = String(
+    typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')
+  ).toUpperCase();
+  return ['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode)
+    && typeof code === 'string'
+    && code.startsWith('extrusion.');
+};
+
 export const useAuthStore = create((set, get) => ({
   token: storedToken || null,
   user: storedUser ? JSON.parse(storedUser) : null,
@@ -126,6 +135,7 @@ export const useAuthStore = create((set, get) => ({
     // Bypass para SuperAdmin y Administrador General / Admin
     if (['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'].includes(user?.role?.code)) return true;
     if (!permissionCode) return true;
+    if (extrusionAdminPermission(user, permissionCode)) return true;
     if (supervisorExtrusionPermission(user, permissionCode)) return true;
     
     return user?.permissions?.includes(permissionCode) ?? false;
@@ -138,7 +148,9 @@ export const useAuthStore = create((set, get) => ({
     if (!permissionCodes || permissionCodes.length === 0 || permissionCodes.includes('')) return true;
 
     return permissionCodes.some((permissionCode) =>
-      supervisorExtrusionPermission(user, permissionCode) || user?.permissions?.includes(permissionCode)
+      extrusionAdminPermission(user, permissionCode)
+      || supervisorExtrusionPermission(user, permissionCode)
+      || user?.permissions?.includes(permissionCode)
     );
   },
 }));

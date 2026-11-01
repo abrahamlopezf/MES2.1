@@ -17,7 +17,7 @@ export const ViajeroLabelModal: React.FC<ViajeroLabelModalProps> = ({ roll, onCl
     window.print();
   };
 
-  const route = roll.route || ['TELARES', 'LAMINADO', 'CORTE'];
+  const route = Array.isArray(roll.route) ? roll.route : [];
   const loomNumber = roll.loom_number || roll.loom?.loom_number || roll.loom_id;
   const shiftNumber = roll.shift_number || 1;
   const operatorNomina = roll.operator_nomina || roll.operator?.numero_nomina || '1200';

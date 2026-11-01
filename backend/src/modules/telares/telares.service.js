@@ -1,8 +1,16 @@
 const { Op } = require('sequelize');
+const { createHash } = require('node:crypto');
 const bcrypt = require('bcrypt');
 const { getCdmxDateString, getCdmxShift, nowCdmx } = require('../../utils/timezone');
 const { isSupervisor, canViewCosts, getUserAreaCode } = require('../../shared/security/accessRules');
 const normalizeViajeroQr = require('../../shared/utils/normalizeViajeroQr');
+const {
+  normalizeStageName,
+  normalizeProductionRoute,
+  validateOperatorMeterCoverage,
+  validateOutputMeasures,
+  validateOperatorWeightCoverage,
+} = require('./productionRules');
 const {
   sequelize,
   Loom,
@@ -38,34 +46,23 @@ const {
 } = require('../../database/models');
 
 class TelaresService {
+  normalizeStageName(stage) {
+    return normalizeStageName(stage);
+  }
+
   normalizeProductionRoute(route, productKind = 'ROLLO_TELA') {
-    const stages = Array.isArray(route)
-      ? route.map((stage) => String(stage || '').trim().toUpperCase())
-      : [];
-    const validStages = ['TELARES', 'GLOBO', 'LAMINADO', 'CORTE', 'CONFECCION'];
-    if (
-      stages.length < 2 ||
-      stages[0] !== 'TELARES' ||
-      stages.some((stage) => !validStages.includes(stage)) ||
-      new Set(stages).size !== stages.length
-    ) {
-      throw Object.assign(
-        new Error('La ruta debe iniciar en TELARES, incluir al menos una etapa posterior y no repetir etapas.'),
-        { statusCode: 400, code: 'INVALID_PRODUCTION_ROUTE' }
-      );
-    }
-    if (String(productKind || 'ROLLO_TELA').trim().toUpperCase() === 'ROLLO_TELA' && stages.includes('GLOBO')) {
-      throw Object.assign(
-        new Error('Los rollos de tela no pueden tener Globo en su ruta; selecciona Laminado o ruta directa a Corte.'),
-        { statusCode: 400, code: 'GLOBO_NOT_ALLOWED_FOR_ROLL' }
-      );
-    }
-    return stages;
+    return normalizeProductionRoute(route, productKind);
   }
 
   calculateBomPtiDemand(bom, plannedMeters, plannedWeightKg = null) {
     const meters = Number(plannedMeters);
     if (!Number.isFinite(meters) || meters <= 0) throw Object.assign(new Error('Los metros objetivo deben ser mayores a cero.'), { statusCode: 400 });
+    if (bom?.is_provisional) {
+      throw Object.assign(
+        new Error(`La ficha ${bom.code} es provisional. No se puede iniciar ni cerrar producción hasta confirmar el consumo de PTI con Planta.`),
+        { statusCode: 409, code: 'BOM_PROVISIONAL_NOT_PRODUCTION_READY' },
+      );
+    }
     if (!Array.isArray(bom.items) || !bom.items.length || bom.items.some((item) => !Number(item.pti_product_id))) {
       throw Object.assign(new Error(`La ficha ${bom.code} necesita al menos un PTI de Extrusión vinculado.`), { statusCode: 409, code: 'BOM_PTI_REQUIRED' });
     }
@@ -862,7 +859,11 @@ class TelaresService {
       const productKind = String(payload.product_kind ?? bom?.product_kind ?? 'ROLLO_TELA').trim().toUpperCase();
       if (!Array.isArray(items) || (!items.length && !isProvisional)) throw new Error('Agrega al menos un PTI de Extrusión o marca la ficha como provisional mientras se confirma su relación de consumo.');
 
-      const route = this.normalizeProductionRoute(payload.default_route ?? bom?.default_route ?? ['TELARES', 'LAMINADO', 'CORTE'], productKind);
+      const routeSource = payload.default_route ?? bom?.default_route;
+      if (!routeSource || (Array.isArray(routeSource) && routeSource.length === 0)) {
+        throw Object.assign(new Error('Selecciona explícitamente la ruta autorizada para esta ficha.'), { statusCode: 400, code: 'PRODUCTION_ROUTE_REQUIRED' });
+      }
+      const route = this.normalizeProductionRoute(routeSource, productKind);
 
       const ounces = payload.ounces_yd2 !== undefined && payload.ounces_yd2 !== ''
         ? Number(payload.ounces_yd2)
@@ -881,6 +882,14 @@ class TelaresService {
         if (warpDenierStr.includes('1800')) {
           throw new Error('Restricción técnica: Para telas de 6.5 oz a 8.0 oz NO se puede emplear URDIMBRE de denier 1800.');
         }
+      }
+
+      const fabricType = String(payload.fabric_type ?? bom?.fabric_type ?? 'TUBULAR').trim().toUpperCase();
+      const requestedTapeColor = payload.tape_color !== undefined
+        ? String(payload.tape_color || 'N/A').trim().toUpperCase()
+        : (fabricType === 'PLANA' ? 'N/A' : String(bom?.tape_color || 'N/A').trim().toUpperCase());
+      if (productKind === 'ROLLO_TELA' && fabricType === 'PLANA' && requestedTapeColor !== 'N/A') {
+        throw new Error('Restricción técnica (PDF Pág. 1): Todas las telas planas NO llevan cinta de identificación (debe ser N/A).');
       }
 
       const telaresArea = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
@@ -944,10 +953,10 @@ class TelaresService {
         code,
         name,
         description: payload.description ?? bom?.description ?? null,
-        target_width_cm: Number(payload.target_width_cm ?? bom?.target_width_cm ?? 50),
-        target_weight_g_per_m: Number(payload.target_weight_g_per_m ?? bom?.target_weight_g_per_m ?? 65),
-        warp_density: Number(payload.warp_density ?? bom?.warp_density ?? 10),
-        weft_density: Number(payload.weft_density ?? bom?.weft_density ?? 10),
+        target_width_cm: Number(payload.target_width_cm ?? bom?.target_width_cm ?? 0),
+        target_weight_g_per_m: Number(payload.target_weight_g_per_m ?? bom?.target_weight_g_per_m ?? 0),
+        warp_density: Number(payload.warp_density ?? bom?.warp_density ?? 0),
+        weft_density: Number(payload.weft_density ?? bom?.weft_density ?? 0),
         output_product_name: String(payload.output_product_name ?? bom?.output_product_name ?? name).trim(),
         subarea_id: payload.subarea_id === '' || payload.subarea_id === null || payload.subarea_id === undefined
           ? (bom?.subarea_id ?? null) : Number(payload.subarea_id),
@@ -973,15 +982,15 @@ class TelaresService {
           : Number(payload.standard_output_meters ?? bom?.standard_output_meters ?? 0) || null,
         default_route: route.map((stage) => String(stage).toUpperCase()),
         ounces_yd2: ounces,
-        fabric_type: String(payload.fabric_type ?? bom?.fabric_type ?? 'TUBULAR').toUpperCase(),
-        tape_color: String(payload.tape_color ?? bom?.tape_color ?? 'N/A').toUpperCase(),
-        tape_denier: payload.tape_denier ? Number(payload.tape_denier) : (bom?.tape_denier ?? 2300),
-        tape_width_mm: payload.tape_width_mm ? Number(payload.tape_width_mm) : (bom?.tape_width_mm ?? 3.00),
-        weft_denier: weftDenierStr || '1800 - 2000',
-        warp_denier: warpDenierStr || '1800 - 2000',
+        fabric_type: fabricType,
+        tape_color: fabricType === 'PLANA' ? 'N/A' : requestedTapeColor,
+        tape_denier: fabricType === 'PLANA' || !payload.tape_denier ? null : Number(payload.tape_denier),
+        tape_width_mm: fabricType === 'PLANA' || !payload.tape_width_mm ? null : Number(payload.tape_width_mm),
+        weft_denier: weftDenierStr || null,
+        warp_denier: warpDenierStr || null,
         cost_transformation_index: costIndex,
         general_considerations: payload.general_considerations ?? bom?.general_considerations ?? null,
-        is_active: payload.is_active ?? bom?.is_active ?? true,
+        is_active: isProvisional ? false : (payload.is_active ?? bom?.is_active ?? true),
       };
 
       if (!Number.isFinite(values.target_width_cm) || values.target_width_cm <= 0 || !Number.isFinite(values.expected_output_quantity) || values.expected_output_quantity <= 0) {
@@ -1121,6 +1130,9 @@ class TelaresService {
         transaction: t,
       });
       if (!bom) throw new Error(`Receta / BOM ID ${bom_id} no encontrada.`);
+      if (!bom.is_active || bom.is_provisional) {
+        throw Object.assign(new Error(`La ficha ${bom.name} está inactiva o provisional; no se puede iniciar una corrida hasta confirmar sus datos de proceso.`), { statusCode: 409, code: 'BOM_NOT_PRODUCTION_READY' });
+      }
       if (!loom.subarea_id || Number(bom.subarea_id || 0) !== Number(loom.subarea_id)) {
         throw Object.assign(new Error(`La ficha ${bom.name} pertenece a otra subárea. Verifica que la máquina y el PTI sean ambos de Rollo o ambos de Banda.`), { statusCode: 409, code: 'TELARES_SUBAREA_MISMATCH' });
       }
@@ -1195,9 +1207,50 @@ class TelaresService {
    * Formato Estricto de Código (PDF Pág 2): [TELAR]-[TURNO]-[NUM_ROLLO]-[NOMINA] (Ej: 10-3-24-1200)
    * Manejo de Creel WIP (días sin consumo de racks vs días con consumo de creel o racks)
    */
-  async finishRollAndBackflush({ run_id, meters, weight_kg, operator_id, recorded_by, shift_supervisor_id, operator_segments, custom_route, notes, shift_number, operator_nomina }) {
+  async finishRollAndBackflush({ run_id, meters, weight_kg, operator_id, recorded_by, shift_supervisor_id, operator_segments, custom_route, notes, shift_number, operator_nomina, idempotency_key }) {
+    const idempotencyKey = String(idempotency_key || '').trim();
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(idempotencyKey)) {
+      throw Object.assign(new Error('No se pudo asegurar el registro contra envíos duplicados. Actualiza la pantalla y vuelve a intentarlo.'), { statusCode: 400, code: 'IDEMPOTENCY_KEY_REQUIRED' });
+    }
+    const requestFingerprint = JSON.stringify({
+      run_id: Number(run_id), meters: Number(meters), weight_kg: Number(weight_kg),
+      operator_id: Number(operator_id) || null, recorded_by: Number(recorded_by) || null,
+      shift_supervisor_id: Number(shift_supervisor_id) || null,
+      operator_segments: operator_segments || [], custom_route: custom_route || [],
+      notes: String(notes || ''), shift_number: Number(shift_number) || null,
+      operator_nomina: String(operator_nomina || ''),
+    });
+    const payloadHash = createHash('sha256').update(requestFingerprint).digest('hex');
     const t = await sequelize.transaction();
     try {
+      await sequelize.query('SELECT pg_advisory_xact_lock(hashtext(:idempotencyKey))', {
+        replacements: { idempotencyKey },
+        transaction: t,
+      });
+      const priorRoll = await ViajeroRoll.findOne({ where: { idempotency_key: idempotencyKey }, transaction: t });
+      if (priorRoll) {
+        if (priorRoll.idempotency_payload_hash !== payloadHash) {
+          throw Object.assign(new Error('Este intento ya se usó con datos distintos. Revisa el formulario y vuelve a enviar.'), { statusCode: 409, code: 'IDEMPOTENCY_KEY_REUSED' });
+        }
+        const [priorBackflush, priorRun] = await Promise.all([
+          LoomBackflushConsumption.findAll({ where: { viajero_roll_id: priorRoll.id }, order: [['id', 'ASC']], transaction: t }),
+          LoomRun.findByPk(priorRoll.run_id, { transaction: t }),
+        ]);
+        await t.commit();
+        return {
+          success: true,
+          idempotent_replay: true,
+          roll: priorRoll,
+          backflush: priorBackflush,
+          run_summary: {
+            folio: priorRun?.folio || null,
+            meters_produced: Number(priorRun?.meters_produced || 0),
+            rolls_count: Number(priorRun?.rolls_produced_count || 0),
+            roll_code: priorRoll.roll_code,
+            calculated_roll_cost: priorRoll.cost_data_complete ? priorRoll.calculated_roll_cost : null,
+          },
+        };
+      }
       const runIdNum = Number(run_id);
       if (!runIdNum || isNaN(runIdNum)) {
         throw new Error('Se requiere un ID de corrida de telar válido (run_id).');
@@ -1219,10 +1272,9 @@ class TelaresService {
       if (!run) throw new Error(`Corrida ID ${run_id} no encontrada.`);
       if (run.status !== 'EN_PROCESO') throw new Error(`La corrida ${run.folio} no se encuentra en estado EN_PROCESO.`);
 
-      const numMeters = Number(meters);
-      const numWeightKg = Number(weight_kg);
-      if (isNaN(numMeters) || numMeters <= 0) throw new Error('Los metros producidos deben ser un número mayor a cero.');
-      if (isNaN(numWeightKg) || numWeightKg <= 0) throw new Error('El peso neto reportado (kg) debe ser mayor a cero.');
+      const outputMeasures = validateOutputMeasures(meters, weight_kg);
+      const numMeters = outputMeasures.meters;
+      const numWeightKg = outputMeasures.weight_kg;
 
       const supervisorId = Number(shift_supervisor_id);
       if (!Number.isInteger(supervisorId) || supervisorId <= 0) {
@@ -1264,6 +1316,8 @@ class TelaresService {
           notes: String(segment.notes || '').trim() || null,
         };
       });
+      validateOperatorMeterCoverage(normalizedSegments, numMeters);
+      validateOperatorWeightCoverage(normalizedSegments, numWeightKg);
       const operatorUsers = await User.findAll({
         where: { id: [...new Set(normalizedSegments.map((segment) => segment.operator_id))] },
         include: [{ model: Role, as: 'role', include: [{ model: Area, as: 'area' }] }],
@@ -1278,7 +1332,7 @@ class TelaresService {
       const primaryOperator = operatorUsers.find((person) => Number(person.id) === normalizedSegments[0].operator_id);
 
       const bom = run.bom;
-      const availability = await this.assessLoomPtiAvailability({ loomId: run.loom_id, bom, plannedMeters: numMeters, transaction: t });
+      const availability = await this.assessLoomPtiAvailability({ loomId: run.loom_id, bom, plannedMeters: numMeters, plannedWeightKg: numWeightKg, transaction: t });
       if (!availability.sufficient) {
         const error = new Error(`WIP insuficiente para registrar ${numMeters} m del rollo ${bom.output_product_name || bom.name}. Se notificará al Supervisor de Telares con el faltante y los QRs FIFO.`);
         error.statusCode = 409;
@@ -1291,9 +1345,10 @@ class TelaresService {
       const grammage = (numWeightKg * 1000) / numMeters;
 
       // 1. Determinar Ruta Oficial del QR Viajero
+      const bomProductKind = String(bom.product_kind || 'ROLLO_TELA').trim().toUpperCase();
       const officialRoute = this.normalizeProductionRoute(
-        Array.isArray(custom_route) && custom_route.length > 0 ? custom_route : bom.default_route,
-        bom.product_kind || 'ROLLO_TELA'
+        custom_route,
+        bomProductKind
       );
       const currentStage = 'TELARES';
       const nextAllowedStage = officialRoute[1];
@@ -1330,9 +1385,11 @@ class TelaresService {
       // Construcción del código exacto
       let rollCode = `${loomNumber}-${shiftNum}-${rollSeq}-${opNomina}`;
       let collision = 0;
+      let finalRollSequence = rollSeq;
       while (await ViajeroRoll.findOne({ where: { roll_code: rollCode }, transaction: t })) {
         collision++;
-        rollCode = `${loomNumber}-${shiftNum}-${rollSeq + collision}-${opNomina}`;
+        finalRollSequence = rollSeq + collision;
+        rollCode = `${loomNumber}-${shiftNum}-${finalRollSequence}-${opNomina}`;
       }
       const qrCode = rollCode;
 
@@ -1351,7 +1408,7 @@ class TelaresService {
           loom_code: run.loom.code,
           loom_number: loomNumber,
           shift_number: shiftNum,
-          roll_sequence: rollSeq,
+          roll_sequence: finalRollSequence,
           operator_nomina: opNomina,
           meters: numMeters,
           weight_kg: numWeightKg,
@@ -1367,6 +1424,8 @@ class TelaresService {
         {
           qr_code: qrCode,
           roll_code: rollCode,
+          idempotency_key: idempotencyKey,
+          idempotency_payload_hash: payloadHash,
           run_id: run.id,
           loom_id: run.loom_id,
           bom_id: bom.id,
@@ -1384,7 +1443,7 @@ class TelaresService {
           is_active: true,
           loom_number: loomNumber,
           shift_number: shiftNum,
-          roll_sequence: rollSeq,
+          roll_sequence: finalRollSequence,
           operator_nomina: opNomina,
           cost_transformation_index: costTransformationIndex,
           calculated_roll_cost: 0,
@@ -1488,7 +1547,7 @@ class TelaresService {
       await run.loom.update({
         current_spools_count: Number(Math.max(0, currentCreelSpools - totalSpoolsConsumed).toFixed(2)),
         current_wip_kg: Number(Math.max(0, currentCreelKg - totalWeightConsumed).toFixed(2)),
-        total_rolls_produced: rollSeq,
+        total_rolls_produced: finalRollSequence,
       }, { transaction: t });
 
       calculatedRollCost = costDataComplete ? Number((totalBasePtiCost * costTransformationIndex).toFixed(4)) : 0;
@@ -1550,8 +1609,8 @@ class TelaresService {
 
       await t.commit();
 
-      // Notificar a supervisores de área destino si el rollo fue encaminado a GLOBO o LAMINADO
-      if (['GLOBO', 'LAMINADO'].includes(nextAllowedStage)) {
+      // En Telares solo se notifica al supervisor de Laminado cuando la salida sea ROLLO_TELA.
+      if (bomProductKind === 'ROLLO_TELA' && nextAllowedStage === 'LAMINADO') {
         try {
           const targetRoleName = `SUPERVISOR_${nextAllowedStage}`;
           const targetRole = await Role.findOne({ where: { code: targetRoleName } });
@@ -1600,11 +1659,131 @@ class TelaresService {
   }
 
   /**
+   * Finalizar / cerrar una corrida activa de telar (permite liberar el telar o cambiar de BOM/ficha)
+   */
+  async finishLoomRun({ run_id, operator_id, notes }) {
+    const t = await sequelize.transaction();
+    try {
+      const runIdNum = Number(run_id);
+      if (!Number.isInteger(runIdNum) || runIdNum <= 0) {
+        throw Object.assign(new Error('Se requiere un ID válido de corrida para finalizarla.'), { statusCode: 400 });
+      }
+      const run = await LoomRun.findByPk(runIdNum, {
+        include: [{ model: Loom, as: 'loom' }, { model: ProductionBom, as: 'bom' }],
+        transaction: t,
+        lock: { level: t.LOCK.UPDATE, of: LoomRun },
+      });
+      if (!run) {
+        throw Object.assign(new Error(`Corrida ID ${run_id} no encontrada.`), { statusCode: 404 });
+      }
+      if (run.status !== 'EN_PROCESO') {
+        throw Object.assign(new Error(`La corrida ${run.folio} ya se encuentra en estado ${run.status}.`), { statusCode: 409 });
+      }
+
+      const loom = await Loom.findByPk(run.loom_id, { transaction: t, lock: t.LOCK.UPDATE });
+      const cleanNotes = String(notes || '').trim();
+      const updatedNotes = cleanNotes
+        ? [run.notes, `[Cierre: ${cleanNotes}]`].filter(Boolean).join(' · ')
+        : run.notes;
+
+      await run.update(
+        {
+          status: 'FINALIZADA',
+          finished_at: new Date(),
+          notes: updatedNotes,
+        },
+        { transaction: t }
+      );
+
+      if (loom) {
+        await loom.update(
+          {
+            status: 'DISPONIBLE',
+          },
+          { transaction: t }
+        );
+      }
+
+      await t.commit();
+      return {
+        success: true,
+        message: `Corrida ${run.folio} finalizada en ${loom?.name || `Telar #${run.loom_id}`}. El telar queda DISPONIBLE conservando su WIP en fileta.`,
+        run: {
+          id: run.id,
+          folio: run.folio,
+          loom_id: run.loom_id,
+          bom_id: run.bom_id,
+          status: 'FINALIZADA',
+          meters_planned: Number(run.meters_planned || 0),
+          meters_produced: Number(run.meters_produced || 0),
+          total_weight_produced_kg: Number(run.total_weight_produced_kg || 0),
+          rolls_produced_count: Number(run.rolls_produced_count || 0),
+          finished_at: run.finished_at,
+        },
+      };
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
+  }
+
+  /**
+   * Consultar historial reciente de rollos / salidas de Telares (ViajeroRoll)
+   */
+  async getRecentViajeroRolls({ loom_id, shift_number, product_kind, status, search, limit = 30 } = {}, currentUser = null) {
+    const allowCosts = canViewCosts(currentUser);
+    const where = { is_active: true };
+    if (loom_id && Number(loom_id) > 0) where.loom_id = Number(loom_id);
+    if (shift_number && Number(shift_number) > 0) where.shift_number = Number(shift_number);
+    if (product_kind) where.product_kind = String(product_kind).trim().toUpperCase();
+    if (status) where.status = String(status).trim().toUpperCase();
+    if (search && String(search).trim()) {
+      const term = `%${String(search).trim()}%`;
+      where[Op.or] = [
+        { roll_code: { [Op.iLike]: term } },
+        { qr_code: { [Op.iLike]: term } },
+        { output_product_name: { [Op.iLike]: term } },
+        { operator_nomina: { [Op.iLike]: term } },
+      ];
+    }
+
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 30));
+    const rolls = await ViajeroRoll.findAll({
+      where,
+      include: [
+        { model: Loom, as: 'loom', include: [{ model: Subarea, as: 'subarea', attributes: ['id', 'name', 'nomenclature'] }] },
+        { model: ProductionBom, as: 'bom' },
+        { model: LoomRun, as: 'run', attributes: ['id', 'folio', 'shift', 'status'] },
+        { model: User, as: 'operator', attributes: ['id', 'first_name', 'last_name', 'username', 'numero_nomina'] },
+        { model: User, as: 'shiftSupervisor', attributes: ['id', 'first_name', 'last_name', 'username', 'numero_nomina'] },
+        {
+          model: ViajeroRollOperatorSegment,
+          as: 'operatorSegments',
+          include: [{ model: User, as: 'operator', attributes: ['id', 'first_name', 'last_name', 'username', 'numero_nomina'] }],
+        },
+      ],
+      order: [['created_at', 'DESC'], ['id', 'DESC']],
+      limit: safeLimit,
+    });
+
+    return rolls.map((roll) => {
+      const plain = roll.toJSON();
+      if (!allowCosts) {
+        delete plain.calculated_roll_cost;
+        delete plain.cost_transformation_index;
+        delete plain.cost_data_complete;
+        if (plain.bom) delete plain.bom.cost_transformation_index;
+      }
+      return plain;
+    });
+  }
+
+  /**
    * Validar escaneo de QR Viajero en estaciones
    */
   async validateViajeroScan({ qr_code, area_name, operator_id }, transaction = null) {
     const clean = normalizeViajeroQr(qr_code);
-    const targetArea = String(area_name || '').trim().toUpperCase();
+    const targetArea = normalizeStageName(area_name);
     if (!targetArea) {
       return {
         is_allowed: false,
@@ -1640,10 +1819,22 @@ class TelaresService {
       };
     }
 
-    const route = roll.route || [];
+    const rawRoute = roll.route || [];
     const productKind = String(roll.product_kind || roll.bom?.product_kind || 'ROLLO_TELA').trim().toUpperCase();
+    let route;
 
-    if (productKind === 'ROLLO_TELA' && targetArea === 'GLOBO') {
+    try {
+      route = this.normalizeProductionRoute(rawRoute, productKind);
+    } catch (routeError) {
+      return {
+        is_allowed: false,
+        error_code: routeError.code || 'INVALID_ROLL_ROUTE',
+        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route: rawRoute, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+        message: `⛔ La ruta registrada para ${roll.roll_code} no es válida: ${routeError.message} Solicita corregirla antes de continuar.`,
+      };
+    }
+
+    if (targetArea === 'GLOBO') {
       await ViajeroRoutingLog.create({
         viajero_roll_id: roll.id,
         from_stage: roll.current_stage,
@@ -1654,18 +1845,9 @@ class TelaresService {
       }, transaction ? { transaction } : {});
       return {
         is_allowed: false,
-        error_code: 'GLOBO_NOT_ALLOWED_FOR_ROLL',
+        error_code: 'GLOBO_NOT_ALLOWED_FOR_TELARES_OUTPUT',
         roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
-        message: `⛔ Este rollo de tela no puede ingresar a Globo. Ruta registrada: ${route.join(' -> ')}.`,
-      };
-    }
-
-    if (productKind === 'ROLLO_TELA' && route.some((stage) => String(stage).trim().toUpperCase() === 'GLOBO')) {
-      return {
-        is_allowed: false,
-        error_code: 'INVALID_ROLL_ROUTE',
-        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
-        message: `⛔ La ruta histórica de ${roll.roll_code} contiene Globo y no es válida para rollos de tela. Solicita corregir el ruteo antes de continuar.`,
+        message: `⛔ Ninguna salida de Telares puede ingresar a Globo. Ruta registrada: ${route.join(' -> ')}.`,
       };
     }
 

@@ -1,10 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   useLoomsQuery,
   useBomsQuery,
   useAssignRackMutation,
   useStartRunMutation,
   useFinishRollMutation,
+  useFinishRunMutation,
+  useViajeroRollsQuery,
   useTejidoOperatorsQuery,
   useLoadCreelMutation,
   usePtiTransferModeQuery,
@@ -39,7 +41,19 @@ import {
   Info,
   Trash2,
   Compass,
+  Printer,
+  Square,
 } from 'lucide-react';
+
+const isBandaLoom = (loom?: Partial<Loom> | null): boolean =>
+  Boolean(
+    loom &&
+      (loom.subarea?.nomenclature === 'TB' ||
+        /banda/i.test(loom.subarea?.name || '') ||
+        loom.type === 'BANDA' ||
+        loom.subarea_id === 7 ||
+        /banda/i.test(loom.name || ''))
+  );
 
 type OperatorSegmentInput = {
   operator_id: number | '';
@@ -66,6 +80,7 @@ export const TelaresTerminalPage: React.FC = () => {
   const assignRackMutation = useAssignRackMutation();
   const startRunMutation = useStartRunMutation();
   const finishRollMutation = useFinishRollMutation();
+  const finishRunMutation = useFinishRunMutation();
   const loadCreelMutation = useLoadCreelMutation();
   const { data: transferModeData, isError: isTransferModeError } = usePtiTransferModeQuery();
   const transferModeReady = Boolean(transferModeData) && !isTransferModeError;
@@ -77,8 +92,8 @@ export const TelaresTerminalPage: React.FC = () => {
   const [loomFilter, setLoomFilter] = useState<'ALL' | 'CIRCULARES' | 'BANDA'>('ALL');
   const [selectedLoomId, setSelectedLoomId] = useState<number | null>(null);
 
-  // El catálogo y el servidor restringen las opciones según el tipo de PTI.
-  const [destinationChoice, setDestinationChoice] = useState<'GLOBO' | 'LAMINADO' | 'AMBOS' | 'CORTE'>('LAMINADO');
+  // El catálogo y el servidor restringen las opciones según el tipo de PTI (Diagramas 1 y 2).
+  const [destinationChoice, setDestinationChoice] = useState<'LAMINADO' | 'CORTE' | 'LONAS' | 'ALMACEN' | 'VENTA'>('LAMINADO');
 
   // Estados locales para reporte de rollo
   const [metersInput, setMetersInput] = useState<string>('500');
@@ -114,6 +129,7 @@ export const TelaresTerminalPage: React.FC = () => {
 
   // Modal de Etiqueta QR Viajero
   const [activeViajeroRoll, setActiveViajeroRoll] = useState<ViajeroRoll | null>(null);
+  const finishRequestRef = useRef<{ signature: string; key: string } | null>(null);
 
   // Modal para Crear ODC de Telares
   const [isOdcModalOpen, setIsOdcModalOpen] = useState(false);
@@ -121,10 +137,10 @@ export const TelaresTerminalPage: React.FC = () => {
   // Filtrado de los 21 telares
   const filteredLooms = useMemo(() => {
     if (loomFilter === 'BANDA') {
-      return looms.filter((l) => l.subarea_id === 7 || l.type === 'BANDA' || (l.name || '').includes('Banda'));
+      return looms.filter((l) => isBandaLoom(l));
     }
     if (loomFilter === 'CIRCULARES') {
-      return looms.filter((l) => l.subarea_id !== 7 && l.type !== 'BANDA');
+      return looms.filter((l) => !isBandaLoom(l));
     }
     return looms;
   }, [looms, loomFilter]);
@@ -137,6 +153,9 @@ export const TelaresTerminalPage: React.FC = () => {
     }
     return looms[0];
   }, [looms, selectedLoomId]);
+  const { data: recentLoomRolls = [] } = useViajeroRollsQuery(
+    activeLoom?.id ? { loom_id: activeLoom.id, limit: 8 } : { limit: 8 }
+  );
   const creelTargetLoom = useMemo(
     () => looms.find((loom) => loom.id === Number(creelTargetLoomId)) || null,
     [looms, creelTargetLoomId],
@@ -153,35 +172,74 @@ export const TelaresTerminalPage: React.FC = () => {
   }, [activeLoom]);
 
   const selectedBom = useMemo(() => boms.find((bom) => bom.id === Number(selectedBomId)) || null, [boms, selectedBomId]);
-  const outputProductKind = String(activeRun?.bom?.product_kind || selectedBom?.product_kind || 'ROLLO_TELA').toUpperCase();
+  const outputProductKind = String(
+    activeRun?.bom?.product_kind ||
+      selectedBom?.product_kind ||
+      (isBandaLoom(activeLoom) ? 'BANDA' : 'ROLLO_TELA')
+  ).toUpperCase();
   const isFabricRoll = outputProductKind === 'ROLLO_TELA';
 
   useEffect(() => {
-    if (isFabricRoll && (destinationChoice === 'GLOBO' || destinationChoice === 'AMBOS')) {
-      setDestinationChoice('LAMINADO');
+    if (!isFabricRoll && (destinationChoice === 'LAMINADO' || destinationChoice === 'LONAS')) {
+      setDestinationChoice('CORTE');
     }
   }, [isFabricRoll, destinationChoice]);
 
   const getSelectedRoute = (): string[] => {
-    if (isFabricRoll && (destinationChoice === 'GLOBO' || destinationChoice === 'AMBOS')) {
-      return destinationChoice === 'GLOBO' ? ['TELARES', 'LAMINADO', 'CORTE'] : ['TELARES', 'LAMINADO', 'CORTE'];
+    if (!isFabricRoll) {
+      switch (destinationChoice) {
+        case 'ALMACEN':
+          return ['TELARES', 'ALMACEN'];
+        case 'VENTA':
+          return ['TELARES', 'VENTA'];
+        case 'CORTE':
+        default:
+          return ['TELARES', 'CORTE'];
+      }
     }
     switch (destinationChoice) {
-      case 'GLOBO': return ['TELARES', 'GLOBO', 'CORTE'];
-      case 'LAMINADO': return ['TELARES', 'LAMINADO', 'CORTE'];
-      case 'AMBOS': return ['TELARES', 'GLOBO', 'LAMINADO', 'CORTE'];
+      case 'LAMINADO':
+        return ['TELARES', 'LAMINADO', 'CORTE'];
+      case 'LONAS':
+        return ['TELARES', 'LONAS'];
+      case 'VENTA':
+        return ['TELARES', 'VENTA'];
+      case 'ALMACEN':
+        return ['TELARES', 'ALMACEN'];
       case 'CORTE':
-      default: return ['TELARES', 'CORTE'];
+      default:
+        return ['TELARES', 'CORTE'];
     }
   };
 
-  // Racks disponibles en planta para asignación
+  // Racks disponibles en planta para asignación compatibles con el telar seleccionado
   const availableRacks = useMemo(() => {
     const supportedTypes = (activeLoom?.supported_pti_types || []).map(Number);
-    return ptiRacks.filter(
-      (r) => Number(r.current_quantity) > 0 && (!supportedTypes.length || supportedTypes.includes(Number(r.current_pti_type_id)))
-    );
+    const activeIsBanda = isBandaLoom(activeLoom);
+    return ptiRacks.filter((r: any) => {
+      if (Number(r.current_quantity) <= 0) return false;
+      const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct?.id || r.current_pti_type_id || 0);
+      if (supportedTypes.length && ptiId > 0 && !supportedTypes.includes(ptiId)) return false;
+      const extMachine = Number(r.currentPtiProduct?.extrusion_machine_number || 0);
+      if (extMachine > 0 && (extMachine === 1) !== activeIsBanda) return false;
+      return true;
+    });
   }, [ptiRacks, activeLoom]);
+
+  const creelCompatibleRacks = useMemo(() => {
+    const targetLoom = creelTargetLoom || activeLoom;
+    const supportedTypes = (targetLoom?.supported_pti_types || []).map(Number);
+    const targetIsBanda = isBandaLoom(targetLoom);
+    return ptiRacks.filter((r: any) => {
+      if (Number(r.current_quantity) <= 0) return false;
+      if (!targetLoom) return true;
+      const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct?.id || 0);
+      if (supportedTypes.length && ptiId > 0 && !supportedTypes.includes(ptiId)) return false;
+      const extMachine = Number(r.currentPtiProduct?.extrusion_machine_number || 0);
+      if (extMachine > 0 && (extMachine === 1) !== targetIsBanda) return false;
+      return true;
+    });
+  }, [ptiRacks, creelTargetLoom, activeLoom]);
 
   useEffect(() => {
     if (!scannedRackQr || !ptiRacks.length || !looms.length) return;
@@ -205,7 +263,16 @@ export const TelaresTerminalPage: React.FC = () => {
 
   const compatibleBoms = useMemo(() => {
     const supportedBoms = (activeLoom?.supported_bom_ids || []).map(Number);
-    return boms.filter((bom) => !supportedBoms.length || supportedBoms.includes(Number(bom.id)));
+    const activeIsBanda = isBandaLoom(activeLoom);
+    return boms.filter((bom) => {
+      if (!bom.is_active || bom.is_provisional) return false;
+      if (supportedBoms.length && !supportedBoms.includes(Number(bom.id))) return false;
+      if (activeLoom?.subarea_id && bom.subarea_id) {
+        return Number(bom.subarea_id) === Number(activeLoom.subarea_id);
+      }
+      const bomIsBanda = ['BANDA', 'CINTA'].includes(String(bom.product_kind || '').toUpperCase());
+      return bomIsBanda === activeIsBanda;
+    });
   }, [boms, activeLoom]);
   const plannedMeters = useMemo(() => {
     if (plannedInputMode === 'METROS') return Number(plannedMetersInput) || 0;
@@ -402,7 +469,7 @@ export const TelaresTerminalPage: React.FC = () => {
     }
 
     try {
-      const res = await finishRollMutation.mutateAsync({
+      const rollPayload = {
         run_id: activeRun.id,
         meters: numMeters,
         weight_kg: numWeight,
@@ -412,6 +479,16 @@ export const TelaresTerminalPage: React.FC = () => {
         shift_supervisor_id: Number(shiftSupervisorId),
         operator_segments: segmentsPayload,
         custom_route: getSelectedRoute(),
+      };
+      const signature = JSON.stringify(rollPayload);
+      if (!finishRequestRef.current || finishRequestRef.current.signature !== signature) {
+        const randomKey = globalThis.crypto?.randomUUID?.()
+          || `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        finishRequestRef.current = { signature, key: randomKey };
+      }
+      const res = await finishRollMutation.mutateAsync({
+        ...rollPayload,
+        idempotency_key: finishRequestRef.current.key,
       });
 
       const roll = res.roll;
@@ -423,6 +500,7 @@ export const TelaresTerminalPage: React.FC = () => {
 
       setActiveViajeroRoll(roll);
       setNotesInput('');
+      finishRequestRef.current = null;
       refetchLooms();
     } catch (err: any) {
       toast.error(err.friendlyMessage || err.message || 'Error al registrar rollo');
@@ -533,7 +611,7 @@ export const TelaresTerminalPage: React.FC = () => {
           {filteredLooms.map((loom) => {
             const isSelected = activeLoom?.id === loom.id;
             const isRunning = loom.status === 'EN_PRODUCCION';
-            const isBanda = loom.subarea_id === 7 || loom.type === 'BANDA' || (loom.name || '').includes('Banda');
+            const isBanda = isBandaLoom(loom);
             const creelSpools = Number(loom.current_spools_count || 0);
 
             return (
@@ -636,10 +714,10 @@ export const TelaresTerminalPage: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-400 italic">
+                <p className="text-[11px] text-slate-300 font-medium">
                   {creelCurrent > 0
-                    ? '✔ La fileta tiene bobinas montadas: este telar consumirá de su WIP interno sin descontar de racks externos.'
-                    : '⚠ Fileta vacía: el telar descontará directamente del Rack Maestro de Extrusión.'}
+                    ? '✔ Fileta con bobinas montadas: la producción consumirá por FIFO desde este WIP interno.'
+                    : '⚠ Fileta sin bobinas en custodia: presiona "Cargar Fileta" para recibir bobinas desde un Carrito / Rack de Extrusión antes de producir.'}
                 </p>
               </div>
             </div>
@@ -761,6 +839,33 @@ export const TelaresTerminalPage: React.FC = () => {
                       </span>
                     </div>
                   </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={finishRunMutation.isPending}
+                    onClick={() => {
+                      if (!window.confirm(`¿Finalizar la corrida activa ${activeRun.folio} en ${activeLoom.name}? El telar quedará DISPONIBLE conservando su WIP en fileta.`)) {
+                        return;
+                      }
+                      finishRunMutation.mutate(
+                        { run_id: activeRun.id },
+                        {
+                          onSuccess: (res) => {
+                            toast.success(res.message || 'Corrida finalizada.');
+                            refetchLooms();
+                          },
+                          onError: (err: any) => {
+                            toast.error(err?.response?.data?.message || err?.message || 'No se pudo finalizar la corrida.');
+                          },
+                        }
+                      );
+                    }}
+                    className="h-11 w-full border-2 border-amber-500/60 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 font-black text-xs uppercase rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <Square className="h-4 w-4" />
+                    {finishRunMutation.isPending ? 'Cerrando Corrida...' : 'Finalizar Corrida / Cambiar Receta'}
+                  </Button>
                 </div>
               ) : (
                 <div className="py-6 text-center space-y-4">
@@ -1024,52 +1129,22 @@ export const TelaresTerminalPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className={`grid grid-cols-2 ${isFabricRoll ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-2.5`}>
-                      {!isFabricRoll && <>
-                      <button
-                        type="button"
-                        onClick={() => setDestinationChoice('GLOBO')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                          destinationChoice === 'GLOBO'
-                            ? 'border-cyan-400 bg-cyan-950/70 text-white shadow-lg shadow-cyan-950/60 ring-2 ring-cyan-400/40'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                        }`}
-                      >
-                        <span className="text-2xl">🎈</span>
-                        <span className="text-xs font-black uppercase tracking-wide">Solo Globo</span>
-                        <span className="text-[10px] text-cyan-300 font-bold">Inflado / Tubular</span>
-                      </button>
-                      </>}
-
-                      <button
-                        type="button"
-                        onClick={() => setDestinationChoice('LAMINADO')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                          destinationChoice === 'LAMINADO'
-                            ? 'border-indigo-400 bg-indigo-950/70 text-white shadow-lg shadow-indigo-950/60 ring-2 ring-indigo-400/40'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                        }`}
-                      >
-                        <span className="text-2xl">🛡️</span>
-                        <span className="text-xs font-black uppercase tracking-wide">Solo Laminado</span>
-                        <span className="text-[10px] text-indigo-300 font-bold">Recubrimiento PEBD</span>
-                      </button>
-
-                      {!isFabricRoll && <>
-                      <button
-                        type="button"
-                        onClick={() => setDestinationChoice('AMBOS')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                          destinationChoice === 'AMBOS'
-                            ? 'border-emerald-400 bg-emerald-950/70 text-white shadow-lg shadow-emerald-950/60 ring-2 ring-emerald-400/40'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                        }`}
-                      >
-                        <span className="text-2xl">⚡</span>
-                        <span className="text-xs font-black uppercase tracking-wide">Ambos (Glo ➔ Lam)</span>
-                        <span className="text-[10px] text-emerald-300 font-bold">Globo y luego Lam</span>
-                      </button>
-                      </>}
+                    <div className={`grid grid-cols-2 ${isFabricRoll ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-2.5`}>
+                      {isFabricRoll && (
+                        <button
+                          type="button"
+                          onClick={() => setDestinationChoice('LAMINADO')}
+                          className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
+                            destinationChoice === 'LAMINADO'
+                              ? 'border-indigo-400 bg-indigo-950/70 text-white shadow-lg shadow-indigo-950/60 ring-2 ring-indigo-400/40'
+                              : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
+                          }`}
+                        >
+                          <span className="text-2xl">🛡️</span>
+                          <span className="text-xs font-black uppercase tracking-wide">Laminado ➔ Corte</span>
+                          <span className="text-[10px] text-indigo-300 font-bold">Recubrimiento PEBD</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"
@@ -1081,11 +1156,65 @@ export const TelaresTerminalPage: React.FC = () => {
                         }`}
                       >
                         <span className="text-2xl">✂️</span>
-                        <span className="text-xs font-black uppercase tracking-wide">Directo a Corte</span>
-                        <span className="text-[10px] text-amber-300 font-bold">Sin Globo ni Lam</span>
+                        <span className="text-xs font-black uppercase tracking-wide">
+                          {isFabricRoll ? 'Directo a Corte' : outputProductKind === 'CINTA' ? 'Corte de Cinta' : 'Corte de Banda'}
+                        </span>
+                        <span className="text-[10px] text-amber-300 font-bold">
+                          {isFabricRoll ? 'Corte de Tela' : 'Proceso de Corte'}
+                        </span>
+                      </button>
+
+                      {isFabricRoll && (
+                        <button
+                          type="button"
+                          onClick={() => setDestinationChoice('LONAS')}
+                          className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
+                            destinationChoice === 'LONAS'
+                              ? 'border-emerald-400 bg-emerald-950/70 text-white shadow-lg shadow-emerald-950/60 ring-2 ring-emerald-400/40'
+                              : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
+                          }`}
+                        >
+                          <span className="text-2xl">⛺</span>
+                          <span className="text-xs font-black uppercase tracking-wide">Lonas</span>
+                          <span className="text-[10px] text-emerald-300 font-bold">Confección de Lonas</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setDestinationChoice('ALMACEN')}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
+                          destinationChoice === 'ALMACEN'
+                            ? 'border-cyan-400 bg-cyan-950/70 text-white shadow-lg shadow-cyan-950/60 ring-2 ring-cyan-400/40'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        <span className="text-2xl">🏭</span>
+                        <span className="text-xs font-black uppercase tracking-wide">Almacén</span>
+                        <span className="text-[10px] text-cyan-300 font-bold">Resguardo PT / WIP</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDestinationChoice('VENTA')}
+                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
+                          destinationChoice === 'VENTA'
+                            ? 'border-purple-400 bg-purple-950/70 text-white shadow-lg shadow-purple-950/60 ring-2 ring-purple-400/40'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        <span className="text-2xl">📦</span>
+                        <span className="text-xs font-black uppercase tracking-wide">
+                          {isFabricRoll ? 'Venta de Rollo' : 'Venta Directa'}
+                        </span>
+                        <span className="text-[10px] text-purple-300 font-bold">Embarque / Cliente</span>
                       </button>
                     </div>
-                    {isFabricRoll && <p className="text-xs font-semibold text-amber-300">Los rollos de tela no se envían a Globo. Selecciona Laminado o envío directo a Corte.</p>}
+                    <p className="text-xs font-semibold text-slate-300">
+                      {isFabricRoll
+                        ? 'Destinos oficiales Tejido de Tela (Diagrama 1): Laminado, Corte, Lonas, Almacén o Venta de rollo.'
+                        : 'Destinos oficiales Tejido de Banda / Cintilla (Diagrama 2): Corte, Almacén o Venta.'}
+                    </p>
 
                     {/* Resumen dinámico del Ruteo que se estampará en el QR Viajero */}
                     <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 flex items-center justify-between flex-wrap gap-2">
@@ -1137,6 +1266,69 @@ export const TelaresTerminalPage: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Historial Reciente de Salidas / Rollos de este Telar */}
+              <div className="pt-4 border-t-2 border-slate-700 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-sm font-black uppercase text-white flex items-center gap-1.5">
+                      <ClipboardList className="h-4 w-4 text-blue-400" />
+                      Salidas / Rollos Recientes — {activeLoom.name}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Reimprime etiquetas QR Viajeras o consulta la genealogía completa con un clic
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/telares/trazabilidad')}
+                    className="h-8 border-slate-600 bg-slate-900 text-slate-200 font-bold text-xs rounded-xl"
+                  >
+                    Ver Todo el Historial
+                  </Button>
+                </div>
+
+                {recentLoomRolls.length === 0 ? (
+                  <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-4 text-center text-xs text-slate-400 font-semibold">
+                    Aún no hay salidas registradas en este telar.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {recentLoomRolls.map((roll) => (
+                      <div
+                        key={roll.id}
+                        className="rounded-xl bg-slate-900 border border-slate-700 p-3 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-mono font-black text-sm text-amber-300 truncate">
+                            {roll.roll_code}
+                          </div>
+                          <div className="text-[11px] font-bold text-slate-300 truncate">
+                            {roll.output_product_name || roll.bom?.name || 'Rollo de Telares'}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {Number(roll.meters).toFixed(0)} m · {Number(roll.weight_kg).toFixed(1)} kg · Ruta: {(roll.route || []).join(' ➔ ')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setActiveViajeroRoll(roll)}
+                            className="h-9 px-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg flex items-center gap-1"
+                            title="Reimprimir etiqueta QR Viajero"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            QR
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1296,14 +1488,12 @@ export const TelaresTerminalPage: React.FC = () => {
                     required
                     className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="">-- Seleccionar Rack con Bobinas --</option>
-                    {ptiRacks
-                      .filter((r: any) => Number(r.current_quantity) > 0)
-                      .map((rack: any) => (
-                        <option key={rack.id} value={rack.id}>
-                          {rack.rack_code} ({rack.current_quantity} bobinas - {rack.currentPtiProduct?.code || 'PTI'} {rack.currentPtiProduct?.color ? `• ${rack.currentPtiProduct.color}` : ''})
-                        </option>
-                      ))}
+                    <option value="">-- Seleccionar Rack Compatible con Bobinas --</option>
+                    {creelCompatibleRacks.map((rack: any) => (
+                      <option key={rack.id} value={rack.id}>
+                        {rack.rack_code} ({rack.current_quantity} bobinas - {rack.currentPtiProduct?.code || 'PTI'} {rack.currentPtiProduct?.color ? `• ${rack.currentPtiProduct.color}` : ''})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -37,4 +37,6 @@ backend/seed_check.txt
 backend/*_cleanup*.js
 backend/*_status*.js
 backend/verify_*.js
-backend/clean_*.js
+backend/clean_*.js
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

@@ -21,6 +21,8 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      idempotency_key: { type: DataTypes.STRING(64), allowNull: true },
+      idempotency_payload_hash: { type: DataTypes.STRING(64), allowNull: true },
       loom_id: {
         type: DataTypes.INTEGER,
         allowNull: false,

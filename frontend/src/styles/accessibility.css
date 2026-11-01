@@ -21,7 +21,7 @@ button:not([data-close-button]):not([data-sonner-toast] button):not(.sonner-clos
   cursor: pointer;
 }
 
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
   min-height: 52px;
@@ -32,7 +32,9 @@ textarea {
 
 a,
 button {
-  transition: 0.2s ease;
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
 }
 
 button:focus,
@@ -83,5 +85,12 @@ a:focus {
 
   .extrusion-ingress-step--count {
     grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a,
+  button {
+    transition-duration: 0ms;
   }
 }

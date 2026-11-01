@@ -194,7 +194,7 @@ export const AreasPage: React.FC = () => {
         {selectedGroup && (
           <button
             onClick={() => navigate('/areas')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors w-fit p-1 -ml-1 rounded-md"
+            className="inline-flex min-h-12 items-center gap-2 text-base font-bold text-primary hover:text-primary/80 transition-colors w-fit px-3 py-2 -ml-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ChevronLeft size={16} /> Volver a Todas las Áreas
           </button>
@@ -204,7 +204,7 @@ export const AreasPage: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
               {selectedGroup ? selectedGroup.title : "Áreas y Módulos Operativos"}
             </h1>
-            <p className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">
+            <p className="text-sm sm:text-base font-semibold leading-relaxed text-muted-foreground mt-1">
               {selectedGroup 
                 ? "Selecciona una opción para acceder a la estación o función." 
                 : "Acceso optimizado tanto para terminales móviles como de monitor."}
@@ -219,9 +219,11 @@ export const AreasPage: React.FC = () => {
           const itemGradient = area.gradient || 'from-primary/20 to-primary/10 text-primary';
           
           return (
-            <div 
+            <button
               key={area.id} 
-              className="group cursor-pointer rounded-2xl bg-card border border-border shadow-xs hover:border-primary/50 hover:shadow-md transition-all duration-200 active:scale-[0.98] overflow-hidden"
+              type="button"
+              data-ignore-accessibility-min-height
+              className="group w-full cursor-pointer rounded-2xl bg-card border border-border text-left hover:border-primary/50 hover:shadow-md transition-all duration-200 active:scale-[0.98] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               onClick={() => handleCardClick(area)}
             >
               <div className="p-4 sm:p-5 flex items-center justify-between gap-4">
@@ -243,7 +245,7 @@ export const AreasPage: React.FC = () => {
                   <ArrowRight size={16} />
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

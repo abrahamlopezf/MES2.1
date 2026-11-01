@@ -69,7 +69,7 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
   }, [isOpen, mixData, autoPrint, containers.length]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-background/80 p-3 backdrop-blur-sm sm:items-center sm:p-4">
       <style>
         {`
           @media print {
@@ -120,55 +120,60 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
         `}
       </style>
 
-      <div className="bg-card w-full max-w-4xl rounded-2xl shadow-2xl border border-border flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div role="dialog" aria-modal="true" aria-labelledby="mix-containers-title" className="flex w-full min-w-0 max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
         {/* Header Modal */}
-        <div className="px-5 py-4 border-b border-border bg-muted/20 flex items-center justify-between no-print">
-          <div className="flex items-center gap-3">
+        <div className="space-y-3 border-b border-border bg-muted/20 px-4 py-4 sm:px-5 no-print">
+          <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="p-2.5 bg-primary/10 text-primary rounded-xl shrink-0">
               <Icon name="inventory_2" size={24} />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <span>Etiquetas QR de Contenedores de Mezcla</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                  {containers.length} {containers.length === 1 ? 'Contenedor' : 'Contenedores'}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 id="mix-containers-title" className="text-base font-bold text-foreground sm:text-lg">Etiquetas QR de mezcla</h2>
+                <span className="min-h-7 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 font-mono text-sm font-bold text-primary">
+                  {containers.length} {containers.length === 1 ? 'contenedor' : 'contenedores'}
                 </span>
-              </h2>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                Folio Mezcla: <strong className="text-foreground">{mixData.folio}</strong> • Destino: <strong className="text-primary">{extruderName}</strong> • Peso Total: <strong className="text-foreground">{Number(mixData.total_quantity).toFixed(2)} Kg</strong>
-              </p>
+              </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleDownloadPdf}
-              className="gap-2 font-bold border-border"
-              title="Guardar o Descargar como PDF con las etiquetas QR listas para imprimir"
-            >
-              <Icon name="download" size={18} />
-              <span>Descargar PDF</span>
-            </Button>
-            <Button
-              onClick={handlePrint}
-              className="gap-2 font-bold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Icon name="print" size={18} />
-              <span>Imprimir Etiquetas</span>
-            </Button>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground"
+              aria-label="Cerrar etiquetas QR"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="close" size={20} />
             </button>
           </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm sm:flex sm:flex-wrap sm:gap-x-5">
+            <span className="min-w-0 break-all text-muted-foreground">Folio: <strong className="text-foreground">{mixData.folio}</strong></span>
+            <span className="text-muted-foreground">Destino: <strong className="text-primary">{extruderName}</strong></span>
+            <span className="col-span-2 text-muted-foreground sm:col-span-1">Peso total: <strong className="font-mono text-foreground">{Number(mixData.total_quantity).toFixed(2)} kg</strong></span>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadPdf}
+              className="min-h-12 w-full gap-2 border-border text-base font-bold sm:w-auto"
+              title="Guardar o Descargar como PDF con las etiquetas QR listas para imprimir"
+            >
+              <Icon name="download" size={18} />
+              <span>Guardar PDF</span>
+            </Button>
+            <Button
+              onClick={handlePrint}
+              className="min-h-12 w-full gap-2 bg-primary text-base font-bold text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto"
+            >
+              <Icon name="print" size={18} />
+              <span>Imprimir Etiquetas</span>
+            </Button>
+          </div>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto flex-1 bg-background" id="printable-mix-containers-sheet">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background p-3 sm:p-6" id="printable-mix-containers-sheet">
           {containers.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <Icon name="inventory_2" size={40} className="mx-auto mb-2 opacity-50" />
@@ -179,23 +184,23 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
               {containers.map((cont, idx) => (
                 <div
                   key={cont.qr_code || idx}
-                  className="print-card border-2 border-dashed border-border rounded-xl p-4 bg-card text-foreground flex flex-col justify-between gap-3.5 shadow-sm hover:border-primary/50 transition-colors"
+                  className="print-card flex min-w-0 flex-col justify-between gap-3.5 rounded-xl border-2 border-dashed border-border bg-card p-3 text-foreground shadow-sm transition-colors hover:border-primary/50 sm:p-4"
                 >
                   {/* Top strip */}
-                  <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
-                    <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wider text-primary">
+                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/80 pb-2.5">
+                    <div className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-primary">
                       <Icon name="blender" size={16} />
-                      <span>EXTRUSIÓN — CONTENEDOR {cont.container_number} DE {cont.total_containers}</span>
+                      <span>Contenedor {cont.container_number} de {cont.total_containers}</span>
                     </div>
-                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                    <span className="max-w-full break-all rounded bg-muted px-2 py-1 font-mono text-sm font-bold text-foreground">
                       {cont.folio}
                     </span>
                   </div>
 
                   {/* Middle: QR Code + Details */}
-                  <div className="flex items-center gap-4 py-1">
+                  <div className="flex flex-col items-stretch gap-4 py-1 sm:flex-row sm:items-center">
                     {/* QR Box with icon overlay */}
-                    <div className="relative p-2.5 bg-white rounded-xl border border-gray-200 shadow-sm shrink-0 flex items-center justify-center">
+                    <div className="relative flex shrink-0 items-center justify-center self-center rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
                       <QRCodeSVG
                         value={cont.qr_code}
                         size={110}
@@ -209,39 +214,39 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
                     </div>
 
                     {/* Detail Text */}
-                    <div className="min-w-0 flex-1 space-y-1.5 text-xs">
+                    <div className="min-w-0 flex-1 space-y-3 text-base">
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        <span className="block text-sm font-semibold text-muted-foreground">
                           Código QR de Contenedor
                         </span>
-                        <span className="font-mono font-black text-sm text-foreground break-all">
+                        <span className="break-all font-mono text-base font-bold text-foreground">
                           {cont.qr_code}
                         </span>
                       </div>
 
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        <span className="block text-sm font-semibold text-muted-foreground">
                           Fórmula / Receta
                         </span>
-                        <span className="font-bold text-foreground text-xs line-clamp-1">
+                        <span className="break-words text-base font-bold text-foreground">
                           {cont.formula_code ? `[${cont.formula_code}] ` : ''}{cont.formula_name}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                      <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-2">
                         <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                          <span className="block text-sm font-semibold text-muted-foreground">
                             Peso Contenedor
                           </span>
-                          <span className="font-mono text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          <span className="font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">
                             {Number(cont.capacity_kg).toFixed(2)} KG
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                          <span className="block text-sm font-semibold text-muted-foreground">
                             Destino
                           </span>
-                          <span className="font-bold text-xs text-primary">
+                          <span className="text-base font-bold text-primary">
                             {extruderName}
                           </span>
                         </div>
@@ -250,7 +255,7 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
                   </div>
 
                   {/* Bottom strip / Cutting guide */}
-                  <div className="border-t border-border/60 pt-2 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                  <div className="flex flex-col gap-1 border-t border-border/60 pt-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                     <span className="flex items-center gap-1">
                       <Icon name="content_cut" size={12} />
                       Rotular en tolva o contenedor físico
@@ -264,15 +269,15 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
         </div>
 
         {/* Footer Modal con Acceso al Tablero de Colas */}
-        <div className="px-5 py-3 border-t border-border bg-muted/10 flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="px-4 py-3 border-t border-border bg-muted/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 no-print sm:px-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Icon name="check_circle" size={16} className="text-emerald-500 shrink-0" />
             <span>
-              La mezcla ha sido encolada al final de la cola de <strong className="text-foreground">{extruderName}</strong>.
+              Imprime o guarda las etiquetas y colócalas en los contenedores del destino <strong className="text-foreground">{extruderName}</strong>.
             </span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
             {onNavigateToBoard && (
               <Button
                 type="button"
@@ -281,7 +286,7 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
                   onClose();
                   onNavigateToBoard();
                 }}
-                className="gap-1.5 text-xs font-bold border-border"
+                className="min-h-12 gap-1.5 text-base font-bold border-border"
               >
                 <Icon name="view_kanban" size={16} className="text-primary" />
                 <span>Ver Tablero de Colas</span>
@@ -290,7 +295,7 @@ export const MixContainersPrintModal: React.FC<MixContainersPrintModalProps> = (
             <Button
               type="button"
               onClick={onClose}
-              className="text-xs font-bold px-4 h-9 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="min-h-12 px-4 text-base font-bold bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Listo / Finalizar
             </Button>

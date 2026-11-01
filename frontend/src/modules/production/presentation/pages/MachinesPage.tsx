@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, Badge, Button, Input, Icon } from '../../../../design-system';
@@ -95,9 +96,9 @@ export const MachinesPage = () => {
   };
 
   return (
-    <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6 pb-32 lg:pr-24">
+    <div className="extrusion-workspace mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-4 p-4 pb-32 sm:gap-5 sm:p-6 lg:p-8">
       {/* Encabezado */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-center gap-2">
             <Icon name="precision_manufacturing" size={32} className="text-primary" />
@@ -108,10 +109,14 @@ export const MachinesPage = () => {
           </p>
         </div>
         
-        <div className="flex items-center gap-2.5">
-          <Badge variant="outline" className="px-3 py-1 text-xs font-bold border-border bg-card">
-            Total: {machines.length} Extrusoras
+        <div className="flex w-full flex-wrap items-center justify-between gap-2.5 md:w-auto md:flex-nowrap md:justify-end">
+          <Badge variant="outline" className="min-h-10 shrink-0 whitespace-nowrap border-border bg-card px-3 py-1 text-sm font-bold">
+            <span className="sm:hidden">{machines.length} extrusoras</span>
+            <span className="hidden sm:inline">Total: {machines.length} Extrusoras</span>
           </Badge>
+          <Button type="button" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} className="hidden min-h-11 gap-2 px-2 text-sm lg:inline-flex">
+            <Icon name="qr_code_scanner" size={18} /> Leer QR
+          </Button>
           <PermissionGate permission="extrusion.runs.manage">
             <Button type="button" onClick={() => { setMachineDraft({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false }); setIsCreateMachineOpen(true); }} className="min-h-11 gap-2">
               <Icon name="add" size={18} /> Nueva extrusora
@@ -122,8 +127,8 @@ export const MachinesPage = () => {
 
       {/* Barra de Búsqueda y Filtros */}
       <Card className="shadow-sm border-border">
-        <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:w-96">
+        <CardContent className="flex w-full flex-col items-center justify-between gap-3 p-1.5 sm:p-2 md:flex-row">
+          <div className="relative w-full flex-1">
             <Icon name="search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <label htmlFor="machine-search" className="sr-only">Buscar extrusora por nombre, código o tipo</label>
             <Input 
@@ -131,7 +136,7 @@ export const MachinesPage = () => {
               placeholder="Buscar por nombre, código o tipo..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-full bg-muted/50 border-transparent focus:bg-background"
+              className="min-h-11 w-full bg-muted/50 pl-9 text-base border-transparent focus:bg-background"
             />
           </div>
 
@@ -161,7 +166,7 @@ export const MachinesPage = () => {
           <p className="font-bold text-foreground">No se encontraron extrusoras con los filtros aplicados.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 min-[1800px]:grid-cols-4">
           {filteredMachines.map((machine: any) => {
             const hasActiveOrders = Number(machine.active_orders_count || 0) > 0;
             return (
@@ -169,63 +174,55 @@ export const MachinesPage = () => {
                 key={machine.id} 
                 className="overflow-hidden transition-all shadow-sm bg-card border border-border"
               >
-                <CardContent className="p-5 flex flex-col h-full gap-4">
+                <CardContent className="flex h-full flex-col gap-3 p-4 sm:p-4">
                   {/* Encabezado de la Tarjeta */}
-                  <div className="flex flex-wrap justify-between items-center gap-3">
-                    <div className="flex items-center gap-3 min-w-0 flex-1 basis-full sm:basis-auto">
-                      <div className="p-3 rounded-xl shrink-0 font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                        <Icon name="precision_manufacturing" size={26} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-black text-lg text-foreground leading-tight break-words">{machine.name}</h3>
-                          <Badge variant="outline" className="font-mono text-[10px] font-bold shrink-0">
-                            {machine.code}
-                          </Badge>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 font-bold text-blue-600 dark:text-blue-400">
+                      <Icon name="precision_manufacturing" size={23} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <h3 className="break-words text-lg font-black leading-tight text-foreground">{machine.name}</h3>
+                            <Badge variant="outline" className="shrink-0 font-mono text-xs font-bold">{machine.code}</Badge>
+                          </div>
+                          <p className="mt-1 truncate text-sm font-semibold text-muted-foreground">Tipo: {machine.type}</p>
                         </div>
-                        <p className="text-sm text-muted-foreground font-semibold mt-1 truncate">
-                          Tipo: {machine.type}
-                        </p>
-                        <Badge variant={machine.is_dynamic_member ? 'success' : 'outline'} className="mt-2 text-[10px]">
+                        <PermissionGate permission="extrusion.runs.manage">
+                          <Button type="button" variant="outline" onClick={() => handleEditMachine(machine)} className="min-h-11 min-w-11 shrink-0 px-2" aria-label={`Editar ${machine.name}`} title={`Editar ${machine.name}`}>
+                            <Icon name="edit" size={18} />
+                          </Button>
+                        </PermissionGate>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <Badge variant={machine.status === 'ACTIVE' ? 'success' : 'warning'} className="min-h-8 shrink-0 font-bold text-sm">
+                          {machine.status === 'ACTIVE' ? 'Operativa' : 'Mantenimiento'}
+                        </Badge>
+                        <Badge variant={machine.is_dynamic_member ? 'success' : 'outline'} className="min-h-8 text-xs">
                           {machine.is_dynamic_member ? 'Grupo dinámico' : machine.code === 'EXT-01' ? 'Fórmulas exclusivas' : 'Fuera del grupo dinámico'}
                         </Badge>
                       </div>
                     </div>
-
-                    <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
-                      <Badge
-                        variant={machine.status === 'ACTIVE' ? 'success' : 'warning'}
-                        className="font-bold text-sm shrink-0"
-                      >
-                        {machine.status === 'ACTIVE' ? 'Operativa' : 'Mantenimiento'}
-                      </Badge>
-                      <PermissionGate permission="extrusion.runs.manage">
-                        <Button type="button" variant="outline" onClick={() => handleEditMachine(machine)} className="h-11 min-w-11 px-2" aria-label={`Editar ${machine.name}`} title={`Editar ${machine.name}`}>
-                          <Icon name="edit" size={18} />
-                        </Button>
-                      </PermissionGate>
-                    </div>
                   </div>
 
-                  {hasActiveOrders && <p className="text-sm text-muted-foreground">{machine.active_orders_count} mezcla(s) en cola o proceso.</p>}
+                  <div className="flex min-h-10 items-center">
+                    <Badge variant={hasActiveOrders ? 'warning' : 'outline'} className="min-h-9 max-w-full whitespace-normal text-left text-sm font-semibold">
+                      {hasActiveOrders ? `${machine.active_orders_count} mezcla(s) en cola o proceso` : 'Sin cola activa'}
+                    </Badge>
+                  </div>
 
                   {/* Footer de Tarjeta: Compatibilidad y Acciones */}
-                  <div className="mt-auto pt-3 border-t border-border flex items-center justify-between gap-2">
+                  <div className="mt-auto flex items-center border-t border-border pt-3">
                     <button
                       type="button"
                       onClick={() => handleOpenFormulasModal(machine)}
-                      className="min-h-11 rounded-md px-2 text-sm font-bold text-primary hover:underline flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-sm font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <Icon name="science" size={15} />
-                      <span>{machine.compatible_formulas?.length || machine.formulas_count || 0} Recetas Compatibles</span>
+                      <Icon name="science" size={17} className="shrink-0" />
+                      <span className="min-w-0">{machine.compatible_formulas?.length || machine.formulas_count || 0} recetas compatibles</span>
                     </button>
 
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                      <span>Cola:</span>
-                      <Badge variant={hasActiveOrders ? 'warning' : 'outline'} className="font-mono text-[10px] font-bold">
-                        {machine.active_orders_count || 0}
-                      </Badge>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -235,9 +232,9 @@ export const MachinesPage = () => {
       )}
 
       {editingMachine && (
-        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        createPortal(<div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form
-            className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl p-5 space-y-4"
+            className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5"
             onSubmit={(event) => {
               event.preventDefault();
               updateMachineMutation.mutate({ id: editingMachine.id, payload: machineDraft });
@@ -245,11 +242,11 @@ export const MachinesPage = () => {
           >
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-black text-lg">Editar {editingMachine.code}</h3>
-              <button type="button" onClick={() => setEditingMachine(null)} className="text-muted-foreground hover:text-foreground">✕</button>
+              <button type="button" onClick={() => setEditingMachine(null)} aria-label="Cerrar edición de extrusora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">✕</button>
             </div>
-            <label className={`flex items-start gap-3 rounded-lg border border-border p-3 text-sm ${editingMachine.code === 'EXT-01' ? 'opacity-60' : ''}`}>
+            <label className={`flex items-start gap-3 rounded-lg border border-border p-3 text-base text-foreground ${editingMachine.code === 'EXT-01' ? 'opacity-60' : ''}`}>
               <input type="checkbox" checked={machineDraft.is_dynamic_member} disabled={editingMachine.code === 'EXT-01'} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
-              <span><strong>Incluir en el grupo dinámico</strong><span className="block text-xs text-muted-foreground">Habilita las fórmulas generales del cliente para esta máquina. No aplica a Extrusora 1.</span></span>
+              <span><strong>Incluir en el grupo dinámico</strong><span className="mt-1 block text-sm text-muted-foreground">Habilita las fórmulas generales del cliente para esta máquina. No aplica a Extrusora 1.</span></span>
             </label>
             <label className="block space-y-2 text-sm font-bold text-foreground">
               Nombre
@@ -263,40 +260,40 @@ export const MachinesPage = () => {
               Especificaciones / exclusividad
               <textarea value={machineDraft.notes} onChange={(e) => setMachineDraft({ ...machineDraft, notes: e.target.value })} rows={3} className="w-full rounded-md border border-border bg-background p-3 text-sm font-medium text-foreground" placeholder="Notas operativas o exclusividad definida por el cliente" />
             </label>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditingMachine(null)}>Cancelar</Button>
-              <Button type="submit" disabled={updateMachineMutation.isPending}>{updateMachineMutation.isPending ? 'Guardando…' : 'Guardar'}</Button>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => setEditingMachine(null)}>Cancelar</Button>
+              <Button type="submit" className="min-h-11 w-full sm:w-auto" disabled={updateMachineMutation.isPending}>{updateMachineMutation.isPending ? 'Guardando…' : 'Guardar'}</Button>
             </div>
           </form>
-        </div>
+        </div>, document.body)
       )}
 
       {isCreateMachineOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <form className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl p-5 space-y-4" onSubmit={(event) => { event.preventDefault(); createMachineMutation.mutate(machineDraft); }}>
+        createPortal(<div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5" onSubmit={(event) => { event.preventDefault(); createMachineMutation.mutate(machineDraft); }}>
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-black text-lg">Nueva extrusora</h3>
-              <button type="button" onClick={() => setIsCreateMachineOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+              <button type="button" onClick={() => setIsCreateMachineOpen(false)} aria-label="Cerrar formulario de extrusora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">✕</button>
             </div>
-            <label className="block space-y-2 text-sm font-bold text-foreground">Código <Input value={machineDraft.code} onChange={(e) => setMachineDraft({ ...machineDraft, code: e.target.value.toUpperCase() })} placeholder="Ej. EXT-06" required maxLength={50} /></label>
-            <label className="block space-y-2 text-sm font-bold text-foreground">Nombre <Input value={machineDraft.name} onChange={(e) => setMachineDraft({ ...machineDraft, name: e.target.value })} placeholder="Ej. Extrusora 6" required maxLength={100} /></label>
-            <label className="block space-y-2 text-sm font-bold text-foreground">Tipo / uso <Input value={machineDraft.type} onChange={(e) => setMachineDraft({ ...machineDraft, type: e.target.value })} placeholder="STANDARD" maxLength={50} /></label>
-            <label className="flex items-start gap-3 rounded-lg border border-border p-3 text-sm">
+            <label className="block space-y-2 text-base font-bold text-foreground">Código <Input value={machineDraft.code} onChange={(e) => setMachineDraft({ ...machineDraft, code: e.target.value.toUpperCase() })} placeholder="Ej. EXT-06" required maxLength={50} /></label>
+            <label className="block space-y-2 text-base font-bold text-foreground">Nombre <Input value={machineDraft.name} onChange={(e) => setMachineDraft({ ...machineDraft, name: e.target.value })} placeholder="Ej. Extrusora 6" required maxLength={100} /></label>
+            <label className="block space-y-2 text-base font-bold text-foreground">Tipo / uso <Input value={machineDraft.type} onChange={(e) => setMachineDraft({ ...machineDraft, type: e.target.value })} placeholder="STANDARD" maxLength={50} /></label>
+            <label className="flex items-start gap-3 rounded-lg border border-border p-3 text-base text-foreground">
               <input type="checkbox" checked={machineDraft.is_dynamic_member} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
-              <span><strong>Incluir en el grupo dinámico</strong><span className="block text-xs text-muted-foreground">Podrá recibir fórmulas generales; la Extrusora 1 seguirá siendo exclusiva.</span></span>
+              <span><strong>Incluir en el grupo dinámico</strong><span className="mt-1 block text-sm text-muted-foreground">Podrá recibir fórmulas generales; la Extrusora 1 seguirá siendo exclusiva.</span></span>
             </label>
-            <label className="block space-y-2 text-sm font-bold text-foreground">Notas <textarea value={machineDraft.notes} onChange={(e) => setMachineDraft({ ...machineDraft, notes: e.target.value })} rows={2} className="w-full rounded-md border border-border bg-background p-3 text-sm font-medium text-foreground" /></label>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsCreateMachineOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createMachineMutation.isPending}>{createMachineMutation.isPending ? 'Guardando…' : 'Crear extrusora'}</Button>
+            <label className="block space-y-2 text-base font-bold text-foreground">Notas <textarea value={machineDraft.notes} onChange={(e) => setMachineDraft({ ...machineDraft, notes: e.target.value })} rows={2} className="w-full rounded-md border border-border bg-background p-3 text-base font-medium text-foreground" /></label>
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => setIsCreateMachineOpen(false)}>Cancelar</Button>
+              <Button type="submit" className="min-h-11 w-full sm:w-auto" disabled={createMachineMutation.isPending}>{createMachineMutation.isPending ? 'Guardando…' : 'Crear extrusora'}</Button>
             </div>
           </form>
-        </div>
+        </div>, document.body)
       )}
 
       {/* Modal: Matriz de Recetas Compatibles de la Máquina */}
       {isFormulasModalOpen && selectedMachineForFormulas && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        createPortal(<div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-2xl rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="p-4 bg-muted/40 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -369,7 +366,7 @@ export const MachinesPage = () => {
               </PermissionGate>
             </div>
           </div>
-        </div>
+        </div>, document.body)
       )}
 
     </div>

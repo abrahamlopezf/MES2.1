@@ -94,7 +94,8 @@ export const GlobalBreadcrumbs = () => {
       <div className="flex min-h-12 items-center gap-2 px-3 py-2 pr-16 sm:px-5 sm:pr-20 lg:px-6 lg:pr-6">
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/50 text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          data-ignore-accessibility-min-height
+          className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/50 p-0 text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
           aria-label="Abrir menú de navegación"
           title="Menú"
         >
@@ -108,7 +109,7 @@ export const GlobalBreadcrumbs = () => {
                 to="/dashboard"
                 aria-label="Inicio"
                 title="Inicio"
-                className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Home size={17} aria-hidden="true" />
               </Link>

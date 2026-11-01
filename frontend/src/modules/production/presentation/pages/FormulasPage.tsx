@@ -48,17 +48,17 @@ const MetricCard: React.FC<MetricCardProps> = ({
   subIcon,
   subColor,
 }) => (
-  <Card className="border-border bg-card shadow-sm p-3.5 sm:p-4">
-    <div className="flex items-center gap-3">
-      <div className={`p-2.5 sm:p-3 rounded-xl shrink-0 ${iconBg} flex items-center justify-center`}>
+  <Card className="border-border bg-card shadow-sm p-3 sm:p-4">
+    <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-2 sm:h-auto sm:w-auto sm:rounded-xl sm:p-3 ${iconBg}`}>
         {renderAnyIcon(icon, { size: 22 })}
       </div>
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide block leading-snug" title={title}>{title}</span>
-        <div className={`text-xl sm:text-2xl font-black font-mono leading-tight mt-0.5 ${valueColor}`}>{value}</div>
-        <span className={`text-sm font-semibold flex items-center gap-1 mt-0.5 leading-snug ${subColor || 'text-muted-foreground'}`}>
+        <span className="block text-sm font-bold leading-snug text-muted-foreground" title={title}>{title}</span>
+        <div className={`mt-0.5 break-words text-base leading-tight font-black font-mono [overflow-wrap:anywhere] sm:text-lg xl:text-xl ${valueColor}`}>{value}</div>
+        <span className={`mt-0.5 flex min-w-0 items-start gap-1 text-sm font-semibold leading-snug ${subColor || 'text-muted-foreground'}`}>
           {subIcon && renderAnyIcon(subIcon, { size: 14, className: 'shrink-0' })}
-          <span className="break-words" title={subtitle}>{subtitle}</span>
+          <span className="min-w-0 break-words" title={subtitle}>{subtitle}</span>
         </span>
       </div>
     </div>
@@ -66,7 +66,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
 );
 
 export const FormulasPage: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   const allowCosts = canViewCosts(user);
 
   // Pestaña activa: 'FORMULAS' o 'PTI_CATALOG'
@@ -229,49 +229,56 @@ export const FormulasPage: React.FC = () => {
   };
 
   return (
-    <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6 pb-32 lg:pr-24">
+    <div className="extrusion-workspace mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-4 p-4 pb-32 sm:gap-5 sm:p-6 lg:p-8">
       {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-border pb-5">
-        <div className="flex-1 min-w-0 max-w-2xl">
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-center gap-2.5">
-            <Icon name="science" size={32} className="text-primary shrink-0" />
-            <span>Extrusión: Fórmulas & Catálogo PTI</span>
-          </h1>
-          <p className="text-muted-foreground text-sm font-medium mt-1 leading-relaxed">
-            Gestión integral de recetas de 500kg, índice multiplicador de transformación y catálogo de productos terminados intermedios (carretes).
-          </p>
+      <div className="flex flex-col gap-4 border-b border-border pb-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="w-full min-w-0 max-w-4xl">
+            <h1 className="flex items-center gap-2.5 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl">
+              <Icon name="science" size={32} className="shrink-0 text-primary" />
+              <span>Extrusión: Fórmulas & Catálogo PTI</span>
+            </h1>
+            <p className="mt-1 max-w-[75ch] text-base font-medium leading-relaxed text-muted-foreground">
+              Consulta las fórmulas de mezcla y los carretes PTI registrados para extrusión.
+            </p>
+          </div>
+          <Button type="button" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} className="hidden min-h-11 shrink-0 gap-2 px-3 text-sm lg:inline-flex">
+            <Icon name="qr_code_scanner" size={18} /> Leer QR
+          </Button>
         </div>
 
         {/* TAB SWITCHER INDUSTRIAL */}
-        <div className="grid w-full grid-cols-1 gap-1 p-1.5 rounded-xl bg-muted/60 border border-border shadow-sm xl:w-auto xl:grid-cols-2">
+        <div className="grid w-full grid-cols-1 gap-1 p-1.5 rounded-xl bg-muted/60 border border-border shadow-sm sm:grid-cols-2">
           <button
             type="button"
             data-testid="tab-formulas"
             onClick={() => setActiveTab('FORMULAS')}
-            className={`flex min-h-12 w-full flex-wrap items-center justify-center gap-2 px-3 py-3 sm:px-4 rounded-lg text-base font-black leading-snug text-center transition-all ${
+            className={`flex min-h-12 w-full flex-nowrap items-center justify-center gap-2 px-3 py-3 sm:px-4 rounded-lg text-base font-black leading-snug text-center transition-all ${
               activeTab === 'FORMULAS'
                 ? 'bg-card text-primary shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
+            aria-pressed={activeTab === 'FORMULAS'}
           >
             <Icon name="science" size={18} className="shrink-0" />
-            <span>Fórmulas de Mezcla (500 Kg)</span>
-            <Badge variant="outline" className="ml-1 text-xs font-mono font-bold">{totalFormulas}</Badge>
+            <span className="min-w-0">Fórmulas de Mezcla (500 Kg)</span>
+            <Badge variant="outline" className="ml-1 shrink-0 text-xs font-mono font-bold">{totalFormulas}</Badge>
           </button>
 
           <button
             type="button"
             data-testid="tab-pti-catalog"
             onClick={() => setActiveTab('PTI_CATALOG')}
-            className={`flex min-h-12 w-full flex-wrap items-center justify-center gap-2 px-3 py-3 sm:px-4 rounded-lg text-base font-black leading-snug text-center transition-all ${
+            className={`flex min-h-12 w-full flex-nowrap items-center justify-center gap-2 px-3 py-3 sm:px-4 rounded-lg text-base font-black leading-snug text-center transition-all ${
               activeTab === 'PTI_CATALOG'
                 ? 'bg-card text-primary shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
+            aria-pressed={activeTab === 'PTI_CATALOG'}
           >
             <Icon name="inventory_2" size={18} className="shrink-0" />
-            <span>Catálogo de PTI (Carretes)</span>
-            <Badge variant="outline" className="ml-1 text-xs font-mono font-bold">{totalPtisCount}</Badge>
+            <span className="min-w-0">Catálogo de PTI (Carretes)</span>
+            <Badge variant="outline" className="ml-1 shrink-0 text-xs font-mono font-bold">{totalPtisCount}</Badge>
           </button>
         </div>
       </div>
@@ -299,17 +306,16 @@ export const FormulasPage: React.FC = () => {
       {/* TAB 1: FÓRMULAS DE EXTRUSIÓN & VALOR DE MEZCLA */}
       {/* ========================================================= */}
       {activeTab === 'FORMULAS' && (
-        <div className="flex flex-col gap-6 animate-in fade-in duration-200">
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200 sm:gap-5">
           {/* BANNER DE MÉTRICAS OPERACIONALES */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 2xl:grid-cols-4">
             <MetricCard
               title="Fórmulas de Mezcla"
               value={totalFormulas}
-              subtitle="100% calibradas para 500kg"
+              subtitle="Recetas registradas en el catálogo"
               icon="science"
               iconBg="bg-primary/10 text-primary"
-              subIcon="check_circle"
-              subColor="text-emerald-600"
+              subIcon="inventory_2"
             />
             {allowCosts ? (
               <>
@@ -361,25 +367,29 @@ export const FormulasPage: React.FC = () => {
           </div>
 
           {/* BARRA DE FILTROS & CONMUTADOR DE VISTA */}
-          <Card className="shadow-sm border-border bg-card">
-            <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
-                <div className="relative w-full sm:w-80 md:w-96">
-                  <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+          <Card className="border-border bg-card shadow-sm">
+            <CardContent className="flex flex-col gap-3 p-3 sm:p-4 xl:flex-row xl:items-center">
+              <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,16rem)]">
+                <div className="relative min-w-0 w-full">
+                  <Icon name="search" size={18} className="absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <label htmlFor="formula-search" className="sr-only">Buscar fórmula por código o nombre</label>
                   <Input
+                    id="formula-search"
                     placeholder="Buscar fórmula por código o nombre..."
                     value={formulaSearchTerm}
                     onChange={(e) => setFormulaSearchTerm(e.target.value)}
-                    className="!pl-10 w-full bg-background"
+                    className="!pl-10 min-h-11 w-full bg-background text-base"
                   />
                 </div>
 
-                <div className="w-full sm:w-64 flex items-center gap-2">
-                  <Icon name="filter_alt" size={18} className="text-muted-foreground shrink-0" />
+                <div className="flex min-w-0 w-full items-center gap-2">
+                  <Icon name="filter_alt" size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <label htmlFor="formula-machine-filter" className="sr-only">Filtrar fórmulas por máquina</label>
                   <select
+                    id="formula-machine-filter"
                     value={selectedMachine}
                     onChange={(e) => setSelectedMachine(e.target.value)}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none font-medium"
+                    className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base font-medium text-foreground outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="ALL">Todas las máquinas</option>
                     {machines.map((m) => (
@@ -390,40 +400,36 @@ export const FormulasPage: React.FC = () => {
               </div>
 
               {/* CONMUTADOR DE VISTAS (TARJETAS / LISTA) */}
-              <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+              <div className="flex w-full min-w-0 items-center gap-2 xl:w-auto xl:shrink-0">
                 <PermissionGate permission="extrusion.formulas.manage">
-                  <Button type="button" className="min-h-11 gap-2 font-bold" onClick={() => setIsCreateFormulaOpen(true)}>
+                  <Button type="button" className="min-h-11 flex-1 gap-2 whitespace-nowrap font-bold xl:flex-none" onClick={() => setIsCreateFormulaOpen(true)}>
                     <Icon name="add" size={18} />
                     Nueva fórmula
                   </Button>
                 </PermissionGate>
-                <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border shrink-0 shadow-xs">
-                <button
-                  type="button"
-                  data-testid="toggle-view-cards"
-                  onClick={() => setFormulaViewMode('cards')}
-                  className={`p-2 rounded-lg text-sm flex items-center justify-center transition-all ${
-                    formulaViewMode === 'cards'
-                      ? 'bg-card text-primary shadow-sm border border-border font-bold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Vista de Tarjetas (Grid)"
-                >
-                  <Icon name="grid_view" size={18} />
-                </button>
-                <button
-                  type="button"
-                  data-testid="toggle-view-list"
-                  onClick={() => setFormulaViewMode('list')}
-                  className={`p-2 rounded-lg text-sm flex items-center justify-center transition-all ${
-                    formulaViewMode === 'list'
-                      ? 'bg-card text-primary shadow-sm border border-border font-bold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Vista de Lista (Tabla)"
-                >
-                  <Icon name="format_list_bulleted" size={18} />
-                </button>
+                <div className="flex shrink-0 items-center gap-1 rounded-xl border border-border bg-muted/60 p-1 shadow-xs" aria-label="Cambiar vista de fórmulas">
+                  <button
+                    type="button"
+                    data-testid="toggle-view-cards"
+                    aria-label="Ver fórmulas en tarjetas"
+                    aria-pressed={formulaViewMode === 'cards'}
+                    onClick={() => setFormulaViewMode('cards')}
+                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg text-sm transition-all ${formulaViewMode === 'cards' ? 'border border-border bg-card font-bold text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Vista de tarjetas"
+                  >
+                    <Icon name="grid_view" size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="toggle-view-list"
+                    aria-label="Ver fórmulas en lista"
+                    aria-pressed={formulaViewMode === 'list'}
+                    onClick={() => setFormulaViewMode('list')}
+                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg text-sm transition-all ${formulaViewMode === 'list' ? 'border border-border bg-card font-bold text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Vista de lista"
+                  >
+                    <Icon name="format_list_bulleted" size={18} />
+                  </button>
                 </div>
               </div>
             </CardContent>
@@ -445,7 +451,7 @@ export const FormulasPage: React.FC = () => {
             /* ========================================================= */
             /* VISTA DE TARJETAS (GRID RESPONSIVO)                       */
             /* ========================================================= */
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {filteredFormulas.map((formula: Formula) => {
                 const costIndex = Number(formula.cost_index) || 1.1500;
                 const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
@@ -456,8 +462,7 @@ export const FormulasPage: React.FC = () => {
                 return (
                   <Card
                     key={formula.id}
-                    className="border border-border bg-card shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between overflow-hidden group cursor-pointer"
-                    onClick={() => setSelectedFormulaDetails(formula)}
+                    className="flex flex-col justify-between overflow-hidden border border-border bg-card shadow-sm"
                   >
                     <div className="p-5 flex flex-col gap-3.5 flex-1">
                       {/* HEADER DE TARJETA */}
@@ -571,7 +576,7 @@ export const FormulasPage: React.FC = () => {
               </div>
 
               <div className="px-4 sm:px-5 pb-5 pt-2">
-                <div className="grid gap-3 lg:hidden">
+                <div className="grid gap-3 2xl:hidden">
                   {filteredFormulas.map((formula: Formula) => {
                     const ptiCount = formula.ptiProducts?.length || 0;
 
@@ -631,11 +636,11 @@ export const FormulasPage: React.FC = () => {
 
                 <div
                   role="region"
-                  aria-label="Tabla de carretes y bobinas PTI. Desplázate horizontalmente para ver todas las columnas."
+                  aria-label="Tabla de fórmulas de extrusión. Desplázate horizontalmente para ver todas las columnas."
                   tabIndex={0}
-                  className="hidden w-full overflow-x-auto pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:block"
+                  className="hidden w-full overflow-x-auto pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:block"
                 >
-                  <table className="w-full min-w-[1310px] table-fixed border-separate border-spacing-0">
+                  <table className="w-full min-w-[1180px] table-fixed border-separate border-spacing-0">
                     <thead>
                       <tr>
                         <th className="w-[13%] rounded-l-xl bg-secondary px-3 py-3 text-center text-sm font-bold uppercase tracking-wider text-secondary-foreground whitespace-nowrap">
@@ -662,8 +667,7 @@ export const FormulasPage: React.FC = () => {
                         return (
                           <tr
                             key={formula.id}
-                            className="group hover:bg-secondary/20 transition-colors cursor-pointer"
-                            onClick={() => setSelectedFormulaDetails(formula)}
+                            className="group transition-colors hover:bg-secondary/20"
                           >
                             {/* CÓDIGO */}
                             <td className="border-b border-border/50 px-4 py-3.5 align-middle">
@@ -679,13 +683,12 @@ export const FormulasPage: React.FC = () => {
                                   {formula.name}
                                 </span>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold flex-wrap">
-                                  <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-[10px] font-bold">{formula.is_active === false ? 'INACTIVA' : 'ACTIVA'}</Badge>
+                                  <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-sm font-bold">{formula.is_active === false ? 'INACTIVA' : 'ACTIVA'}</Badge>
                                   <span className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                                    <span aria-hidden="true" className="w-2 h-2 rounded-full bg-purple-500"></span>
                                     <span>{getTargetMachine(formula)}</span>
                                   </span>
-                                  <span>•</span>
-                                  <Badge variant="secondary" className="text-[11px] font-bold px-2 py-0.5">
+                                  <Badge variant="secondary" className="text-sm font-bold px-2 py-0.5">
                                     {formula.batch_size_kg || 500} Kg Lote
                                   </Badge>
                                 </div>
@@ -697,7 +700,7 @@ export const FormulasPage: React.FC = () => {
                               <span className="font-mono font-bold text-sm text-foreground block">
                                 {formula.expected_yield_pieces} pzas
                               </span>
-                              <span className="text-xs text-muted-foreground block font-medium">
+                              <span className="text-sm text-muted-foreground block font-medium">
                                 ({formula.expected_yield_kg || 490} kg estimados)
                               </span>
                             </td>
@@ -705,11 +708,11 @@ export const FormulasPage: React.FC = () => {
                             {/* CARRETES PTI ENLAZADOS */}
                             <td className="border-b border-border/50 px-4 py-3.5 align-middle text-center whitespace-nowrap">
                               {ptiCount > 0 ? (
-                                <Badge variant="outline" className="font-mono text-xs font-bold text-primary border-primary/30 bg-primary/10">
+                                <Badge variant="outline" className="font-mono text-sm font-bold text-primary border-primary/30 bg-primary/10">
                                   {ptiCount} PTI enlazado{ptiCount !== 1 ? 's' : ''}
                                 </Badge>
                               ) : (
-                                <span className="text-muted-foreground text-xs italic">
+                                <span className="text-sm text-muted-foreground italic">
                                   Sin carretes
                                 </span>
                               )}
@@ -720,23 +723,22 @@ export const FormulasPage: React.FC = () => {
                               <div className="flex items-center justify-center gap-2">
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  className="gap-1.5 font-bold text-xs h-8 px-2.5 border-border/70 hover:bg-secondary/30 transition-all shadow-sm"
+                                  className="min-h-11 gap-1.5 whitespace-nowrap border-border/70 px-3 text-sm font-bold shadow-sm hover:bg-secondary/30"
                                   onClick={() => setSelectedFormulaDetails(formula)}
                                 >
-                                  <Icon name="description" size={14} className="text-primary" />
+                                  <Icon name="description" size={18} className="text-primary" />
                                   Detalles
                                 </Button>
 
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/80 text-white border border-slate-500 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm">
+                                  <DropdownMenuTrigger aria-label={`Acciones para fórmula ${formula.code}`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-500 bg-slate-700/80 text-white shadow-sm transition-all hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50">
                                     <span className="sr-only">Abrir menú</span>
                                     <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-52 font-medium">
                                     <DropdownMenuItem
                                       onClick={() => setSelectedFormulaDetails(formula)}
-                                      className="cursor-pointer py-2"
+                                      className="min-h-11 cursor-pointer py-2 text-base"
                                     >
                                       <Icon name="description" size={16} className="mr-2 text-primary" />
                                       <span>Ver Ficha Técnica</span>
@@ -745,7 +747,7 @@ export const FormulasPage: React.FC = () => {
                                     <PermissionGate permission="extrusion.formulas.manage">
                                       <DropdownMenuItem
                                         onClick={() => setEditingFormula(formula)}
-                                        className="cursor-pointer py-2"
+                                        className="min-h-11 cursor-pointer py-2 text-base"
                                       >
                                         <Icon name="edit" size={16} className="mr-2 text-amber-500" />
                                         <span>Editar Factor Índice</span>
@@ -771,17 +773,15 @@ export const FormulasPage: React.FC = () => {
       {/* TAB 2: CATÁLOGO DE PRODUCTOS TERMINADOS INTERMEDIOS (PTI) */}
       {/* ========================================================= */}
       {activeTab === 'PTI_CATALOG' && (
-        <div className="flex flex-col gap-6 animate-in fade-in duration-200">
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200 sm:gap-5">
           {/* BANNER DE MÉTRICAS PTI */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 2xl:grid-cols-4">
             <MetricCard
-              title="Carretes / Bobinas"
+              title="Carretes y bobinas"
               value={totalPtisCount}
               subtitle={`${inactivePtisCount} históricos archivados`}
               icon="inventory_2"
               iconBg="bg-primary/10 text-primary"
-              subIcon="check_circle"
-              subColor="text-emerald-600"
             />
             <MetricCard
               title="Fórmulas Vinculadas"
@@ -792,9 +792,9 @@ export const FormulasPage: React.FC = () => {
               valueColor="text-purple-600"
             />
             <MetricCard
-              title="Peso Promedio"
+              title="Peso promedio por unidad"
               value={avgWeightKg === 'Pendiente' ? avgWeightKg : `${avgWeightKg} kg`}
-              subtitle="Factor para báscula de piso"
+              subtitle="Peso unitario de PTI activos"
               icon="scale"
               iconBg="bg-blue-500/10 text-blue-600"
               valueColor="text-blue-600"
@@ -822,24 +822,28 @@ export const FormulasPage: React.FC = () => {
 
           {/* BARRA DE FILTROS & BOTÓN NUEVO PTI */}
           <Card className="shadow-sm border-border bg-card">
-            <CardContent className="p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto flex-1">
-                <div className="relative w-full sm:w-80">
+            <CardContent className="flex flex-col items-stretch justify-between gap-3 p-3 sm:p-4 xl:flex-row xl:items-center">
+              <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,16rem)] xl:grid-cols-[minmax(16rem,20rem)_minmax(14rem,16rem)_minmax(10rem,12rem)]">
+                <div className="relative min-w-0 w-full">
                   <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10 shrink-0" />
+                  <label htmlFor="pti-search" className="sr-only">Buscar PTI por código, nombre o ficha</label>
                   <Input
+                    id="pti-search"
                     placeholder="Buscar por código, nombre o ficha..."
                     value={ptiSearchTerm}
                     onChange={(e) => setPtiSearchTerm(e.target.value)}
-                    className="!pl-10 w-full bg-background h-10"
+                    className="!pl-10 min-h-11 w-full bg-background text-base"
                   />
                 </div>
 
-                <div className="w-full sm:w-64 flex items-center gap-2">
-                  <Icon name="filter_alt" size={18} className="text-muted-foreground shrink-0" />
+                <div className="flex min-w-0 w-full items-center gap-2">
+                  <Icon name="filter_alt" size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <label htmlFor="pti-formula-filter" className="sr-only">Filtrar PTI por fórmula</label>
                   <select
+                    id="pti-formula-filter"
                     value={ptiFormulaFilter}
                     onChange={(e) => setPtiFormulaFilter(e.target.value)}
-                    className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none font-medium truncate"
+                    className="min-h-11 w-full min-w-0 truncate rounded-lg border border-border bg-background px-3 text-base font-medium text-foreground outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="ALL">Todas las fórmulas</option>
                     {formulas.map((f) => (
@@ -848,11 +852,13 @@ export const FormulasPage: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="w-full sm:w-44">
+                <div className="min-w-0 w-full">
+                  <label htmlFor="pti-status-filter" className="sr-only">Filtrar PTI por estado</label>
                   <select
+                    id="pti-status-filter"
                     value={ptiStatusFilter}
                     onChange={(e) => setPtiStatusFilter(e.target.value)}
-                    className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none font-medium"
+                    className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base font-medium text-foreground outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="ALL">Todos los estados</option>
                     <option value="ACTIVE">Solo Activos</option>
@@ -868,7 +874,7 @@ export const FormulasPage: React.FC = () => {
                     setEditingPti(null);
                     setIsPtiModalOpen(true);
                   }}
-                  className="w-full xl:w-auto h-10 gap-2 font-black shrink-0 px-5 shadow-sm"
+                  className="min-h-11 w-full shrink-0 gap-2 px-4 font-bold shadow-sm xl:w-auto"
                 >
                   <Icon name="add" size={18} />
                   Nuevo PTI (Carrete)
@@ -903,25 +909,28 @@ export const FormulasPage: React.FC = () => {
               </Button>
             </Card>
           ) : (
-            <section className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="p-4 sm:p-5 border-b border-border flex justify-between items-center">
+            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div>
                   <h3 className="font-bold text-foreground text-lg tracking-tight">Carretes y Bobinas PTI registrados</h3>
-                  <p className="text-sm text-muted-foreground font-semibold">Catálogo controlado de productos terminados intermedios listos para extrusión y pesaje.</p>
+                  <p className="text-base font-medium text-muted-foreground">Carretes listos para extrusión y pesaje.</p>
                 </div>
-                <div className="bg-secondary/50 px-3 py-1.5 rounded-md border border-border text-sm font-bold text-foreground">
+                <div className="w-fit rounded-md border border-border bg-secondary/50 px-3 py-1.5 text-sm font-bold text-foreground">
                   {filteredPtis.length} carretes
                 </div>
               </div>
 
               <div className="px-4 sm:px-5 pb-5 pt-2">
-                <div className="grid gap-3 lg:hidden">
+                <div className="grid gap-3 2xl:hidden">
                   {filteredPtis.map((pti: PtiProduct) => (
                     <article key={pti.id} className="rounded-xl border border-border bg-background p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="break-words font-mono text-sm font-bold text-primary">{pti.code}</p>
                           <h4 className="mt-1 text-lg font-bold leading-snug text-foreground">{pti.name}</h4>
+                          <Badge variant={pti.is_active ? 'default' : 'secondary'} className={`mt-2 min-h-8 w-fit text-sm font-bold ${pti.is_active ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : ''}`}>
+                            {pti.is_active ? 'ACTIVO' : 'INACTIVO'}
+                          </Badge>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger
@@ -942,13 +951,6 @@ export const FormulasPage: React.FC = () => {
                                 <Icon name="edit" size={18} className="mr-2 text-primary" />
                                 <span>Editar Carrete</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleTogglePtiActive(pti)}
-                                className="min-h-12 cursor-pointer py-3"
-                              >
-                                <Icon name="power_settings_new" size={18} className={`mr-2 ${pti.is_active ? 'text-amber-500' : 'text-emerald-500'}`} />
-                                <span>{pti.is_active ? 'Desactivar PTI' : 'Activar PTI'}</span>
-                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 disabled={deletingPtiId === pti.id}
@@ -963,19 +965,7 @@ export const FormulasPage: React.FC = () => {
                         </DropdownMenu>
                       </div>
 
-                      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-3 text-base">
-                        <div className="col-span-2 rounded-lg border border-border bg-muted/30 p-3">
-                          <dt className="text-sm font-bold uppercase text-muted-foreground">Ficha técnica del catálogo</dt>
-                          <dd className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                            <span><strong>Extrusora:</strong> {pti.extrusion_machine_number ? `#${pti.extrusion_machine_number}` : '—'}</span>
-                            <span><strong>Tipo:</strong> {pti.tape_type || '—'}</span>
-                            <span className="col-span-2 break-words"><strong>Color:</strong> {pti.color || '—'}</span>
-                            <span><strong>Denier:</strong> {pti.denier ?? '—'}</span>
-                            <span><strong>Cintas:</strong> {pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`}</span>
-                            <span><strong>Ancho:</strong> {pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</span>
-                            {allowCosts && <span><strong>Índice PTI:</strong> ×{Number(pti.transformed_cost_index || 1).toFixed(4)}</span>}
-                          </dd>
-                        </div>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border py-3 text-base">
                         <div className="col-span-2">
                           <dt className="text-sm font-semibold text-muted-foreground">Fórmula enlazada</dt>
                           <dd className="mt-0.5 break-words font-medium text-foreground">
@@ -999,63 +989,89 @@ export const FormulasPage: React.FC = () => {
                             <dd className="mt-0.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">${Number(pti.unit_price).toFixed(2)}</dd>
                           </div>
                         )}
-                        <div className="col-span-2">
-                          <dt className="text-sm font-semibold text-muted-foreground">Especificaciones</dt>
-                          <dd className="mt-0.5 break-words text-foreground">{pti.specifications || <span className="italic text-muted-foreground">Sin ficha técnica</span>}</dd>
-                        </div>
                       </dl>
 
-                      <div className="mt-4 border-t border-border pt-3">
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePtiActive(pti)}
-                          aria-label={`${pti.is_active ? 'Desactivar' : 'Activar'} PTI ${pti.code}`}
-                          title={pti.is_active ? 'Desactivar producto' : 'Activar producto'}
-                          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-border px-4 text-base font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                          <Badge
-                            variant={pti.is_active ? 'default' : 'secondary'}
-                            className={`text-sm font-bold ${pti.is_active ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : ''}`}
+                      <details className="rounded-lg border border-border bg-muted/20">
+                        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-3 text-base font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          <span>Ficha técnica y especificaciones</span>
+                          <Icon name="expand_more" size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </summary>
+                        <div className="space-y-3 border-t border-border p-3">
+                          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-foreground">
+                            <div><dt className="font-semibold text-muted-foreground">Extrusora</dt><dd>{pti.extrusion_machine_number ? `#${pti.extrusion_machine_number}` : '—'}</dd></div>
+                            <div><dt className="font-semibold text-muted-foreground">Tipo de cinta</dt><dd>{pti.tape_type || '—'}</dd></div>
+                            <div className="col-span-2 min-w-0"><dt className="font-semibold text-muted-foreground">Color</dt><dd className="break-words">{pti.color || '—'}</dd></div>
+                            <div><dt className="font-semibold text-muted-foreground">Denier</dt><dd>{pti.denier ?? '—'}</dd></div>
+                            <div><dt className="font-semibold text-muted-foreground">Cintas</dt><dd>{pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`}</dd></div>
+                            <div><dt className="font-semibold text-muted-foreground">Ancho</dt><dd>{pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</dd></div>
+                            {allowCosts && <div><dt className="font-semibold text-muted-foreground">Índice PTI</dt><dd>×{Number(pti.transformed_cost_index || 1).toFixed(4)}</dd></div>}
+                          </dl>
+                          <div className="border-t border-border pt-3">
+                            <h5 className="text-sm font-semibold text-muted-foreground">Especificaciones</h5>
+                            <p className="mt-1 break-words text-base text-foreground">{pti.specifications || <span className="italic text-muted-foreground">Sin ficha técnica</span>}</p>
+                          </div>
+                        </div>
+                      </details>
+
+                      <div className="mt-3 border-t border-border pt-3">
+                        {hasPermission('extrusion.formulas.manage') ? (
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePtiActive(pti)}
+                            aria-label={`${pti.is_active ? 'Desactivar' : 'Activar'} PTI ${pti.code}`}
+                            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border px-4 text-base font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
-                            {pti.is_active ? 'ACTIVO' : 'INACTIVO'}
-                          </Badge>
-                        </button>
+                            <Icon name="power_settings_new" size={18} className={pti.is_active ? 'text-amber-500' : 'text-emerald-500'} />
+                            {pti.is_active ? 'Desactivar PTI' : 'Activar PTI'}
+                          </button>
+                        ) : (
+                          <div className="flex min-h-11 items-center justify-center">
+                            <Badge variant={pti.is_active ? 'default' : 'secondary'} className={`text-sm font-bold ${pti.is_active ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : ''}`}>
+                              {pti.is_active ? 'ACTIVO' : 'INACTIVO'}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </article>
                   ))}
                 </div>
 
-                <div className="hidden w-full pb-2 overflow-x-auto lg:block">
-                  <table className="w-full table-fixed border-separate border-spacing-0">
+                <div
+                  role="region"
+                  aria-label="Tabla de productos PTI. Desplázate horizontalmente para ver todas las columnas."
+                  tabIndex={0}
+                  className="hidden w-full overflow-x-auto pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:block"
+                >
+                  <table className={`w-full ${allowCosts ? 'min-w-[1120px]' : 'min-w-[1024px]'} table-fixed border-separate border-spacing-0`}>
                     <thead>
                       <tr>
-                        <th className="w-[120px] rounded-l-xl bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[90px] rounded-l-xl bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Código / SKU
                         </th>
-                        <th className="w-[180px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[145px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Carrete / Bobina
                         </th>
-                        <th className="w-[240px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[205px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Ficha de cinta
                         </th>
-                        <th className="w-[190px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[150px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Fórmula Enlazada
                         </th>
-                        <th className="w-[180px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[145px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Especificaciones
                         </th>
-                        <th className="w-[110px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[90px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Peso Unit.
                         </th>
                         {allowCosts && (
-                          <th className="w-[110px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                          <th className="w-[100px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-nowrap">
                             Precio Unit.
                           </th>
                         )}
-                        <th className="w-[100px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[80px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Estado
                         </th>
-                        <th className="w-[80px] rounded-r-xl bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[85px] rounded-r-xl bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-nowrap">
                           Acciones
                         </th>
                       </tr>
@@ -1075,20 +1091,20 @@ export const FormulasPage: React.FC = () => {
                             </span>
                           </td>
 
-                          <td className="border-b border-border/50 px-2.5 py-2.5 align-middle text-xs text-muted-foreground">
+                          <td className="border-b border-border/50 px-2 py-2.5 align-middle text-sm text-muted-foreground">
                             <span className="block font-semibold text-foreground">{pti.tape_type || 'Tipo pendiente'} · Ext. {pti.extrusion_machine_number ?? '—'}</span>
                             <span className="mt-1 block break-words" title={pti.color || ''}>Color: {pti.color || '—'}</span>
-                            <span className="mt-1 block font-mono">{pti.denier == null ? '—' : `${pti.denier} D`} · {pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`} cintas · {pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</span>
+                            <span className="mt-1 block break-words font-mono">{pti.denier == null ? '—' : `${pti.denier} D`} · {pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`} cintas · {pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</span>
                             {allowCosts && <span className="mt-1 block font-mono font-bold text-purple-600">Índice PTI ×{Number(pti.transformed_cost_index || 1).toFixed(4)}</span>}
                           </td>
 
                           <td className="border-b border-border/50 px-2.5 py-2.5 align-middle">
                             {pti.formula ? (
                               <div className="flex flex-col gap-0.5">
-                                <span className="font-bold text-foreground text-xs leading-snug line-clamp-1 block" title={pti.formula.name}>
+                                <span className="block line-clamp-2 text-sm font-bold leading-snug text-foreground" title={pti.formula.name}>
                                   {pti.formula.name}
                                 </span>
-                                <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                                <div className="flex flex-wrap items-center gap-1 font-mono text-sm text-muted-foreground">
                                   <span>{pti.formula.code}</span>
                                   {allowCosts && (
                                     <>
@@ -1099,13 +1115,13 @@ export const FormulasPage: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-xs italic">Fórmula #{pti.formula_id}</span>
+                              <span className="text-sm italic text-muted-foreground">Fórmula #{pti.formula_id}</span>
                             )}
                           </td>
 
                           <td className="border-b border-border/50 px-2.5 py-2.5 align-middle overflow-hidden" title={pti.specifications || ''}>
                             <p
-                              className="text-xs font-medium text-muted-foreground line-clamp-2 leading-tight break-words"
+                              className="text-sm font-medium text-muted-foreground line-clamp-2 leading-snug break-words"
                               style={{
                                 display: '-webkit-box',
                                 WebkitLineClamp: 2,
@@ -1117,24 +1133,25 @@ export const FormulasPage: React.FC = () => {
                             </p>
                           </td>
 
-                          <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono font-bold text-foreground whitespace-nowrap text-xs">
+                          <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono text-sm font-bold text-foreground whitespace-nowrap">
                             {pti.unit_weight_kg == null ? 'Pendiente' : `${Number(pti.unit_weight_kg).toFixed(3)} kg`}
                           </td>
 
                           {allowCosts && (
-                            <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap text-xs">
+                            <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono text-sm font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                               ${Number(pti.unit_price).toFixed(2)}
                             </td>
                           )}
 
                           <td className="border-b border-border/50 px-3 py-2.5 align-middle text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleTogglePtiActive(pti)}
-                              title={pti.is_active ? 'Click para desactivar' : 'Click para activar'}
-                              aria-label={`${pti.is_active ? 'Desactivar' : 'Activar'} PTI ${pti.code}`}
-                              className="inline-flex min-h-11 min-w-[100px] items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
+                            {hasPermission('extrusion.formulas.manage') ? (
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePtiActive(pti)}
+                                title={pti.is_active ? 'Desactivar PTI' : 'Activar PTI'}
+                                aria-label={`${pti.is_active ? 'Desactivar' : 'Activar'} PTI ${pti.code}`}
+                                className="inline-flex min-h-11 min-w-[100px] items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
                               <Badge
                                 variant={pti.is_active ? 'default' : 'secondary'}
                                 className={`text-sm font-bold cursor-pointer transition-all ${
@@ -1145,7 +1162,12 @@ export const FormulasPage: React.FC = () => {
                               >
                                 {pti.is_active ? 'ACTIVO' : 'INACTIVO'}
                               </Badge>
-                            </button>
+                              </button>
+                            ) : (
+                              <Badge variant={pti.is_active ? 'default' : 'secondary'} className={`text-sm font-bold ${pti.is_active ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : ''}`}>
+                                {pti.is_active ? 'ACTIVO' : 'INACTIVO'}
+                              </Badge>
+                            )}
                           </td>
 
                           <td className="border-b border-border/50 px-2 py-2 align-middle text-center" onClick={(e) => e.stopPropagation()}>
@@ -1161,18 +1183,10 @@ export const FormulasPage: React.FC = () => {
                                       setEditingPti(pti);
                                       setIsPtiModalOpen(true);
                                     }}
-                                    className="cursor-pointer py-2"
+                                    className="min-h-11 cursor-pointer py-2 text-base"
                                   >
                                     <Icon name="edit" size={16} className="mr-2 text-primary" />
                                     <span>Editar Carrete</span>
-                                  </DropdownMenuItem>
-
-                                  <DropdownMenuItem
-                                    onClick={() => handleTogglePtiActive(pti)}
-                                    className="cursor-pointer py-2"
-                                  >
-                                    <Icon name="power_settings_new" size={16} className={`mr-2 ${pti.is_active ? 'text-amber-500' : 'text-emerald-500'}`} />
-                                    <span>{pti.is_active ? 'Desactivar PTI' : 'Activar PTI'}</span>
                                   </DropdownMenuItem>
 
                                   <DropdownMenuSeparator />

@@ -164,7 +164,7 @@ exports.loadCreel = async (req, res, next) => {
 
 exports.finishRoll = async (req, res, next) => {
   try {
-    const { run_id, meters, weight_kg, custom_route, notes, shift_number, operator_nomina, shift_supervisor_id, operator_segments } = req.body;
+    const { run_id, meters, weight_kg, custom_route, notes, shift_number, operator_nomina, shift_supervisor_id, operator_segments, idempotency_key } = req.body;
     const recorded_by = req.user?.id;
     const operator_id = Number(operator_segments?.[0]?.operator_id) || recorded_by;
     const result = await telaresService.finishRollAndBackflush({
@@ -179,8 +179,38 @@ exports.finishRoll = async (req, res, next) => {
       shift_supervisor_id,
       operator_segments,
       recorded_by,
+      idempotency_key,
     });
     res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.finishRun = async (req, res, next) => {
+  try {
+    const run_id = Number(req.params.id || req.body?.run_id);
+    const operator_id = req.user?.id;
+    const { notes } = req.body || {};
+    const result = await telaresService.finishLoomRun({
+      run_id,
+      operator_id,
+      notes,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getRecentRolls = async (req, res, next) => {
+  try {
+    const { loom_id, shift_number, product_kind, status, search, limit } = req.query;
+    const rolls = await telaresService.getRecentViajeroRolls(
+      { loom_id, shift_number, product_kind, status, search, limit },
+      req.user
+    );
+    res.json(rolls);
   } catch (err) {
     next(err);
   }

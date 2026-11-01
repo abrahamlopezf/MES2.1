@@ -116,6 +116,20 @@ export const useExtrusionWipQuery = () => useQuery({
   refetchOnWindowFocus: 'always',
 });
 
+export const useScrapWipMixtureMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (preparationId: number) => extrusionApi.scrapWipMixture(preparationId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.wipInventory }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'scrap-logs'] }),
+        queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.queues }),
+      ]);
+    },
+  });
+};
+
 export const useRegisterScrapMutation = () => {
   const queryClient = useQueryClient();
 

@@ -8,6 +8,7 @@ export const TELARES_QUERY_KEYS = {
   ptiTransferMode: ['telares', 'pti-transfer-mode'] as const,
   ptiRacks: ['telares', 'pti-racks'] as const,
   wipSummary: ['telares-wip-summary'] as const,
+  rolls: ['telares', 'rolls'] as const,
   viajero: (qrCode: string) => ['telares', 'viajero', qrCode] as const,
 };
 
@@ -125,7 +126,36 @@ export const useFinishRollMutation = () => {
     mutationFn: telaresApi.finishRoll,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TELARES_QUERY_KEYS.looms });
+      queryClient.invalidateQueries({ queryKey: TELARES_QUERY_KEYS.wipSummary });
+      queryClient.invalidateQueries({ queryKey: TELARES_QUERY_KEYS.rolls });
     },
+  });
+};
+
+export const useFinishRunMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: telaresApi.finishRun,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TELARES_QUERY_KEYS.looms });
+      queryClient.invalidateQueries({ queryKey: TELARES_QUERY_KEYS.wipSummary });
+      queryClient.invalidateQueries({ queryKey: TELARES_QUERY_KEYS.rolls });
+    },
+  });
+};
+
+export const useViajeroRollsQuery = (params?: {
+  loom_id?: number;
+  shift_number?: number;
+  product_kind?: string;
+  status?: string;
+  search?: string;
+  limit?: number;
+}) => {
+  return useQuery({
+    queryKey: [...TELARES_QUERY_KEYS.rolls, params ?? {}],
+    queryFn: () => telaresApi.getViajeroRolls(params),
+    refetchInterval: 10000,
   });
 };
 

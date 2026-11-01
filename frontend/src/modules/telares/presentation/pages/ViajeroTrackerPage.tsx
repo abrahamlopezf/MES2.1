@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useViajeroDetailsQuery } from '../../hooks/useTelaresQueries';
+import { useViajeroDetailsQuery, useViajeroRollsQuery } from '../../hooks/useTelaresQueries';
+import { ViajeroRoll } from '../../types/telares.types';
 import { ViajeroLabelModal } from '../components/ViajeroLabelModal';
 import { Button, Badge } from '@/design-system';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
@@ -30,8 +31,10 @@ export const ViajeroTrackerPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
   const [queriedCode, setQueriedCode] = useState('');
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [modalRollOverride, setModalRollOverride] = useState<ViajeroRoll | null>(null);
 
   const { data: roll, isLoading, isError } = useViajeroDetailsQuery(queriedCode);
+  const { data: recentRolls = [], isLoading: isRecentLoading } = useViajeroRollsQuery({ limit: 20 });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +93,127 @@ export const ViajeroTrackerPage: React.FC = () => {
             {isLoading ? 'Rastreando...' : 'Consultar Trazabilidad'}
           </Button>
         </form>
+      </div>
+
+      {/* 2.5 Listado Rápido de Salidas / Rollos Recientes de Telares */}
+      <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="text-base font-black uppercase text-white flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-400" />
+              Salidas / Rollos Recientes de Telares (Rollo, Banda y Cintilla)
+            </h2>
+            <p className="text-xs text-slate-400 font-semibold">
+              Selecciona cualquier registro reciente para inspeccionar su genealogía completa o reimprimir su etiqueta QR Viajera
+            </p>
+          </div>
+          {queriedCode && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setQueriedCode('');
+                setSearchInput('');
+              }}
+              className="border-slate-600 text-slate-200 font-bold text-xs"
+            >
+              Limpiar selección ({queriedCode})
+            </Button>
+          )}
+        </div>
+
+        {isRecentLoading ? (
+          <p className="text-xs text-slate-400 font-semibold">Cargando salidas recientes de Telares...</p>
+        ) : recentRolls.length === 0 ? (
+          <p className="text-xs text-slate-400 italic">No hay rollos registrados recientemente.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
+            <table className="w-full text-left text-xs text-slate-200">
+              <thead className="border-b border-slate-700 bg-slate-950 font-black uppercase text-slate-400">
+                <tr>
+                  <th className="p-3">Código Rollo / QR</th>
+                  <th className="p-3">Telar / Turno</th>
+                  <th className="p-3">Producto / Ficha</th>
+                  <th className="p-3">Cantidad</th>
+                  <th className="p-3">Ruta Autorizada</th>
+                  <th className="p-3">Fecha (CDMX)</th>
+                  <th className="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 font-semibold">
+                {recentRolls.map((item) => {
+                  const isSelected = queriedCode === item.roll_code || queriedCode === item.qr_code;
+                  return (
+                    <tr
+                      key={item.id}
+                      className={isSelected ? 'bg-blue-950/40' : 'hover:bg-slate-800/70'}
+                    >
+                      <td className="p-3 font-mono font-black text-amber-300 text-sm">
+                        {item.roll_code}
+                      </td>
+                      <td className="p-3">
+                        <span className="text-white font-bold">
+                          Telar #{item.loom_number || item.loom?.loom_number || item.loom_id}
+                        </span>
+                        <span className="block text-[11px] text-slate-400">
+                          Turno {item.shift_number || 1}° · Nómina {item.operator_nomina || item.operator?.numero_nomina || '1200'}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-white font-bold block">
+                          {item.output_product_name || item.bom?.name || 'Rollo de Telares'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {item.product_kind || item.bom?.product_kind || 'ROLLO_TELA'}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono">
+                        <span className="text-blue-300 font-bold">{Number(item.meters).toFixed(0)} m</span>
+                        {' · '}
+                        <span className="text-emerald-300 font-bold">{Number(item.weight_kg).toFixed(1)} kg</span>
+                      </td>
+                      <td className="p-3 font-mono text-[11px] text-slate-300">
+                        {(item.route || []).join(' ➔ ')}
+                      </td>
+                      <td className="p-3 text-[11px] text-slate-400 font-mono">
+                        {formatDateTimeCdmx(item.created_at)}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setSearchInput(item.roll_code);
+                              setQueriedCode(item.roll_code);
+                            }}
+                            className="h-8 px-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg"
+                          >
+                            Ver Genealogía
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setModalRollOverride(item);
+                              setIsLabelModalOpen(true);
+                            }}
+                            className="h-8 px-2.5 border-slate-600 bg-slate-800 text-slate-200 font-bold text-xs rounded-lg flex items-center gap-1"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            QR
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 3. Resultado de la Consulta */}
@@ -390,7 +514,13 @@ export const ViajeroTrackerPage: React.FC = () => {
       )}
 
       {/* Modal de Etiqueta */}
-      <ViajeroLabelModal roll={isLabelModalOpen ? roll || null : null} onClose={() => setIsLabelModalOpen(false)} />
+      <ViajeroLabelModal
+        roll={isLabelModalOpen ? modalRollOverride || roll || null : null}
+        onClose={() => {
+          setIsLabelModalOpen(false);
+          setModalRollOverride(null);
+        }}
+      />
     </div>
   );
 };

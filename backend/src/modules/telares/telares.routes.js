@@ -47,6 +47,8 @@ router.get('/pti-transfer-mode', telaresController.getPtiTransferMode);
 router.put('/pti-transfer-mode', telaresController.updatePtiTransferMode);
 router.post('/runs/start', telaresController.startRun);
 router.post('/runs/finish-roll', telaresController.finishRoll);
+router.post('/runs/:id/finish', telaresController.finishRun);
+router.get('/rolls', telaresController.getRecentRolls);
 
 // Rutas del QR Viajero (Enrutamiento Dinámico)
 router.post('/viajero/validate-scan', telaresController.validateViajeroScan);

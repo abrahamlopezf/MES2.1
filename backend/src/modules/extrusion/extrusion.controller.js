@@ -278,6 +278,15 @@ class ExtrusionController {
     }
   }
 
+  async getExtrusionDashboardMetrics(req, res, next) {
+    try {
+      const metrics = await extrusionService.getExtrusionDashboardMetrics();
+      return res.status(200).json({ success: true, data: metrics });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async adjustScrapWeight(req, res, next) {
     try {
       const result = await extrusionService.adjustScrapWeight({
@@ -295,6 +304,15 @@ class ExtrusionController {
     try {
       const closure = await extrusionService.closeExtrusionShift({ ...req.body, userId: req.user?.id });
       return res.status(201).json({ success: true, message: 'Turno conciliado y cerrado.', data: closure });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getExtrusionShiftActivity(req, res, next) {
+    try {
+      const activity = await extrusionService.getExtrusionShiftActivity(req.query);
+      return res.status(200).json({ success: true, data: activity });
     } catch (error) {
       next(error);
     }
@@ -319,6 +337,18 @@ class ExtrusionController {
       const includeFinancials = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode);
       const result = await extrusionService.getExtrusionWip({ includeFinancials });
       return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async scrapWipMixture(req, res, next) {
+    try {
+      const result = await extrusionService.scrapWipMixture({
+        preparationId: req.params.id,
+        userId: req.user?.id || null,
+      });
+      return res.status(200).json({ success: true, message: 'Saldo de mezcla enviado a scrap.', data: result });
     } catch (error) {
       next(error);
     }

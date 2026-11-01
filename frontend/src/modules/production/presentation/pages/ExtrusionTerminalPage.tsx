@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../identity/presentation/context/AuthContext';
 import {
@@ -36,10 +36,16 @@ interface SessionRoll {
 }
 
 export const ExtrusionTerminalPage: React.FC = () => {
+  const pageRootRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  useLayoutEffect(() => {
+    const scrollViewport = pageRootRef.current?.closest('.overflow-y-auto');
+    if (scrollViewport instanceof HTMLElement) scrollViewport.scrollTop = 0;
+  }, [location.pathname]);
 
   const isNewRackRoute = location.pathname.includes('/rack/new');
   const qrFromUrl = searchParams.get('qr') || '';
@@ -107,7 +113,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [finishMixNotes, setFinishMixNotes] = useState('');
 
   // Estados de Registro Directo de Carretes en Rack PTI (Sin QR Virgen)
-  const [rackId, setRackId] = useState('QR-RACK-004');
+  const [rackId, setRackId] = useState(qrFromUrl);
   const [generatedRackQr, setGeneratedRackQr] = useState<{ rackCode: string; qrCode: string } | null>(null);
   const [piecesInput, setPiecesInput] = useState<string>('1');
   const [weightInput, setWeightInput] = useState<string>('6.80');
@@ -137,30 +143,87 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
   const activeQueue = currentGroup?.active || null;
   const waitingQueues = currentGroup?.waiting || [];
-  const lastActiveQueueRef = useRef<{ machineId: number; queueId: number | null; qr: string | null }>({
+  const [nextSameMixPrompt, setNextSameMixPrompt] = useState<NonNullable<(typeof waitingQueues)[number]> | null>(null);
+  const promptedContinuationRef = useRef<string | null>(null);
+  const lastActiveQueueRef = useRef<{
+    machineId: number;
+    queueId: number | null;
+    qr: string | null;
+    formulaId: number | null;
+    outputPtiProductId: number | null;
+    outputPtiColor: string | null;
+    preparationId: number | null;
+  }>({
     machineId: selectedMachineId,
     queueId: null,
     qr: null,
+    formulaId: null,
+    outputPtiProductId: null,
+    outputPtiColor: null,
+    preparationId: null,
   });
 
   // Confirma visualmente los cambios de cola aunque el cierre lo haya disparado otro usuario o un evento de piso.
   useEffect(() => {
     const previous = lastActiveQueueRef.current;
     if (previous.machineId !== selectedMachineId) {
-      lastActiveQueueRef.current = { machineId: selectedMachineId, queueId: activeQueue?.id ?? null, qr: activeQueue?.consumption_order_qr_id ?? null };
+      lastActiveQueueRef.current = {
+        machineId: selectedMachineId,
+        queueId: activeQueue?.id ?? null,
+        qr: activeQueue?.consumption_order_qr_id ?? null,
+        formulaId: activeQueue?.formula_id ?? null,
+        outputPtiProductId: activeQueue?.output_pti_product_id ?? null,
+        outputPtiColor: activeQueue?.output_pti_color ?? null,
+        preparationId: activeQueue?.process_preparation_id ?? null,
+      };
       return;
     }
     if (previous.queueId && previous.queueId !== activeQueue?.id) {
-      toast.success(activeQueue
-        ? `Mezcla ${previous.qr} terminada. Siguiente mezcla ${activeQueue.consumption_order_qr_id} activa automáticamente; no requiere escaneo del supervisor.`
-        : `Mezcla ${previous.qr} terminada. No hay mezclas pendientes en esta extrusora.`);
+      if (activeQueue) {
+        toast.success(`Contenedor ${previous.qr} terminado. El siguiente contenedor de la misma preparación quedó activo automáticamente.`);
+      } else {
+        const previousColor = String(previous.outputPtiColor || '').trim().toLocaleLowerCase();
+        const sameMixWaiting = previousColor ? waitingQueues.find((queue) =>
+          Number(queue.formula_id) === Number(previous.formulaId)
+          && Number(queue.process_preparation_id || 0) !== Number(previous.preparationId || 0)
+          && Number(queue.output_pti_product_id || 0) === Number(previous.outputPtiProductId || 0)
+          && String(queue.output_pti_color || '').trim().toLocaleLowerCase() === previousColor
+        ) : undefined;
+        if (sameMixWaiting) {
+          const promptKey = `${selectedMachineId}:${previous.queueId}:${sameMixWaiting.id}`;
+          if (promptedContinuationRef.current !== promptKey) {
+            promptedContinuationRef.current = promptKey;
+            setNextSameMixPrompt(sameMixWaiting);
+          }
+          toast.success(`Contenedor ${previous.qr} terminado.`);
+        } else {
+          toast.success(`Mezcla ${previous.qr} terminada. No hay otro contenedor de la misma fórmula y color para continuar automáticamente.`);
+        }
+      }
     }
     if (activeQueue) {
-      lastActiveQueueRef.current = { machineId: selectedMachineId, queueId: activeQueue.id, qr: activeQueue.consumption_order_qr_id };
-    } else if (previous.machineId !== selectedMachineId) {
-      lastActiveQueueRef.current = { machineId: selectedMachineId, queueId: null, qr: null };
+      lastActiveQueueRef.current = {
+        machineId: selectedMachineId,
+        queueId: activeQueue.id,
+        qr: activeQueue.consumption_order_qr_id,
+        formulaId: activeQueue.formula_id,
+        outputPtiProductId: activeQueue.output_pti_product_id ?? null,
+        outputPtiColor: activeQueue.output_pti_color ?? null,
+        preparationId: activeQueue.process_preparation_id ?? null,
+      };
     }
-  }, [activeQueue?.id, activeQueue?.consumption_order_qr_id, selectedMachineId]);
+  }, [activeQueue?.id, activeQueue?.consumption_order_qr_id, selectedMachineId, waitingQueues]);
+
+  const confirmSameMixContinuation = async () => {
+    if (!nextSameMixPrompt) return;
+    try {
+      await switchMutation.mutateAsync({ queue_id: nextSameMixPrompt.id });
+      toast.success(`Contenedor ${nextSameMixPrompt.consumption_order_qr_id} activado.`);
+      setNextSameMixPrompt(null);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'No se pudo activar el siguiente contenedor. Actualiza la cola e inténtalo de nuevo.');
+    }
+  };
 
   // Sincronizar máquina inicial si existe en los datos
   useEffect(() => {
@@ -178,13 +241,13 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
   // Preseleccionar rack disponible si existe
   useEffect(() => {
-    if (racks.length > 0 && (!rackId || rackId === 'QR-RACK-004')) {
+    if (!isNewRackRoute && racks.length > 0 && !rackId) {
       const avail = racks.find((r) => r.status !== 'LLENO') || racks[0];
       if (avail) {
         setRackId(avail.rack_code || avail.qr_code);
       }
     }
-  }, [racks, rackId]);
+  }, [isNewRackRoute, racks, rackId]);
 
   // PTI esperado según la fórmula de la mezcla activa en tolva
   const expectedPti = useMemo(() => {
@@ -420,7 +483,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
           consumption_order_qr_id: cleanQr,
           formula_id: formulaId,
           priority: 1,
-          notes: `Ingresado desde Terminal de Extrusión por ${user?.username || 'OP-100'}`,
+          notes: `Ingresado desde Terminal de Extrusión por ${user?.username || user?.id || 'usuario no identificado'}`,
         });
 
         // Activar inmediatamente
@@ -588,28 +651,19 @@ export const ExtrusionTerminalPage: React.FC = () => {
   // =========================================================
   if (isNewRackRoute) {
     return (
-      <div className="extrusion-workspace min-h-screen p-4 sm:p-6 bg-background flex flex-col gap-5 pb-24">
+      <div ref={pageRootRef} className="extrusion-workspace min-h-screen p-4 sm:p-6 bg-background flex flex-col gap-5 pb-24">
         {/* Banner Superior */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-4 sm:px-6 sm:py-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3.5">
               <div className="p-3 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
                 <Icon name="shelves" size={28} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                    Módulo de Extrusión
-                  </span>
-                  <span className="text-muted-foreground/40">•</span>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    Acondicionamiento PTI
-                  </span>
-                </div>
-                <h1 className="text-2xl font-black text-foreground tracking-tight">
+                <h1 className="text-xl font-black text-foreground tracking-tight sm:text-2xl">
                   Inicializar Nuevo Rack
                 </h1>
-                <p className="text-muted-foreground text-xs font-medium mt-0.5">
+                <p className="mt-1 text-sm font-medium text-muted-foreground">
                   Registra un Rack físico virgen en el piso de Extrusión para comenzar a recibir bobinas.
                 </p>
               </div>
@@ -618,7 +672,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => navigate('/production/extrusion')}
-              className="gap-2 font-bold h-10 px-4 text-xs"
+              className="min-h-11 w-full gap-2 px-4 text-sm font-bold sm:w-auto"
             >
               <Icon name="arrow_back" size={16} />
               Volver a Terminal
@@ -637,7 +691,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
           <CardContent className="p-5 sm:p-6">
             <form onSubmit={handleRegisterRack} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                   <span>Código QR Virgen del Rack *</span>
                   <Badge variant="outline" className="text-[10px] uppercase font-bold">
                     Requerido
@@ -647,13 +701,13 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   <QrScannerButton onScan={(code) => setRackId(code.toUpperCase())} title="Escanear QR virgen del rack" />
                   <Input
                     required
-                    value={rackId || qrFromUrl}
+                    value={rackId}
                     onChange={(e) => setRackId(e.target.value.toUpperCase())}
                     className="!h-11 font-mono font-bold uppercase text-sm bg-background border-border"
                     placeholder="Ej. QR-RACK-005"
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 mt-1">
+                <p className="mt-1 flex items-center gap-1 text-sm font-medium text-muted-foreground">
                   <Icon name="info" size={13} className="text-primary shrink-0" />
                   <span>Escanea el QR pegado físicamente a la estructura metálica del rack.</span>
                 </p>
@@ -719,40 +773,60 @@ export const ExtrusionTerminalPage: React.FC = () => {
   // VISTA 2: Terminal de Control Operativo en Piso
   // =========================================================
   return (
-    <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
+    <div ref={pageRootRef} className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32 lg:pr-24">
+      {nextSameMixPrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="same-mix-continuation-title"
+            className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6"
+          >
+            <h2 id="same-mix-continuation-title" className="text-lg font-black text-foreground">¿Continuar con el siguiente contenedor?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              El contenedor activo terminó. Hay otro contenedor de la misma fórmula y color, preparado en una orden diferente.
+              La cola esperará tu confirmación antes de activarlo.
+            </p>
+            <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-sm">
+              <p><span className="font-bold">Fórmula:</span> {nextSameMixPrompt.formula?.name || nextSameMixPrompt.formula?.code || `#${nextSameMixPrompt.formula_id}`}</p>
+              <p className="mt-1"><span className="font-bold">Color:</span> {nextSameMixPrompt.output_pti_color || 'No especificado'}</p>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">{nextSameMixPrompt.consumption_order_qr_id}</p>
+            </div>
+            <div className="mt-5 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+              <Button type="button" variant="outline" disabled={switchMutation.isPending} onClick={() => setNextSameMixPrompt(null)}>
+                No, dejar en espera
+              </Button>
+              <Button type="button" disabled={switchMutation.isPending} onClick={confirmSameMixContinuation}>
+                {switchMutation.isPending ? 'Activando…' : 'Sí, continuar'}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
       {/* Header Banner Estandarizado */}
       <section className="bg-card rounded-xl border border-border shadow-sm p-4 sm:px-6 sm:py-3.5 w-full shrink-0">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col items-stretch gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
               <Icon name="precision_manufacturing" size={26} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                  Módulo de Extrusión
-                </span>
-                <span className="text-muted-foreground/40">•</span>
-                <span className="text-xs text-muted-foreground font-medium">
-                  Terminal de Operación en Piso
-                </span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+              <h1 className="text-2xl font-black text-foreground tracking-tight sm:text-3xl">
                 Terminal de Extrusión
               </h1>
-              <p className="text-muted-foreground text-xs font-medium mt-0.5">
+              <p className="mt-1 text-sm font-medium leading-relaxed text-muted-foreground">
                 Alimentación de tolvas por extrusora, trazabilidad en tiempo real y empaque directo de bobinas a Racks PTI.
               </p>
             </div>
           </div>
 
           {/* Badges de Operador y Accesos Rápidos */}
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
-            <Button
+          <div className="flex w-full flex-wrap items-stretch justify-end gap-2.5 sm:flex-row sm:items-center xl:w-auto">
+              <Button
               variant="outline"
               size="sm"
               onClick={() => navigate('/extrusion/board')}
-              className="h-8 text-xs font-bold gap-1.5 border-border"
+              className="min-h-11 w-full gap-1.5 border-border px-3 text-sm font-bold sm:w-auto"
             >
               <Icon name="view_kanban" size={15} className="text-primary" />
               Tablero de Colas
@@ -762,7 +836,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => navigate('/extrusion/rack-ingress')}
-              className="h-8 text-xs font-bold gap-1.5 border-border"
+              className="min-h-11 w-full gap-1.5 border-border px-3 text-sm font-bold sm:w-auto"
             >
               <Icon name="shelves" size={15} className="text-primary" />
               Racks PTI
@@ -771,11 +845,11 @@ export const ExtrusionTerminalPage: React.FC = () => {
             <div className="flex items-center gap-2 bg-muted/40 border border-border px-3 py-1.5 rounded-lg text-xs font-semibold">
               <Icon name="account_circle" size={16} className="text-primary" />
               <span className="text-muted-foreground">Operador:</span>
-              <span className="font-bold text-foreground uppercase">{user?.username || 'OP-100'}</span>
+              <span className="font-bold text-foreground uppercase">{user?.username || user?.id || 'Sin identificar'}</span>
             </div>
 
             {activeQueue ? (
-              <Badge variant="success" className="gap-1.5 font-bold py-1.5 px-3 uppercase animate-pulse">
+              <Badge variant="success" className="gap-1.5 font-bold py-1.5 px-3 uppercase">
                 <Icon name="check_circle" size={14} />
                 {currentGroup?.machine.name || 'Extrusora'}: ACTIVA
               </Badge>
@@ -790,11 +864,11 @@ export const ExtrusionTerminalPage: React.FC = () => {
       </section>
 
       {/* Grid Principal de 2 Columnas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 gap-5 items-start xl:grid-cols-12">
         {/* ========================================= */}
         {/* COLUMNA 1: Alimentación de Máquina (5 cols) */}
         {/* ========================================= */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className="space-y-4 xl:col-span-5">
           <Card
             className={`border-border shadow-sm transition-all overflow-hidden ${
               activeQueue ? 'border-primary/40 bg-card ring-1 ring-primary/20' : 'bg-card'
@@ -803,17 +877,17 @@ export const ExtrusionTerminalPage: React.FC = () => {
             <CardHeader className="bg-muted/30 border-b border-border py-3.5 px-4 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon name="factory" size={18} className="text-primary" />
-                <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
+                <CardTitle className="text-base font-bold text-foreground">
                   1. Alimentación de Máquina
                 </CardTitle>
               </div>
               {activeQueue ? (
-                <Badge variant="success" className="text-[11px] font-bold uppercase gap-1">
+                <Badge variant="success" className="text-sm font-bold gap-1">
                   <Icon name="play_arrow" size={13} />
                   Corriendo
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-[11px] font-bold uppercase text-muted-foreground">
+                <Badge variant="outline" className="text-sm font-bold text-muted-foreground">
                   En Espera
                 </Badge>
               )}
@@ -822,7 +896,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
             <CardContent className="p-4 sm:p-5 space-y-4">
               {/* Selector de Extrusora Dinámico */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                   <span>Extrusora de Operación *</span>
                   {currentGroup?.machine.type && (
                     <Badge variant="outline" className="text-[10px] uppercase font-bold">
@@ -852,13 +926,13 @@ export const ExtrusionTerminalPage: React.FC = () => {
               {/* Estado de la Mezcla Actual en Máquina */}
               {activeQueue && !isChangingMix ? (
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
-                  <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2.5">
+                  <div className="flex flex-col gap-3 border-b border-emerald-500/20 pb-3">
                     <div className="flex items-center gap-2 text-emerald-500">
                       <div className="p-1.5 rounded-lg bg-emerald-500/20 shrink-0">
                         <Icon name="bolt" size={18} />
                       </div>
-                      <span className="text-[11px] font-black uppercase tracking-wider">
-                        Tolva Alimentada (En Proceso)
+                      <span className="text-base font-bold text-foreground">
+                        Mezcla activa en tolva
                       </span>
                     </div>
                     <Button
@@ -866,7 +940,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => setIsChangingMix(true)}
-                      className="h-7 px-2.5 text-[11px] font-bold border-emerald-500/40 bg-background/60 hover:bg-emerald-500/20 text-foreground gap-1.5 shrink-0"
+                      className="min-h-12 w-full gap-1.5 border-emerald-500/40 bg-background/60 px-3 text-base font-bold text-foreground hover:bg-emerald-500/20"
                     >
                       <Icon name="sync" size={13} />
                       Cambiar / Purgar
@@ -885,9 +959,9 @@ export const ExtrusionTerminalPage: React.FC = () => {
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2 border-t border-emerald-500/20">
+                  <div className="grid grid-cols-1 gap-3 border-t border-emerald-500/20 pt-3 text-sm sm:grid-cols-2">
                     <div className="min-w-0">
-                      <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider">Fórmula:</span>
+                      <span className="block text-xs font-bold text-muted-foreground">Fórmula</span>
                       <span
                         className="font-bold text-foreground block truncate"
                         title={`${activeQueue.formula?.code || 'N/A'} - ${activeQueue.formula?.name || ''}`}
@@ -896,7 +970,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="sm:text-right">
-                      <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider">Prioridad en Cola:</span>
+                      <span className="block text-xs font-bold text-muted-foreground">Prioridad en cola</span>
                       <span className="inline-flex items-center gap-1 font-mono font-black text-foreground">
                         <Badge variant="outline" className="text-[10px] font-bold py-0 h-5 border-emerald-500/40">
                           Nivel {activeQueue.priority}
@@ -905,7 +979,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-500/20 pt-3">
-                    <div className="text-xs">
+                    <div className="text-sm">
                       <span className="text-muted-foreground">Saldo de mezcla: </span>
                       <strong className="font-mono text-foreground">
                         {activeQueue.container_remaining_quantity_kg != null
@@ -914,7 +988,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                             ? Number(activeQueue.preparation.remaining_quantity_kg).toFixed(3)
                             : 'Sin dato'} kg
                       </strong>
-                      <span className="block text-[10px] text-muted-foreground">Al llegar a cero, el sistema termina esta mezcla y activa la siguiente automáticamente.</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">Al llegar a cero, el sistema termina esta mezcla y activa la siguiente automáticamente.</span>
                     </div>
                     {!isFinishingMix && (
                       <Button type="button" variant="outline" size="sm" onClick={() => {
@@ -932,11 +1006,11 @@ export const ExtrusionTerminalPage: React.FC = () => {
                       <div className="text-xs text-foreground">
                         Pesa el remanente de la tolva y regístralo como scrap de cierre. Esto conserva el balance y la trazabilidad; al agotarse el saldo la cola activa la siguiente mezcla sin escanear otro QR.
                       </div>
-                      <label className="block space-y-1 text-xs font-bold">
+                      <label className="block space-y-1 text-sm font-bold">
                         Peso real del remanente (kg) *
                         <Input type="number" min="0.001" step="0.001" max={activeQueue.container_remaining_quantity_kg ?? activeQueue.preparation?.remaining_quantity_kg ?? undefined} value={finishMixWeight} onChange={(event) => setFinishMixWeight(event.target.value)} required />
                       </label>
-                      <label className="block space-y-1 text-xs font-bold">
+                      <label className="block space-y-1 text-sm font-bold">
                         Nota de cierre (opcional)
                         <Input value={finishMixNotes} onChange={(event) => setFinishMixNotes(event.target.value)} placeholder="Motivo o referencia del cierre" />
                       </label>
@@ -973,7 +1047,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   {/* Selector de Contenedores en Espera para esta Máquina */}
                   {waitingQueues.length > 0 && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                         <span>Contenedores en Cola de Espera</span>
                         <Badge variant="outline" className="text-[10px] font-bold font-mono">
                           {waitingQueues.length} LISTOS
@@ -1004,7 +1078,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   {!selectedQueueToSwitch && (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                        <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                           <span className="flex items-center gap-1.5">
                             <Icon name="qr_code_2" size={15} className="text-primary" />
                             <span>Código QR de Contenedor / Mezcla *</span>
@@ -1032,7 +1106,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
                       {/* Receta Programada */}
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                        <label className="block text-sm font-bold text-muted-foreground">
                           Fórmula Programada
                         </label>
                         <select
@@ -1125,7 +1199,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
         {/* ========================================= */}
         {/* COLUMNA 2: Registro Directo de Bobinas en Rack PTI (7 cols) */}
         {/* ========================================= */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className="space-y-4 xl:col-span-7">
           <Card
             className={`border-border shadow-sm transition-all overflow-hidden ${
               !activeQueue ? 'opacity-85' : 'bg-card'
@@ -1134,7 +1208,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
             <CardHeader className="bg-muted/30 border-b border-border py-3.5 px-4 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon name="shelves" size={18} className="text-primary" />
-                <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground">
+                  <CardTitle className="text-base font-bold text-foreground">
                   2. Registro de Bobinas en Rack PTI
                 </CardTitle>
               </div>
@@ -1143,7 +1217,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/extrusion/rack-ingress')}
-                  className="h-7 px-2.5 text-[11px] font-bold border-border gap-1"
+                  className="min-h-11 px-3 text-sm font-bold border-border gap-1"
                 >
                   <Icon name="open_in_new" size={13} />
                   Terminal Racks PTI
@@ -1197,7 +1271,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
                 {/* 2. Selector de Rack Destino a Ancho Completo */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Icon name="shelves" size={15} className="text-primary" />
                       <span>Rack Destino *</span>
@@ -1287,7 +1361,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                     {/* Input de Bobinas con Stepper interactivo */}
                     <div className="sm:col-span-4 lg:col-span-3 space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                         <span>Bobinas (Piezas) *</span>
                         <span className="text-[10px] text-muted-foreground font-mono">CANTIDAD</span>
                       </label>
@@ -1331,7 +1405,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
                     {/* Input de Peso Total en Báscula */}
                     <div className="sm:col-span-4 lg:col-span-4 space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                         <span>Peso Total (Báscula) *</span>
                         <span className="font-mono text-[10px] font-bold text-primary">EN LÍNEA</span>
                       </label>

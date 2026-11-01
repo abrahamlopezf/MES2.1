@@ -5,18 +5,33 @@ import { extrusionApi } from '../../services/extrusionApi';
 import { useExtruderQueuesQuery } from '../../hooks/useExtrusionFloorQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getCdmxDateString, getCdmxShift } from '@/utils/date';
+import { getCdmxShift } from '@/utils/date';
+
+const getInitialShiftSelection = () => {
+  const shift = getCdmxShift();
+  if (shift.hour >= 6) return { shiftDate: shift.calendarDate, shiftCode: shift.shiftCode };
+  const previousDay = new Date(`${shift.calendarDate}T00:00:00.000Z`);
+  previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+  return { shiftDate: previousDay.toISOString().slice(0, 10), shiftCode: shift.shiftCode };
+};
 
 export const ExtrusionShiftClosurePanel: React.FC = () => {
+  const [initialShift] = useState(getInitialShiftSelection);
   const [extruderId, setExtruderId] = useState<number | ''>('');
-  const [shiftDate, setShiftDate] = useState(() => getCdmxDateString());
-  const [shiftCode, setShiftCode] = useState(() => getCdmxShift().shiftCode);
+  const [shiftDate, setShiftDate] = useState(initialShift.shiftDate);
+  const [shiftCode, setShiftCode] = useState(initialShift.shiftCode);
   const [groupedWeights, setGroupedWeights] = useState<Record<string, string>>({});
   const [manualColorGroups, setManualColorGroups] = useState<Array<{ key: string; color: string; weight: string }>>([{ key: 'color-1', color: '', weight: '' }]);
-  const [noColorScrap, setNoColorScrap] = useState(false);
+  const [additionalScrap, setAdditionalScrap] = useState<'UNCONFIRMED' | 'NO' | 'YES'>('UNCONFIRMED');
   const queryClient = useQueryClient();
   const { data: groups = [] } = useExtruderQueuesQuery();
-  const machines = useMemo(() => groups.map((group: any) => group.machine), [groups]);
+  const activityQuery = useQuery({
+    queryKey: ['extrusion', 'shift-activity', shiftDate, shiftCode],
+    queryFn: () => extrusionApi.getShiftActivity({ shift_date: shiftDate, shift_code: shiftCode }),
+    enabled: Boolean(shiftDate && shiftCode),
+    staleTime: 0,
+  });
+  const machines = activityQuery.data?.used_extruders || [];
   const knownColors = useMemo(() => {
     const colors = groups.flatMap((group: any) =>
       [group.active, ...(group.paused || []), ...(group.waiting || [])]
@@ -27,7 +42,10 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     );
     return [...new Set(colors)];
   }, [groups]);
-  useEffect(() => { setGroupedWeights({}); setManualColorGroups([{ key: 'color-1', color: '', weight: '' }]); setNoColorScrap(false); }, [extruderId, shiftDate, shiftCode]);
+  useEffect(() => { setGroupedWeights({}); setManualColorGroups([{ key: 'color-1', color: '', weight: '' }]); setAdditionalScrap('UNCONFIRMED'); }, [extruderId, shiftDate, shiftCode]);
+  useEffect(() => {
+    if (extruderId && !machines.some((machine: any) => Number(machine.id) === Number(extruderId))) setExtruderId('');
+  }, [machines, extruderId]);
   const scrapQuery = useQuery({
     queryKey: ['extrusion', 'scrap-shift', extruderId, shiftDate, shiftCode],
     queryFn: () => extrusionApi.getScrapLogs({ extruder_id: extruderId, shift_date: shiftDate, shift_code: shiftCode, limit: 200 }),
@@ -43,7 +61,6 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     onError: (error: any) => toast.error(error.response?.data?.message || 'No se pudo cerrar el turno.'),
   });
   const logs = scrapQuery.data || [];
-  useEffect(() => { if (logs.length) setNoColorScrap(false); }, [logs.length]);
   const estimatedTotal = logs.reduce((sum: number, log: any) => sum + Number(log.estimated_weight_kg ?? log.actual_weight_kg ?? log.scrap_weight_kg ?? 0), 0);
   const scrapGroups = useMemo(() => {
     const grouped = new Map<string, any>();
@@ -63,7 +80,9 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     setGroupedWeights((previous) => Object.fromEntries(scrapGroups.map((group) => [group.key, previous[group.key] ?? group.estimated.toFixed(3)])));
   }, [scrapGroups]);
   const submit = () => {
-    if (!logs.length && noColorScrap) {
+    if (activityQuery.isError || scrapQuery.isError || !extruderId) return;
+    if (additionalScrap === 'UNCONFIRMED') return toast.error('Confirma si hubo merma adicional antes de cerrar el turno.');
+    if (!logs.length && additionalScrap === 'NO') {
       closeMutation.mutate({ extruder_id: Number(extruderId), shift_date: shiftDate, shift_code: shiftCode, actual_scrap_weight_kg: 0 });
       return;
     }
@@ -76,7 +95,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     if (recordedGroups.some((item) => !Number.isFinite(item.actual_weight_kg) || item.actual_weight_kg < 0 || groupedWeights[JSON.stringify([item.category.toUpperCase(), String(item.color || '').toUpperCase(), item.category.toUpperCase() === 'MATERIAL_PURGA' ? (Number(item.source_lote_id) || null) : null])]?.trim() === '')) {
       return toast.error('Captura un peso real válido para cada evento de transición.');
     }
-    const colorGroups = manualColorGroups.map((group) => ({ category: 'MERMA_COLOR', color: group.color.trim(), actual_weight_kg: Number(group.weight) }));
+    const colorGroups = additionalScrap === 'NO' ? [] : manualColorGroups.map((group) => ({ category: 'MERMA_COLOR', color: group.color.trim(), actual_weight_kg: Number(group.weight) }));
     if (colorGroups.some((item) => !item.color || !Number.isFinite(item.actual_weight_kg) || item.actual_weight_kg < 0 || !manualColorGroups.find((group) => group.color.trim() === item.color)?.weight.trim())) {
       return toast.error('Indica cada color y captura el peso real correspondiente.');
     }
@@ -85,42 +104,135 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     closeMutation.mutate({ extruder_id: Number(extruderId), shift_date: shiftDate, shift_code: shiftCode, grouped_weighings: allGroups });
   };
 
+  const missingTransitionWeight = scrapGroups.some((group: any) => {
+    const value = groupedWeights[group.key]?.trim() ?? '';
+    return !value || !Number.isFinite(Number(value)) || Number(value) < 0;
+  });
+  const missingAdditionalWeight = additionalScrap === 'YES' && manualColorGroups.some((group) => {
+    const value = group.weight.trim();
+    return !group.color.trim() || !value || !Number.isFinite(Number(value)) || Number(value) < 0;
+  });
+  const canClose = Boolean(extruderId)
+    && !activityQuery.isLoading && !activityQuery.isError
+    && !scrapQuery.isLoading && !scrapQuery.isError
+    && additionalScrap !== 'UNCONFIRMED'
+    && !missingTransitionWeight && !missingAdditionalWeight
+    && !closeMutation.isPending;
+  const closureGuidance = activityQuery.isError
+    ? 'No se pudo consultar la actividad. Actualiza la consulta antes de continuar.'
+    : !extruderId
+      ? machines.length ? 'Selecciona la extrusora para consultar sus registros.' : 'Cuando exista actividad en el turno, podrás continuar.'
+      : scrapQuery.isLoading
+        ? 'Consultando los registros del turno…'
+        : scrapQuery.isError
+          ? 'No se pudieron cargar los registros. Actualiza la consulta antes de cerrar.'
+          : additionalScrap === 'UNCONFIRMED'
+            ? 'Indica si hubo merma adicional para habilitar el cierre.'
+            : missingTransitionWeight
+              ? 'Captura un peso real válido para cada grupo de transición.'
+              : missingAdditionalWeight
+                ? 'Completa el color y el peso real de cada merma adicional.'
+                : 'Revisa los datos y cierra el turno cuando estén correctos.';
+
   return (
-    <section className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
-      <div>
-        <h2 className="text-base font-black uppercase">Conciliación de merma por turno</h2>
-        <p className="text-xs text-muted-foreground">Al cierre captura el peso real por extrusora y color. Si hubo eventos de transición, el sistema concilia esos eventos; si no, registra cada color como merma de cierre sin atribuirla a una mezcla específica.</p>
-      </div>
-      <p className="text-[11px] text-muted-foreground">El turno se sugiere por hora CDMX con el horario provisional actual (06:00, 14:00 y 22:00); puedes corregirlo. Se ajustará cuando la empresa confirme los horarios.</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="text-xs font-bold">EXTRUSORA<select value={extruderId} onChange={(event) => setExtruderId(Number(event.target.value) || '')} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-2"><option value="">Selecciona</option>{machines.map((machine: any) => <option key={machine.id} value={machine.id}>{machine.name}</option>)}</select></label>
-        <label className="text-xs font-bold">FECHA<Input type="date" value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} /></label>
-        <label className="text-xs font-bold">TURNO<select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-2"><option>TURNO_1</option><option>TURNO_2</option><option>TURNO_3</option></select></label>
-      </div>
-      {extruderId && <div className="space-y-2">
-        {scrapQuery.isLoading ? <p className="text-sm text-muted-foreground">Cargando scrap del turno…</p> : logs.length === 0 ? <p className="rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">No hay pesajes de transición pendientes. Captura aquí la merma real clasificada por color.</p> : <>
-          <div className="rounded-lg border border-border p-3 text-sm font-semibold">Estimado acumulado: {estimatedTotal.toFixed(3)} kg · {logs.length} evento(s)</div>
-          <div className="max-h-72 space-y-2 overflow-auto">{scrapGroups.map((group: any) => (
-            <label key={group.key} className="grid gap-2 rounded-lg border border-border p-3 text-xs sm:grid-cols-[1fr_auto] sm:items-center">
-              <span><strong>{group.category}</strong> · {group.color || 'Sin color'}{group.lot ? ` · Lote ${group.lot}` : ''}<span className="block text-muted-foreground">Estimado {group.estimated.toFixed(3)} kg · {group.count} evento(s)</span></span>
-              <span className="font-bold">Peso real del grupo (kg)<Input type="number" min="0" step="0.001" value={groupedWeights[group.key] ?? ''} onChange={(event) => setGroupedWeights((previous) => ({ ...previous, [group.key]: event.target.value }))} placeholder="0.000" /></span>
-            </label>
-          ))}</div>
-        </>}
-        <div className="space-y-2 rounded-lg border border-border p-3">
-          <p className="text-xs font-semibold text-muted-foreground">Clasifica la merma pesada por color. Sin eventos de cambio, no se atribuirá a una mezcla concreta.</p>
-          {!logs.length && <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={noColorScrap} onChange={(event) => setNoColorScrap(event.target.checked)} />No se generó merma de color en este turno</label>}
-          {!noColorScrap && <>
-            {manualColorGroups.map((group, index) => <div key={group.key} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <label className="text-xs font-bold">Color de merma<Input list="extrusion-shift-colors" value={group.color} onChange={(event) => setManualColorGroups((items) => items.map((item) => item.key === group.key ? { ...item, color: event.target.value } : item))} placeholder="Ej. Negro" /><datalist id="extrusion-shift-colors">{knownColors.map((color) => <option key={color} value={color} />)}</datalist></label>
-              <label className="text-xs font-bold">Peso real (kg)<Input type="number" min="0" step="0.001" value={group.weight} onChange={(event) => setManualColorGroups((items) => items.map((item) => item.key === group.key ? { ...item, weight: event.target.value } : item))} placeholder="0.000" /></label>
-              <Button type="button" variant="outline" disabled={manualColorGroups.length === 1} onClick={() => setManualColorGroups((items) => items.filter((item) => item.key !== group.key))} aria-label={`Quitar grupo de color ${index + 1}`}>Quitar</Button>
-            </div>)}
-            <Button type="button" variant="outline" onClick={() => setManualColorGroups((items) => [...items, { key: `color-${Date.now()}`, color: '', weight: '' }])}>Agregar color</Button>
-          </>}
+    <section className="space-y-5 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+      <header>
+        <h2 className="text-xl font-black">Cierre de turno</h2>
+        <p className="mt-1 max-w-3xl text-base text-muted-foreground">Completa los pasos en orden para conciliar los pesos y cerrar la merma.</p>
+      </header>
+      <section aria-labelledby="scrap-shift-selection" className="space-y-3">
+        <div>
+          <h3 id="scrap-shift-selection" className="text-lg font-bold">1. Selecciona el turno</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Elige la fecha, el turno y una extrusora con actividad registrada.</p>
         </div>
-        <div className="flex justify-end"><Button onClick={submit} disabled={scrapQuery.isLoading || scrapGroups.some((group: any) => !groupedWeights[group.key]?.trim()) || (!noColorScrap && manualColorGroups.some((group) => !group.color.trim() || !group.weight.trim())) || closeMutation.isPending}>{closeMutation.isPending ? 'Conciliando…' : 'Conciliar y cerrar turno'}</Button></div>
-      </div>}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="space-y-1 text-base font-semibold">Fecha del turno
+            <Input className="min-h-12 text-base" type="date" value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} />
+          </label>
+          <label className="space-y-1 text-base font-semibold">Turno
+            <select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <option value="TURNO_1">Turno 1 · 06:00–14:00</option>
+              <option value="TURNO_2">Turno 2 · 14:00–22:00</option>
+              <option value="TURNO_3">Turno 3 · 22:00–06:00</option>
+            </select>
+          </label>
+          <label className="space-y-1 text-base font-semibold">Extrusora
+            <select value={extruderId} onChange={(event) => setExtruderId(Number(event.target.value) || '')} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" disabled={activityQuery.isLoading || activityQuery.isError}>
+              <option value="">{activityQuery.isLoading ? 'Buscando actividad…' : activityQuery.isError ? 'No se pudo consultar' : 'Selecciona extrusora'}</option>
+              {machines.map((machine: any) => <option key={machine.id} value={machine.id}>{machine.name}</option>)}
+            </select>
+          </label>
+        </div>
+        <p className="text-sm text-muted-foreground">Horarios CDMX: 06:00–14:00, 14:00–22:00 y 22:00–06:00. Solo aparecen extrusoras con actividad registrada.</p>
+        {activityQuery.isError && <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-base text-danger">No se pudo consultar la actividad de este turno. Intenta actualizar.</p>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => activityQuery.refetch()} disabled={activityQuery.isFetching}>Actualizar actividad</Button>
+        </div>}
+        {activityQuery.data && machines.length === 0 && <p role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-base text-warning">No hay actividad de Extrusión en esta fecha y turno. Se requiere producción, preparación de mezcla o transición para registrar merma.</p>}
+      </section>
+      {extruderId && <section aria-labelledby="scrap-shift-weighing" className="space-y-5 border-t border-border pt-5">
+        <div>
+          <h3 id="scrap-shift-weighing" className="text-lg font-bold">2. Revisa los pesajes de transición</h3>
+          <p className="mt-1 text-sm text-muted-foreground">El peso estimado es una referencia. Captura el peso real de cada grupo.</p>
+        </div>
+        {scrapQuery.isLoading && <p role="status" className="rounded-xl bg-muted/40 p-4 text-base">Consultando los registros de merma del turno…</p>}
+        {scrapQuery.isError && <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-base text-danger">No se pudieron cargar los registros. El cierre está pausado para evitar omitir pesajes.</p>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => scrapQuery.refetch()} disabled={scrapQuery.isFetching}>Actualizar registros</Button>
+        </div>}
+
+        {!scrapQuery.isLoading && !scrapQuery.isError && <>
+          <section className="space-y-3">
+            {scrapGroups.length === 0
+              ? <p className="rounded-xl bg-muted/40 p-4 text-base text-muted-foreground">No hay pesajes de transición pendientes. Continúa con la declaración de merma adicional.</p>
+              : <>
+                <p role="status" className="text-base font-medium">{scrapGroups.length} grupo(s) por revisar · Referencia estimada: {estimatedTotal.toFixed(3)} kg</p>
+                <div className="divide-y divide-border rounded-xl border border-border">
+                  {scrapGroups.map((group: any) => (
+                    <label key={group.key} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+                      <span className="text-base"><strong>{group.color || 'Sin color'}</strong><span className="block text-sm text-muted-foreground">{group.category.replaceAll('_', ' ')}{group.lot ? ' · Lote ' + group.lot : ''}</span><span className="block text-sm text-muted-foreground">Estimado {group.estimated.toFixed(3)} kg · {group.count} registro(s)</span></span>
+                      <span className="space-y-1 text-base font-semibold">Peso real (kg)<Input className="min-h-12 text-base" type="number" min="0" step="0.001" value={groupedWeights[group.key] ?? ''} onChange={(event) => setGroupedWeights((previous) => ({ ...previous, [group.key]: event.target.value }))} placeholder="0.000" /></span>
+                    </label>
+                  ))}
+                </div>
+              </>}
+          </section>
+
+          <section aria-labelledby="scrap-additional-heading" className="space-y-4 rounded-xl border border-border p-4 sm:p-5">
+            <div>
+              <h3 id="scrap-additional-heading" className="text-lg font-bold">3. ¿Hubo merma adicional?</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Declara merma fuera de las transiciones. Si la hubo, regístrala por color; no se asocia a una mezcla específica.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="¿Hubo merma adicional en el turno?">
+              <Button type="button" className="min-h-12 text-base" variant={additionalScrap === 'NO' ? 'default' : 'outline'} aria-pressed={additionalScrap === 'NO'} onClick={() => setAdditionalScrap('NO')}>No hubo merma adicional</Button>
+              <Button type="button" className="min-h-12 text-base" variant={additionalScrap === 'YES' ? 'default' : 'outline'} aria-pressed={additionalScrap === 'YES'} onClick={() => setAdditionalScrap('YES')}>Sí, registrar merma</Button>
+            </div>
+            {additionalScrap === 'YES' && <div className="space-y-4">
+              <datalist id="extrusion-shift-colors">{knownColors.map((color) => <option key={color} value={color} />)}</datalist>
+              {manualColorGroups.map((group, index) => <div key={group.key} className="grid gap-3 rounded-lg bg-muted/30 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <label className="space-y-1 text-base font-semibold">Color
+                  <Input className="min-h-12 text-base" list="extrusion-shift-colors" value={group.color} onChange={(event) => setManualColorGroups((items) => items.map((item) => item.key === group.key ? { ...item, color: event.target.value } : item))} placeholder="Selecciona o escribe el color" />
+                </label>
+                <label className="space-y-1 text-base font-semibold">Peso real (kg)
+                  <Input className="min-h-12 text-base" type="number" min="0" step="0.001" value={group.weight} onChange={(event) => setManualColorGroups((items) => items.map((item) => item.key === group.key ? { ...item, weight: event.target.value } : item))} placeholder="0.000" />
+                </label>
+                <Button type="button" variant="outline" className="min-h-12 text-base" disabled={manualColorGroups.length === 1} onClick={() => setManualColorGroups((items) => items.filter((item) => item.key !== group.key))} aria-label={'Quitar grupo de color ' + (index + 1)}>Quitar color</Button>
+              </div>)}
+              <Button type="button" variant="outline" className="min-h-12 text-base" onClick={() => setManualColorGroups((items) => [...items, { key: 'color-' + Date.now(), color: '', weight: '' }])}>Agregar otro color</Button>
+            </div>}
+          </section>
+
+          {additionalScrap === 'NO' && <p className="rounded-lg bg-muted/40 p-3 text-base text-muted-foreground">Se cerrará con los pesajes de transición capturados{scrapGroups.length ? '' : ' y 0 kg de merma adicional'}.</p>}
+        </>}
+
+        <footer className="space-y-3 border-t border-border pt-4">
+          <p id="scrap-close-guidance" aria-live="polite" className="text-base font-medium text-muted-foreground">{closureGuidance}</p>
+          {closeMutation.isError && <p role="alert" className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-base text-danger">{(closeMutation.error as any)?.response?.data?.message || 'No se pudo cerrar el turno. Revisa la conexión y los datos e inténtalo de nuevo.'}</p>}
+          <Button onClick={submit} disabled={!canClose} aria-describedby="scrap-close-guidance" className="min-h-14 w-full text-base font-bold sm:w-auto">
+            {closeMutation.isPending ? 'Guardando pesajes…' : 'Guardar pesajes y cerrar turno'}
+          </Button>
+        </footer>
+      </section>}
     </section>
   );
 };

@@ -288,6 +288,22 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     setActiveTab('INGRESS');
   };
 
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const tabOrder: Array<'INGRESS' | 'RACKS' | 'BALANCE'> = ['INGRESS', 'RACKS', 'BALANCE'];
+    const currentIndex = tabOrder.indexOf(activeTab);
+    const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1
+      : event.key === 'Home' ? -currentIndex
+      : event.key === 'End' ? tabOrder.length - 1 - currentIndex
+      : 0;
+
+    if (direction === 0) return;
+    event.preventDefault();
+    const nextTab = tabOrder[(currentIndex + direction + tabOrder.length) % tabOrder.length];
+    setActiveTab(nextTab);
+    requestAnimationFrame(() => document.getElementById(`pti-tab-${nextTab.toLowerCase()}`)?.focus());
+  };
+
   // Filtrado de racks en Pestaña 2
   const filteredRacks = React.useMemo(() => {
     return racks.filter((rack) => {
@@ -319,20 +335,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             <Boxes className="h-7 w-7" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                Módulo de Extrusión
-              </span>
-              <span className="text-muted-foreground/40">•</span>
-              <span className="text-xs text-muted-foreground font-semibold">
-                Estación de Empaque
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground uppercase">
+            <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
               Ingreso de PTI a Racks
             </h1>
-            <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-              Asociación física de bobinas producidas a racks acondicionados con Backflushing de inventario.
+            <p className="mt-1 text-sm font-medium leading-relaxed text-muted-foreground">
+              Registra las bobinas en el rack y descuenta automáticamente el material consumido.
             </p>
           </div>
         </div>
@@ -343,7 +350,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               variant="outline"
               size="sm"
               onClick={() => setIsRackModalOpen(true)}
-              className="h-9 px-3 text-xs font-bold border-border gap-1.5"
+              className="min-h-11 px-3 text-sm font-bold border-border gap-1.5"
             >
               <Plus className="h-4 w-4 text-primary" />
               <span>Nuevo Rack</span>
@@ -355,7 +362,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             size="sm"
             onClick={onRefresh}
             disabled={isLoading}
-            className="h-9 px-3 text-xs font-bold border-border gap-1.5"
+            className="min-h-11 px-3 text-sm font-bold border-border gap-1.5"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Sincronizar</span>
@@ -366,12 +373,18 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {/* SELECTOR DE PESTAÑAS INDUSTRIALES (GRANDES Y TÁCTILES) */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
+      <div role="tablist" aria-label="Secciones de ingreso de PTI" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
         {/* Tab 1: Terminal de Ingreso */}
         <button
           type="button"
+          id="pti-tab-ingress"
+          role="tab"
+          aria-selected={activeTab === 'INGRESS'}
+          aria-controls="pti-panel-ingress"
+          tabIndex={activeTab === 'INGRESS' ? 0 : -1}
           onClick={() => setActiveTab('INGRESS')}
-          className={`flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all cursor-pointer ${
+          onKeyDown={handleTabKeyDown}
+          className={`flex min-h-16 items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-base uppercase tracking-wide transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === 'INGRESS'
               ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -380,8 +393,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           <Boxes className="h-5 w-5 shrink-0" />
           <div className="text-left">
             <span className="block leading-tight">1. Registrar Ingreso</span>
-            <span className="text-[10px] font-semibold opacity-85 normal-case block">
-              Operación de planta (3 pasos)
+            <span className="text-sm font-semibold opacity-85 normal-case block">
+              Ingreso de planta · 3 pasos
             </span>
           </div>
         </button>
@@ -389,8 +402,14 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
         {/* Tab 2: Mapa de Racks en Piso */}
         <button
           type="button"
+          id="pti-tab-racks"
+          role="tab"
+          aria-selected={activeTab === 'RACKS'}
+          aria-controls="pti-panel-racks"
+          tabIndex={activeTab === 'RACKS' ? 0 : -1}
           onClick={() => setActiveTab('RACKS')}
-          className={`flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all cursor-pointer ${
+          onKeyDown={handleTabKeyDown}
+          className={`flex min-h-16 items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-base uppercase tracking-wide transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === 'RACKS'
               ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -402,12 +421,12 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               <span className="block leading-tight">2. Racks en Piso</span>
               <Badge
                 variant={activeTab === 'RACKS' ? 'secondary' : 'outline'}
-                className="text-[10px] font-mono h-4 px-1.5 font-bold"
+              className="min-h-6 px-2 text-xs font-mono font-bold"
               >
                 {racks.length}
               </Badge>
             </div>
-            <span className="text-[10px] font-semibold opacity-85 normal-case block">
+            <span className="text-sm font-semibold opacity-85 normal-case block">
               Disponibilidad física
             </span>
           </div>
@@ -416,8 +435,14 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
         {/* Tab 3: Balance y Finanzas */}
         <button
           type="button"
+          id="pti-tab-balance"
+          role="tab"
+          aria-selected={activeTab === 'BALANCE'}
+          aria-controls="pti-panel-balance"
+          tabIndex={activeTab === 'BALANCE' ? 0 : -1}
           onClick={() => setActiveTab('BALANCE')}
-          className={`flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all cursor-pointer ${
+          onKeyDown={handleTabKeyDown}
+          className={`flex min-h-16 items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-base uppercase tracking-wide transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             activeTab === 'BALANCE'
               ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -426,8 +451,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           <Scale className="h-5 w-5 shrink-0" />
           <div className="text-left">
             <span className="block leading-tight">3. Balance y Auditoría</span>
-            <span className="text-[10px] font-semibold opacity-85 normal-case block">
-              Backflushing y finanzas
+            <span className="text-sm font-semibold opacity-85 normal-case block">
+              Existencias, consumo y costos
             </span>
           </div>
         </button>
@@ -437,7 +462,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* VISTA 1: REGISTRO RÁPIDO DE INGRESO (ENFOCADO EN EL OPERADOR) */}
       {/* ========================================================= */}
       {activeTab === 'INGRESS' && (
-        <div className="w-full max-w-[1400px] mx-auto space-y-5 animate-in fade-in duration-150">
+        <div id="pti-panel-ingress" role="tabpanel" aria-labelledby="pti-tab-ingress" tabIndex={0} className="w-full max-w-[1400px] mx-auto space-y-5 animate-in fade-in duration-150 focus-visible:outline-none lg:pr-16">
           {racks.length === 0 && (
             <div className="flex flex-col gap-3 rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1012,15 +1037,15 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* VISTA 2: INVENTARIO VISUAL DE RACKS EN PISO */}
       {/* ========================================================= */}
       {activeTab === 'RACKS' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div id="pti-panel-racks" role="tabpanel" aria-labelledby="pti-tab-racks" tabIndex={0} className="space-y-5 animate-in fade-in duration-150 focus-visible:outline-none lg:pr-16">
           {/* Barra de Filtros y Búsqueda */}
-          <div className="bg-card border border-border p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
-            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <div className="bg-card border border-border p-4 rounded-2xl flex flex-col gap-3 shadow-sm 2xl:flex-row 2xl:items-center 2xl:justify-between">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <Button
                 variant={rackFilter === 'ALL' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setRackFilter('ALL')}
-                className="h-8 text-xs font-bold"
+                className="h-11 px-3 text-sm font-bold"
               >
                 Todos ({racks.length})
               </Button>
@@ -1028,7 +1053,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 variant={rackFilter === 'VACIO' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setRackFilter('VACIO')}
-                className="h-8 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                className="h-11 px-3 text-sm font-bold text-emerald-600 dark:text-emerald-400"
               >
                 Libres ({racks.filter((r) => r.status === 'VACIO').length})
               </Button>
@@ -1036,7 +1061,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 variant={rackFilter === 'DISPONIBLE' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setRackFilter('DISPONIBLE')}
-                className="h-8 text-xs font-bold text-sky-600 dark:text-sky-400"
+                className="h-11 px-3 text-sm font-bold text-sky-600 dark:text-sky-400"
               >
                 En Uso ({racks.filter((r) => r.status === 'DISPONIBLE').length})
               </Button>
@@ -1044,29 +1069,29 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 variant={rackFilter === 'LLENO' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setRackFilter('LLENO')}
-                className="h-8 text-xs font-bold text-rose-600 dark:text-rose-400"
+                className="h-11 px-3 text-sm font-bold text-rose-600 dark:text-rose-400"
               >
                 Llenos ({racks.filter((r) => r.status === 'LLENO').length})
               </Button>
             </div>
 
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full 2xl:max-w-72">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar rack o producto..."
+                placeholder="Buscar por código, QR o producto"
                 value={rackSearch}
                 onChange={(e) => setRackSearch(e.target.value)}
-                className="pl-9 h-9 text-xs border"
+                className="pl-10 min-h-11 text-base border"
               />
             </div>
-            <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-border pt-3 sm:w-auto sm:border-0 sm:pt-0">
+            <div className="flex w-full flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:flex-wrap sm:justify-end 2xl:w-auto 2xl:border-0 2xl:pt-0">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleSelectVisibleRacks}
                 disabled={filteredRacks.length === 0}
-                className="h-9 gap-1.5 text-xs font-bold"
+                className="min-h-11 gap-1.5 px-3 text-sm font-bold"
               >
                 {filteredRacks.length > 0 && filteredRacks.every((rack) => selectedRackIds.includes(rack.id)) ? 'Quitar selección visible' : 'Seleccionar visibles'}
               </Button>
@@ -1075,7 +1100,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 size="sm"
                 onClick={handleDownloadSelectedRackQrs}
                 disabled={selectedRackIds.length === 0}
-                className="h-9 gap-1.5 text-xs font-bold"
+                className="min-h-11 gap-1.5 px-3 text-sm font-bold"
               >
                 <Download className="h-3.5 w-3.5" /> Descargar QRs ({selectedRackIds.length})
               </Button>
@@ -1083,7 +1108,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           </div>
 
           {/* Grid de Racks */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {filteredRacks.map((rack) => {
               const percent = Math.min(
                 100,
@@ -1107,30 +1132,33 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   }`}
                 >
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-base text-foreground">{rack.rack_code}</span>
-                          <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <span className="block break-words font-black text-lg leading-tight text-foreground">{rack.rack_code}</span>
+                        <div>
+                          <span className="inline-block max-w-full break-all font-mono text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                             {rack.qr_code}
                           </span>
                         </div>
-                        <span className="text-xs text-muted-foreground font-semibold block mt-0.5">
+                        <span className="text-sm text-muted-foreground font-semibold block">
                           Ubicación: {rack.location_name || 'Almacén Piso'}
                         </span>
                       </div>
 
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <label className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg hover:bg-muted/50" title={`Seleccionar ${rack.rack_code} para descargar su QR`}>
+                          <span className="sr-only">Seleccionar rack {rack.rack_code} para descargar su QR</span>
                         <input
                           type="checkbox"
                           checked={selectedRackIds.includes(rack.id)}
                           onChange={() => toggleRackSelection(rack.id)}
                           aria-label={`Seleccionar rack ${rack.rack_code} para descargar su QR`}
-                          className="h-4 w-4 cursor-pointer accent-primary"
+                          className="h-6 w-6 cursor-pointer accent-primary"
                         />
+                        </label>
                         <Badge
                           variant={isLleno || hasUnidentifiedPti ? 'destructive' : isVacio ? 'secondary' : 'default'}
-                          className="text-[10px] font-black uppercase"
+                          className="min-h-7 px-2 text-xs font-black uppercase"
                         >
                           {isLleno ? 'Lleno' : hasUnidentifiedPti ? 'Bloqueado · conciliar' : isVacio ? 'Libre' : 'Condicionado'}
                         </Badge>
@@ -1151,37 +1179,37 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                           style={{ width: `${percent}%` }}
                         />
                       </div>
-                      <div className="flex justify-between text-xs font-mono font-bold text-muted-foreground">
+                      <div className="flex flex-wrap justify-between gap-x-2 gap-y-1 text-sm font-mono font-bold text-muted-foreground tabular-nums">
                         <span>
-                          {rack.current_quantity} / {rack.max_capacity} pzas ({percent}%)
+                          {rack.current_quantity} / {rack.max_capacity} piezas ({percent}%)
                         </span>
                         <span className="text-foreground">
-                          Disp: {Math.max(0, rack.max_capacity - rack.current_quantity)}
+                          Disponibles: {Math.max(0, rack.max_capacity - rack.current_quantity)}
                         </span>
                       </div>
                     </div>
 
                     {/* Condicionamiento */}
-                    <div className={`p-2.5 border rounded-xl text-xs space-y-0.5 ${hasUnidentifiedPti ? 'bg-destructive/10 border-destructive/40' : 'bg-muted/20 border-border'}`}>
-                      <span className="text-muted-foreground block text-[10px] font-bold uppercase">
+                    <div className={`p-3 border rounded-xl text-sm space-y-1 ${hasUnidentifiedPti ? 'bg-destructive/10 border-destructive/40' : 'bg-muted/20 border-border'}`}>
+                      <span className="text-muted-foreground block text-xs font-bold uppercase">
                         Condicionado a:
                       </span>
-                      <strong className="text-foreground block truncate">
+                      <strong className="text-foreground block break-words">
                         {rackPtiLabel}
                       </strong>
                     </div>
 
                     {/* Datos Financieros */}
-                    <div className={`grid ${canViewCosts ? 'grid-cols-3' : 'grid-cols-1'} gap-2 text-xs font-bold pt-1`}>
+                    <div className={`grid ${canViewCosts ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'} gap-3 text-sm font-bold pt-1`}>
                       {canViewCosts && <div>
-                        <span className="text-muted-foreground text-[10px] block">Precio / Pza:</span>
+                        <span className="text-muted-foreground text-xs block">Precio por bobina:</span>
                         <span className="font-mono text-foreground">${rack.unit_price || 0} MXN</span>
                       </div>}
                       <div>
-                        <span className="text-muted-foreground text-[10px] block">Peso / Pza:</span>
+                        <span className="text-muted-foreground text-xs block">Peso por bobina:</span>
                         <span className="font-mono text-foreground">{rack.unit_weight_kg == null ? 'Pendiente' : `${rack.unit_weight_kg} kg`}</span>
                       </div>
-                      {canViewCosts && <div><span className="text-muted-foreground text-[10px] block">Costo transformado:</span><span className="font-mono text-foreground">{rack.unit_cost_per_kg == null ? 'Pendiente' : `$${Number(rack.unit_cost_per_kg).toFixed(4)}/kg`}</span></div>}
+                      {canViewCosts && <div><span className="text-muted-foreground text-xs block">Costo por kg:</span><span className="font-mono text-foreground">{rack.unit_cost_per_kg == null ? 'Pendiente' : `$${Number(rack.unit_cost_per_kg).toFixed(4)}/kg`}</span></div>}
                     </div>
                   </div>
 
@@ -1192,18 +1220,18 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       size="sm"
                       variant="outline"
                       onClick={() => setRackQrLabels([rack])}
-                      className="h-9 gap-1.5 px-2.5 text-xs font-bold border-border"
+                      className="min-h-11 gap-1.5 px-3 text-sm font-bold border-border"
                       title={`Descargar QR de ${rack.rack_code}`}
                       aria-label={`Descargar QR del rack ${rack.rack_code}`}
                     >
-                      <QrCode className="h-3.5 w-3.5" /> QR
+                      <QrCode className="h-4 w-4" /> Descargar QR
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       onClick={() => handlePickRackForIngress(rack)}
                       disabled={isLleno || hasUnidentifiedPti}
-                      className={`flex-1 h-9 text-xs font-bold gap-1.5 ${hasUnidentifiedPti ? 'bg-destructive/10 text-destructive border border-destructive/40' : 'bg-primary text-primary-foreground'}`}
+                      className={`min-h-11 flex-1 text-sm font-bold gap-1.5 ${hasUnidentifiedPti ? 'bg-destructive/10 text-destructive border border-destructive/40' : 'bg-primary text-primary-foreground'}`}
                     >
                       <Boxes className="h-3.5 w-3.5" />
                       <span>{isLleno ? 'Rack Lleno' : hasUnidentifiedPti ? 'PTI sin identificar' : 'Usar este Rack'}</span>
@@ -1214,7 +1242,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       size="sm"
                       variant="outline"
                       onClick={(e) => handleOpenEditRack(rack, e)}
-                      className="h-9 px-2.5 text-xs font-bold border-border"
+                      aria-label={`Editar valores del rack ${rack.rack_code}`}
+                      className="min-h-11 min-w-11 px-3 text-sm font-bold border-border"
                       title="Editar precio histórico y peso por bobina"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -1231,71 +1260,72 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* VISTA 3: BALANCE DE MASA Y AUDITORÍA FINANCIERA (SUPERVISOR) */}
       {/* ========================================================= */}
       {activeTab === 'BALANCE' && (
-        <div className="space-y-6 animate-in fade-in duration-150">
+        <div id="pti-panel-balance" role="tabpanel" aria-labelledby="pti-tab-balance" tabIndex={0} className="space-y-6 animate-in fade-in duration-150 focus-visible:outline-none lg:pr-16">
           {/* Sección 1: Valorización Financiera en Extrusión (WIP) */}
           {canViewCosts && valuation && (
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
                     <DollarSign className="h-6 w-6" />
                   </div>
                   <div>
-                    <h2 className="text-base font-black uppercase text-foreground">
+                    <h2 className="text-base sm:text-lg font-black text-foreground">
                       Valorización en Extrusión (WIP Total)
                     </h2>
-                    <p className="text-xs font-semibold text-muted-foreground">
+                    <p className="text-sm font-medium text-muted-foreground">
                       Control contable de materias primas activas en tolvas y racks intermedios.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-muted-foreground uppercase">Índice Costo:</span>
+                <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3">
+                  <span className="text-sm font-bold text-muted-foreground">Índice de costo</span>
                   <Input
                     type="number"
                     step="0.01"
                     min="1.0"
                     value={costIndex}
                     onChange={(e) => onCostIndexChange(Number(e.target.value) || 1.15)}
-                    className="w-20 h-8 font-mono font-black text-xs border"
+                    aria-label="Índice de costo"
+                    className="w-20 h-10 font-mono font-black text-base border"
                   />
-                </div>
+                </label>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-3.5 bg-muted/20 border border-border rounded-xl">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground block mb-1">
+                  <span className="text-sm font-bold text-muted-foreground block mb-1">
                     Mezclas en Espera ({valuation.queued_items_count || 0})
                   </span>
-                  <span className="font-mono text-sm sm:text-base font-black text-foreground">
+                  <span className="font-mono text-base sm:text-lg font-black text-foreground tabular-nums">
                     ${Number(valuation.queued_mixes_value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className="p-3.5 bg-muted/20 border border-border rounded-xl">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground block mb-1">
+                  <span className="text-sm font-bold text-muted-foreground block mb-1">
                     Mezclas Activas ({valuation.active_items_count || 0})
                   </span>
-                  <span className="font-mono text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
+                  <span className="font-mono text-base sm:text-lg font-black text-sky-600 dark:text-sky-400 tabular-nums">
                     ${Number(valuation.active_mixes_value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className="p-3.5 bg-muted/20 border border-border rounded-xl">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground block mb-1">
+                  <span className="text-sm font-bold text-muted-foreground block mb-1">
                     PTI en Racks ({valuation.racks_count || 0} racks)
                   </span>
-                  <span className="font-mono text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
+                  <span className="font-mono text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
                     ${Number(valuation.pti_racks_value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                  <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300 block mb-1">
+                  <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300 block mb-1">
                     Total Extrusión (WIP)
                   </span>
-                  <span className="font-mono text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-300">
+                  <span className="font-mono text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums">
                     ${Number(valuation.total_extrusion_wip_value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1307,31 +1337,31 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
               <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
-                  <h2 className="text-base font-black uppercase text-foreground">WIP disponible en Extrusión</h2>
-                  <p className="text-xs font-semibold text-muted-foreground">Material recibido de almacén y mezcla preparada aún disponible.</p>
+                  <h2 className="text-base sm:text-lg font-black text-foreground">WIP disponible en Extrusión</h2>
+                  <p className="text-sm font-medium text-muted-foreground">Material recibido de almacén y mezcla preparada aún disponible.</p>
                 </div>
                 <Badge variant="outline" className="font-mono font-black">{Number(extrusionWip.total_kg || 0).toFixed(2)} kg materia prima</Badge>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h3 className="text-xs font-black uppercase text-muted-foreground">Mezclas</h3>
+                    <h3 className="text-sm font-bold uppercase text-muted-foreground">Mezclas preparadas</h3>
                   {(extrusionWip.mixtures || []).length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay mezcla preparada pendiente de consumo.</p>
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay mezcla preparada pendiente de consumo.</p>
                   ) : (extrusionWip.mixtures || []).map((mix: any) => (
-                    <div key={mix.id} className="flex items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-xs">
-                      <div><strong className="font-mono">{mix.folio}</strong><div className="text-muted-foreground">{mix.formula || 'Fórmula'} · {mix.status}</div></div>
-                      <div className="text-right font-mono font-bold">{Number(mix.remaining_kg).toFixed(2)} kg{canViewCosts && mix.remaining_value != null && <div className="text-muted-foreground">${Number(mix.remaining_value).toFixed(2)}</div>}</div>
+                    <div key={mix.id} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                      <div className="min-w-0"><strong className="font-mono break-all">{mix.folio}</strong><div className="text-muted-foreground">{mix.formula || 'Fórmula'} · {mix.status}</div></div>
+                      <div className="text-right font-mono font-bold tabular-nums">{Number(mix.remaining_kg).toFixed(2)} kg{canViewCosts && mix.remaining_value != null && <div className="text-muted-foreground">${Number(mix.remaining_value).toFixed(2)}</div>}</div>
                     </div>
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xs font-black uppercase text-muted-foreground">Materiales por lote</h3>
+                    <h3 className="text-sm font-bold uppercase text-muted-foreground">Materiales por lote</h3>
                   {(extrusionWip.items || []).length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay material en WIP.</p>
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay material en WIP.</p>
                   ) : (extrusionWip.items || []).map((item: any) => (
-                    <div key={item.id} className="flex items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-xs">
-                      <div><strong>{item.material?.name || 'Material'}</strong><div className="text-muted-foreground">Lote {item.lote?.folio || 'sin lote'} · {item.qr_code || 'sin QR'}</div></div>
-                      <div className="text-right font-mono font-bold">{Number(item.amount_kg).toFixed(2)} kg{canViewCosts && item.value != null && <div className="text-muted-foreground">${Number(item.value).toFixed(2)}</div>}</div>
+                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                      <div className="min-w-0"><strong className="break-words">{item.material?.name || 'Material'}</strong><div className="text-muted-foreground break-words">Lote {item.lote?.folio || 'sin lote'} · {item.qr_code || 'sin QR'}</div></div>
+                      <div className="text-right font-mono font-bold tabular-nums">{Number(item.amount_kg).toFixed(2)} kg{canViewCosts && item.value != null && <div className="text-muted-foreground">${Number(item.value).toFixed(2)}</div>}</div>
                     </div>
                   ))}
                 </div>
@@ -1348,18 +1378,18 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     <Scale className="h-6 w-6" />
                   </div>
                   <div>
-                    <h2 className="text-base font-black uppercase text-foreground">
-                      Balance de Masa en Extrusión (Control 500 Kg)
+                    <h2 className="text-base sm:text-lg font-black text-foreground">
+                      Balance de masa de Extrusión
                     </h2>
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      Lote: <span className="font-mono text-foreground font-bold">{massBalance.mixture_qr}</span>
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      Lote de mezcla: <span className="font-mono text-foreground font-bold break-all">{massBalance.mixture_qr}</span>
                     </p>
                   </div>
                 </div>
 
                 <Badge
                   variant="outline"
-                  className={`font-black text-xs px-3 py-1 border-2 ${
+                  className={`min-h-9 font-black text-sm px-3 py-1 border-2 ${
                     massBalance.scrap_status === 'OPTIMO'
                       ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                       : massBalance.scrap_status === 'NORMAL'
@@ -1373,46 +1403,46 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-3 text-sm">
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Batch Entrante</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Peso inicial de mezcla</span>
                   <span className="font-mono font-black text-foreground text-base">
                     {Number(massBalance.batch_size_kg).toFixed(2)} kg
                   </span>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Merma de mezcla</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Merma de mezcla</span>
                   <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-base">
                     {Number(massBalance.total_scrap_kg).toFixed(2)} kg
                   </span>
-                  <span className="text-[10px] font-bold text-muted-foreground block">
+                  <span className="text-sm font-bold text-muted-foreground block">
                     ({Number(massBalance.scrap_percentage).toFixed(2)}% del lote)
                   </span>
                 </div>
                 {Number(massBalance.purge_material_scrap_kg || 0) > 0 && <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Merma de material de purga</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Merma por purga</span>
                   <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-base">{Number(massBalance.purge_material_scrap_kg).toFixed(3)} kg</span>
-                  {canViewCosts && <span className="text-[10px] font-bold text-muted-foreground block">Costo de lote: ${Number(massBalance.purge_material_scrap_cost || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                  {canViewCosts && <span className="text-sm font-bold text-muted-foreground block">Costo de merma: ${Number(massBalance.purge_material_scrap_cost || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                 </div>}
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Bobinas esperadas / registradas</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Bobinas esperadas / registradas</span>
                   <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-base">
                     {massBalance.expected_output_pieces == null ? `${Number(massBalance.estimated_useful_kg).toFixed(2)} kg útiles` : `${massBalance.expected_output_pieces} / ${Number(massBalance.good_output_pieces || 0)} pzas`}
                   </span>
-                  <span className="text-[10px] font-bold text-muted-foreground block">Producto registrado: {Number(massBalance.good_output_kg || 0).toFixed(2)} kg</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Peso registrado: {Number(massBalance.good_output_kg || 0).toFixed(2)} kg</span>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Rendimiento (Yield)</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Rendimiento</span>
                   <span className="font-mono font-black text-foreground text-base">
                     {Number(massBalance.estimated_yield_percentage).toFixed(2)}%
                   </span>
                 </div>
                 {canViewCosts && <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">Valor de PTI producido</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Valor del PTI producido</span>
                   <span className="font-mono font-black text-foreground text-base">
                     {massBalance.pti_output_cost == null ? 'Pendiente de costo' : `$${Number(massBalance.pti_output_cost).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </span>
-                  <span className="text-[10px] font-bold text-muted-foreground block">Costo transformado × índice del PTI</span>
+                  <span className="text-sm font-bold text-muted-foreground block">Costo transformado por índice del PTI</span>
                 </div>}
               </div>
 

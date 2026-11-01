@@ -195,6 +195,20 @@ body.global-modal-open #root * {
   transition: none !important;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  .animate-page-enter,
+  .animate-form-field,
+  .animate-shake {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Google Fonts Icons (Material Symbols) Support */
 .material-symbols-outlined,
 .material-symbols-rounded {

@@ -28,6 +28,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: 'Peso en kg de la purga/merma de transición generada',
       },
       transition_id: { type: DataTypes.INTEGER, allowNull: true },
+      source_production_entry_id: { type: DataTypes.INTEGER, allowNull: true },
       category: { type: DataTypes.STRING(40), allowNull: false, defaultValue: 'OPERATIVA' },
       color: { type: DataTypes.STRING(80), allowNull: true },
       estimated_weight_kg: { type: DataTypes.DECIMAL(12, 3), allowNull: true },

@@ -6827,4 +6827,205 @@ notNull Violation: InventoryMovement.performed_by cannot be null
     at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
     at async Silo.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
     at async ExtrusionService.getSilos (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:5013:19)
-    at async getSilos (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:613:21)\n\n
+    at async getSilos (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:613:21)\n\n2026-10-31T02:47:04.285Z\nMessage: Este turno ya fue conciliado y cerrado.\nStack: Error: Este turno ya fue conciliado y cerrado.
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:3719:48
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async closeExtrusionShift (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:296:23)\n\n2026-10-31T04:37:37.289Z\nMessage: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.\nStack: Error: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1289:23)
+    at getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:52:45)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.routes.js:13:46
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)\n\n2026-10-31T04:38:17.791Z\nMessage: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.\nStack: Error: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1289:23)
+    at getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:52:45)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.routes.js:13:46
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)\n\n2026-10-31T04:38:52.221Z\nMessage: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.\nStack: Error: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1289:23)
+    at getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:52:45)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.routes.js:13:46
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)\n\n2026-10-31T04:39:30.428Z\nMessage: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.\nStack: Error: El QR del sistema está dañado o no se pudo descifrar. Imprime una etiqueta nueva o captura el código hijo manualmente.
+    at ExtrusionService.getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1289:23)
+    at getWipChildQr (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:52:45)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.routes.js:13:46
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)\n\n2026-11-01T05:37:51.929Z\nMessage: La preparación de mezcla no es válida.\nStack: Error: La preparación de mezcla no es válida.
+    at ExtrusionService.scrapWipMixture (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:4298:27)
+    at scrapWipMixture (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:338:45)
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\middlewares\permission.middleware.js:25:12
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.routes.js:13:46
+    at Layer.handleRequest (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\layer.js:152:17)
+    at next (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\lib\route.js:117:3)
+    at handle (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\router\index.js:435:11)\n\n2026-11-01T14:01:35.142Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:35.332Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:36.391Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:38.445Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:48.514Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:49.568Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:51.204Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:52.278Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:01:54.333Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:04.386Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:05.585Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:07.645Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:13.310Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:14.381Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:16.427Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:26.487Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:27.529Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:29.573Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:39.677Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:40.808Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n2026-11-01T14:02:42.867Z\nMessage: no existe la columna ViajeroRoll.idempotency_key\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async ViajeroRoll.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async TelaresService.getRecentViajeroRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.service.js:1751:19)
+    at async exports.getRecentRolls (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\telares\telares.controller.js:209:19)\n\n

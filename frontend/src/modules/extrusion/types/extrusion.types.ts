@@ -8,8 +8,6 @@ export interface MaterialRef {
 export interface FormulaIngredient {
   id: number;
   formula_id: number;
-  output_pti_product_id?: number | null;
-  output_pti_color?: string | null;
   material_id: number;
   equivalence_tag_id?: number | null;
   equivalenceTag?: { id: number; name: string } | null;
@@ -141,6 +139,9 @@ export interface ExtruderQueue {
   extruder_id: number;
   consumption_order_qr_id: string;
   formula_id: number;
+  process_preparation_id?: number | null;
+  output_pti_product_id?: number | null;
+  output_pti_color?: string | null;
   priority: number;
   status: QueueStatus;
   notes?: string;
@@ -204,9 +205,10 @@ export interface SwitchQueuePriorityPayload {
   scanned_qr?: string;
   prioritize_formula_id?: number;
   purge_percentage?: number;
+  remaining_mix_disposition?: 'WIP' | 'SCRAP_ESPECIAL';
   notes?: string;
   scrap_weight_kg?: number;
-  scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; shift_code?: string; notes?: string }[];
+  scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA' | 'SCRAP_ESPECIAL'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; shift_code?: string; notes?: string }[];
   shift_code?: string;
 }
 
@@ -304,7 +306,7 @@ export interface MixtureTransitionPayload {
   from_mixture_qr?: string;
   to_mixture_qr?: string;
   transition_scrap_kg: number;
-  scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; notes?: string }[];
+  scrap_items?: { category: 'MEZCLA_ANTERIOR' | 'MEZCLA_NUEVA' | 'MEZCLA_MIXTA' | 'MATERIAL_PURGA' | 'SCRAP_ESPECIAL'; estimated_weight_kg: number; color?: string; from_mix_share?: number; to_mix_share?: number; source_material_id?: number; source_lote_id?: number; notes?: string }[];
   last_pti_quantity?: number;
   first_pti_quantity?: number;
   reason?: string;

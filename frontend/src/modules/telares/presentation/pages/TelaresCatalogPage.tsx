@@ -40,7 +40,7 @@ type BomItemDraft = {
 const emptyItem = (): BomItemDraft => ({
   pti_product_id: '',
   role: 'URDIMBRE',
-  ratio_percentage: 50,
+  ratio_percentage: 0,
   consumption_g_per_m: 0,
   required_quantity: '',
   required_unit: 'KG',
@@ -63,22 +63,22 @@ const emptyBom = () => ({
   packaging_type: '',
   output_weight_kg: '' as number | '',
   is_provisional: true,
-  target_width_cm: 50,
-  target_weight_g_per_m: 65,
-  warp_density: 10,
-  weft_density: 10,
+  target_width_cm: 0,
+  target_weight_g_per_m: 0,
+  warp_density: 0,
+  weft_density: 0,
   expected_output_quantity: 1,
   expected_output_unit: 'ROLLO',
   standard_output_meters: '' as number | '',
-  default_route: 'TELARES,LAMINADO,CORTE',
-  ounces_yd2: 5.0,
+  default_route: '',
+  ounces_yd2: '' as number | '',
   fabric_type: 'TUBULAR' as 'TUBULAR' | 'PLANA',
   tape_color: 'N/A',
-  tape_denier: 2300,
-  tape_width_mm: 3.0,
-  weft_denier: '1800 - 2000',
-  warp_denier: '1800 - 2000',
-  cost_transformation_index: 1.08,
+  tape_denier: 0,
+  tape_width_mm: 0,
+  weft_denier: '',
+  warp_denier: '',
+  cost_transformation_index: 1.0,
   general_considerations: '',
   is_active: true,
   items: [],
@@ -256,11 +256,7 @@ export const TelaresCatalogPage: React.FC = () => {
 
   const editBom = (bom: any) => {
     setEditingBom(bom);
-    const productKind = String(bom.product_kind || 'ROLLO_TELA').toUpperCase();
     const savedRoute = (bom.default_route || []).map((stage: string) => String(stage).toUpperCase());
-    const editableRoute = productKind === 'ROLLO_TELA' && savedRoute.includes('GLOBO')
-      ? ['TELARES', 'LAMINADO', 'CORTE']
-      : savedRoute;
     setBomDraft({
       ...emptyBom(),
       ...bom,
@@ -269,10 +265,10 @@ export const TelaresCatalogPage: React.FC = () => {
       tensile_strength_lb: bom.tensile_strength_lb == null ? '' : Number(bom.tensile_strength_lb),
       units_per_pallet: bom.units_per_pallet == null ? '' : Number(bom.units_per_pallet),
       output_weight_kg: bom.output_weight_kg == null ? '' : Number(bom.output_weight_kg),
-      default_route: editableRoute.join(','),
-      ounces_yd2: bom.ounces_yd2 ? Number(bom.ounces_yd2) : 5.0,
+      default_route: savedRoute.join(','),
+      ounces_yd2: bom.ounces_yd2 == null ? '' : Number(bom.ounces_yd2),
       standard_output_meters: bom.standard_output_meters ? Number(bom.standard_output_meters) : '',
-      cost_transformation_index: bom.cost_transformation_index ? Number(bom.cost_transformation_index) : 1.08,
+      cost_transformation_index: bom.cost_transformation_index ? Number(bom.cost_transformation_index) : 1.0,
       items: (bom.items || []).map((item: any) => ({
         ...emptyItem(),
         ...item,
@@ -358,25 +354,6 @@ export const TelaresCatalogPage: React.FC = () => {
       return matchesSearch && matchesType && matchesStatus;
     });
   }, [looms, loomSearch, loomFilter, loomStatusFilter]);
-
-  // Cálculo en vivo del costo teórico del rollo según índice de transformación
-  const theoreticalRollCost = useMemo(() => {
-    const costIndex = Number(bomDraft.cost_transformation_index || 1.0);
-    const weightKg = Number(bomDraft.target_weight_g_per_m || 65) * 0.001 * 500;
-    let basePtiCost = 0;
-    bomDraft.items.forEach((item) => {
-      const pti = activePtis.find((p: any) => p.id === Number(item.pti_product_id));
-      const ptiCostPerKg = Number(pti?.unit_price || 42.5);
-      const ratio = Number(item.ratio_percentage || 50) / 100;
-      basePtiCost += weightKg * ratio * ptiCostPerKg;
-    });
-    const transformedCost = basePtiCost * costIndex;
-    return {
-      basePtiCost,
-      transformedCost,
-      costPerMeter: transformedCost / 500,
-    };
-  }, [bomDraft, activePtis]);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-5 p-4 pb-28 sm:p-6 lg:pr-24">
@@ -1118,7 +1095,7 @@ export const TelaresCatalogPage: React.FC = () => {
                         ...bomDraft,
                         subarea_id: e.target.value ? Number(e.target.value) : null,
                         product_kind: isBand ? 'BANDA' : 'ROLLO_TELA',
-                        default_route: !isBand && bomDraft.default_route.toUpperCase().includes('GLOBO') ? 'TELARES,LAMINADO,CORTE' : bomDraft.default_route,
+                        default_route: bomDraft.default_route,
                       });
                     }} className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white">
                       <option value="">Seleccionar subárea…</option>
@@ -1183,35 +1160,29 @@ export const TelaresCatalogPage: React.FC = () => {
                         let autoTapeDenier = 2300;
                         let autoWeft = '1800 - 2000';
                         let autoWarp = '1800 - 2000';
-                        let autoCostIndex = 1.08;
+                        let autoCostIndex = 1.0;
 
                         if (oz === 3.0) {
                           autoTapeColor = 'N/A';
                           autoTapeDenier = 1200;
                           autoWeft = '1200';
                           autoWarp = '1200';
-                          autoCostIndex = 1.05;
                         } else if (oz === 5.0) {
                           autoTapeColor = bomDraft.fabric_type === 'PLANA' ? 'N/A' : 'VERDE / MORADO';
-                          autoCostIndex = 1.08;
                         } else if (oz === 6.0) {
                           autoTapeColor = bomDraft.fabric_type === 'PLANA' ? 'N/A' : 'ROJO';
-                          autoCostIndex = 1.1;
                         } else if (oz === 6.5) {
-                          autoTapeColor = bomDraft.fabric_type === 'PLANA' ? 'N/A' : 'AZUL';
+                          autoTapeColor = bomDraft.fabric_type === 'PLANA' ? 'N/A' : 'ROJO';
                           autoWeft = '2000';
                           autoWarp = '2000';
-                          autoCostIndex = 1.12;
                         } else if (oz === 7.2) {
-                          autoTapeColor = 'N/A';
+                          autoTapeColor = bomDraft.fabric_type === 'PLANA' ? 'N/A' : 'AZUL';
                           autoWeft = '2000 - 2300';
                           autoWarp = '2100';
-                          autoCostIndex = 1.15;
                         } else if (oz === 8.0) {
-                          autoTapeColor = 'N/A';
+                          autoTapeColor = bomDraft.fabric_type === 'PLANA' ? 'N/A' : 'AZUL';
                           autoWeft = '2000 - 2300';
                           autoWarp = '2100';
-                          autoCostIndex = 1.18;
                         }
 
                         setBomDraft({
@@ -1239,9 +1210,23 @@ export const TelaresCatalogPage: React.FC = () => {
                     TIPO DE TELA
                     <select
                       value={bomDraft.fabric_type}
-                      onChange={(e) =>
-                        setBomDraft({ ...bomDraft, fabric_type: e.target.value as 'TUBULAR' | 'PLANA' })
-                      }
+                      onChange={(e) => {
+                        const nextFabricType = e.target.value as 'TUBULAR' | 'PLANA';
+                        const oz = Number(bomDraft.ounces_yd2);
+                        const defaultTubularTape =
+                          oz === 5.0
+                            ? 'VERDE / MORADO'
+                            : oz === 6.0 || oz === 6.5
+                            ? 'ROJO'
+                            : oz === 7.2 || oz === 8.0
+                            ? 'AZUL'
+                            : 'N/A';
+                        setBomDraft({
+                          ...bomDraft,
+                          fabric_type: nextFabricType,
+                          tape_color: nextFabricType === 'PLANA' ? 'N/A' : defaultTubularTape,
+                        });
+                      }}
                       className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white"
                     >
                       <option value="TUBULAR">TUBULAR</option>
@@ -1252,14 +1237,15 @@ export const TelaresCatalogPage: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-300">
                     CINTA IDENTIFICACIÓN
                     <select
-                      value={bomDraft.tape_color}
+                      value={bomDraft.fabric_type === 'PLANA' ? 'N/A' : bomDraft.tape_color}
+                      disabled={bomDraft.fabric_type === 'PLANA'}
                       onChange={(e) => setBomDraft({ ...bomDraft, tape_color: e.target.value })}
-                      className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white"
+                      className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white disabled:opacity-60"
                     >
-                      <option value="N/A">N/A (Sin cinta)</option>
-                      <option value="VERDE / MORADO">VERDE / MORADO (5.0 oz)</option>
-                      <option value="ROJO">ROJO (6.0 oz)</option>
-                      <option value="AZUL">AZUL (6.5 oz)</option>
+                      <option value="N/A">N/A (Sin cinta / Tela Plana)</option>
+                      <option value="VERDE / MORADO">VERDE / MORADO (5.0 oz Tubular)</option>
+                      <option value="ROJO">ROJO (6.0 y 6.5 oz Tubular)</option>
+                      <option value="AZUL">AZUL (7.2 y 8.0 oz Tubular)</option>
                     </select>
                   </label>
                 </div>
@@ -1325,9 +1311,7 @@ export const TelaresCatalogPage: React.FC = () => {
                       className="w-40 bg-slate-900 border-emerald-500/50 text-emerald-300 font-mono font-black text-base"
                     />
                     <div className="text-xs text-slate-300">
-                      Estimación rollo 500m:{' '}
-                      <strong className="text-white">${theoreticalRollCost.transformedCost.toFixed(2)} MXN</strong>{' '}
-                      (${theoreticalRollCost.costPerMeter.toFixed(2)} / metro)
+                      El costo se calcula con el consumo y precio reales de los PTI guardados en la ficha. No se estiman precios ni longitudes por defecto.
                     </div>
                   </div>
                 </div>
@@ -1382,21 +1366,29 @@ export const TelaresCatalogPage: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-300 col-span-2">
                   RUTA OPERATIVA DEL QR
                   <select
+                    required
                     value={bomDraft.default_route}
                     onChange={(e) => setBomDraft({ ...bomDraft, default_route: e.target.value })}
                     className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-white"
                   >
+                    <option value="">Selecciona una ruta explícita…</option>
                     {bomDraft.product_kind === 'ROLLO_TELA' ? <>
                       <option value="TELARES,LAMINADO,CORTE">Telares → Laminado → Corte</option>
                       <option value="TELARES,CORTE">Telares → Corte directo</option>
+                      <option value="TELARES,LONAS">Telares → Lonas</option>
+                      <option value="TELARES,ALMACEN">Telares → Almacén</option>
+                      <option value="TELARES,VENTA">Telares → Venta de rollo</option>
                     </> : <>
-                      <option value="TELARES,GLOBO,CORTE">Telares → Globo → Corte</option>
-                      <option value="TELARES,LAMINADO,CORTE">Telares → Laminado → Corte</option>
-                      <option value="TELARES,GLOBO,LAMINADO,CORTE">Telares → Globo → Laminado → Corte</option>
-                      <option value="TELARES,CORTE">Telares → Corte directo</option>
+                      <option value="TELARES,CORTE">Telares → Corte (de banda / de cinta)</option>
+                      <option value="TELARES,ALMACEN">Telares → Almacén</option>
+                      <option value="TELARES,VENTA">Telares → Venta directa</option>
                     </>}
                   </select>
-                  {bomDraft.product_kind === 'ROLLO_TELA' && <span className="mt-1 block text-[10px] font-semibold text-amber-300">Los rollos de tela no se pueden enviar a Globo.</span>}
+                  <span className="mt-1 block text-[10px] font-semibold text-amber-300">
+                    {bomDraft.product_kind === 'ROLLO_TELA'
+                      ? 'Destinos Diagrama 1: Laminado, Corte, Lonas, Almacén o Venta.'
+                      : 'Destinos Diagrama 2 (Banda / Cintilla): Corte, Almacén o Venta.'}
+                  </span>
                 </label>
               </div>
 
@@ -1445,7 +1437,7 @@ export const TelaresCatalogPage: React.FC = () => {
                         <option value="">Seleccione PTI</option>
                         {activePtis.map((pti: any) => (
                           <option key={pti.id} value={pti.id}>
-                            {pti.code} — {pti.name}{allowCosts ? ` ($${pti.unit_price || 42.5}/kg)` : ''}
+                            {pti.code} — {pti.name}{allowCosts && pti.unit_price != null ? ` ($${pti.unit_price}/kg)` : ''}
                           </option>
                         ))}
                       </select>

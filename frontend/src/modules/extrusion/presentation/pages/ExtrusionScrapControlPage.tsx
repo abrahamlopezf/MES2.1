@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, ClipboardList, Eye, RefreshCw, Scale } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardList, Eye, RefreshCw, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -40,7 +40,15 @@ export const ExtrusionScrapControlPage: React.FC = () => {
     if (statusFilter === 'CLOSED') return log.actual_weight_kg != null;
     return true;
   }), [historyQuery.data, statusFilter]);
-  const pendingCount = (historyQuery.data || []).filter((log: any) => log.actual_weight_kg == null).length;
+  const pendingVisibleCount = visibleLogs.filter((log: any) => log.actual_weight_kg == null).length;
+  const reconciledVisibleCount = visibleLogs.length - pendingVisibleCount;
+  const hasHistoryFilters = Boolean(extruderId || shiftDate || shiftCode || statusFilter !== 'ALL');
+  const clearHistoryFilters = () => {
+    setExtruderId('');
+    setShiftDate('');
+    setShiftCode('');
+    setStatusFilter('ALL');
+  };
   const calculationNotes = String(selectedLog?.notes || '');
   const transitionNotes = String(selectedLog?.transition?.notes || '');
   const purgePercentMatch = /purgante utilizado:\s*([\d.,]+)\s*%/i.exec(`${transitionNotes} ${calculationNotes}`);
@@ -48,7 +56,8 @@ export const ExtrusionScrapControlPage: React.FC = () => {
   const purgePercent = purgePercentMatch?.[1]?.replace(',', '.') || estimateFormulaMatch?.[2]?.replace(',', '.') || null;
   const transition = selectedLog?.transition;
   const getQueueDescription = (queue: any, qr?: string) => {
-    const colors = [...new Set((queue?.formula?.ptiProducts || []).map((product: any) => product.color).filter(Boolean))].join(', ');
+    const selectedPti = (queue?.formula?.ptiProducts || []).find((product: any) => Number(product.id) === Number(queue?.output_pti_product_id));
+    const colors = queue?.output_pti_color || selectedPti?.color || [...new Set((queue?.formula?.ptiProducts || []).map((product: any) => product.color).filter(Boolean))].join(', ');
     return {
       qr: queue?.consumption_order_qr_id || qr || 'QR no disponible',
       formula: queue?.formula?.name || queue?.formula?.code || 'Fórmula no disponible',
@@ -58,20 +67,38 @@ export const ExtrusionScrapControlPage: React.FC = () => {
   };
   const fromMix = selectedLog ? getQueueDescription(transition?.fromQueue, transition?.from_mixture_qr || selectedLog.from_mixture_qr_id) : null;
   const toMix = selectedLog?.to_mixture_qr_id ? getQueueDescription(transition?.toQueue, transition?.to_mixture_qr || selectedLog.to_mixture_qr_id) : null;
+  const fromScrapBalance = selectedLog?.calculation?.from_mix?.scrap_balance_kg;
+  const toScrapBalance = selectedLog?.calculation?.to_mix?.scrap_balance_kg;
+  const totalTransitionScrapBalance = fromScrapBalance != null && toScrapBalance != null
+    ? Number((Number(fromScrapBalance) + Number(toScrapBalance)).toFixed(3))
+    : null;
 
   const tabs: Array<{ id: ControlTab; label: string; description: string }> = [
-    { id: 'shift', label: 'Registro por turno', description: 'Captura y conciliación del peso real por extrusora y color.' },
-    { id: 'history', label: 'Historial de merma / scrap', description: 'Consulta eventos estimados y pesajes conciliados.' },
+    { id: 'shift', label: 'Cerrar turno', description: 'Capturar pesajes y declarar merma adicional.' },
+    { id: 'history', label: 'Historial', description: 'Consultar registros anteriores.' },
   ];
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, currentTab: ControlTab) => {
+    const currentIndex = tabs.findIndex((item) => item.id === currentTab);
+    let nextIndex: number | undefined;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
+    else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    if (nextIndex == null) return;
+    event.preventDefault();
+    const nextTab = tabs[nextIndex].id;
+    setTab(nextTab);
+    document.getElementById(`scrap-tab-${nextTab}`)?.focus();
+  };
 
   return (
-    <main className="mx-auto w-full max-w-[1500px] space-y-6 p-4 pb-24 md:p-6 lg:p-8">
+    <main className="extrusion-workspace mx-auto w-full max-w-[1500px] space-y-6 p-4 pb-24 md:p-6 lg:p-8">
       <header className="flex flex-col gap-4 rounded-xl border-2 border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="rounded-lg border border-primary/20 bg-primary/10 p-3 text-primary"><Scale className="h-6 w-6" /></span>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Control de Merma/Scrap</h1>
-            <p className="mt-1 text-sm font-medium text-muted-foreground">Registra el peso real del turno y consulta las transiciones de Extrusión.</p>
+            <h1 className="text-2xl font-black tracking-tight">Control de merma y scrap</h1>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Registra el peso real y cierra la merma de cada turno.</p>
           </div>
         </div>
         {tab === 'history' && <Button variant="outline" onClick={() => historyQuery.refetch()} disabled={historyQuery.isFetching} className="gap-2 self-start sm:self-auto">
@@ -80,7 +107,7 @@ export const ExtrusionScrapControlPage: React.FC = () => {
         </Button>}
       </header>
 
-      <div role="tablist" aria-label="Secciones de Control de Merma/Scrap" className="flex flex-col gap-2 border-b border-border sm:flex-row">
+      <div role="tablist" aria-label="Secciones de control de merma y scrap" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -89,73 +116,102 @@ export const ExtrusionScrapControlPage: React.FC = () => {
             id={`scrap-tab-${item.id}`}
             aria-selected={tab === item.id}
             aria-controls={`scrap-panel-${item.id}`}
+            tabIndex={tab === item.id ? 0 : -1}
             onClick={() => setTab(item.id)}
-            className={`min-h-12 border-b-2 px-4 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-w-56 ${tab === item.id ? 'border-primary bg-primary/5 text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'}`}
+            onKeyDown={(event) => handleTabKeyDown(event, item.id)}
+            className={`min-h-16 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === item.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-foreground hover:bg-muted/40'}`}
           >
             <span className="block font-bold">{item.label}</span>
-            <span className="mt-0.5 block text-xs font-medium opacity-80">{item.description}</span>
+            <span className="mt-1 block text-sm font-medium text-muted-foreground">{item.description}</span>
           </button>
         ))}
       </div>
 
-      {tab === 'shift' ? (
-        <section role="tabpanel" id="scrap-panel-shift" aria-labelledby="scrap-tab-shift" className="space-y-4">
-          <div className="max-w-3xl">
-            <h2 className="text-lg font-black">Registro por turno</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Captura la merma pesada al terminar el turno. Las estimaciones de transición se concilian aquí con el peso real.</p>
-          </div>
+      <section role="tabpanel" id="scrap-panel-shift" aria-labelledby="scrap-tab-shift" tabIndex={0} hidden={tab !== 'shift'} className="space-y-4">
           <ExtrusionShiftClosurePanel />
-        </section>
-      ) : (
-        <section role="tabpanel" id="scrap-panel-history" aria-labelledby="scrap-tab-history" className="space-y-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      </section>
+      <section role="tabpanel" id="scrap-panel-history" aria-labelledby="scrap-tab-history" tabIndex={0} hidden={tab !== 'history'} className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-black">Historial de merma y scrap</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Hasta 200 registros recientes. Los costos no se muestran en esta consulta operativa.</p>
+              <h2 className="text-lg font-black">Registros por turno</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Eventos recientes. Filtra por fecha o turno para revisar una jornada.</p>
             </div>
-            <p className="text-sm font-semibold text-amber-600 dark:text-amber-400" aria-live="polite">{pendingCount} pendiente(s) de pesaje</p>
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="space-y-1 text-xs font-bold">Extrusora
-              <select value={extruderId} onChange={(event) => setExtruderId(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm font-medium"><option value="">Todas</option>{machines.map((machine: any) => <option key={machine.id} value={machine.id}>{machine.name}</option>)}</select>
-            </label>
-            <label className="space-y-1 text-xs font-bold">Fecha del turno<Input type="date" value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} /></label>
-            <label className="space-y-1 text-xs font-bold">Turno
-              <select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm font-medium"><option value="">Todos</option><option value="TURNO_1">Turno 1</option><option value="TURNO_2">Turno 2</option><option value="TURNO_3">Turno 3</option></select>
-            </label>
-            <label className="space-y-1 text-xs font-bold">Estado
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ScrapStatusFilter)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm font-medium"><option value="ALL">Todos</option><option value="PENDING">Pendientes de pesaje</option><option value="CLOSED">Pesados / conciliados</option></select>
-            </label>
+          <div aria-label="Resumen de registros visibles" className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-4"><p className="text-xs font-semibold text-muted-foreground sm:text-sm">Registros</p><p className="mt-1 text-xl font-black tabular-nums sm:text-2xl">{historyQuery.isLoading ? '—' : visibleLogs.length}</p></div>
+            <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 sm:p-4"><p className="text-xs font-semibold text-warning sm:text-sm">Por pesar</p><p className="mt-1 text-xl font-black tabular-nums text-warning sm:text-2xl">{historyQuery.isLoading ? '—' : pendingVisibleCount}</p></div>
+            <div className="rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4"><p className="text-xs font-semibold text-success sm:text-sm">Conciliados</p><p className="mt-1 text-xl font-black tabular-nums text-success sm:text-2xl">{historyQuery.isLoading ? '—' : reconciledVisibleCount}</p></div>
           </div>
 
-          {historyQuery.isLoading ? <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">Cargando registros de merma…</div>
-            : historyQuery.isError ? <div role="alert" className="flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm font-semibold text-destructive"><AlertTriangle className="h-5 w-5 shrink-0" />No se pudo cargar el historial. Actualiza la consulta para volver a intentarlo.</div>
-              : visibleLogs.length === 0 ? <div className="rounded-xl border border-dashed border-border p-8 text-center"><ClipboardList className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 font-bold">No hay registros para estos filtros</p><p className="mt-1 text-sm text-muted-foreground">Prueba otra extrusora, fecha o estado.</p></div>
-                : <div className="overflow-hidden rounded-xl border border-border bg-card">
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[930px] border-collapse text-left text-sm">
-                      <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-3">Fecha y hora</th><th className="px-4 py-3">Extrusora / turno</th><th className="px-4 py-3">Tipo y color</th><th className="px-4 py-3 text-right">Estimado (kg)</th><th className="px-4 py-3 text-right">Real (kg)</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">Responsable</th><th className="px-4 py-3">Acción</th></tr></thead>
-                      <tbody className="divide-y divide-border">{visibleLogs.map((log: any) => {
-                        const machine = machines.find((item: any) => Number(item.id) === Number(log.extruder_id));
-                        const isPending = log.actual_weight_kg == null;
-                        const operator = log.operator ? [log.operator.first_name, log.operator.last_name].filter(Boolean).join(' ') || log.operator.username : '—';
-                        return <tr key={log.id} className="hover:bg-muted/20">
-                          <td className="whitespace-nowrap px-4 py-3 tabular-nums">{formatDateTime(log.created_at)}</td>
-                          <td className="px-4 py-3"><span className="block font-semibold">{machine?.name || `Extrusora ${log.extruder_id}`}</span><span className="text-xs text-muted-foreground">{String(log.shift_code || '—').replace('_', ' ')}</span></td>
-                          <td className="px-4 py-3"><span className="block font-semibold">{String(log.category || 'Merma').replaceAll('_', ' ')}</span><span className="text-xs text-muted-foreground">{log.color || 'Sin color'}</span></td>
-                          <td className="px-4 py-3 text-right tabular-nums">{log.estimated_weight_kg == null ? '—' : Number(log.estimated_weight_kg).toFixed(3)}</td>
-                          <td className="px-4 py-3 text-right font-semibold tabular-nums">{log.actual_weight_kg == null ? '—' : `${Number(log.actual_weight_kg).toFixed(3)} kg`}</td>
-                          <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${isPending ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'}`}>{isPending ? <><AlertTriangle className="h-3.5 w-3.5" />Pendiente</> : <><CheckCircle2 className="h-3.5 w-3.5" />Conciliado</>}</span></td>
-                          <td className="px-4 py-3">{operator}</td>
-                          <td className="px-4 py-3"><Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setSelectedLog(log)} aria-label={`Ver detalle de merma ${log.id}`}><Eye className="h-4 w-4" />Detalle</Button></td>
-                        </tr>;
-                      })}</tbody>
-                    </table>
+          <details className="group rounded-xl border border-border bg-card">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-base font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span>Filtrar registros{hasHistoryFilters ? ' · filtros activos' : ''}</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><span className="hidden sm:inline">Fecha · turno · extrusora · estado</span><ChevronDown className="h-5 w-5 transition-transform group-open:rotate-180" aria-hidden="true" /></span>
+            </summary>
+            <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="space-y-1 text-sm font-semibold">Extrusora
+                <select value={extruderId} onChange={(event) => setExtruderId(event.target.value)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Todas</option>{machines.map((machine: any) => <option key={machine.id} value={machine.id}>{machine.name}</option>)}</select>
+              </label>
+              <label className="space-y-1 text-sm font-semibold">Fecha del turno<Input className="min-h-12 text-base" type="date" value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} /></label>
+              <label className="space-y-1 text-sm font-semibold">Turno
+                <select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Todos</option><option value="TURNO_1">Turno 1</option><option value="TURNO_2">Turno 2</option><option value="TURNO_3">Turno 3</option></select>
+              </label>
+              <label className="space-y-1 text-sm font-semibold">Estado
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ScrapStatusFilter)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="ALL">Todos</option><option value="PENDING">Pendientes de pesaje</option><option value="CLOSED">Pesados / conciliados</option></select>
+              </label>
+              {hasHistoryFilters && <Button type="button" variant="outline" className="min-h-11 sm:col-span-2 lg:col-span-4 lg:justify-self-start" onClick={clearHistoryFilters}>Quitar filtros</Button>}
+            </div>
+          </details>
+
+          {historyQuery.isLoading ? <div role="status" className="rounded-xl border border-border bg-card p-6 text-base text-muted-foreground">Cargando registros de merma…</div>
+            : historyQuery.isError ? <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger/5 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="flex items-center gap-3 text-base font-semibold text-danger"><AlertTriangle className="h-5 w-5 shrink-0" />No se pudo cargar el historial.</p><Button variant="outline" className="min-h-11" onClick={() => historyQuery.refetch()} disabled={historyQuery.isFetching}>Reintentar</Button></div>
+              : visibleLogs.length === 0 ? <div className="rounded-xl border border-dashed border-border p-8 text-center"><ClipboardList className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 text-lg font-bold">No hay registros para mostrar</p><p className="mt-1 text-base text-muted-foreground">Prueba otro turno o quita los filtros.</p>{hasHistoryFilters && <Button type="button" variant="outline" className="mt-4 min-h-11" onClick={clearHistoryFilters}>Quitar filtros</Button>}</div>
+                : <>
+                  <div className="space-y-3 lg:hidden">
+                    {visibleLogs.map((log: any) => {
+                      const machine = machines.find((item: any) => Number(item.id) === Number(log.extruder_id));
+                      const isPending = log.actual_weight_kg == null;
+                      return <article key={`mobile-${log.id}`} className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-muted-foreground">{formatDateTime(log.created_at)} · {String(log.shift_code || 'Turno sin dato').replaceAll('_', ' ')}</p>
+                            <h3 className="mt-1 text-lg font-bold">{String(log.category || 'Merma').replaceAll('_', ' ')}</h3>
+                            <p className="text-base text-muted-foreground">{log.color || 'Sin color'} · {machine?.name || `Extrusora ${log.extruder_id}`}</p>
+                          </div>
+                          <span className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold ${isPending ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'}`}>
+                            {isPending ? <><AlertTriangle className="h-4 w-4" />Por pesar</> : <><CheckCircle2 className="h-4 w-4" />Conciliado</>}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+                          <span className="text-sm font-semibold text-muted-foreground">{isPending ? 'Peso real pendiente' : 'Peso real'}</span>
+                          <span className="text-lg font-black tabular-nums">{isPending ? '—' : `${Number(log.actual_weight_kg).toFixed(3)} kg`}</span>
+                        </div>
+                        <Button type="button" variant="outline" className="mt-3 min-h-11 w-full gap-2" onClick={() => setSelectedLog(log)} aria-label={`Ver detalle de merma ${log.id}`}><Eye className="h-4 w-4" />Ver detalle</Button>
+                      </article>;
+                    })}
                   </div>
-                </div>}
-        </section>
-      )}
+                  <div className="hidden overflow-hidden rounded-xl border border-border bg-card lg:block">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[760px] border-collapse text-left text-base">
+                        <thead className="bg-muted/50 text-sm font-bold text-muted-foreground"><tr><th className="px-4 py-3">Fecha y turno</th><th className="px-4 py-3">Extrusora</th><th className="px-4 py-3">Evento</th><th className="px-4 py-3 text-right">Peso real</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">Detalle</th></tr></thead>
+                        <tbody className="divide-y divide-border">{visibleLogs.map((log: any) => {
+                          const machine = machines.find((item: any) => Number(item.id) === Number(log.extruder_id));
+                          const isPending = log.actual_weight_kg == null;
+                          return <tr key={log.id} className="hover:bg-muted/20">
+                            <td className="whitespace-nowrap px-4 py-3 tabular-nums"><span className="block font-semibold">{formatDateTime(log.created_at)}</span><span className="text-sm text-muted-foreground">{String(log.shift_code || 'Turno sin dato').replaceAll('_', ' ')}</span></td>
+                            <td className="px-4 py-3 font-semibold">{machine?.name || `Extrusora ${log.extruder_id}`}</td>
+                            <td className="px-4 py-3"><span className="block font-semibold">{String(log.category || 'Merma').replaceAll('_', ' ')}</span><span className="text-sm text-muted-foreground">{log.color || 'Sin color'}</span></td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums">{isPending ? 'Pendiente' : `${Number(log.actual_weight_kg).toFixed(3)} kg`}</td>
+                            <td className="px-4 py-3"><span className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold ${isPending ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'}`}>{isPending ? <><AlertTriangle className="h-4 w-4" />Por pesar</> : <><CheckCircle2 className="h-4 w-4" />Conciliado</>}</span></td>
+                            <td className="px-4 py-3"><Button type="button" variant="outline" className="min-h-11 gap-1.5" onClick={() => setSelectedLog(log)} aria-label={`Ver detalle de merma ${log.id}`}><Eye className="h-4 w-4" />Ver detalle</Button></td>
+                          </tr>;
+                        })}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>}
+      </section>
 
       <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => { if (!open) setSelectedLog(null); }}>
         <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto border-border bg-card text-foreground">
@@ -197,6 +253,34 @@ export const ExtrusionScrapControlPage: React.FC = () => {
                   <p className="text-sm"><span className="block text-xs text-muted-foreground">Diferencia real − estimado</span><strong>{selectedLog.actual_weight_kg == null || selectedLog.estimated_weight_kg == null ? '—' : `${(Number(selectedLog.actual_weight_kg) - Number(selectedLog.estimated_weight_kg)).toFixed(3)} kg`}</strong></p>
                 </div>
               </div>
+
+              {(selectedLog.calculation?.from_mix || selectedLog.calculation?.to_mix) && <section className="space-y-3 rounded-xl border border-border p-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wide">Balance de mezcla y PTI útil</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Cada QR se calcula por separado: consumo trazado − PTI útil estimado con las piezas y el peso estándar guardado. Si falta ese peso, se usa el peso neto registrado. Las mezclas y colores no se combinan.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { title: 'Mezcla interrumpida', value: selectedLog.calculation.from_mix },
+                    { title: 'Mezcla entrante', value: selectedLog.calculation.to_mix },
+                  ].filter((item) => item.value).map(({ title, value }: any) => <article key={title} className="rounded-lg border border-border bg-muted/20 p-3">
+                    <h4 className="break-all text-xs font-black uppercase text-muted-foreground">{title} · {value.qr}</h4>
+                    {value.initial_kg != null && <p className="mt-2 font-mono text-xs tabular-nums">Inicial {Number(value.initial_kg).toFixed(3)} kg − remanente {Number(value.remaining_kg || 0).toFixed(3)} kg</p>}
+                    <p className="mt-2 font-mono text-xs tabular-nums">{value.consumed_kg == null ? 'Consumo sin traza' : `${Number(value.consumed_kg).toFixed(3)} kg consumidos`}</p>
+                    <p className="font-mono text-xs tabular-nums">− {Number(value.useful_pti_kg || 0).toFixed(3)} kg de PTI útil</p>
+                    <p className="font-mono text-xs tabular-nums">Piezas registradas: {Number(value.observed_pieces || 0).toLocaleString('es-MX')}</p>
+                    {value.estimated_pieces_from_consumed_kg != null && <p className="font-mono text-xs tabular-nums">Equivalente bruto (sin descontar merma): ≈ {Number(value.estimated_pieces_from_consumed_kg).toLocaleString('es-MX')} piezas a {Number(value.average_standard_unit_weight_kg).toFixed(6)} kg/pza</p>}
+                    <p className="mt-1 text-sm font-black tabular-nums">= {value.scrap_balance_kg == null ? 'Balance pendiente' : `${Number(value.scrap_balance_kg).toFixed(3)} kg de merma/scrap`}</p>
+                    {Number(value.mass_balance_variance_kg) < -0.001 && <p className="mt-1 text-xs font-bold text-destructive">Descuadre: el PTI útil supera la mezcla consumida por {Math.abs(Number(value.mass_balance_variance_kg)).toFixed(3)} kg. Revisa pesos y registros.</p>}
+                    <p className="mt-2 text-xs text-muted-foreground">Primer ingreso PTI: {formatDateTime(value.first_pti_at)} · último: {formatDateTime(value.last_pti_at)}</p>
+                    <p className="text-xs text-muted-foreground">Base: {String(value.pti_weight_basis || 'pendiente').replaceAll('_', ' ').toLowerCase()} · Registros: {value.pti_entry_count} · Fuente: {(value.weight_sources || []).join(', ') || 'sin registros'}</p>
+                  </article>)}
+                </div>
+                {transition && <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm font-bold tabular-nums">
+                  Merma/scrap calculado del cambio: {totalTransitionScrapBalance == null ? 'pendiente de datos completos de ambas mezclas' : `${totalTransitionScrapBalance.toFixed(3)} kg`}
+                  <span className="mt-1 block text-xs font-normal text-muted-foreground">El total es solo una suma de consulta; los registros de la mezcla anterior y la entrante permanecen separados.</span>
+                </p>}
+              </section>}
 
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 <p><span className="text-muted-foreground">Registró:</span> <strong>{selectedLog.operator ? [selectedLog.operator.first_name, selectedLog.operator.last_name].filter(Boolean).join(' ') || selectedLog.operator.username : '—'}</strong></p>

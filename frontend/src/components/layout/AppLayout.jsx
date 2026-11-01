@@ -9,12 +9,13 @@ import { GlobalBreadcrumbs } from './GlobalBreadcrumbs';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../../store/authStore';
 import { UserAvatar } from '../ui/UserAvatar';
-import { isAdminUser } from '../../utils/authHelpers';
+import { getUserAreaCode, isAdminUser } from '../../utils/authHelpers';
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
+  const isExtrusionCatalog = ['/production/machines', '/production/formulas'].includes(location.pathname);
 
   const handleNav = (path) => {
     navigate(path);
@@ -22,46 +23,26 @@ const AppLayout = () => {
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
   const isGlobalAdmin = isAdminUser(user);
+  const userArea = getUserAreaCode(user);
   const isWarehouseUser = !isGlobalAdmin && (['ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN'].includes(userRole) ||
                           user?.area?.code === 'ALMACEN' || 
                           user?.area?.code === 'ALM');
 
-  const navItems = [
+  const baseNavItems = [
     {
       icon: <Icon name="home" size={24} />,
-      label: 'Home',
+      label: 'Inicio',
       onClick: () => handleNav('/dashboard'),
       isActive: location.pathname === '/dashboard' || location.pathname === '/',
-      show: true
+      path: '/dashboard',
     },
     {
       icon: <Icon name="qr_code_scanner" size={24} />,
       label: 'Escanear',
       onClick: () => window.dispatchEvent(new CustomEvent('open-scanner')),
       isActive: false,
-      show: true
+      show: true,
     },
-    {
-      icon: <Icon name="assignment" size={24} />,
-      label: 'Órdenes',
-      onClick: () => handleNav('/warehouse/orders'),
-      isActive: location.pathname.startsWith('/warehouse/orders'),
-      show: useAuthStore().hasPermission('inventory.view')
-    },
-    {
-      icon: <Icon name="grid_view" size={24} />,
-      label: 'Áreas',
-      onClick: () => handleNav('/areas'),
-      isActive: location.pathname.startsWith('/areas'),
-      show: isGlobalAdmin && !isWarehouseUser
-    },
-    /* {
-      icon: <Icon name="group" size={24} />,
-      label: 'Usuarios',
-      onClick: () => handleNav('/users'),
-      isActive: location.pathname.startsWith('/users'),
-      show: useAuthStore().hasPermission('users.read')
-    }, */
     {
       icon: (
         <UserAvatar
@@ -74,9 +55,60 @@ const AppLayout = () => {
       label: 'Perfil',
       onClick: () => handleNav('/profile'),
       isActive: location.pathname.startsWith('/profile'),
-      show: true
+      show: true,
+      path: '/profile',
     }
-  ].filter(item => item.show);
+  ];
+
+  const areaNavItems = {
+    EXTRUSION: [
+      { label: 'Colas', path: '/extrusion/board', icon: 'view_kanban' },
+      { label: 'WIP', path: '/extrusion/wip', icon: 'inventory_2' },
+    ],
+    TELARES: [
+      { label: 'Tablero', path: '/telares/dashboard', icon: 'dashboard' },
+      { label: 'Terminal', path: '/production/telares', icon: 'precision_manufacturing' },
+    ],
+    GLOBO: [
+      { label: 'WIP', path: '/globo/wip', icon: 'inventory_2' },
+      { label: 'Estación', path: '/production/globo', icon: 'air' },
+    ],
+    LAMINADO: [
+      { label: 'WIP', path: '/laminado/wip', icon: 'inventory_2' },
+      { label: 'Estación', path: '/production/laminado', icon: 'layers' },
+    ],
+    ALMACEN: [
+      { label: 'Inventario', path: '/warehouse/inventory', icon: 'inventory' },
+      { label: 'Órdenes', path: '/warehouse/orders', icon: 'assignment' },
+    ],
+  };
+
+  const areaLinks = !isGlobalAdmin ? (areaNavItems[userArea] || []) : [];
+  const executiveLinks = isGlobalAdmin
+    ? [
+        ...(hasPermission('inventory.view') ? [{ label: 'Órdenes', path: '/warehouse/orders', icon: 'assignment' }] : []),
+        { label: 'Áreas', path: '/areas', icon: 'grid_view' },
+      ]
+    : [];
+  const navItems = [
+    baseNavItems[0],
+    ...(areaLinks.length > 0
+      ? areaLinks
+      : executiveLinks.length > 0
+        ? executiveLinks
+        : isWarehouseUser && hasPermission('inventory.view')
+          ? [{ label: 'Órdenes', path: '/warehouse/orders', icon: 'assignment' }]
+          : []
+    ).map((item) => ({
+      ...item,
+      icon: <Icon name={item.icon} size={24} />,
+      path: item.path,
+      onClick: () => handleNav(item.path),
+      isActive: location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+    })),
+    baseNavItems[1],
+    baseNavItems[2],
+  ];
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -92,7 +124,7 @@ const AppLayout = () => {
       {/* Sidebar Overlay for Mobile */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 lg:hidden z-40 backdrop-blur-sm transition-opacity" 
+          className="fixed inset-0 bg-black/50 lg:hidden z-[60] transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -107,7 +139,7 @@ const AppLayout = () => {
         <GlobalBreadcrumbs />
         
       {/* Main Content Area */}
-        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-3 lg:pt-3 flex-1 pb-24 lg:pb-28">
+        <PageContainer withBottomNav={true} maxWidth="full" className="px-0 pt-3 lg:pt-3 flex-1 lg:pb-28">
           {/* Transition Wrapper */}
           <div key={location.pathname} className="animate-page-enter w-full h-full">
             <Outlet />
@@ -117,18 +149,18 @@ const AppLayout = () => {
       </div>
 
       {/* Navegación Inferior Flotante (Solo en mobile/tablet) */}
-      <div className="block lg:hidden">
+      {!isSidebarOpen && <div className="block lg:hidden">
         <BottomNavigation 
           items={navItems} 
           className="left-0 right-0 rounded-t-3xl border-t shadow-2xl" 
         />
-      </div>
+      </div>}
 
       {/* Global Scanner Modal */}
       <GlobalScannerModal />
 
       {/* FAB: Global Scanner Trigger */}
-      <div className="hidden lg:block fixed bottom-8 right-8 z-40">
+      {!isExtrusionCatalog && <div className="hidden lg:block fixed bottom-8 right-8 z-40">
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
           aria-label="Abrir escáner global"
@@ -136,7 +168,7 @@ const AppLayout = () => {
         >
           <Icon name="qr_code_scanner" size={28} />
         </button>
-      </div>
+      </div>}
 
       {/* Modal for forcing password change */}
       <ForceChangePasswordModal />
