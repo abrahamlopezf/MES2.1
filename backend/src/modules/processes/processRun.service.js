@@ -35,6 +35,10 @@ const startRun = async (payload, currentUser) => {
     });
     if (!mixTraceable) throwHttpError(`No hay trazabilidad activa para el QR ${payload.mix_qr_code}.`, 404);
 
+    if (['CORTE_BANDA', 'CORTE_CINTA', 'ALMACEN', 'VENTA'].includes(String(mixTraceable.metadata?.destination_route || '').toUpperCase())) {
+      throwHttpError(`El QR ${payload.mix_qr_code} tiene una ruta directa de Extrusión (${mixTraceable.metadata.destination_route}) y no puede usarse como mezcla ni entrar a otro proceso.`, 409);
+    }
+
     if (mixTraceable.status === TRACEABLE_ITEM_STATUS.CONSUMIDO || mixTraceable.quantity_current <= 0) {
       throwHttpError(`La mezcla en el QR ${payload.mix_qr_code} ya fue consumida totalmente.`, 400);
     }

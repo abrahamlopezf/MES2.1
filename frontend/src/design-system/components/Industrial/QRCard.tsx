@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '../Card/Card';
 import { Badge } from '../Badge/Badge';
-import { QrCode, Factory } from 'lucide-react';
+import { QrCode, Factory } from '@/design-system/components/Icon/googleIconCompat';
 import { cn } from '../../utils';
 
 interface QRCardProps {

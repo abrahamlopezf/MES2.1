@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { getUserAreaCode } from '@/utils/authHelpers';
 
 interface PermissionGateProps {
   permission: string;
@@ -12,9 +13,13 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   children,
   fallback = null,
 }) => {
-  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const { hasPermission, user } = useAuthStore();
+  const roleCode = String(user?.role?.code || '').toUpperCase();
+  const areaSupervisorCanManageUsers = ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(roleCode)
+    && getUserAreaCode(user) === (roleCode === 'SUPERVISOR_TELARES' ? 'TELARES' : 'EXTRUSION')
+    && ['users.read', 'users.create', 'users.update'].includes(permission);
 
-  if (hasPermission(permission)) {
+  if (hasPermission(permission) || areaSupervisorCanManageUsers) {
     return <>{children}</>;
   }
 

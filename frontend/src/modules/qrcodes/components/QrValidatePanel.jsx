@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScanLine } from 'lucide-react';
+import { ScanLine } from '@/design-system/components/Icon/googleIconCompat';
 
 import Alert from '../../../components/ui/Alert';
 import Button from '../../../components/ui/Button';

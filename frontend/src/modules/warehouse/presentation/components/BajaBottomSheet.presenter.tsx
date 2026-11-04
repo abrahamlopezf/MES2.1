@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, X, QrCode, Plus, Trash2, ShieldAlert, Search } from 'lucide-react';
+import { Package, X, QrCode, Plus, Trash2, ShieldAlert, Search } from '@/design-system/components/Icon/googleIconCompat';
 import { Button, Input } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';

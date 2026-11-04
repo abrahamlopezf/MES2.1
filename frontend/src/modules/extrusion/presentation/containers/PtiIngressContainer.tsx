@@ -12,7 +12,9 @@ import {
   useExtrusionValuationQuery,
   useUpdatePtiRackPriceMutation,
   usePtiProductsQuery,
-  useExtrusionWipQuery
+  useExtrusionWipQuery,
+  useDispatchPtiRackToWarehouseMutation,
+  useRegisterPtiSaleExitMutation
 } from '../../hooks/useExtrusionFloorQueries';
 import { PtiIngressPresenter } from '../presenters/PtiIngressPresenter';
 import {
@@ -54,6 +56,40 @@ export const PtiIngressContainer: React.FC = () => {
   const scanMutation = useScanRackPtiMutation();
   const createRackMutation = useCreatePtiRackMutation();
   const updatePriceMutation = useUpdatePtiRackPriceMutation();
+  const dispatchWarehouseMutation = useDispatchPtiRackToWarehouseMutation();
+  const saleExitMutation = useRegisterPtiSaleExitMutation();
+  const roleCode = String(typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name) || '').toUpperCase();
+  const canRegisterSale = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode);
+
+  const handleDispatchToWarehouse = async (rackId: number, payload: { quantity_pieces?: number; weight_kg?: number; notes?: string }) => {
+    try {
+      const result = await dispatchWarehouseMutation.mutateAsync({ rackId, payload });
+      toast.success(`Transferencia ${result.transfer_code} creada. Almacén debe escanear el QR para confirmar la recepción.`);
+      refetchRacks();
+      refetchExtrusionWip();
+      if (canViewCosts) refetchValuation();
+      return result;
+    } catch (error: any) {
+      const msg = error.friendlyMessage || error.response?.data?.message || 'No se pudo transferir el PTI a Almacén.';
+      toast.error(msg);
+      throw error;
+    }
+  };
+
+  const handleRegisterSaleExit = async (rackId: number, payload: { rack_qr: string }) => {
+    try {
+      const result = await saleExitMutation.mutateAsync({ rackId, payload });
+      toast.success(`Salida a Venta ${result.exit_code} registrada: ${result.quantity_pieces} piezas / ${result.quantity_kg} kg.`);
+      refetchRacks();
+      refetchExtrusionWip();
+      if (canViewCosts) refetchValuation();
+      return result;
+    } catch (error: any) {
+      const msg = error.friendlyMessage || error.response?.data?.message || 'No se pudo registrar la salida a Venta.';
+      toast.error(msg);
+      throw error;
+    }
+  };
 
   const handleCreateRack = async (payload: { rack_code: string; max_capacity?: number; location_name?: string }) => {
     try {
@@ -116,22 +152,6 @@ export const PtiIngressContainer: React.FC = () => {
       setMixtureQr(activeQueues[0].consumption_order_qr_id);
     }
   }, [activeQueues, mixtureQr]);
-
-  // Prellenado inteligente: Si hay racks y ninguno seleccionado, preseleccionar el primer rack disponible
-  React.useEffect(() => {
-    if (racks.length > 0 && !rackQr) {
-      const available = racks.find(r => r.status !== 'LLENO') || racks[0];
-      if (available) {
-        setRackQr(available.qr_code);
-        if (Number(available.current_quantity || 0) > 0) {
-          setSelectedPtiMaterialId(Number(available.current_pti_product_id || available.current_pti_type_id) || '');
-        }
-        if (available.unit_price) {
-          setUnitPrice(Number(available.unit_price).toString());
-        }
-      }
-    }
-  }, [racks, rackQr]);
 
   // Rack seleccionado según lo escaneado o clickeado
   const selectedRack: PtiRack | null = useMemo(() => {
@@ -420,6 +440,11 @@ export const PtiIngressContainer: React.FC = () => {
       onCostIndexChange={setCostIndex}
       onUpdateRackPrice={handleUpdateRackPrice}
       isUpdatingRackPrice={updatePriceMutation.isPending}
+      onDispatchToWarehouse={handleDispatchToWarehouse}
+      isDispatchingToWarehouse={dispatchWarehouseMutation.isPending}
+      canRegisterSale={canRegisterSale}
+      onRegisterSaleExit={handleRegisterSaleExit}
+      isRegisteringSaleExit={saleExitMutation.isPending}
     />
   );
 };

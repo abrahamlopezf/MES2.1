@@ -15,10 +15,10 @@ router.use(authMiddleware);
 
 router.use((req, res, next) => {
   const roleCode = String(req.user?.role?.code || '').toUpperCase();
-  const isExtrusionRoleSelector = roleCode === 'SUPERVISOR_EXTRUSION'
+  const isAreaRoleSelector = ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(roleCode)
     && req.method === 'GET'
     && req.path === '/';
-  if (isSupervisor(req.user) && !isExtrusionRoleSelector) {
+  if (isSupervisor(req.user) && !isAreaRoleSelector) {
     return res.status(403).json({
       success: false,
       message: 'Los supervisores no tienen acceso a la gestión de roles.',
@@ -35,7 +35,7 @@ router.use((req, res, next) => {
 });
 
 const authorizeRoleSelectorRead = (req, res, next) => {
-  if (String(req.user?.role?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION'
+  if (['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(String(req.user?.role?.code || '').toUpperCase())
     && req.method === 'GET' && req.path === '/') return next();
   return permissionMiddleware('roles.read', 'users.read', 'users.create')(req, res, next);
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { ShieldCheck, ShieldAlert, Calendar, User, FileText } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Calendar, User, FileText } from '@/design-system/components/Icon/googleIconCompat';
 import { ActionButton } from './ActionButton';
 import { AllowedAction } from '@/core/qr-workspace/types/qr-workspace.types';
 

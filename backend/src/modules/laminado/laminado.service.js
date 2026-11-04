@@ -304,13 +304,14 @@ class LaminadoService {
   async getWipSummary(currentUser = null) {
     const allowCosts = canViewCosts(currentUser);
 
-    // 1. Rollos en custodia de Laminado (current_stage = 'LAMINADO' o next_allowed_stage = 'LAMINADO')
+    // 1. Rollos pendientes de Laminado. La etapa actual por sí sola no basta:
+    // los rollos transformados conservan current_stage='LAMINADO', pero ya
+    // avanzaron next_allowed_stage (por ejemplo, a CORTE).
     const rolls = await ViajeroRoll.findAll({
       where: {
-        [Op.or]: [
-          { current_stage: 'LAMINADO', status: { [Op.ne]: 'TRANSFORMADO' } },
-          { next_allowed_stage: 'LAMINADO', status: 'DISPONIBLE' },
-        ],
+        next_allowed_stage: 'LAMINADO',
+        status: 'DISPONIBLE',
+        is_active: true,
       },
       include: [
         { model: Loom, as: 'loom', attributes: ['id', 'code', 'name', 'type'] },
@@ -348,7 +349,10 @@ class LaminadoService {
 
     // 3. Rollos procesados recientemente en Laminado
     const recentTransformed = await ViajeroRoutingLog.findAll({
-      where: { to_stage: 'LAMINADO', action: 'PROCESO_FINALIZADO' },
+      where: {
+        to_stage: 'LAMINADO',
+        action: { [Op.in]: ['PROCESO_FINALIZADO', 'TRANSFORMACION_AREA'] },
+      },
       include: [
         {
           model: ViajeroRoll,

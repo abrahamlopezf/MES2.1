@@ -37,6 +37,18 @@ export interface Formula {
   ptiProducts?: PtiProduct[];
 }
 
+export type PtiDestinationRoute = 'TELARES_ROLLO' | 'TELARES_BANDA' | 'CORTE_BANDA' | 'CORTE_CINTA' | 'ALMACEN' | 'VENTA';
+
+export const PTI_DESTINATION_LABELS: Record<PtiDestinationRoute, string> = {
+  TELARES_ROLLO: 'Tejido Tela',
+  TELARES_BANDA: 'Telares Banda',
+  CORTE_BANDA: 'Corte de banda',
+  CORTE_CINTA: 'Corte de cinta',
+  ALMACEN: 'Almacén general',
+  VENTA: 'Venta (salida restringida)',
+};
+
+
 export interface PtiProduct {
   id: number;
   code: string;
@@ -118,6 +130,7 @@ export interface PtiRack {
   qr_code: string;
   current_pti_type_id: number | null;
   current_pti_product_id?: number | null;
+  destination_route?: PtiDestinationRoute | null;
   current_quantity: number;
   min_capacity: number;
   max_capacity: number;
@@ -223,6 +236,7 @@ export interface EnqueueMixPayload {
 export interface ScanRackPtiPayload {
   rack_qr: string;
   pti_material_id: number;
+  destination_route?: PtiDestinationRoute;
   quantity?: number;
   weight_kg?: number;
   unit_price?: number;

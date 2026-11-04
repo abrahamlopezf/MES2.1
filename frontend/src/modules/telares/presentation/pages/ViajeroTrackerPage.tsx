@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useViajeroDetailsQuery, useViajeroRollsQuery } from '../../hooks/useTelaresQueries';
 import { ViajeroRoll } from '../../types/telares.types';
 import { ViajeroLabelModal } from '../components/ViajeroLabelModal';
@@ -20,20 +21,32 @@ import {
   CheckCircle2,
   Boxes,
   Flame,
-} from 'lucide-react';
+  X,
+} from '@/design-system/components/Icon/googleIconCompat';
 import { formatDateTimeCdmx } from '@/utils/date';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { Dialog, DialogClose, DialogDescription, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 export const ViajeroTrackerPage: React.FC = () => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
-  const [searchInput, setSearchInput] = useState('');
-  const [queriedCode, setQueriedCode] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('qr') || '');
+  const [queriedCode, setQueriedCode] = useState(() => searchParams.get('qr') || '');
+  useEffect(() => {
+    const paramQr = searchParams.get('qr')?.trim();
+    if (paramQr) {
+      setSearchInput(paramQr);
+      setQueriedCode(paramQr);
+    }
+  }, [searchParams]);
+
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
   const [modalRollOverride, setModalRollOverride] = useState<ViajeroRoll | null>(null);
 
-  const { data: roll, isLoading, isError } = useViajeroDetailsQuery(queriedCode);
+  const { data: roll, isLoading, isFetching, isError, error, refetch } = useViajeroDetailsQuery(queriedCode);
   const { data: recentRolls = [], isLoading: isRecentLoading } = useViajeroRollsQuery({ limit: 20 });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -50,22 +63,22 @@ export const ViajeroTrackerPage: React.FC = () => {
   const costComplete = Boolean(roll?.cost_data_complete && roll?.cost_summary?.complete && roll?.cost_summary?.total_roll_cost != null);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-3 sm:p-6 space-y-6">
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-3 pb-32 sm:p-6 sm:pb-32 lg:pb-8 space-y-6">
       {/* 1. Header Industrial */}
       <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black uppercase text-white">
-            Rastreador de QR Viajero y Trazabilidad Completa
+            Registros de Telares · Producción y trazabilidad
           </h1>
           <p className="text-sm font-semibold text-slate-300">
-            Genealogía de Producción: Desde Ingreso en Almacén hasta Rollo de Tejido / Telares y Costos
+            Historial de rollos y bandas, consulta por folio o QR y detalle del proceso registrado.
           </p>
         </div>
       </div>
 
       {/* 2. Barra de Búsqueda */}
       <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-6 shadow-xl space-y-3">
-        <label className="text-xs font-black uppercase tracking-wider text-slate-300 block">
+        <label className="text-sm font-bold tracking-wide text-slate-100 block">
           Buscar por Código de Rollo o QR Viajero (Ej. 10-3-24-1200 o escaneo físico):
         </label>
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
@@ -95,129 +108,45 @@ export const ViajeroTrackerPage: React.FC = () => {
         </form>
       </div>
 
-      {/* 2.5 Listado Rápido de Salidas / Rollos Recientes de Telares */}
-      <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h2 className="text-base font-black uppercase text-white flex items-center gap-2">
-              <History className="h-5 w-5 text-blue-400" />
-              Salidas / Rollos Recientes de Telares (Rollo, Banda y Cintilla)
-            </h2>
-            <p className="text-xs text-slate-400 font-semibold">
-              Selecciona cualquier registro reciente para inspeccionar su genealogía completa o reimprimir su etiqueta QR Viajera
-            </p>
-          </div>
-          {queriedCode && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setQueriedCode('');
-                setSearchInput('');
-              }}
-              className="border-slate-600 text-slate-200 font-bold text-xs"
-            >
-              Limpiar selección ({queriedCode})
-            </Button>
-          )}
-        </div>
+      <Dialog open={Boolean(queriedCode)} onOpenChange={(open) => {
+        if (!open) {
+          setQueriedCode('');
+          setSearchInput('');
+        }
+      }}>
+        <DialogPortal>
+        <DialogOverlay className="z-[9998] bg-black/75" />
+        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-3 text-slate-100 shadow-2xl focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:max-h-[90dvh] sm:w-[min(96vw,72rem)] sm:rounded-2xl sm:p-6">
+          <DialogHeader className="sticky top-[-0.75rem] z-20 -mx-3 -mt-3 flex flex-row items-start justify-between gap-3 border-b border-slate-700 bg-slate-900 px-3 pb-3 pt-3 text-left sm:top-[-1.5rem] sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6">
+            <div className="min-w-0 space-y-1">
+              <DialogTitle className="text-xl font-black text-white">Genealogía del rollo</DialogTitle>
+              <DialogDescription className="break-all text-sm text-slate-300">
+                {roll ? `Seguimiento de producción, consumos y ruta de ${roll.roll_code}.` : `Consulta del código ${queriedCode}.`}
+              </DialogDescription>
+            </div>
+            <DialogClose className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-slate-200 transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" aria-label="Cerrar genealogía">
+              <X className="h-5 w-5" />
+            </DialogClose>
+          </DialogHeader>
 
-        {isRecentLoading ? (
-          <p className="text-xs text-slate-400 font-semibold">Cargando salidas recientes de Telares...</p>
-        ) : recentRolls.length === 0 ? (
-          <p className="text-xs text-slate-400 italic">No hay rollos registrados recientemente.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
-            <table className="w-full text-left text-xs text-slate-200">
-              <thead className="border-b border-slate-700 bg-slate-950 font-black uppercase text-slate-400">
-                <tr>
-                  <th className="p-3">Código Rollo / QR</th>
-                  <th className="p-3">Telar / Turno</th>
-                  <th className="p-3">Producto / Ficha</th>
-                  <th className="p-3">Cantidad</th>
-                  <th className="p-3">Ruta Autorizada</th>
-                  <th className="p-3">Fecha (CDMX)</th>
-                  <th className="p-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 font-semibold">
-                {recentRolls.map((item) => {
-                  const isSelected = queriedCode === item.roll_code || queriedCode === item.qr_code;
-                  return (
-                    <tr
-                      key={item.id}
-                      className={isSelected ? 'bg-blue-950/40' : 'hover:bg-slate-800/70'}
-                    >
-                      <td className="p-3 font-mono font-black text-amber-300 text-sm">
-                        {item.roll_code}
-                      </td>
-                      <td className="p-3">
-                        <span className="text-white font-bold">
-                          Telar #{item.loom_number || item.loom?.loom_number || item.loom_id}
-                        </span>
-                        <span className="block text-[11px] text-slate-400">
-                          Turno {item.shift_number || 1}° · Nómina {item.operator_nomina || item.operator?.numero_nomina || '1200'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className="text-white font-bold block">
-                          {item.output_product_name || item.bom?.name || 'Rollo de Telares'}
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          {item.product_kind || item.bom?.product_kind || 'ROLLO_TELA'}
-                        </span>
-                      </td>
-                      <td className="p-3 font-mono">
-                        <span className="text-blue-300 font-bold">{Number(item.meters).toFixed(0)} m</span>
-                        {' · '}
-                        <span className="text-emerald-300 font-bold">{Number(item.weight_kg).toFixed(1)} kg</span>
-                      </td>
-                      <td className="p-3 font-mono text-[11px] text-slate-300">
-                        {(item.route || []).join(' ➔ ')}
-                      </td>
-                      <td className="p-3 text-[11px] text-slate-400 font-mono">
-                        {formatDateTimeCdmx(item.created_at)}
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              setSearchInput(item.roll_code);
-                              setQueriedCode(item.roll_code);
-                            }}
-                            className="h-8 px-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg"
-                          >
-                            Ver Genealogía
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setModalRollOverride(item);
-                              setIsLabelModalOpen(true);
-                            }}
-                            className="h-8 px-2.5 border-slate-600 bg-slate-800 text-slate-200 font-bold text-xs rounded-lg flex items-center gap-1"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                            QR
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+            {queriedCode && (isLoading || isFetching) && (
+              <div className="rounded-xl border border-blue-400/40 bg-blue-950/30 p-4 text-base font-semibold text-blue-100" role="status" aria-live="polite">
+                Consultando la genealogía de <span className="font-mono font-bold">{queriedCode}</span>…
+              </div>
+            )}
+            {queriedCode && isError && (
+              <div className="flex flex-col gap-3 rounded-xl border border-red-400/50 bg-red-950/30 p-4 text-base text-red-100 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                <div>
+                  <p className="font-bold">No se pudo consultar la genealogía de {queriedCode}.</p>
+                  <p className="mt-1 text-sm text-red-200">{(error as any)?.response?.data?.message || (error as any)?.message || 'Ocurrió un error al consultar el rollo.'}</p>
+                </div>
+                <Button type="button" variant="outline" onClick={() => refetch()} className="min-h-11 border-red-300/50 px-4 text-sm font-bold text-red-100">
+                  Reintentar consulta
+                </Button>
+              </div>
+            )}
 
-      {/* 3. Resultado de la Consulta */}
-      {roll && (
+                  {roll && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Card Resumen Principal del Rollo con Nomenclatura Estricta */}
           <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-6 shadow-xl space-y-6">
@@ -468,6 +397,10 @@ export const ViajeroTrackerPage: React.FC = () => {
               <div className="space-y-2">
                 {roll.routingLogs.map((log) => {
                   const isBlocked = log.action.includes('BLOQUEO');
+                  const eventDate = log.created_at || (log as any).createdAt || (log as any).updated_at || (log as any).updatedAt;
+                  const actionLabel = log.action === 'BLOQUEO_RUTEO_INVALIDO'
+                    ? 'Intento de salto de etapa bloqueado'
+                    : log.action.replace(/_/g, ' ').toLowerCase();
                   return (
                     <div
                       key={log.id}
@@ -485,7 +418,7 @@ export const ViajeroTrackerPage: React.FC = () => {
                         )}
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-black uppercase text-white">{log.action}</span>
+                            <span className="font-black uppercase text-white">{actionLabel}</span>
                             <span className="text-xs font-mono bg-slate-800 px-2 py-0.5 rounded">
                               {log.from_stage} → {log.to_stage}
                             </span>
@@ -500,7 +433,7 @@ export const ViajeroTrackerPage: React.FC = () => {
                             {log.operator.first_name} {log.operator.last_name}
                           </span>
                         )}
-                        <span>{formatDateTimeCdmx(log.created_at)} (CST)</span>
+                        <span>{eventDate ? `${formatDateTimeCdmx(eventDate)} · hora CDMX` : 'Fecha del evento no disponible'}</span>
                       </div>
                     </div>
                   );
@@ -511,7 +444,135 @@ export const ViajeroTrackerPage: React.FC = () => {
             )}
           </div>
         </div>
-      )}
+            )}
+
+        </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
+
+      {/* 2.5 Listado Rápido de Salidas / Rollos Recientes de Telares */}
+      <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="text-base font-black uppercase text-white flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-400" />
+              Salidas / Rollos Recientes de Telares (Rollo, Banda y Cintilla)
+            </h2>
+            <p className="text-xs text-slate-400 font-semibold">
+              Selecciona cualquier registro reciente para inspeccionar su genealogía completa o reimprimir su etiqueta QR Viajera
+            </p>
+          </div>
+          {queriedCode && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setQueriedCode('');
+                setSearchInput('');
+              }}
+              className="border-slate-600 text-slate-200 font-bold text-xs"
+            >
+              Limpiar selección ({queriedCode})
+            </Button>
+          )}
+        </div>
+
+        {isRecentLoading ? (
+          <p className="text-xs text-slate-400 font-semibold">Cargando salidas recientes de Telares...</p>
+        ) : recentRolls.length === 0 ? (
+          <p className="text-xs text-slate-400 italic">No hay rollos registrados recientemente.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
+            <table className="w-full min-w-[900px] text-left text-sm text-slate-200">
+              <thead className="border-b border-slate-700 bg-slate-950 font-black uppercase text-slate-400">
+                <tr>
+                  <th className="p-3">Código Rollo / QR</th>
+                  <th className="p-3">Telar / Turno</th>
+                  <th className="p-3">Producto / Ficha</th>
+                  <th className="p-3">Cantidad</th>
+                  <th className="p-3">Ruta Autorizada</th>
+                  <th className="p-3">Fecha (CDMX)</th>
+                  <th className="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 font-semibold">
+                {recentRolls.map((item) => {
+                  const isSelected = queriedCode === item.roll_code || queriedCode === item.qr_code;
+                  return (
+                    <tr
+                      key={item.id}
+                      className={isSelected ? 'bg-blue-950/40' : 'hover:bg-slate-800/70'}
+                    >
+                      <td className="p-3 font-mono font-black text-amber-300 text-sm">
+                        {item.roll_code}
+                      </td>
+                      <td className="p-3">
+                        <span className="text-white font-bold">
+                          Telar #{item.loom_number || item.loom?.loom_number || item.loom_id}
+                        </span>
+                        <span className="block text-[11px] text-slate-400">
+                          Turno {item.shift_number || 1}° · Nómina {item.operator_nomina || item.operator?.numero_nomina || '1200'}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-white font-bold block">
+                          {item.output_product_name || item.bom?.name || 'Rollo de Telares'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {item.product_kind || item.bom?.product_kind || 'ROLLO_TELA'}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono">
+                        <span className="text-blue-300 font-bold">{Number(item.meters).toFixed(0)} m</span>
+                        {' · '}
+                        <span className="text-emerald-300 font-bold">{Number(item.weight_kg).toFixed(1)} kg</span>
+                      </td>
+                      <td className="p-3 font-mono text-[11px] text-slate-300">
+                        {(item.route || []).join(' ➔ ')}
+                      </td>
+                      <td className="p-3 text-[11px] text-slate-400 font-mono">
+                        {formatDateTimeCdmx(item.created_at)}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isFetching && queriedCode === item.roll_code}
+                            onClick={() => {
+                              setSearchInput(item.roll_code);
+                              setQueriedCode(item.roll_code);
+                            }}
+                            className="h-10 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg disabled:opacity-70"
+                          >
+                            {isFetching && queriedCode === item.roll_code ? 'Consultando…' : 'Ver Genealogía'}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setModalRollOverride(item);
+                              setIsLabelModalOpen(true);
+                            }}
+                            className="h-8 px-2.5 border-slate-600 bg-slate-800 text-slate-200 font-bold text-xs rounded-lg flex items-center gap-1"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            QR
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+
 
       {/* Modal de Etiqueta */}
       <ViajeroLabelModal

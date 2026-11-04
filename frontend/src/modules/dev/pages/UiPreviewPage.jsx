@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, Plus, QrCode, Save, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Plus, QrCode, Save, Search } from '@/design-system/components/Icon/googleIconCompat';
 
 import {
   TFAlert,

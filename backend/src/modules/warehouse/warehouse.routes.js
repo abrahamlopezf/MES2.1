@@ -18,6 +18,9 @@ const authorizeWarehouseReports = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN');
 
 router.use(authenticate);
 
+router.get('/pti-extrusion-transfers/pending', roleMiddleware('WAREHOUSEMAN', 'ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'), warehouseController.getPendingExtrusionPtiTransfers);
+router.post('/pti-extrusion-transfers/receive', roleMiddleware('WAREHOUSEMAN', 'ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'), warehouseController.receiveExtrusionPtiTransfer);
+
 
 
 router.get(

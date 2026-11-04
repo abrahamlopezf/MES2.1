@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { X, Camera, RefreshCw, AlertTriangle, SwitchCamera, Keyboard, Check, History } from 'lucide-react';
+import { X, Camera, RefreshCw, AlertTriangle, SwitchCamera, Keyboard, Check, History } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 

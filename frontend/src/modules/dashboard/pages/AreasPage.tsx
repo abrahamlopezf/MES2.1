@@ -18,7 +18,7 @@ import {
   Printer,
   List,
   PackagePlus
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
 import { isAdminUser } from '../../../utils/authHelpers';

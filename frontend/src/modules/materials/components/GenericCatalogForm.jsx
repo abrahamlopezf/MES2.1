@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, X, ShieldAlert } from 'lucide-react';
+import { Save, X, ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton, TFInput, TFTextarea } from '../../../components/tf-ui';
 import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';
 

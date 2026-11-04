@@ -17,6 +17,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 const qrPermission = (...permissions) => (req, res, next) => {
+  if (req.user && permissions.length === 1 && permissions[0] === 'qr.read') return next();
   const roleCode = String(req.user?.role?.code || '').toUpperCase();
   if (roleCode === 'SUPERVISOR_EXTRUSION' && permissions.every((permission) =>
     ['dashboard.read', 'qr.read', 'qr.create', 'qr.generate', 'qr.history.read', 'qr.events.read'].includes(permission)

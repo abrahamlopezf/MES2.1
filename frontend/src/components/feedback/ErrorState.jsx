@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/design-system/components/Icon/googleIconCompat';
 
 const ErrorState = ({
   title = 'No pudimos cargar la información',

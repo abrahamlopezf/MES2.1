@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, ShieldCheck, KeyRound } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, KeyRound } from '@/design-system/components/Icon/googleIconCompat';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';

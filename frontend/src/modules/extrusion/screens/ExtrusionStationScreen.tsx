@@ -1,6 +1,6 @@
 import React from 'react';
 import { SectionHeader } from '@/shared/components/domain/SectionHeader';
-import { Activity, Search, ServerCog } from 'lucide-react';
+import { Activity, Search, ServerCog } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
 
 import { useScanner } from '@/core/scanner/ScannerProvider';

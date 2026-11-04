@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Loader2, Calendar, User, PackageOpen, FileText } from 'lucide-react';
+import { X, Loader2, Calendar, User, PackageOpen, FileText } from '@/design-system/components/Icon/googleIconCompat';
 import { Badge, Button } from '../../../../design-system';
 
 export interface MermaScrapDetallesBottomSheetPresenterProps {

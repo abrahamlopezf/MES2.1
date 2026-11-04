@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, AlertTriangle, Loader2, Server } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Loader2, Server } from '@/design-system/components/Icon/googleIconCompat';
 import { getHealthStatus } from '../services/healthApi';
 
 const HealthPage = () => {

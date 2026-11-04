@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
-import { MapPin } from 'lucide-react';
+import { MapPin } from '@/design-system/components/Icon/googleIconCompat';
 import { 
   useOperationalAreasQuery, 
   useOperationalAreaMutation,

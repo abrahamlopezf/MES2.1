@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
-import { Truck } from 'lucide-react';
+import { Truck } from '@/design-system/components/Icon/googleIconCompat';
 import { 
   useSuppliersQuery, 
   useCreateSupplierMutation, 

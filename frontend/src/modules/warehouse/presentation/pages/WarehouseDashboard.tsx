@@ -5,7 +5,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, 
   AreaChart, Area, Legend, PieChart, Pie, Cell
 } from 'recharts';
-import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle, DollarSign, PackagePlus, ShieldCheck, AlertCircle, Menu } from 'lucide-react';
+import { Boxes, TrendingDown, ArrowDownCircle, AlertTriangle, DollarSign, PackagePlus, ShieldCheck, AlertCircle } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../../store/authStore';
 import { useThemeStore } from '../../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../design-system';
@@ -240,14 +240,6 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
       {/* HEADER GREETING & VIEW TOGGLE */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
-            className="lg:hidden p-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:text-primary transition-colors shrink-0 flex items-center justify-center h-10 w-10 cursor-pointer"
-            aria-label="Abrir Menú Principal"
-            title="Menú"
-          >
-            <Menu size={20} />
-          </button>
           <div className="min-w-0 flex-1 flex flex-col gap-0.5 pr-12 sm:pr-0">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
               Monitor de Almacén <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Operaciones y Stock</span>

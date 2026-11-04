@@ -1,4 +1,4 @@
-import { Edit3, Layers3, Plus, ShieldAlert } from 'lucide-react';
+import { Edit3, Layers3, Plus, ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '../../../components/ui/dropdown-menu';
 
 import {

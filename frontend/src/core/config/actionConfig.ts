@@ -7,7 +7,7 @@ import {
   Ban, 
   Printer,
   Undo
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 
 export const ACTION_MAP = {
   'RECEIVE': { label: 'Recibir Material', variant: 'success', icon: Archive, description: 'Ingresar material al inventario.' },

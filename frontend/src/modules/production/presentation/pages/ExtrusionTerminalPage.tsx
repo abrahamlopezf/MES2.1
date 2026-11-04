@@ -113,7 +113,8 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [finishMixNotes, setFinishMixNotes] = useState('');
 
   // Estados de Registro Directo de Carretes en Rack PTI (Sin QR Virgen)
-  const [rackId, setRackId] = useState(qrFromUrl);
+  const [rackId, setRackId] = useState(qrFromUrl.trim().toUpperCase());
+  const [verifiedRackQr, setVerifiedRackQr] = useState(qrFromUrl.trim().toUpperCase());
   const [generatedRackQr, setGeneratedRackQr] = useState<{ rackCode: string; qrCode: string } | null>(null);
   const [piecesInput, setPiecesInput] = useState<string>('1');
   const [weightInput, setWeightInput] = useState<string>('6.80');
@@ -239,15 +240,11 @@ export const ExtrusionTerminalPage: React.FC = () => {
     }
   }, [formulas, selectedRecipeId]);
 
-  // Preseleccionar rack disponible si existe
-  useEffect(() => {
-    if (!isNewRackRoute && racks.length > 0 && !rackId) {
-      const avail = racks.find((r) => r.status !== 'LLENO') || racks[0];
-      if (avail) {
-        setRackId(avail.rack_code || avail.qr_code);
-      }
-    }
-  }, [isNewRackRoute, racks, rackId]);
+  const handleRackQrScanned = (value: string) => {
+    const clean = value.trim().toUpperCase();
+    setRackId(clean);
+    setVerifiedRackQr(clean);
+  };
 
   // PTI esperado según la fórmula de la mezcla activa en tolva
   const expectedPti = useMemo(() => {
@@ -345,7 +342,16 @@ export const ExtrusionTerminalPage: React.FC = () => {
         badgeText: 'Sin Rack',
       };
     }
-
+    if (!verifiedRackQr || verifiedRackQr !== String(selectedRack.qr_code || '').trim().toUpperCase()) {
+      return {
+        isReady: false,
+        status: 'QR_REQUIRED',
+        title: 'Escanea el QR del rack',
+        message: 'Para evitar un ingreso en el rack equivocado, escanea la etiqueta QR física antes de capturar piezas y peso.',
+        badgeVariant: 'outline' as const,
+        badgeText: 'QR pendiente',
+      };
+    }
     const currentQty = Number(selectedRack.current_quantity) || 0;
     const maxCap = Number(selectedRack.max_capacity) || 100;
 
@@ -422,7 +428,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
         badgeText: 'No Coincide',
       };
     }
-  }, [activeQueue, selectedRack, expectedPti, currentGroup]);
+  }, [activeQueue, selectedRack, expectedPti, currentGroup, verifiedRackQr]);
 
   // Manejador: Iniciar / Activar Extrusión en Máquina
   const handleStartExtrusion = async (e: React.FormEvent) => {
@@ -545,7 +551,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
 
     try {
       const response = await scanRackMutation.mutateAsync({
-        rack_qr: selectedRack.rack_code || selectedRack.qr_code,
+        rack_qr: selectedRack.qr_code,
         pti_material_id: effectivePtiId,
         quantity: pieces,
         weight_kg: Number(totalWeight.toFixed(2)),
@@ -1269,6 +1275,8 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   </div>
                 </div>
 
+                {expectedPti && <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">La salida de Extrusión se dirige a {Number(expectedPti.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} según la extrusora. El destino posterior se decide en Telares.</div>}
+
                 {/* 2. Selector de Rack Destino a Ancho Completo */}
                 <div className="space-y-1.5">
                   <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
@@ -1285,38 +1293,19 @@ export const ExtrusionTerminalPage: React.FC = () => {
                       + Nuevo Rack
                     </Button>
                   </label>
-                  <select
-                    value={rackId}
-                    onChange={(e) => setRackId(e.target.value)}
-                    disabled={!activeQueue}
-                    className="w-full h-11 bg-background border border-border rounded-xl px-3 text-xs sm:text-sm font-bold font-mono text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all cursor-pointer disabled:opacity-70"
-                  >
-                    {racks.map((r) => {
-                      const currentQty = Number(r.current_quantity) || 0;
-                      const hasProductLabel = Boolean(
-                        r.pti_product_name && r.pti_product_name.trim().toLowerCase() !== 'libre'
-                      );
-                      const isVacio =
-                        currentQty === 0 &&
-                        !r.current_pti_type_id &&
-                        !r.currentPtiProduct?.formula_id &&
-                        !hasProductLabel;
-                      const rackPtiProductId = Number(r.current_pti_product_id || r.currentPtiProduct?.id || 0);
-                      const rackProductName = (r.pti_product_name || r.currentPtiProduct?.name || '').trim().toLowerCase();
-                      const expectedProductName = (expectedPti?.name || '').trim().toLowerCase();
-                      const isRackMatch = Boolean(expectedPti && (
-                        (rackPtiProductId && rackPtiProductId === Number(expectedPti.id)) ||
-                        (Number(r.currentPtiProduct?.formula_id) && Number(r.currentPtiProduct?.formula_id) === Number(activeQueue?.formula?.id)) ||
-                        (rackProductName && rackProductName !== 'libre' && rackProductName === expectedProductName)
-                      ));
-                      const tag = r.status === 'LLENO' ? '[LLENO]' : isVacio ? '[LIBRE]' : isRackMatch ? '[COMPATIBLE]' : '[NO COINCIDE]';
-                      return (
-                        <option key={r.id} value={r.rack_code || r.qr_code}>
-                          {r.rack_code} • {tag} ({r.current_quantity}/{r.max_capacity} pzas) - {r.pti_product_name || 'Libre'}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_minmax(0,1fr)]">
+                    <QrScannerButton
+                      title="Escanear el QR físico del rack de destino"
+                      disabled={!activeQueue}
+                      onScan={handleRackQrScanned}
+                    />
+                    <div className="flex min-h-11 items-center rounded-xl border border-border bg-background px-3 font-mono text-xs sm:text-sm font-bold text-foreground">
+                      {selectedRack
+                        ? `${selectedRack.rack_code} · ${selectedRack.current_quantity}/${selectedRack.max_capacity} bobinas`
+                        : 'Escanea el QR del rack para identificarlo'}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">El ingreso se habilita solo al leer el QR del rack donde quedó la corrida.</p>
                 </div>
 
                 {/* Callout de Verificación y Compatibilidad de Rack */}

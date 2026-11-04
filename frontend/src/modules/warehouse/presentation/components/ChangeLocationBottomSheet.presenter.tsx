@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, MapPin, Loader2 } from 'lucide-react';
+import { X, MapPin, Loader2 } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../../design-system';
 
 export interface ChangeLocationBottomSheetPresenterProps {

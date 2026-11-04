@@ -1,6 +1,6 @@
 import React from 'react';
 import { DashboardKPI } from '../types/dashboard.types';
-import { TrendingUp, AlertTriangle, XCircle, Activity } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, Activity } from '@/design-system/components/Icon/googleIconCompat';
 
 interface ProductionKPIProps {
   kpi: DashboardKPI;

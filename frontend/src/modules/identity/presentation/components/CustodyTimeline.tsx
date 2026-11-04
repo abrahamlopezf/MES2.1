@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCustodyTimelineQuery } from '../hooks/useCustodyPipeline';
 import { TransferReason } from '../../domain/valueObjects/CustodyValueObjects';
-import { ArrowRight, CheckCircle2, AlertTriangle, Package, History, Wrench, Trash2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, AlertTriangle, Package, History, Wrench, Trash2 } from '@/design-system/components/Icon/googleIconCompat';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface CustodyTimelineProps {

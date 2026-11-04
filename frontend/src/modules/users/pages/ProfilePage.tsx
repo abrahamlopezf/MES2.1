@@ -4,7 +4,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import {
   Moon, Sun, LogOut, Edit2, X, Save, Lock, Camera, Link as LinkIcon,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';

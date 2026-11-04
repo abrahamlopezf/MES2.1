@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit3, Archive, Layers, LayoutGrid, List, ShieldAlert } from 'lucide-react';
+import { Plus, Edit3, Archive, Layers, LayoutGrid, List, ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '../../../components/ui/dropdown-menu';
 import { useAuthStore } from '../../../store/authStore';
 import { TFAlert, TFButton, TFCard, TFBadge } from '../../../components/tf-ui';

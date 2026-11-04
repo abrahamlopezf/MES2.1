@@ -366,6 +366,9 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                   <Input type="number" min="0.0001" step="0.0001" value={transformedCostIndex} onChange={(e) => setTransformedCostIndex(e.target.value ? Number(e.target.value) : '')} placeholder="Captura el índice" required className="bg-background" />
                 </label>}
               </div>
+              <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">
+                La Extrusión entrega el PTI a Telares Banda o Telares Rollo según la extrusora. El destino posterior del rollo o banda se define al registrar su salida en Telares.
+              </div>
             </section>
 
             {/* PESO Y PRECIO UNITARIOS */}

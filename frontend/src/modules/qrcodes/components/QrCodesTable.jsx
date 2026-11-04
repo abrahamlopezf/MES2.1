@@ -1,4 +1,4 @@
-import { Eye, History, Power } from 'lucide-react';
+import { Eye, History, Power } from '@/design-system/components/Icon/googleIconCompat';
 
 import Badge from '../../../components/ui/Badge';
 import Button from '../../../components/ui/Button';

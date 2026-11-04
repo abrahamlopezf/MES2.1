@@ -11,7 +11,7 @@ import {
   Loader2,
   FileText,
   Boxes,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { toast } from 'sonner';
 
 interface PrepareRollMaterialsModalProps {

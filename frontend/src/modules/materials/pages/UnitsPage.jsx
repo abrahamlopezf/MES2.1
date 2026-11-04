@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
-import { Scale } from 'lucide-react';
+import { Scale } from '@/design-system/components/Icon/googleIconCompat';
 import { 
   useMaterialUnitsQuery, 
   useCreateMaterialUnitMutation, 

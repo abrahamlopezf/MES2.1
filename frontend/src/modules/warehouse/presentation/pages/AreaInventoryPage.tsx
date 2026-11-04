@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   AlertCircle, ChevronRight, FilterX, QrCode, FileText, CheckCircle2, X, Package, Search, Loader2
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { Input, Button } from '../../../../design-system';
 import { ConsumptionOrderDetailsModal } from '../components/ConsumptionOrderDetailsModal';
 import { AreaItemDetailsModal } from './components/AreaItemDetailsModal';

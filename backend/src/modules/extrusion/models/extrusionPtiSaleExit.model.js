@@ -1,0 +1,15 @@
+module.exports = (sequelize, DataTypes) => sequelize.define('ExtrusionPtiSaleExit', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  exit_code: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  source_rack_id: { type: DataTypes.INTEGER, allowNull: false },
+  pti_product_id: { type: DataTypes.INTEGER, allowNull: false },
+  rack_qr_code_id: { type: DataTypes.INTEGER, allowNull: false },
+  quantity_pieces: { type: DataTypes.DECIMAL(12, 3), allowNull: false },
+  quantity_kg: { type: DataTypes.DECIMAL(12, 3), allowNull: false },
+  unit_cost_per_kg: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+  total_cost: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
+  source_area_id: { type: DataTypes.INTEGER, allowNull: false },
+  registered_by: { type: DataTypes.INTEGER, allowNull: false },
+  registered_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  notes: { type: DataTypes.TEXT, allowNull: true },
+}, { tableName: 'extrusion_pti_sale_exits', underscored: true, timestamps: true });

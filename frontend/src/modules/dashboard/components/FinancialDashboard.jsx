@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import { DollarSign, AlertCircle, TrendingDown, PackageCheck, Wallet } from 'lucide-react';
+import { DollarSign, AlertCircle, TrendingDown, PackageCheck, Wallet } from '@/design-system/components/Icon/googleIconCompat';
 import { apiClient } from '../../../core/api/apiClient';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../design-system';
 import { useThemeStore } from '../../../store/themeStore';

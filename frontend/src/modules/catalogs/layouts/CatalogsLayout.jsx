@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Warehouse, MapPin, Map, Navigation, AlignVerticalSpaceAround } from "lucide-react";
+import { Warehouse, MapPin, Map, Navigation, AlignVerticalSpaceAround } from '@/design-system/components/Icon/googleIconCompat';
 import { TFCard } from "../../../components/tf-ui";
 
 const CatalogsLayout = () => {

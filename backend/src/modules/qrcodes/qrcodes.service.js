@@ -845,7 +845,7 @@ const cancelQrCode = async (qrCodeId, payload, currentUser) => {
   });
 };
 
-const lookup = async (qr_code) => {
+const lookup = async (qr_code) => { const { buildFullQrLookup } = require('./qrTraceabilityTree.service'); return buildFullQrLookup(qr_code, { qrInclude, eventInclude, buildQrResponse, buildEventResponse });
   const { Op } = require('sequelize');
 
   const whereClause = {

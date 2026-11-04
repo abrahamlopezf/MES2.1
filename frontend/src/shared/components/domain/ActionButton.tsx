@@ -3,7 +3,7 @@ import { Button, ButtonProps } from '@/components/ui/button.tsx';
 import { AllowedAction } from '@/core/qr-workspace/types/qr-workspace.types';
 import { cn } from '@/lib/utils';
 import { Icon as GoogleIcon } from '@/design-system';
-import * as LucideIcons from 'lucide-react';
+import * as GoogleSymbols from '@/design-system/components/Icon/googleIconCompat';
 
 const ACTION_ICON_MAP: Record<string, string> = {
   Play: 'play_arrow',
@@ -30,8 +30,8 @@ interface ActionButtonProps extends Omit<ButtonProps, 'children'> {
 
 export function ActionButton({ action, showIcon = true, isLoading, className, ...props }: ActionButtonProps) {
   const iconName = action.icon ? (ACTION_ICON_MAP[action.icon] || (action.icon.includes('_') ? action.icon : null)) : null;
-  // @ts-ignore - mapeo dinamico de icono fallback
-  const LucideIcon = (!iconName && action.icon) ? ((LucideIcons as any)[action.icon] || LucideIcons.Play) : null;
+  // Compatibilidad con acciones que todavía guardan el nombre anterior del icono.
+  const GoogleSymbol = (!iconName && action.icon) ? ((GoogleSymbols as any)[action.icon] || GoogleSymbols.Play) : null;
 
   return (
     <Button 
@@ -44,8 +44,8 @@ export function ActionButton({ action, showIcon = true, isLoading, className, ..
       {showIcon && !isLoading && (
         iconName ? (
           <GoogleIcon name={iconName} size={20} className="mr-2" />
-        ) : LucideIcon ? (
-          <LucideIcon className="mr-2 h-5 w-5" />
+        ) : GoogleSymbol ? (
+          <GoogleSymbol size={20} className="mr-2" />
         ) : (
           <GoogleIcon name="play_arrow" size={20} className="mr-2" />
         )

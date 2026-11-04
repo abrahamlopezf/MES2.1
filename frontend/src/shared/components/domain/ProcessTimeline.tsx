@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Circle, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Clock } from '@/design-system/components/Icon/googleIconCompat';
 
 export interface TimelineEvent {
   id: string;

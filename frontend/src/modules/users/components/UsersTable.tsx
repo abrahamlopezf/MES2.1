@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit3, ChevronDown, ChevronUp } from '@/design-system/components/Icon/googleIconCompat';
 
 import { Card, CardContent, Badge, Button } from '../../../design-system';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';

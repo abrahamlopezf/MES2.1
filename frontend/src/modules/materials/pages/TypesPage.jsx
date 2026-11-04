@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
-import { Tag } from 'lucide-react';
+import { Tag } from '@/design-system/components/Icon/googleIconCompat';
 import { 
   useMaterialTypesQuery, 
   useCreateMaterialTypeMutation, 

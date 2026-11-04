@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { AlertCircle, FileWarning } from 'lucide-react';
+import { AlertCircle, FileWarning } from '@/design-system/components/Icon/googleIconCompat';
 
 interface WasteReasonBadgeProps {
   type: 'SCRAP' | 'MERMA';

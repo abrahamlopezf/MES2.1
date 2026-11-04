@@ -14,7 +14,7 @@ import { CreatePtiProductPayload, PtiProduct } from '../../types/extrusion.types
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
+import { Plus } from '@/design-system/components/Icon/googleIconCompat';
 import { colorNamesMatch, getNamedColors } from '../../domain/colorRules';
 
 type Draft = {
@@ -147,12 +147,12 @@ export const PtiCatalogPanel: React.FC = () => {
       <div className="space-y-5">
         <section className="min-w-0 space-y-3">
           <div className="overflow-x-auto rounded-xl border border-border bg-card">
-            <table className="w-full min-w-[1200px] text-left text-sm">
+            <table className="w-full min-w-[1400px] text-left text-sm">
               <thead className="bg-muted/50 text-[11px] uppercase text-muted-foreground"><tr>
                 <th className="p-3">Código / tipo</th><th className="p-3">Extrusora</th><th className="p-3">Color</th><th className="p-3">Denier</th><th className="p-3">Cintas ± tolerancia</th><th className="p-3">Ancho</th>{allowCosts && <th className="p-3">Índice costo</th>}<th className="p-3">Peso bobina</th><th className="p-3">Estado</th><th className="p-3">Acciones</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
-                {isLoading ? <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">Cargando catálogo…</td></tr> : products.map((product: PtiProduct) => (
+                {isLoading ? <tr><td colSpan={allowCosts ? 10 : 9} className="p-6 text-center text-muted-foreground">Cargando catálogo…</td></tr> : products.map((product: PtiProduct) => (
                   <tr key={product.id} className="align-top">
                     <td className="p-3"><strong className="block">{product.tape_type || product.name}</strong><span className="font-mono text-xs text-muted-foreground">{product.code}</span></td>
                     <td className="p-3">{product.extrusion_machine_number ?? '—'}</td>
@@ -175,7 +175,7 @@ export const PtiCatalogPanel: React.FC = () => {
                     <td className="p-3"><div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => edit(product)}>Editar</Button><Button size="sm" variant="ghost" disabled={deleteMutation.isPending} onClick={() => void deactivate(product)}>{product.is_active ? 'Eliminar' : 'Borrar'}</Button></div></td>
                   </tr>
                 ))}
-                {!isLoading && products.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">El catálogo está vacío. Usa el botón “Nueva ficha PTI” para registrar la primera ficha.</td></tr>}
+                {!isLoading && products.length === 0 && <tr><td colSpan={allowCosts ? 10 : 9} className="p-6 text-center text-muted-foreground">El catálogo está vacío. Usa el botón “Nueva ficha PTI” para registrar la primera ficha.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -203,6 +203,9 @@ export const PtiCatalogPanel: React.FC = () => {
             <label className="text-sm font-bold">Ancho de cinta (mm) *<Input required type="number" min="0.01" step="0.01" value={draft.tape_width_mm} onChange={(e) => set('tape_width_mm', e.target.value)} className="mt-1 min-h-12 text-base" /></label>
           </div>
           <div className="rounded-lg bg-muted/30 p-3 text-xs"><span className="font-semibold text-muted-foreground">Nombre de producto:</span><p className="mt-1 font-bold text-foreground">{makeName(draft) || 'Se genera con el tipo, denier, ancho y color'}</p></div>
+          <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4 text-sm text-muted-foreground">
+            El PTI de Extrusión alimenta Telares automáticamente: Extrusora 1 a Telares Banda y las demás extrusoras a Telares Rollo. El destino posterior se define al registrar la producción en Telares.
+          </div>
           <div className="space-y-3 border-t border-border pt-3">
             {allowCosts && (
               <>

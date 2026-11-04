@@ -148,12 +148,13 @@ exports.deleteOperator = async (req, res, next) => {
 exports.loadCreel = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { rack_id, spools_to_load } = req.body;
+    const { rack_id, spools_to_load, scanned_qr } = req.body;
     const operator_id = req.user?.id;
     const result = await telaresService.loadLoomCreel({
       loom_id: Number(id),
       rack_id: Number(rack_id),
       spools_to_load: Number(spools_to_load),
+      scanned_qr,
       operator_id,
     });
     res.status(200).json(result);
@@ -216,6 +217,27 @@ exports.getRecentRolls = async (req, res, next) => {
   }
 };
 
+exports.getScrapLogs = async (req, res, next) => {
+  try {
+    const data = await telaresService.getScrapLogs(req.query);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+exports.createScrapLog = async (req, res, next) => {
+  try {
+    const data = await telaresService.saveScrapLog(req.body, req.user?.id);
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+exports.updateScrapLog = async (req, res, next) => {
+  try {
+    const data = await telaresService.saveScrapLog(req.body, req.user?.id, Number(req.params.id));
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
 exports.validateViajeroScan = async (req, res, next) => {
   try {
     const { qr_code, area_name } = req.body;
@@ -267,6 +289,15 @@ exports.getViajeroDetails = async (req, res, next) => {
 exports.getWipSummary = async (req, res, next) => {
   try {
     const summary = await telaresService.getWipSummary(req.user);
+    res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPerformanceSummary = async (req, res, next) => {
+  try {
+    const summary = await telaresService.getPerformanceSummary(req.query.days);
     res.json(summary);
   } catch (err) {
     next(err);

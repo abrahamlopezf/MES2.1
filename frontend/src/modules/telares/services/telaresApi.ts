@@ -65,10 +65,12 @@ export const telaresApi = {
     loom_id: number;
     rack_id: number;
     spools_to_load: number;
+    scanned_qr: string;
   }): Promise<any> => {
     const response = await axiosClient.post(`/telares/looms/${payload.loom_id}/load-creel`, {
       rack_id: payload.rack_id,
       spools_to_load: payload.spools_to_load,
+      scanned_qr: payload.scanned_qr,
     });
     return response.data;
   },
@@ -171,6 +173,11 @@ export const telaresApi = {
 
   getWipSummary: async (): Promise<import('../types/telares.types').WipSummaryResponse> => {
     const response = await axiosClient.get('/telares/wip-summary');
+    return response.data;
+  },
+
+  getPerformanceSummary: async (days: 7 | 30 = 7): Promise<import('../types/telares.types').TelaresPerformanceSummary> => {
+    const response = await axiosClient.get('/telares/performance-summary', { params: { days } });
     return response.data;
   },
 

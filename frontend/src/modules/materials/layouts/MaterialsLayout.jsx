@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Boxes, Layers3, Hash, Tag, Tags, Award, Factory, MapPin, Scale, Truck } from "lucide-react";
+import { Boxes, Layers3, Hash, Tag, Tags, Award, Factory, MapPin, Scale, Truck } from '@/design-system/components/Icon/googleIconCompat';
 import { TFCard } from "../../../components/tf-ui";
 
 const MaterialsLayout = () => {

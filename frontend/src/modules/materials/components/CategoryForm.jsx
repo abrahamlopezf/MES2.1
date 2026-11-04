@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, X } from '@/design-system/components/Icon/googleIconCompat';
 
 import {
   TFAlert,

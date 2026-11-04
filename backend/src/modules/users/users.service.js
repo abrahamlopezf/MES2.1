@@ -149,9 +149,9 @@ const validateUniqueUserFields = async ({
 
 const buildScopeWhereClause = (actorRole) => {
   const roleCode = String(actorRole?.code || '').toUpperCase();
-  const areaFallbacks = { ADMIN_EXT: 2, ADMIN_EXTRUSION: 2, SUPERVISOR_EXTRUSION: 2, OPERADOR_EXTRUSION: 2 };
+  const areaFallbacks = { ADMIN_EXT: 2, ADMIN_EXTRUSION: 2, SUPERVISOR_EXTRUSION: 2, OPERADOR_EXTRUSION: 2, ADMIN_TELARES: 3, ADMIN_TEL: 3, SUPERVISOR_TELARES: 3, OPERADOR_TELARES: 3 };
   const areaId = actorRole?.area_id ?? areaFallbacks[roleCode] ?? null;
-  const isKnownAreaScopedRole = [...Object.keys(areaFallbacks), 'ADMIN_ALM', 'ADMIN_ALMACEN', 'ADMIN_TELARES', 'ADMIN_TEL'].includes(roleCode);
+  const isKnownAreaScopedRole = [...Object.keys(areaFallbacks), 'ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode);
   const isGlobal = isAdmin({ role: actorRole }) || (!isKnownAreaScopedRole && actorRole.area_id === null && actorRole.subarea_id === null);
   if (isGlobal) {
     return {}; // No filter, can see everyone
@@ -178,7 +178,9 @@ const getUsers = async (currentUser) => {
     order: [['id', 'ASC']],
   });
 
-  return users.map(buildUserResponse);
+  return users
+    .filter((user) => AuthorizationService.canViewUser(currentUser.role, user.role))
+    .map(buildUserResponse);
 };
 
 const getUserById = async (userId, currentUser) => {
@@ -204,14 +206,23 @@ const createUser = async (payload, currentUser) => {
     }
 
     const actorRoleCode = String(currentUser?.role?.code || '').toUpperCase();
-    if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(actorRoleCode)
-      && !['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(roleToAssign.code || '').toUpperCase())) {
-      throwHttpError('Solo se pueden crear supervisores u operadores de Extrusión.', 403);
+    const areaUserRolePolicy = {
+      ADMIN_EXT: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
+      ADMIN_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
+      SUPERVISOR_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
+      ADMIN_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
+      ADMIN_TEL: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
+      SUPERVISOR_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
+    };
+    const actorPolicy = areaUserRolePolicy[actorRoleCode];
+    if (actorPolicy && (!actorPolicy.roles.includes(String(roleToAssign.code || '').toUpperCase())
+      || Number(roleToAssign.area_id) !== Number(currentUser.role.area_id ?? actorPolicy.areaId))) {
+      throwHttpError(`Solo se pueden crear supervisores u operadores de ${actorPolicy.areaName}.`, 403);
     }
 
-    const isSameAreaSupervisorCreation = actorRoleCode === 'SUPERVISOR_EXTRUSION'
-      && String(roleToAssign.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION'
-      && Number(roleToAssign.area_id) === Number(currentUser.role.area_id ?? 2);
+    const isSameAreaSupervisorCreation = ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(actorRoleCode)
+      && String(roleToAssign.code || '').toUpperCase() === actorRoleCode
+      && Number(roleToAssign.area_id) === Number(currentUser.role.area_id ?? (actorRoleCode === 'SUPERVISOR_TELARES' ? 3 : 2));
     if (!AuthorizationService.canAssignRole(currentUser.role, roleToAssign) && !isSameAreaSupervisorCreation) {
       throwHttpError('No tienes permisos para asignar este rol.', 403);
     }
@@ -247,7 +258,7 @@ const createUser = async (payload, currentUser) => {
     });
 
     // Regla: Supervisor siempre crea usuarios en estado inactivo (is_active: false) a la espera de autorización
-    const isSupervisor = ['SUPERVISOR', 'SUPERVISOR_EXTRUSION'].includes(currentUser.role?.code);
+    const isSupervisor = String(currentUser.role?.code || '').toUpperCase().startsWith('SUPERVISOR');
     let isActive = payload.is_active ?? true;
     if (isSupervisor || payload.status === 'PENDING') {
       isActive = false;
@@ -332,9 +343,18 @@ const updateUser = async (userId, payload, currentUser) => {
         throwHttpError('No tienes permisos para cambiar a este rol.', 403);
       }
       const actorRoleCode = String(currentUser?.role?.code || '').toUpperCase();
-      if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(actorRoleCode)
-        && !['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(targetRole.code || '').toUpperCase())) {
-        throwHttpError('Solo se pueden asignar roles de supervisor u operador de Extrusión.', 403);
+      const areaUserRolePolicy = {
+        ADMIN_EXT: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
+        ADMIN_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
+        SUPERVISOR_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
+        ADMIN_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
+        ADMIN_TEL: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
+        SUPERVISOR_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
+      };
+      const actorPolicy = areaUserRolePolicy[actorRoleCode];
+      if (actorPolicy && (!actorPolicy.roles.includes(String(targetRole.code || '').toUpperCase())
+        || Number(targetRole.area_id) !== Number(currentUser.role.area_id ?? actorPolicy.areaId))) {
+        throwHttpError(`Solo se pueden asignar roles de supervisor u operador de ${actorPolicy.areaName}.`, 403);
       }
     }
 

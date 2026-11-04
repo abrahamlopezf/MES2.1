@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FilterX, Search, Filter, ChevronDown, ChevronUp, LayoutGrid, List } from 'lucide-react';
+import { FilterX, Search, Filter, ChevronDown, ChevronUp, LayoutGrid, List } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
 import { TFSelect } from '../../../components/tf-ui';

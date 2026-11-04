@@ -102,13 +102,16 @@ const getBaseAccessContext = ({ user, assignment, traceableItem }) => {
         belongsToAssignedArea ||
         belongsToCurrentArea ||
         (!assignedAreaId && !currentAreaId);
+    const directExtrusionRoute = String(traceableItem?.metadata?.destination_route || '').toUpperCase();
+    const routeRestricted = ['CORTE_BANDA', 'CORTE_CINTA', 'ALMACEN', 'VENTA'].includes(directExtrusionRoute);
 
     return {
         user_area_id: userAreaId,
         privileged,
         assigned_area_id: assignedAreaId,
         current_area_id: currentAreaId,
-        allowed_by_area: Boolean(allowedByArea),
+        allowed_by_area: Boolean(allowedByArea && !routeRestricted),
+        restricted_destination_route: routeRestricted ? directExtrusionRoute : null,
     };
 };
 

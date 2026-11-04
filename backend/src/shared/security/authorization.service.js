@@ -37,6 +37,8 @@ class AuthorizationService {
       ADMIN_ALMACEN: 1,
       ADMIN_TELARES: 3,
       ADMIN_TEL: 3,
+      SUPERVISOR_TELARES: 3,
+      OPERADOR_TELARES: 3,
     };
     const actorAreaId = actorRole.area_id ?? roleAreaFallbacks[actorCode] ?? null;
     const isKnownAreaAdmin = Object.prototype.hasOwnProperty.call(roleAreaFallbacks, actorCode);
@@ -79,8 +81,12 @@ class AuthorizationService {
    * Regla: Puede gestionar si el targetUserRole.level < actorRole.level y está en su scope.
    */
   static canManageUser(actorRole, targetUserRole) {
-    if (String(actorRole?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION'
-      && ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'].includes(String(targetUserRole?.code || '').toUpperCase())) {
+    const peerManageableRoles = {
+      SUPERVISOR_EXTRUSION: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'],
+      SUPERVISOR_TELARES: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'],
+    };
+    const actorCode = String(actorRole?.code || '').toUpperCase();
+    if (peerManageableRoles[actorCode]?.includes(String(targetUserRole?.code || '').toUpperCase())) {
       return this._hasScopeAccess(actorRole, targetUserRole, false);
     }
     return this._hasScopeAccess(actorRole, targetUserRole, true);
@@ -99,6 +105,13 @@ class AuthorizationService {
    * Regla: Puede asignar si newRole.level < actorRole.level y está en su scope.
    */
   static canAssignRole(actorRole, newRole) {
+    const actorCode = String(actorRole?.code || '').toUpperCase();
+    if (actorCode === 'SUPERVISOR_EXTRUSION' && String(newRole?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION') {
+      return this._hasScopeAccess(actorRole, newRole, false);
+    }
+    if (actorCode === 'SUPERVISOR_TELARES' && String(newRole?.code || '').toUpperCase() === 'SUPERVISOR_TELARES') {
+      return this._hasScopeAccess(actorRole, newRole, false);
+    }
     return this._hasScopeAccess(actorRole, newRole, true);
   }
 

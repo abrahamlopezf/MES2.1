@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Badge } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
-import { ArrowLeft, Package, Trash2, TrendingDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Package, Trash2, TrendingDown, Loader2 } from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { MermaScrapDetallesBottomSheet } from '../components/MermaScrapDetallesBottomSheet.container';

@@ -6,7 +6,7 @@ import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { ManualEntryBottomSheetPresenter } from './ManualEntryBottomSheet.presenter';
 import { downloadBatchPdf } from '../../../identity/presentation/hooks/useIdentityBatches';
 import { Link } from 'react-router-dom';
-import { Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
+import { Sparkles, ExternalLink, AlertCircle } from '@/design-system/components/Icon/googleIconCompat';
 import { 
   TFDialog, 
   TFDialogContent, 

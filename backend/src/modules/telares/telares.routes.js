@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const telaresController = require('./telares.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
+const roleMiddleware = require('../../middlewares/role.middleware');
 
 // Todas las rutas protegidas por autenticación
 router.use(authMiddleware);
@@ -43,12 +44,16 @@ router.post('/transfer-cart', telaresController.transferCart);
 router.get('/pti-racks', telaresController.getAvailablePtiRacks);
 router.get('/pti-racks/lookup/:code', telaresController.lookupPtiRack);
 router.get('/wip-summary', telaresController.getWipSummary);
+router.get('/performance-summary', telaresController.getPerformanceSummary);
 router.get('/pti-transfer-mode', telaresController.getPtiTransferMode);
 router.put('/pti-transfer-mode', telaresController.updatePtiTransferMode);
 router.post('/runs/start', telaresController.startRun);
 router.post('/runs/finish-roll', telaresController.finishRoll);
 router.post('/runs/:id/finish', telaresController.finishRun);
 router.get('/rolls', telaresController.getRecentRolls);
+router.get('/scrap-logs', roleMiddleware('ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'), telaresController.getScrapLogs);
+router.post('/scrap-logs', roleMiddleware('ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'), telaresController.createScrapLog);
+router.put('/scrap-logs/:id', roleMiddleware('ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'), telaresController.updateScrapLog);
 
 // Rutas del QR Viajero (Enrutamiento Dinámico)
 router.post('/viajero/validate-scan', telaresController.validateViajeroScan);

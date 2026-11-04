@@ -139,9 +139,18 @@ const assertRoleCanBeDeactivated = async (role, transaction = null) => {
 const getRoles = async (currentUser) => {
   const actorCode = String(currentUser?.role?.code || '').toUpperCase();
   const where = getRoleWhereForActor(currentUser);
-  if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(actorCode)) {
-    where.code = ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'];
-    where.area_id = currentUser?.role?.area_id ?? 2;
+  const areaRoleOptions = {
+    ADMIN_EXT: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
+    ADMIN_EXTRUSION: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
+    SUPERVISOR_EXTRUSION: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
+    ADMIN_TELARES: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
+    ADMIN_TEL: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
+    SUPERVISOR_TELARES: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
+  };
+  const areaOptions = areaRoleOptions[actorCode];
+  if (areaOptions) {
+    where.code = areaOptions.roles;
+    where.area_id = currentUser?.role?.area_id ?? areaOptions.areaId;
     delete where.level;
   }
   const roles = await Role.findAll({

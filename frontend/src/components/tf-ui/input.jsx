@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from '@/design-system/components/Icon/googleIconCompat';
 
 import { cn } from '../../lib/utils';
 

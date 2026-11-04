@@ -1,4 +1,4 @@
-import { FilterX, Plus, QrCode } from 'lucide-react';
+import { FilterX, Plus, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 
 import {
   TFBadge,

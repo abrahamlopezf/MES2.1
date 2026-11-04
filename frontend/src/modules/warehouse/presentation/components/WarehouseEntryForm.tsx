@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useWarehouseEntry } from '../hooks/useWarehouseEntry';
 import { useMaterialsQuery, useSuppliersQuery } from '../../../materials/hooks/useMaterialsQueries';
-import { PackagePlus, QrCode, MapPin, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { PackagePlus, QrCode, MapPin, AlertCircle, Loader2, CheckCircle2 } from '@/design-system/components/Icon/googleIconCompat';
 import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { toast } from 'sonner';
 

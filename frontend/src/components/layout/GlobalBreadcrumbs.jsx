@@ -1,6 +1,5 @@
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronRight, Home } from '@/design-system/components/Icon/googleIconCompat';
 import { Link, useLocation } from 'react-router-dom';
-import { Icon } from '../../design-system';
 
 const ROUTE_DICTIONARY = {
   admin: 'Administración',
@@ -92,16 +91,6 @@ export const GlobalBreadcrumbs = () => {
   return (
     <div className="sticky top-0 z-40 w-full min-w-0 border-b border-border bg-background">
       <div className="flex min-h-12 items-center gap-2 px-3 py-2 pr-16 sm:px-5 sm:pr-20 lg:px-6 lg:pr-6">
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
-          data-ignore-accessibility-min-height
-          className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/50 p-0 text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-          aria-label="Abrir menú de navegación"
-          title="Menú"
-        >
-          <Icon name="menu" size={20} />
-        </button>
-
         <nav className="min-w-0 flex-1" aria-label="Ruta de navegación">
           <ol className="flex min-w-0 items-center gap-1.5 text-sm">
             <li className="flex shrink-0 items-center">

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, XCircle } from '@/design-system/components/Icon/googleIconCompat';
 import { cva } from 'class-variance-authority';
 
 import { cn } from '../../lib/utils';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, Info, QrCode } from 'lucide-react';
+import { X, Info, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button, Badge } from '../../../../design-system';
 import { downloadQrPdf } from '../../../identity/presentation/hooks/useIdentityBatches';

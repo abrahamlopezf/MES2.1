@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SectionHeader } from '@/shared/components/domain/SectionHeader';
-import { Trash2, Search, ArrowRight } from 'lucide-react';
+import { Trash2, Search, ArrowRight } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
 
 import { useScanner } from '@/core/scanner/ScannerProvider';

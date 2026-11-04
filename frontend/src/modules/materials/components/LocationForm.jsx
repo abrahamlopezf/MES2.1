@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAreasRequest } from '../../areas/services/areasApi';
-import { Save, X, Loader2 } from 'lucide-react';
+import { Save, X, Loader2 } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton, TFInput, TFSelect, TFTextarea } from '../../../components/tf-ui';
 
 const LocationForm = ({

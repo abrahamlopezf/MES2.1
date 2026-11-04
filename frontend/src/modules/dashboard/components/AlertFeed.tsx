@@ -1,6 +1,6 @@
 import React from 'react';
 import { DashboardAlert } from '../types/dashboard.types';
-import { AlertTriangle, Bell, Info, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Bell, Info, CheckCircle2 } from '@/design-system/components/Icon/googleIconCompat';
 
 interface AlertFeedProps {
   alerts: DashboardAlert[];

@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Archive, CheckCircle2 } from 'lucide-react';
+import { Plus, RefreshCw, Archive, CheckCircle2 } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../design-system';
 
 const MaterialModuleHeader = ({

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, History, User, MapPin, Package, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { X, History, User, MapPin, Package, ArrowDownRight, ArrowUpRight } from '@/design-system/components/Icon/googleIconCompat';
 import { Button, Badge } from '../../../../design-system';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 

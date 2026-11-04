@@ -1,5 +1,5 @@
 import React from 'react';
-import { QrCode, MapPin, Layers } from 'lucide-react';
+import { QrCode, MapPin, Layers } from '@/design-system/components/Icon/googleIconCompat';
 import { StatusBadge } from './StatusBadge';
 import { ErpStatus } from '@/core/config/statusConfig';
 import { cn } from '@/lib/utils';

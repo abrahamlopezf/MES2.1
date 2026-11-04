@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, Loader2 } from '@/design-system/components/Icon/googleIconCompat';
 import { cn } from '../../../lib/utils'; // Optional if available, otherwise just template literals
 
 export interface SearchSelectProps<T> {

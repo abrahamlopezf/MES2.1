@@ -1,5 +1,5 @@
 import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router-dom';
-import { AlertCircle, Home, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Home, ArrowLeft } from '@/design-system/components/Icon/googleIconCompat';
 
 export const RouteErrorBoundary = () => {
   const error = useRouteError();

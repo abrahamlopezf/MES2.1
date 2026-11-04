@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FilterX, RefreshCw, Search } from 'lucide-react';
+import { FilterX, RefreshCw, Search } from '@/design-system/components/Icon/googleIconCompat';
 
 import Alert from '../../../components/ui/Alert';
 import Button from '../../../components/ui/Button';

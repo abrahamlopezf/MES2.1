@@ -23,7 +23,7 @@ export interface IconProps extends React.HTMLAttributes<HTMLSpanElement> {
  * Componente Icon estándar para Google Fonts Icons (Material Symbols)
  * https://fonts.google.com/icons
  */
-export const Icon: React.FC<IconProps> = ({
+export const Icon = React.forwardRef<HTMLSpanElement, IconProps>(({
   name,
   size = 20,
   className = '',
@@ -32,7 +32,7 @@ export const Icon: React.FC<IconProps> = ({
   variant = 'rounded',
   style,
   ...props
-}) => {
+}, ref) => {
   let pixelSize: string;
   let numSize: number;
 
@@ -55,6 +55,7 @@ export const Icon: React.FC<IconProps> = ({
 
   return (
     <span
+      ref={ref}
       className={cn(
         fontClass,
         'shrink-0 select-none inline-flex items-center justify-center leading-none text-current',
@@ -73,11 +74,12 @@ export const Icon: React.FC<IconProps> = ({
       {name}
     </span>
   );
-};
+});
+Icon.displayName = 'Icon';
 
 /**
  * Función auxiliar para renderizar de forma unificada iconos de Google Fonts (strings),
- * elementos React o componentes de icono (como Lucide React)
+ * elementos React o componentes de Google Material Symbols
  */
 export const renderAnyIcon = (
   icon: any,

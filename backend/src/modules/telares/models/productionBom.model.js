@@ -79,6 +79,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: ['TELARES', 'LAMINADO', 'CORTE'],
       },
+      allowed_routes: {
+        type: DataTypes.JSON,
+        allowNull: false,
+        defaultValue: [],
+        comment: 'Rutas operativas autorizadas para el PTI de Telares; cada elemento es una secuencia de etapas.',
+      },
       ounces_yd2: {
         type: DataTypes.DECIMAL(6, 2),
         allowNull: true,

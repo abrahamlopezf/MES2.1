@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import axiosClient from '../../../../api/axiosClient';
-import { QrCode, Search, History, AlertTriangle } from 'lucide-react';
+import { QrCode, Search, History, AlertTriangle } from '@/design-system/components/Icon/googleIconCompat';
 import { Badge } from '../../../../design-system';
 import { useAuthStore } from '../../../../store/authStore';
 

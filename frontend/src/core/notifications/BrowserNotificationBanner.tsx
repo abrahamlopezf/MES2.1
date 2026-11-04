@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, BellOff, BellRing, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Bell, BellOff, BellRing, CheckCircle2, ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 import { useBrowserNotifications } from './useBrowserNotifications';
 
 interface BrowserNotificationBannerProps {

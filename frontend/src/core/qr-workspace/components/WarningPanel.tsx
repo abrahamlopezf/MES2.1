@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/design-system/components/Icon/googleIconCompat';
 import { Warning } from '@/core/qr-workspace/types/qr-workspace.types';
 import { cn } from '@/lib/utils';
 

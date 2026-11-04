@@ -8,7 +8,7 @@ import { ProcessTimeline } from '@/shared/components/domain/ProcessTimeline';
 import { GenealogyTree } from '@/shared/components/domain/GenealogyTree';
 import { QRWorkspace } from '@/core/qr-workspace/QRWorkspace';
 import { QRScanResponse } from '@/core/qr-workspace/types/qr-workspace.types';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard } from '@/design-system/components/Icon/googleIconCompat';
 
 const MOCK_WORKSPACE_DATA: QRScanResponse = {
   entity: { id: 'e1', code: 'MI-EXT-4421', type: 'Producto Intermedio', name: 'Rollo Film Stretch' },

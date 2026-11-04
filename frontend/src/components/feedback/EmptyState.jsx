@@ -1,4 +1,4 @@
-import { Inbox } from 'lucide-react';
+import { Inbox } from '@/design-system/components/Icon/googleIconCompat';
 
 const EmptyState = ({
   title = 'Sin información',

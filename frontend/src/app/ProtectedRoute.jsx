@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../store/authStore';
 
 const ProtectedRoute = () => {

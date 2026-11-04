@@ -64,6 +64,10 @@ const requireExtrusionAccess = (req, res, next) => {
   const areaId = req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id;
   const executiveRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'];
   const allowedRoles = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'];
+  const telaresCatalogRoles = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'];
+  // Telares needs the read-only Extrusion PTI catalog to define its BOM inputs.
+  // Keep this exception limited to the list endpoint; no other Extrusion route is opened.
+  if (req.method === 'GET' && req.path === '/pti-products' && telaresCatalogRoles.includes(roleCode)) return next();
   const otherAreaRoles = [
     'ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN', 'ADMIN_TELARES', 'ADMIN_TEL',
     'SUPERVISOR_TELARES', 'OPERADOR_TELARES', 'ADMIN_GLOBO', 'SUPERVISOR_GLOBO',

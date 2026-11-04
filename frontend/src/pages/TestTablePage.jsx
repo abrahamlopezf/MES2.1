@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown } from '@/design-system/components/Icon/googleIconCompat';
 import { PageContainer } from '@/shared/components/layout/PageContainer';
 import { EntityTable } from '@/shared/components/table/EntityTable';
 import { Button } from '@/components/ui/button';

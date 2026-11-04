@@ -4,7 +4,7 @@ import {
   QrCode,
   ShieldCheck,
   Users,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 
 export const dashboardCards = [
   {

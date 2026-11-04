@@ -32,6 +32,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'Subárea de Telares a la que se destina el PTI de este rack',
       },
+      destination_route: {
+        type: DataTypes.STRING(24),
+        allowNull: true,
+        comment: 'Ruta comercial/operativa asignada al PTI de Extrusora 1.',
+      },
       current_quantity: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
@@ -126,6 +131,7 @@ module.exports = (sequelize, DataTypes) => {
             rack.current_pti_type_id = null;
             rack.current_pti_product_id = null;
             rack.destination_subarea_id = null;
+            rack.destination_route = null;
             rack.status = 'VACIO';
           } else if (qty >= maxCap) {
             rack.status = 'LLENO';

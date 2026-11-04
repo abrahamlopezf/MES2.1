@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MixRequestModal } from '../components/MixRequestModal';
 import { EditFormulaModal } from '../components/EditFormulaModal';
 import { CreateFormulaModal } from '../components/CreateFormulaModal';
@@ -86,6 +87,7 @@ export const FormulasPage: React.FC = () => {
   const [ptiFormulaFilter, setPtiFormulaFilter] = useState<string>('ALL');
   const [ptiStatusFilter, setPtiStatusFilter] = useState<string>('ACTIVE');
   const [editingPti, setEditingPti] = useState<PtiProduct | null>(null);
+  const [selectedPtiDetails, setSelectedPtiDetails] = useState<PtiProduct | null>(null);
   const [isPtiModalOpen, setIsPtiModalOpen] = useState(false);
   const [deletingPtiId, setDeletingPtiId] = useState<number | null>(null);
 
@@ -940,6 +942,11 @@ export const FormulasPage: React.FC = () => {
                             <span className="text-2xl font-bold leading-none" aria-hidden="true">&#8942;</span>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 font-medium">
+                            <DropdownMenuItem onClick={() => setSelectedPtiDetails(pti)} className="min-h-12 cursor-pointer py-3">
+                              <Icon name="visibility" size={18} className="mr-2 text-primary" />
+                              <span>Detalles</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <PermissionGate permission="extrusion.formulas.manage">
                               <DropdownMenuItem
                                 onClick={() => {
@@ -966,19 +973,6 @@ export const FormulasPage: React.FC = () => {
                       </div>
 
                       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border py-3 text-base">
-                        <div className="col-span-2">
-                          <dt className="text-sm font-semibold text-muted-foreground">Fórmula enlazada</dt>
-                          <dd className="mt-0.5 break-words font-medium text-foreground">
-                            {pti.formula ? (
-                              <>
-                                {pti.formula.name}
-                                <span className="mt-0.5 block font-mono text-sm text-muted-foreground">
-                                  {pti.formula.code}{allowCosts ? ` · ×${Number(pti.formula.cost_index || 1.15).toFixed(2)}` : ''}
-                                </span>
-                              </>
-                            ) : pti.formula_id ? `Fórmula #${pti.formula_id}` : 'Sin fórmula enlazada'}
-                          </dd>
-                        </div>
                         <div>
                           <dt className="text-sm font-semibold text-muted-foreground">Peso unitario</dt>
                           <dd className="mt-0.5 font-mono font-bold text-foreground">{pti.unit_weight_kg == null ? 'Pendiente de captura' : `${Number(pti.unit_weight_kg).toFixed(3)} kg`}</dd>
@@ -998,12 +992,14 @@ export const FormulasPage: React.FC = () => {
                         </summary>
                         <div className="space-y-3 border-t border-border p-3">
                           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-foreground">
+                            <div className="col-span-2"><dt className="font-semibold text-muted-foreground">Fórmula enlazada</dt><dd className="mt-0.5 break-words">{pti.formula ? <><span className="font-semibold">{pti.formula.name}</span><span className="mt-0.5 block font-mono text-muted-foreground">{pti.formula.code}{allowCosts ? ` · ×${Number(pti.formula.cost_index || 1.15).toFixed(2)}` : ''}</span></> : pti.formula_id ? `Fórmula #${pti.formula_id}` : 'Sin fórmula enlazada'}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Extrusora</dt><dd>{pti.extrusion_machine_number ? `#${pti.extrusion_machine_number}` : '—'}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Tipo de cinta</dt><dd>{pti.tape_type || '—'}</dd></div>
                             <div className="col-span-2 min-w-0"><dt className="font-semibold text-muted-foreground">Color</dt><dd className="break-words">{pti.color || '—'}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Denier</dt><dd>{pti.denier ?? '—'}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Cintas</dt><dd>{pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Ancho</dt><dd>{pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</dd></div>
+                            <div className="col-span-2"><dt className="font-semibold text-muted-foreground">Subárea de suministro</dt><dd className="mt-0.5 break-words">{Number(pti.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} · asignada según la extrusora</dd></div>
                             {allowCosts && <div><dt className="font-semibold text-muted-foreground">Índice PTI</dt><dd>×{Number(pti.transformed_cost_index || 1).toFixed(4)}</dd></div>}
                           </dl>
                           <div className="border-t border-border pt-3">
@@ -1042,36 +1038,27 @@ export const FormulasPage: React.FC = () => {
                   tabIndex={0}
                   className="hidden w-full overflow-x-auto pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:block"
                 >
-                  <table className={`w-full ${allowCosts ? 'min-w-[1120px]' : 'min-w-[1024px]'} table-fixed border-separate border-spacing-0`}>
+                  <table className={`w-full ${allowCosts ? 'min-w-[850px]' : 'min-w-[740px]'} table-fixed border-separate border-spacing-0`}>
                     <thead>
                       <tr>
-                        <th className="w-[90px] rounded-l-xl bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[120px] rounded-l-xl bg-secondary px-3 py-3 text-left text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Código / SKU
                         </th>
-                        <th className="w-[145px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="bg-secondary px-3 py-3 text-left text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Carrete / Bobina
                         </th>
-                        <th className="w-[205px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
-                          Ficha de cinta
-                        </th>
-                        <th className="w-[150px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
-                          Fórmula Enlazada
-                        </th>
-                        <th className="w-[145px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
-                          Especificaciones
-                        </th>
-                        <th className="w-[90px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[125px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Peso Unit.
                         </th>
                         {allowCosts && (
-                          <th className="w-[100px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-nowrap">
+                          <th className="w-[125px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-nowrap">
                             Precio Unit.
                           </th>
                         )}
-                        <th className="w-[80px] bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                        <th className="w-[110px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Estado
                         </th>
-                        <th className="w-[85px] rounded-r-xl bg-secondary px-2 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-nowrap">
+                        <th className="w-[100px] rounded-r-xl bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-nowrap">
                           Acciones
                         </th>
                       </tr>
@@ -1089,48 +1076,6 @@ export const FormulasPage: React.FC = () => {
                             <span className="font-bold text-sm text-foreground/90 line-clamp-2 leading-tight block" title={pti.name}>
                               {pti.name}
                             </span>
-                          </td>
-
-                          <td className="border-b border-border/50 px-2 py-2.5 align-middle text-sm text-muted-foreground">
-                            <span className="block font-semibold text-foreground">{pti.tape_type || 'Tipo pendiente'} · Ext. {pti.extrusion_machine_number ?? '—'}</span>
-                            <span className="mt-1 block break-words" title={pti.color || ''}>Color: {pti.color || '—'}</span>
-                            <span className="mt-1 block break-words font-mono">{pti.denier == null ? '—' : `${pti.denier} D`} · {pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`} cintas · {pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</span>
-                            {allowCosts && <span className="mt-1 block font-mono font-bold text-purple-600">Índice PTI ×{Number(pti.transformed_cost_index || 1).toFixed(4)}</span>}
-                          </td>
-
-                          <td className="border-b border-border/50 px-2.5 py-2.5 align-middle">
-                            {pti.formula ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="block line-clamp-2 text-sm font-bold leading-snug text-foreground" title={pti.formula.name}>
-                                  {pti.formula.name}
-                                </span>
-                                <div className="flex flex-wrap items-center gap-1 font-mono text-sm text-muted-foreground">
-                                  <span>{pti.formula.code}</span>
-                                  {allowCosts && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-purple-600 font-bold">×{Number(pti.formula.cost_index || 1.15).toFixed(2)}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-sm italic text-muted-foreground">Fórmula #{pti.formula_id}</span>
-                            )}
-                          </td>
-
-                          <td className="border-b border-border/50 px-2.5 py-2.5 align-middle overflow-hidden" title={pti.specifications || ''}>
-                            <p
-                              className="text-sm font-medium text-muted-foreground line-clamp-2 leading-snug break-words"
-                              style={{
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              {pti.specifications || <span className="italic opacity-50">Sin ficha técnica</span>}
-                            </p>
                           </td>
 
                           <td className="border-b border-border/50 px-2 py-2.5 align-middle text-center font-mono text-sm font-bold text-foreground whitespace-nowrap">
@@ -1177,6 +1122,11 @@ export const FormulasPage: React.FC = () => {
                                 <span className="text-xl font-bold text-white leading-none pb-1">&#8942;</span>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48 font-medium">
+                                <DropdownMenuItem onClick={() => setSelectedPtiDetails(pti)} className="min-h-11 cursor-pointer py-2 text-base">
+                                  <Icon name="visibility" size={16} className="mr-2 text-primary" />
+                                  <span>Detalles</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <PermissionGate permission="extrusion.formulas.manage">
                                   <DropdownMenuItem
                                     onClick={() => {
@@ -1243,6 +1193,57 @@ export const FormulasPage: React.FC = () => {
       />
 
       {/* Modal de Creación / Edición de Producto PTI */}
+      <Dialog open={Boolean(selectedPtiDetails)} onOpenChange={(open) => !open && setSelectedPtiDetails(null)}>
+        <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto border-border bg-card p-5 text-foreground sm:p-6">
+          {selectedPtiDetails && (
+            <>
+              <DialogHeader className="pr-8 text-left">
+                <div className="flex flex-wrap items-center gap-2">
+                  <DialogTitle className="text-xl">Detalle del PTI</DialogTitle>
+                  <Badge variant={selectedPtiDetails.is_active ? 'default' : 'secondary'}>
+                    {selectedPtiDetails.is_active ? 'Activo' : 'Inactivo'}
+                  </Badge>
+                </div>
+                <DialogDescription className="break-words font-mono text-primary">
+                  {selectedPtiDetails.code} · {selectedPtiDetails.name}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <section className="rounded-xl border border-border bg-background/40 p-4">
+                  <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Ficha de cinta</h3>
+                  <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                    <div><dt className="text-muted-foreground">Subárea / extrusora</dt><dd className="font-semibold">{selectedPtiDetails.tape_type || 'Tipo pendiente'} · Extrusora {selectedPtiDetails.extrusion_machine_number ?? '—'}</dd></div>
+                    <div><dt className="text-muted-foreground">Color</dt><dd className="font-semibold">{selectedPtiDetails.color || '—'}</dd></div>
+                    <div><dt className="text-muted-foreground">Denier</dt><dd className="font-semibold">{selectedPtiDetails.denier == null ? '—' : `${selectedPtiDetails.denier} D`}</dd></div>
+                    <div><dt className="text-muted-foreground">Cintas</dt><dd className="font-semibold">{selectedPtiDetails.tape_count == null ? '—' : `${selectedPtiDetails.tape_count} ±${selectedPtiDetails.tape_count_tolerance ?? 10}`}</dd></div>
+                    <div><dt className="text-muted-foreground">Ancho</dt><dd className="font-semibold">{selectedPtiDetails.tape_width_mm == null ? '—' : `${Number(selectedPtiDetails.tape_width_mm)} mm`}</dd></div>
+                    <div><dt className="text-muted-foreground">Peso unitario</dt><dd className="font-semibold">{selectedPtiDetails.unit_weight_kg == null ? 'Pendiente' : `${Number(selectedPtiDetails.unit_weight_kg).toFixed(3)} kg`}</dd></div>
+                    {allowCosts && <div><dt className="text-muted-foreground">Precio unitario</dt><dd className="font-semibold text-emerald-500">${Number(selectedPtiDetails.unit_price || 0).toFixed(2)}</dd></div>}
+                    <div className="sm:col-span-2"><dt className="text-muted-foreground">Subárea de suministro</dt><dd className="font-semibold">{Number(selectedPtiDetails.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} · asignada según la extrusora</dd></div>
+                    {allowCosts && <div><dt className="text-muted-foreground">Índice de costo PTI</dt><dd className="font-mono font-semibold">×{Number(selectedPtiDetails.transformed_cost_index || 1).toFixed(4)}</dd></div>}
+                  </dl>
+                </section>
+
+                <section className="rounded-xl border border-border bg-background/40 p-4">
+                  <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">Fórmula enlazada</h3>
+                  {selectedPtiDetails.formula ? <><p className="font-semibold">{selectedPtiDetails.formula.name}</p><p className="font-mono text-sm text-muted-foreground">{selectedPtiDetails.formula.code}{allowCosts ? ` · ×${Number(selectedPtiDetails.formula.cost_index || 1.15).toFixed(2)}` : ''}</p></> : <p className="text-sm text-muted-foreground">{selectedPtiDetails.formula_id ? `Fórmula #${selectedPtiDetails.formula_id}` : 'Sin fórmula enlazada'}</p>}
+                </section>
+
+                <section className="rounded-xl border border-border bg-background/40 p-4">
+                  <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">Especificaciones</h3>
+                  <p className="whitespace-pre-wrap text-sm">{selectedPtiDetails.specifications || 'Sin ficha técnica registrada.'}</p>
+                </section>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedPtiDetails(null)}>Cerrar</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <PtiProductModal
         isOpen={isPtiModalOpen}
         onClose={() => {

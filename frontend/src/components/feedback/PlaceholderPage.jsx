@@ -1,4 +1,4 @@
-import { Construction } from 'lucide-react';
+import { Construction } from '@/design-system/components/Icon/googleIconCompat';
 
 const PlaceholderPage = ({ title, description }) => {
   return (

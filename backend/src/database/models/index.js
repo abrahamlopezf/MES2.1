@@ -886,6 +886,7 @@ db.ProductionBom = initProductionBomModel(sequelize, DataTypes);
 db.ProductionBomItem = initProductionBomItemModel(sequelize, DataTypes);
 db.ProductionBom.belongsTo(db.Subarea, { foreignKey: 'subarea_id', as: 'subarea' });
 db.LoomRun = initLoomRunModel(sequelize, DataTypes);
+db.TelaresScrapLog = require('../../modules/telares/models/telaresScrapLog.model')(sequelize, DataTypes);
 db.ViajeroRoll = initViajeroRollModel(sequelize, DataTypes);
 db.ViajeroRollOperatorSegment = initViajeroRollOperatorSegmentModel(sequelize, DataTypes);
 db.ViajeroRoutingLog = initViajeroRoutingLogModel(sequelize, DataTypes);
@@ -896,6 +897,10 @@ db.Loom.belongsTo(db.PtiRack, { foreignKey: 'active_warp_rack_id', as: 'warpRack
 db.Loom.belongsTo(db.PtiRack, { foreignKey: 'active_weft_rack_id', as: 'weftRack' });
 db.Loom.belongsTo(db.ProductionBom, { foreignKey: 'current_bom_id', as: 'currentBom' });
 db.Loom.hasMany(db.LoomRun, { foreignKey: 'loom_id', as: 'runs' });
+db.Loom.hasMany(db.TelaresScrapLog, { foreignKey: 'loom_id', as: 'scrapLogs' });
+db.TelaresScrapLog.belongsTo(db.Loom, { foreignKey: 'loom_id', as: 'loom' });
+db.TelaresScrapLog.belongsTo(db.User, { foreignKey: 'recorded_by', as: 'recorder' });
+db.TelaresScrapLog.belongsTo(db.User, { foreignKey: 'updated_by', as: 'updater' });
 
 // BOM Associations
 db.ProductionBom.hasMany(db.ProductionBomItem, { foreignKey: 'bom_id', as: 'items' });

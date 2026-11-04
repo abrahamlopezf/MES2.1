@@ -3,6 +3,20 @@ const warehouseReportService = require('./warehouseReport.service');
 const warehouseReportsPdf = require('./printer/warehouseReportsPdf');
 const { successResponse } = require('../../shared/responses/apiResponse');
 
+const getPendingExtrusionPtiTransfers = async (req, res, next) => {
+  try {
+    const transfers = await require('../extrusion/services/ptiWarehouseTransfer.service').getPendingWarehouseTransfers();
+    return successResponse(res, 'Transferencias PTI pendientes obtenidas.', transfers);
+  } catch (error) { return next(error); }
+};
+
+const receiveExtrusionPtiTransfer = async (req, res, next) => {
+  try {
+    const result = await require('../extrusion/services/ptiWarehouseTransfer.service').receiveInWarehouse(req.body, req.user);
+    return successResponse(res, 'Recepción de PTI confirmada en Almacén.', result);
+  } catch (error) { return next(error); }
+};
+
 const getInventory = async (req, res, next) => {
   try {
     const result = await warehouseService.getInventory(req.query, req.user);
@@ -241,6 +255,8 @@ const getMermaScrapDevolucionesPdf = async (req, res, next) => {
 };
 
 module.exports = {
+  getPendingExtrusionPtiTransfers,
+  receiveExtrusionPtiTransfer,
   getInventory,
   getAreaInventory,
   getMaterialLotes,

@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X } from '@/design-system/components/Icon/googleIconCompat';
 import { useBottomSheetAnimation } from '../../../hooks/useBottomSheetAnimation';
 
 const MaterialActionSheet = ({

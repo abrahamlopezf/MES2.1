@@ -1,4 +1,4 @@
-import { Boxes, Edit3, Layers3, Ruler, ShieldAlert } from 'lucide-react';
+import { Boxes, Edit3, Layers3, Ruler, ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 
 import { Button, Badge, Card, CardContent } from '../../../design-system';
 import { getMaterialUnitLabel } from '../constants/materialsUi';

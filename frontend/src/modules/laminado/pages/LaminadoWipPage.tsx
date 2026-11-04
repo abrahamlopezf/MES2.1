@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Layers,
   RefreshCw,
@@ -17,7 +17,7 @@ import {
   User,
   Scale,
   Sparkles,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { canViewCosts } from '../../../utils/authHelpers';
@@ -33,12 +33,20 @@ export const LaminadoWipPage: React.FC = () => {
   const isDark = theme === 'dark';
   const allowCosts = canViewCosts(user);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialQrFromUrl = searchParams.get('qr')?.trim() || '';
 
   const [activeTab, setActiveTab] = useState<'rolls' | 'warehouse' | 'incoming' | 'history'>('rolls');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRollForPreparation, setSelectedRollForPreparation] = useState<any | null>(null);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [scanInitialQr, setScanInitialQr] = useState('');
+
+  useEffect(() => {
+    if (!initialQrFromUrl) return;
+    setScanInitialQr(initialQrFromUrl);
+    setIsScanModalOpen(true);
+  }, [initialQrFromUrl]);
 
   const { data: wipData, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['laminado-wip-summary'],

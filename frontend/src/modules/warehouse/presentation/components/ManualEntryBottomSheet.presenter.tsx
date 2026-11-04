@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, PackagePlus, Loader2, Plus, Trash2, Sparkles } from 'lucide-react';
+import { X, PackagePlus, Loader2, Plus, Trash2, Sparkles } from '@/design-system/components/Icon/googleIconCompat';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';

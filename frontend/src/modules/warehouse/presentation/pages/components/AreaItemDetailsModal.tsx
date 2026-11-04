@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, QrCode as QrCodeIcon, Calendar, Hash, ArrowRight, X } from 'lucide-react';
+import { Package, QrCode as QrCodeIcon, Calendar, Hash, ArrowRight, X } from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate } from 'react-router-dom';
 import { Button, Badge } from '../../../../../design-system';
 

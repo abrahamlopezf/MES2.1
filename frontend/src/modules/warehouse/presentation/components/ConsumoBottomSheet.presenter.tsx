@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, QrCode, Trash2, Package } from 'lucide-react';
+import { X, Plus, QrCode, Trash2, Package } from '@/design-system/components/Icon/googleIconCompat';
 import { Button, Input } from '../../../../design-system';
 import { SearchSelect } from '../../../../design-system/components/Input/SearchSelect';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';

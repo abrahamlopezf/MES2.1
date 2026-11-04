@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Check, ShieldAlert, Info, AlertTriangle, UserPlus, UserMinus, X, ArrowLeft, ArrowRight, Loader2, LogOut, UserRound } from 'lucide-react';
+import { Bell, Check, ShieldAlert, Info, AlertTriangle, UserPlus, UserMinus, X, ArrowLeft, ArrowRight, Loader2, LogOut, UserRound } from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';

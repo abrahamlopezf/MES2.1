@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit3 } from 'lucide-react';
+import { Edit3 } from '@/design-system/components/Icon/googleIconCompat';
 import { Badge, Button } from '../../../design-system';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { UserAvatar } from '@/components/ui/UserAvatar';

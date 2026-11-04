@@ -10,11 +10,12 @@ import {
   XCircle,
   QrCode,
   ChevronDown
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import {
   MachineQueueGroup,
   ExtruderQueue,
-  Formula
+  Formula,
+  PtiDestinationRoute
 } from '../../types/extrusion.types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,8 +39,8 @@ export interface ExtrusionBoardPresenterProps {
   onPendingPtiContinue: () => void;
   onPendingPtiCancel: () => void;
   pendingPtiStep: 'QUESTION' | 'QUICK_INGRESS';
-  quickRacks: Array<{ id: number; rack_code: string; qr_code: string; current_quantity: number; max_capacity: number; current_pti_product_id?: number | null; current_pti_type_id?: number | null }>;
-  quickPtiProducts: Array<{ id: number; code: string; name: string; color: string | null; material_id?: number | null; unit_price: number }>;
+  quickRacks: Array<{ id: number; rack_code: string; qr_code: string; current_quantity: number; max_capacity: number; current_pti_product_id?: number | null; current_pti_type_id?: number | null; destination_route?: PtiDestinationRoute | null }>;
+  quickPtiProducts: Array<{ id: number; code: string; name: string; color: string | null; extrusion_machine_number?: number | null; material_id?: number | null; unit_price: number }>;
   quickRackId: number | '';
   onQuickRackChange: (id: number | '') => void;
   quickPtiProductId: number | '';
@@ -358,6 +359,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
 }) => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
+  const selectedQuickProduct = quickPtiProducts.find((product) => Number(product.id) === Number(quickPtiProductId));
   const [activeTabMachineId, setActiveTabMachineId] = React.useState<number | null>(null);
   const visibleMachineId = queues.some((group) => group.machine.id === activeTabMachineId)
     ? activeTabMachineId
@@ -548,6 +550,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                     {quickPtiProducts.map((product) => <option key={product.id} value={product.id}>{product.code} · {product.name}{product.color ? ` · ${product.color}` : ''}</option>)}
                   </select>
                 </label>
+                {selectedQuickProduct && <p className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">El PTI se dirige a {Number(selectedQuickProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} según la extrusora. El destino posterior se define en Telares.</p>}
                 <label className="space-y-1 text-sm font-bold">Bobinas por registrar
                   <Input type="number" min="1" step="1" value={quickPieces} onChange={(event) => onQuickPiecesChange(event.target.value)} placeholder="Cantidad de bobinas" />
                 </label>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QrCode, Save, X } from 'lucide-react';
+import { QrCode, Save, X } from '@/design-system/components/Icon/googleIconCompat';
 
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';

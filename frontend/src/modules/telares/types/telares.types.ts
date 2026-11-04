@@ -58,6 +58,8 @@ export interface ProductionBomItem {
   material_id: number | null;
   ratio_percentage: number;
   consumption_g_per_m: number;
+  consumption_per_meter?: number | null;
+  consumption_per_meter_unit?: 'KG' | 'PIEZAS' | null;
   required_quantity?: number | null;
   required_unit?: 'KG' | 'PIEZAS';
   notes?: string | null;
@@ -426,4 +428,32 @@ export interface WipSummaryResponse {
   transfer_mode: 'RACK_PARTIAL' | 'CART_FULL';
   available_carts: AvailableCart[];
   looms: LoomWipItem[];
+}
+
+export interface TelaresPerformanceSummary {
+  period_days: 7 | 30;
+  totals: {
+    meters_produced: number;
+    meters_planned: number;
+    weight_produced_kg: number;
+    rolls_produced: number;
+    runs_completed: number;
+    plan_achievement_pct: number | null;
+  };
+  daily: Array<{
+    date: string;
+    meters_produced: number;
+    meters_planned: number;
+    weight_produced_kg: number;
+    rolls_produced: number;
+    runs_completed: number;
+  }>;
+  by_loom: Array<{
+    loom_number: number;
+    name: string;
+    meters_produced: number;
+    weight_produced_kg: number;
+    rolls_produced: number;
+    runs_completed: number;
+  }>;
 }

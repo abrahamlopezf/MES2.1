@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Boxes, Layers3, PackageCheck, RefreshCw, Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
+import { Boxes, Layers3, PackageCheck, RefreshCw, Sparkles, ExternalLink, AlertCircle } from '@/design-system/components/Icon/googleIconCompat';
 
 import { 
   TFAlert, 

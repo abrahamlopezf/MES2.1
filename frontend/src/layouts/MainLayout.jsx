@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Beaker, Zap, Layers, Settings, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Package, Beaker, Zap, Layers, Settings, LogOut, Menu } from '@/design-system/components/Icon/googleIconCompat';
 import { motion } from 'motion/react';
 
 const SidebarItem = ({ to, icon: Icon, label }) => (

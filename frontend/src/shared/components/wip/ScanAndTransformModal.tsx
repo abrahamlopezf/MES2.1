@@ -14,7 +14,7 @@ import {
   Copy,
   DollarSign,
   Compass,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { toast } from 'sonner';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { useAuthStore } from '@/store/authStore';

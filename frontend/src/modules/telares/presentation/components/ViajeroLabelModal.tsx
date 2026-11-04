@@ -2,7 +2,7 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ViajeroRoll } from '../../types/telares.types';
 import { Button } from '@/design-system';
-import { Printer, X, CheckCircle, ArrowRight, ShieldCheck, Tag, Info, User, Layers } from 'lucide-react';
+import { Printer, X, CheckCircle, ArrowRight, ShieldCheck, Tag, Info, User, Layers } from '@/design-system/components/Icon/googleIconCompat';
 import { formatDateTimeCdmx } from '@/utils/date';
 
 interface ViajeroLabelModalProps {

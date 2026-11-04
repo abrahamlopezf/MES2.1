@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { 
   Package, Scale, Layers, CheckCircle2, AlertTriangle, 
   RefreshCw, Search, ArrowRight, ShieldAlert, 
-  DollarSign, Activity, Truck, Filter
-} from 'lucide-react';
+  DollarSign, Activity, Truck, Ruler, Weight, Target
+} from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../../store/authStore';
-import { useThemeStore } from '../../../../store/themeStore';
 import { canViewCosts, isAdminUser } from '../../../../utils/authHelpers';
 import { telaresApi } from '../../services/telaresApi';
 import { LoomWipItem, AvailableCart } from '../../types/telares.types';
@@ -17,18 +17,17 @@ import { Input } from '../../../../components/ui/input';
 
 export const TelaresDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const { theme } = useThemeStore();
   const queryClient = useQueryClient();
 
-  const isDark = theme === 'dark';
   const allowCosts = canViewCosts(user);
-  const roleCode = String(typeof user?.role === 'string' ? user.role : user?.role?.code || user?.role?.name || '').toUpperCase();
   const canChangeTransferMode = isAdminUser(user);
 
   // Tab filter: 'ALL' | 'CIRCULAR' | 'BANDA' | 'LOADED'
   const [filterType, setFilterType] = useState<'ALL' | 'CIRCULAR' | 'BANDA' | 'LOADED'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWipLoomId, setSelectedWipLoomId] = useState<'ALL' | number>('ALL');
+  const [expandedLoomIds, setExpandedLoomIds] = useState<number[]>([]);
+  const [performanceDays, setPerformanceDays] = useState<7 | 30>(7);
 
   // Modal de Transferencia Atómica de Carrito
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -50,6 +49,12 @@ export const TelaresDashboard: React.FC = () => {
     queryKey: ['telares-wip-summary'],
     queryFn: () => telaresApi.getWipSummary(),
     refetchInterval: 15000,
+  });
+
+  const { data: performance, isLoading: isPerformanceLoading } = useQuery({
+    queryKey: ['telares-performance-summary', performanceDays],
+    queryFn: () => telaresApi.getPerformanceSummary(performanceDays),
+    refetchInterval: 60000,
   });
 
   const macro = wipData?.macro;
@@ -178,7 +183,7 @@ export const TelaresDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col gap-6 p-4 sm:p-6 bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen flex flex-col gap-6 p-4 pb-32 sm:p-6 sm:pb-32 lg:pb-8 bg-background text-foreground overflow-x-hidden">
       
       {/* HEADER DE CONTROL OPERATIVO */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border">
@@ -244,20 +249,20 @@ export const TelaresDashboard: React.FC = () => {
         {/* TOTAL WIP EN KG */}
         <div className="p-4 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between border-b-4 border-b-blue-500">
           <div className="flex items-center justify-between opacity-80">
-            <span className="text-[11px] font-black uppercase tracking-wider">Hilo en Filetas (WIP)</span>
+            <span className="text-xs font-bold uppercase tracking-wide">Hilo en Filetas (WIP)</span>
             <Scale className="h-4 w-4 text-blue-500" />
           </div>
           <p className="text-2xl sm:text-3xl font-black tracking-tight mt-2 text-foreground font-mono">
             {macro?.total_wip_kg != null ? macro.total_wip_kg.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '0.0'}{' '}
             <span className="text-sm font-semibold opacity-60">kg</span>
           </p>
-          <span className="text-[10px] text-muted-foreground mt-1">Saldo en telares 1–21</span>
+          <span className="text-xs text-muted-foreground mt-1">Saldo en telares 1–21</span>
         </div>
 
         {/* TOTAL BOBINAS MONTADAS */}
         <div className="p-4 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between border-b-4 border-b-amber-500">
           <div className="flex items-center justify-between opacity-80">
-            <span className="text-[11px] font-black uppercase tracking-wider">Bobinas Montadas</span>
+            <span className="text-xs font-bold uppercase tracking-wide">Bobinas Montadas</span>
             <Package className="h-4 w-4 text-amber-500" />
           </div>
           <p className="text-2xl sm:text-3xl font-black tracking-tight mt-2 text-foreground font-mono">
@@ -340,6 +345,103 @@ export const TelaresDashboard: React.FC = () => {
         )}
       </div>
 
+      {/* RENDIMIENTO DE PRODUCCIÓN: indicadores operativos, sin costos */}
+      <section aria-labelledby="telares-performance-title" className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="telares-performance-title" className="text-xl font-black tracking-tight">Rendimiento de producción</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Resultados de corridas finalizadas y comparación contra su plan.</p>
+          </div>
+          <label className="flex min-h-11 items-center gap-3 text-sm font-semibold text-foreground">
+            <span>Periodo</span>
+            <select
+              value={performanceDays}
+              onChange={(event) => setPerformanceDays(Number(event.target.value) === 30 ? 30 : 7)}
+              className="min-h-11 min-w-40 rounded-lg border border-border bg-card px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Periodo de rendimiento"
+            >
+              <option value={7}>Últimos 7 días</option>
+              <option value={30}>Últimos 30 días</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {[
+            { label: 'Metros producidos', value: performance?.totals.meters_produced, unit: 'm', icon: <Ruler className="h-5 w-5" />, color: 'text-blue-600 dark:text-blue-300' },
+            { label: 'Peso producido', value: performance?.totals.weight_produced_kg, unit: 'kg', icon: <Weight className="h-5 w-5" />, color: 'text-emerald-600 dark:text-emerald-300' },
+            { label: 'Rollos registrados', value: performance?.totals.rolls_produced, unit: 'rollos', icon: <Package className="h-5 w-5" />, color: 'text-amber-600 dark:text-amber-300' },
+            { label: 'Cumplimiento del plan', value: performance?.totals.plan_achievement_pct, unit: '%', icon: <Target className="h-5 w-5" />, color: 'text-violet-600 dark:text-violet-300' },
+          ].map((metric) => (
+            <article key={metric.label} className="min-h-28 rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold leading-snug text-muted-foreground">{metric.label}</h3>
+                <span className={metric.color} aria-hidden="true">{metric.icon}</span>
+              </div>
+              <p className="mt-3 font-mono text-2xl font-black tabular-nums text-foreground">
+                {isPerformanceLoading ? '…' : metric.value == null ? '—' : Number(metric.value).toLocaleString('es-MX', { maximumFractionDigits: metric.unit === '%' ? 1 : 0 })}
+                {metric.value != null && <span className="ml-1 text-sm font-semibold text-muted-foreground">{metric.unit}</span>}
+              </p>
+              {metric.label === 'Cumplimiento del plan' && performance?.totals.plan_achievement_pct == null && !isPerformanceLoading && (
+                <p className="mt-1 text-xs text-muted-foreground">Sin metros planeados registrados</p>
+              )}
+            </article>
+          ))}
+        </div>
+
+        {isPerformanceLoading ? (
+          <div role="status" className="rounded-xl border border-border bg-card px-4 py-8 text-center text-base font-semibold text-muted-foreground">Cargando rendimiento de producción…</div>
+        ) : performance?.totals.runs_completed === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card px-4 py-8 text-center">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
+            <p className="mt-2 text-base font-bold">Aún no hay corridas finalizadas en este periodo</p>
+            <p className="mt-1 text-sm text-muted-foreground">Al cerrar corridas, aquí aparecerán la producción diaria y el rendimiento por telar.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+            <article className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5">
+              <h3 className="text-base font-bold">Producción diaria</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Metros producidos frente a los metros planeados al cerrar cada corrida.</p>
+              <div role="img" aria-label={`Gráfica de producción diaria de los últimos ${performanceDays} días`} className="mt-4 h-64 w-full sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={performance?.daily || []} margin={{ top: 8, right: 8, left: -14, bottom: 4 }} accessibilityLayer>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="date" tickFormatter={(date) => date.slice(5).split('-').reverse().join('/')} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} minTickGap={12} />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} width={52} />
+                    <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString('es-MX')} m`, name]} labelFormatter={(date) => `Fecha: ${date}`} contentStyle={{ borderRadius: 12, borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--foreground)' }} />
+                    <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
+                    <Bar dataKey="meters_produced" name="Producido" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="meters_planned" name="Planeado" fill="#a78bfa" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-muted-foreground">Incluye corridas finalizadas; los días sin cierre se muestran en cero.</p>
+            </article>
+
+            <article className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5">
+              <h3 className="text-base font-bold">Producción por telar</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Metros acumulados en el periodo seleccionado.</p>
+              {performance?.by_loom.length ? (
+                <div role="img" aria-label="Gráfica de metros producidos por telar" className="mt-4 h-64 w-full sm:h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={performance.by_loom} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 4 }} accessibilityLayer>
+                      <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis type="number" tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="loom_number" tickFormatter={(value) => `#${value}`} tick={{ fontSize: 13, fontWeight: 700, fill: 'var(--foreground)' }} tickLine={false} axisLine={false} width={42} />
+                      <Tooltip formatter={(value) => [`${Number(value).toLocaleString('es-MX')} m`, 'Producido']} labelFormatter={(value) => `Telar #${value}`} contentStyle={{ borderRadius: 12, borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--foreground)' }} />
+                      <Bar dataKey="meters_produced" name="Producido" fill="#10b981" radius={[0, 5, 5, 0]} maxBarSize={24} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="mt-4 flex h-64 items-center justify-center rounded-lg bg-muted/20 px-4 text-center text-sm text-muted-foreground">Sin producción registrada por telar para este periodo.</div>
+              )}
+              <p className="text-xs text-muted-foreground">Se muestran hasta 8 telares con mayor producción.</p>
+            </article>
+          </div>
+        )}
+      </section>
+
       {/* WIP POR TELAR: inventario específico y vista consolidada */}
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -369,15 +471,15 @@ export const TelaresDashboard: React.FC = () => {
       </section>
 
       {/* BARRA DE FILTROS Y BÚSQUEDA */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-muted/40 p-2.5 rounded-xl border border-border">
+      <div className="flex flex-col items-stretch gap-3 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
         {/* TABS DE FILTRO */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div role="group" aria-label="Filtrar telares" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Button
             type="button"
             size="sm"
             variant={filterType === 'ALL' ? 'default' : 'ghost'}
             onClick={() => setFilterType('ALL')}
-            className="text-xs font-bold h-9 px-3 rounded-lg"
+            className="min-h-11 h-auto px-3 rounded-lg text-sm font-bold"
           >
             Todos ({looms.length})
           </Button>
@@ -386,7 +488,7 @@ export const TelaresDashboard: React.FC = () => {
             size="sm"
             variant={filterType === 'CIRCULAR' ? 'default' : 'ghost'}
             onClick={() => setFilterType('CIRCULAR')}
-            className="text-xs font-bold h-9 px-3 rounded-lg"
+            className="min-h-11 h-auto px-3 rounded-lg text-sm font-bold"
           >
             Rollo ({looms.filter((l) => !isBandLoom(l)).length})
           </Button>
@@ -395,7 +497,7 @@ export const TelaresDashboard: React.FC = () => {
             size="sm"
             variant={filterType === 'BANDA' ? 'default' : 'ghost'}
             onClick={() => setFilterType('BANDA')}
-            className="text-xs font-bold h-9 px-3 rounded-lg"
+            className="min-h-11 h-auto px-3 rounded-lg text-sm font-bold"
           >
             Banda ({looms.filter(isBandLoom).length})
           </Button>
@@ -404,22 +506,23 @@ export const TelaresDashboard: React.FC = () => {
             size="sm"
             variant={filterType === 'LOADED' ? 'default' : 'ghost'}
             onClick={() => setFilterType('LOADED')}
-            className="text-xs font-bold h-9 px-3 rounded-lg text-emerald-600 dark:text-emerald-400"
+            className="min-h-11 h-auto px-3 rounded-lg text-sm font-bold text-emerald-600 dark:text-emerald-400"
           >
             Con Hilo WIP ({looms.filter((l) => l.current_spools_count > 0).length})
           </Button>
         </div>
 
         {/* INPUT DE BÚSQUEDA */}
-        <div className="relative w-full sm:w-72">
+        <label className="relative block w-full sm:max-w-80 sm:flex-1">
+          <span className="sr-only">Buscar telar, color o PTI</span>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar telar, color o PTI..."
-            className="pl-9 h-9 text-xs bg-background border-border font-medium rounded-lg"
+            className="h-11 rounded-lg border-border bg-background pl-10 text-base font-medium placeholder:text-muted-foreground"
           />
-        </div>
+        </label>
       </div>
 
       {/* GRID INTERACTIVO DE LOS 21 TELARES */}
@@ -440,6 +543,7 @@ export const TelaresDashboard: React.FC = () => {
           {filteredLooms.map((loom) => {
             const isBanda = isBandLoom(loom);
             const isProducing = loom.status === 'TEJIENDO' || loom.status === 'EN_PRODUCCION';
+            const isExpanded = expandedLoomIds.includes(loom.id);
             const pct = loom.creel_utilization_pct;
 
             // Color del gauge según ocupación
@@ -456,6 +560,37 @@ export const TelaresDashboard: React.FC = () => {
                   isProducing ? 'border-emerald-500/50' : 'border-border'
                 }`}
               >
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  aria-controls={`loom-details-${loom.id}`}
+                  onClick={() => setExpandedLoomIds((current) => isExpanded ? current.filter((id) => id !== loom.id) : [...current, loom.id])}
+                  className="flex min-h-14 w-full items-center justify-between gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-mono text-lg font-black text-foreground">#{String(loom.loom_number).padStart(2, '0')}</span>
+                      <span className="truncate text-sm font-bold text-foreground">{loom.name}</span>
+                      <span className={`rounded-md px-2 py-1 text-xs font-black uppercase ${isProducing ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : loom.status === 'MANTENIMIENTO' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'bg-slate-500/15 text-slate-700 dark:text-slate-300'}`}>
+                        {loom.status}
+                      </span>
+                    </span>
+                    <span className="mt-1 flex flex-wrap gap-x-3 text-sm text-muted-foreground">
+                      <span>{Number(loom.current_wip_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg WIP</span>
+                      <span>{Number(loom.current_spools_count || 0).toLocaleString('es-MX')} / {Number(loom.creel_capacity_spools || 1800).toLocaleString('es-MX')} bobinas</span>
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-bold text-primary">{isExpanded ? 'Ocultar' : 'Ver detalle'}</span>
+                </button>
+                <AnimatePresence initial={false}>
+                {isExpanded && <motion.div
+                  id={`loom-details-${loom.id}`}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="overflow-hidden"
+                >
                 <div>
                   {/* CABECERA DEL TELAR */}
                   <div className="flex items-start justify-between gap-2 pb-2 border-b border-border/60">
@@ -607,6 +742,8 @@ export const TelaresDashboard: React.FC = () => {
                     <span>{transferMode === 'RACK_PARTIAL' ? 'Traspasar desde rack' : 'Cargar carrito completo'}</span>
                   </Button>
                 </div>
+                </motion.div>}
+                </AnimatePresence>
               </motion.div>
             );
           })}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { QrCode, Printer, PackagePlus, Settings2, Activity, Network } from 'lucide-react';
+import { QrCode, Printer, PackagePlus, Settings2, Activity, Network } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuth } from '../modules/identity/presentation/context/AuthContext';
 
 export const AdminDashboard: React.FC = () => {

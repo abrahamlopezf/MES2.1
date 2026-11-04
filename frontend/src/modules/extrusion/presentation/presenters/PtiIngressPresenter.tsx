@@ -22,7 +22,7 @@ import {
   ChevronUp,
   Download,
   Printer
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import {
   PtiRack,
   Formula,
@@ -31,7 +31,8 @@ import {
   MassBalanceData,
   ExtrusionValuation,
   PtiProduct,
-  ScanRackPtiResponse
+  ScanRackPtiResponse,
+  PTI_DESTINATION_LABELS
 } from '../../types/extrusion.types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,7 @@ import {
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { ProductionReconciliationPanel } from './ProductionReconciliationPanel';
 import { RackQrLabelsDialog } from '../components/RackQrLabelsDialog';
+import { QRCodeSVG } from 'qrcode.react';
 
 export interface PtiIngressPresenterProps {
   racks: PtiRack[];
@@ -107,6 +109,11 @@ export interface PtiIngressPresenterProps {
   onCostIndexChange: (val: number) => void;
   onUpdateRackPrice: (rackId: number, payload: { unit_price?: number; unit_weight_kg?: number | null }) => Promise<void>;
   isUpdatingRackPrice: boolean;
+  onDispatchToWarehouse: (rackId: number, payload: { quantity_pieces?: number; weight_kg?: number; notes?: string }) => Promise<any>;
+  isDispatchingToWarehouse: boolean;
+  canRegisterSale: boolean;
+  onRegisterSaleExit: (rackId: number, payload: { rack_qr: string }) => Promise<any>;
+  isRegisteringSaleExit: boolean;
 }
 
 export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
@@ -163,6 +170,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   onCostIndexChange,
   onUpdateRackPrice,
   isUpdatingRackPrice,
+  onDispatchToWarehouse,
+  isDispatchingToWarehouse,
+  canRegisterSale,
+  onRegisterSaleExit,
+  isRegisteringSaleExit,
 }) => {
   const selectedQueue = activeQueues.find((queue) => queue.consumption_order_qr_id === mixtureQr);
   const [showActiveQueues, setShowActiveQueues] = React.useState(!selectedQueue);
@@ -196,6 +208,16 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   const [isRackScannerModalOpen, setIsRackScannerModalOpen] = React.useState(false);
   const [scannedRackInput, setScannedRackInput] = React.useState('');
   const [rackScanError, setRackScanError] = React.useState<string | null>(null);
+  const [verifiedRackQr, setVerifiedRackQr] = React.useState('');
+  const [dispatchRack, setDispatchRack] = React.useState<PtiRack | null>(null);
+  const [dispatchMode, setDispatchMode] = React.useState<'PIECES' | 'WEIGHT'>('PIECES');
+  const [dispatchQuantity, setDispatchQuantity] = React.useState('');
+  const [dispatchNotes, setDispatchNotes] = React.useState('');
+  const [dispatchQr, setDispatchQr] = React.useState('');
+  const [dispatchError, setDispatchError] = React.useState('');
+  const [saleExitRack, setSaleExitRack] = React.useState<PtiRack | null>(null);
+  const [saleExitError, setSaleExitError] = React.useState('');
+  const [saleExitScannedQr, setSaleExitScannedQr] = React.useState('');
 
 
   // Modal para edición manual de Precio y Peso por Rack
@@ -210,6 +232,9 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     ? (knownPtiUnitWeight > 0 ? computedPiecesFromScale : (Number(quantityPieces) || 0))
     : (Number(quantityPieces) || 0);
   const selectedRackCapacity = selectedRack ? Number(selectedRack.max_capacity || 100) : 0;
+  const isScannedRackVerified = Boolean(
+    selectedRack && verifiedRackQr && verifiedRackQr === String(selectedRack.qr_code || '').trim().toUpperCase()
+  );
   const selectedRackAvailable = selectedRack
     ? Math.max(0, selectedRackCapacity - Number(selectedRack.current_quantity || 0))
     : 0;
@@ -229,6 +254,21 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     setIsEditRackModalOpen(true);
   };
 
+  const confirmScannedRack = (value: string) => {
+    const clean = value.trim().toUpperCase();
+    setVerifiedRackQr('');
+    const matched = racks.find((rack) => String(rack.qr_code || '').trim().toUpperCase() === clean);
+    if (!matched) {
+      onRackQrChange('');
+      setRackScanError('El código leído no corresponde al QR de un rack registrado. Escanea la etiqueta del rack e inténtalo de nuevo.');
+      return false;
+    }
+    setRackScanError(null);
+    setVerifiedRackQr(String(matched.qr_code).trim().toUpperCase());
+    onSelectRackFromGrid(matched);
+    return true;
+  };
+
   const handleSaveEditRack = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRack) return;
@@ -244,6 +284,47 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     }
   };
 
+  const handleDispatchRack = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!dispatchRack) return;
+    setDispatchError('');
+    try {
+      const result = await onDispatchToWarehouse(dispatchRack.id, dispatchMode === 'PIECES'
+        ? { quantity_pieces: Number(dispatchQuantity), notes: dispatchNotes }
+        : { weight_kg: Number(dispatchQuantity), notes: dispatchNotes });
+      setDispatchQr(String(result.qr_code || result.transfer_code));
+      setDispatchQuantity('');
+      setDispatchNotes('');
+      setDispatchRack(null);
+    } catch (error: any) {
+      setDispatchError(error?.friendlyMessage || error?.response?.data?.message || error?.message || 'No se pudo generar la transferencia.');
+    }
+  };
+
+  const handleSaleExit = async () => {
+    if (!saleExitRack) return;
+    setSaleExitError('');
+    try {
+      await onRegisterSaleExit(saleExitRack.id, { rack_qr: saleExitScannedQr.trim() });
+      setSaleExitRack(null);
+      setSaleExitScannedQr('');
+    } catch (error: any) {
+      setSaleExitError(error?.friendlyMessage || error?.response?.data?.message || error?.message || 'No se pudo registrar la salida a Venta.');
+    }
+  };
+
+  const downloadDispatchQr = () => {
+    const svg = document.getElementById('pti-warehouse-transfer-qr');
+    if (!svg || !dispatchQr) return;
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${dispatchQr}.svg`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleSaveRack = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRackCode.trim() || !onCreateRack) return;
@@ -256,6 +337,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       setNewRackCode('');
       setIsRackModalOpen(false);
       onSelectRackFromGrid(createdRack);
+      setVerifiedRackQr('');
       setActiveTab('INGRESS');
       setRackQrLabels([createdRack]);
     } catch {
@@ -284,6 +366,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
   // Seleccionar rack desde el mapa y pasar de inmediato a la terminal de ingreso
   const handlePickRackForIngress = (rack: PtiRack) => {
+    setVerifiedRackQr('');
     onSelectRackFromGrid(rack);
     setActiveTab('INGRESS');
   };
@@ -657,40 +740,17 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   title="Escanear QR del rack de destino"
                   onScan={(code) => {
                     const clean = code.trim().toUpperCase();
-                    const found = racks.find((rack) => rack.qr_code?.toUpperCase() === clean || rack.rack_code?.toUpperCase() === clean);
-                    if (found) onSelectRackFromGrid(found);
-                    else onRackQrChange(clean);
+                    confirmScannedRack(clean);
                   }}
                 />
-                <select
-                  value={rackQr}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const found = racks.find((r) => r.qr_code === val || r.rack_code === val);
-                    if (found) {
-                      onSelectRackFromGrid(found);
-                    } else {
-                      onRackQrChange(val);
-                    }
-                  }}
-                  className="w-full h-12 px-3.5 bg-background border border-border rounded-xl text-sm sm:text-base font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                >
-                  <option value="">-- Toca aquí para seleccionar el Rack Físico --</option>
-                  {racks.map((rack) => {
-                    const occupied = Number(rack.current_quantity || 0) > 0;
-                    const isCond = occupied && Boolean(rack.current_pti_product_id);
-                    const condName = rack.currentPtiProduct
-                      ? `${rack.currentPtiProduct.name} · ${rack.currentPtiProduct.color || 'color sin definir'}`
-                      : rack.currentPtiType?.name || (occupied ? 'PTI sin identificar · BLOQUEADO' : 'Libre');
-                    const isFull = rack.status === 'LLENO' || Number(rack.current_quantity || 0) >= Number(rack.max_capacity || 100);
-                    return (
-                      <option key={rack.id} value={rack.qr_code} disabled={isFull || (occupied && !rack.current_pti_product_id)}>
-                        {rack.rack_code} • {isFull ? '[LLENO]' : !occupied ? '[LIBRE]' : !rack.current_pti_product_id ? '[PTI SIN IDENTIFICAR]' : '[EN USO]'} ({rack.current_quantity}/{rack.max_capacity} pzas) — {isCond ? condName : occupied ? condName : 'Vacío'}
-                      </option>
-                    );
-                  })}
-                </select>
+                <div className="flex min-h-12 flex-1 items-center rounded-xl border border-border bg-background px-3.5 text-sm font-bold text-foreground" aria-live="polite">
+                  {selectedRack
+                    ? `${selectedRack.rack_code} · ${selectedRack.current_quantity}/${selectedRack.max_capacity} bobinas`
+                    : 'Escanea el QR del rack de destino'}
+                </div>
               </div>
+              {rackScanError && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{rackScanError}</p>}
+              {selectedRack && !isScannedRackVerified && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-semibold text-amber-700 dark:text-amber-300">Rack identificado por selección. Escanea su etiqueta QR física para autorizar el ingreso.</p>}
 
               {/* Semáforos y Alertas Visuales Grandes de Validación de Rack */}
               {isPtiMismatched && (
@@ -742,7 +802,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 {selectedRack && Number(selectedRack.current_quantity || 0) > 0 && selectedRack.currentPtiProduct ? (
                   <div className="p-3 bg-muted/30 border border-border rounded-xl flex items-center justify-between text-xs font-bold">
                     <span className="text-foreground">
-                      {selectedRack.currentPtiProduct.name} · Color {selectedRack.currentPtiProduct.color || 'por identificar'} (Fijado por el rack hasta vaciarse en Telares)
+                      {selectedRack.currentPtiProduct.name} · Color {selectedRack.currentPtiProduct.color || 'por identificar'} (Fijado al rack hasta retirar todo el PTI)
                     </span>
                     <Badge variant="outline" className="text-[10px] font-mono">
                       Bloqueado por Condicionamiento
@@ -771,6 +831,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   </select>
                 )}
               </div>
+
+              {selectedPtiProduct && <div className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">Este PTI se entrega a {Number(selectedPtiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} según su extrusora. La ruta posterior del rollo o banda se define en Telares.</div>}
             </div>
 
             {/* ---------------------------------------------------- */}
@@ -1007,12 +1069,13 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               disabled={
                 isSubmitting ||
                 !rackQr ||
+                !isScannedRackVerified ||
                 !selectedPtiMaterialId ||
                 pieces <= 0 ||
                 isPtiMismatched
               }
               className={`w-full h-14 text-base sm:text-lg font-black uppercase tracking-wider shadow-md transition-all gap-2 ${
-                isSubmitting || !rackQr || !selectedPtiMaterialId || pieces <= 0 || isPtiMismatched
+                isSubmitting || !rackQr || !isScannedRackVerified || !selectedPtiMaterialId || pieces <= 0 || isPtiMismatched
                   ? 'bg-muted text-muted-foreground cursor-not-allowed border border-border opacity-70'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }`}
@@ -1197,6 +1260,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       <strong className="text-foreground block break-words">
                         {rackPtiLabel}
                       </strong>
+                      {rack.destination_route && <strong className="mt-1 block text-xs font-black uppercase text-primary">Destino: {PTI_DESTINATION_LABELS[rack.destination_route]}</strong>}
                     </div>
 
                     {/* Datos Financieros */}
@@ -1696,7 +1760,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               Escanear QR de Rack Físico
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium">
-              Apunte el lector láser hacia la etiqueta QR del Rack o introduzca el código manualmente.
+              Lee el QR impreso en el rack con el lector o la cámara. El código visible del rack no sustituye al QR.
             </DialogDescription>
           </DialogHeader>
 
@@ -1705,26 +1769,20 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               e.preventDefault();
               const clean = scannedRackInput.trim().toUpperCase();
               if (!clean) return;
-              const matched = racks.find(
-                (r) => r.qr_code.toUpperCase() === clean || r.rack_code.toUpperCase() === clean
-              );
-              if (matched) {
-                onSelectRackFromGrid(matched);
-              } else {
-                onRackQrChange(clean);
+              if (confirmScannedRack(clean)) {
+                setIsRackScannerModalOpen(false);
+                setScannedRackInput('');
               }
-              setIsRackScannerModalOpen(false);
-              setScannedRackInput('');
             }}
             className="space-y-4 py-2"
           >
             <div className="space-y-1.5">
               <label className="text-xs font-black uppercase text-foreground">
-                Código QR o Identificador del Rack *
+                Código QR del Rack *
               </label>
               <Input
                 autoFocus
-                placeholder="Ej. QR-RACK-001 o RACK-PTI-01"
+                placeholder="Escanea el QR físico del rack"
                 value={scannedRackInput}
                 onChange={(e) => setScannedRackInput(e.target.value.toUpperCase())}
                 className="font-mono font-black text-sm h-11 border-2 pl-3 uppercase"
@@ -1748,6 +1806,75 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(dispatchRack)} onOpenChange={(open) => { if (!open && !isDispatchingToWarehouse) setDispatchRack(null); }}>
+        <DialogContent className="sm:max-w-xl bg-card border-2 border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black"><ArrowRight className="h-5 w-5 text-emerald-400" /> Salida de PTI a Almacén</DialogTitle>
+            <DialogDescription>El QR generado representa una transferencia pendiente. Almacén debe escanearlo para confirmar la entrada y capitalizar el mismo costo.</DialogDescription>
+          </DialogHeader>
+          {dispatchRack && <form onSubmit={handleDispatchRack} className="space-y-4">
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <div className="font-black">{dispatchRack.rack_code}</div>
+              <div className="text-sm text-muted-foreground">{dispatchRack.currentPtiProduct?.code || dispatchRack.current_pti_product_id} · Ruta: Almacén</div>
+              <div className="mt-2 text-sm">Disponible: <b>{dispatchRack.current_quantity} piezas</b>{dispatchRack.unit_weight_kg ? ` · ${Number(dispatchRack.current_quantity * dispatchRack.unit_weight_kg).toFixed(3)} kg` : ''}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={dispatchMode === 'PIECES' ? 'default' : 'outline'} onClick={() => setDispatchMode('PIECES')}>Por piezas</Button>
+              <Button type="button" variant={dispatchMode === 'WEIGHT' ? 'default' : 'outline'} onClick={() => setDispatchMode('WEIGHT')}>Por peso (kg)</Button>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold">Cantidad {dispatchMode === 'PIECES' ? '(piezas)' : '(kg)'} *</label>
+              <Input type="number" min="0.001" step={dispatchMode === 'PIECES' ? '1' : '0.001'} max={dispatchMode === 'PIECES' ? Number(dispatchRack.current_quantity) : undefined} value={dispatchQuantity} onChange={(event) => setDispatchQuantity(event.target.value)} required placeholder={dispatchMode === 'PIECES' ? `Máximo ${dispatchRack.current_quantity}` : 'Peso de bobinas completas'} />
+              {dispatchMode === 'WEIGHT' && <p className="text-xs text-muted-foreground">El peso debe corresponder a bobinas completas según el peso unitario configurado.</p>}
+            </div>
+            <div className="space-y-1.5"><label className="text-sm font-bold">Observaciones (opcional)</label><Input value={dispatchNotes} onChange={(event) => setDispatchNotes(event.target.value)} maxLength={500} /></div>
+            {dispatchError && <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{dispatchError}</div>}
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={isDispatchingToWarehouse} onClick={() => setDispatchRack(null)}>Cancelar</Button>
+              <Button type="submit" disabled={isDispatchingToWarehouse || !(Number(dispatchQuantity) > 0)}>{isDispatchingToWarehouse ? 'Generando…' : 'Confirmar salida y generar QR'}</Button>
+            </DialogFooter>
+          </form>}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(saleExitRack)} onOpenChange={(open) => { if (!open && !isRegisteringSaleExit) setSaleExitRack(null); }}>
+        <DialogContent className="sm:max-w-xl bg-card border-2 border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black"><ShieldAlert className="h-5 w-5 text-amber-400" /> Confirmar salida a Venta</DialogTitle>
+            <DialogDescription>Esta operación retira todo el contenido del WIP de Extrusión. El QR quedará marcado como vendido y conservará su historial; no podrá entrar a Telares ni a otro proceso.</DialogDescription>
+          </DialogHeader>
+          {saleExitRack && <div className="space-y-4">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="font-black">{saleExitRack.rack_code} · {saleExitRack.currentPtiProduct?.code || saleExitRack.current_pti_product_id}</div>
+              <div className="mt-1 text-sm text-muted-foreground">Ruta confirmada: Venta</div>
+              <div className="mt-2 text-sm">Salida total: <b>{saleExitRack.current_quantity} piezas</b>{saleExitRack.unit_weight_kg ? ` · ${(Number(saleExitRack.current_quantity) * Number(saleExitRack.unit_weight_kg)).toFixed(3)} kg aprox.` : ''}</div>
+              <div className="mt-1 text-xs text-muted-foreground">Se registrará un folio de salida vinculado al QR actual del rack. La acción no se puede deshacer desde esta pantalla.</div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold">Escanea el QR físico del rack para confirmar *</label>
+              <div className="flex gap-2">
+                <Input value={saleExitScannedQr} onChange={(event) => setSaleExitScannedQr(event.target.value.trim())} placeholder="QR del rack" className="font-mono" />
+                <QrScannerButton title="Escanear QR del rack para salida a Venta" onScan={(value) => { setSaleExitScannedQr(value.trim()); setSaleExitError(''); }} disabled={isRegisteringSaleExit} />
+              </div>
+              {saleExitScannedQr && saleExitScannedQr.trim().toUpperCase() !== String(saleExitRack.qr_code || '').trim().toUpperCase() && saleExitScannedQr.trim().toUpperCase() !== saleExitRack.rack_code.toUpperCase() && <p className="text-sm font-semibold text-destructive">El QR leído no corresponde a este rack.</p>}
+            </div>
+            {saleExitError && <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{saleExitError}</div>}
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={isRegisteringSaleExit} onClick={() => setSaleExitRack(null)}>Cancelar</Button>
+              <Button type="button" disabled={isRegisteringSaleExit || !saleExitScannedQr.trim() || (saleExitScannedQr.trim().toUpperCase() !== String(saleExitRack.qr_code || '').trim().toUpperCase() && saleExitScannedQr.trim().toUpperCase() !== saleExitRack.rack_code.toUpperCase())} onClick={handleSaleExit} className="bg-amber-500 text-black hover:bg-amber-400">{isRegisteringSaleExit ? 'Registrando…' : 'Confirmar salida total a Venta'}</Button>
+            </DialogFooter>
+          </div>}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(dispatchQr)} onOpenChange={(open) => { if (!open) setDispatchQr(''); }}>
+        <DialogContent className="sm:max-w-sm bg-card border-2 border-border text-foreground">
+          <DialogHeader><DialogTitle className="font-black">Transferencia lista para Almacén</DialogTitle><DialogDescription>El PTI ya salió del WIP de Extrusión. Entrega este QR al personal de Almacén para confirmar la recepción.</DialogDescription></DialogHeader>
+          <div className="mx-auto space-y-3 rounded-xl bg-white p-4 text-center"><QRCodeSVG id="pti-warehouse-transfer-qr" value={dispatchQr} size={220} level="H" includeMargin /><div className="break-all font-mono text-xs text-slate-900">{dispatchQr}</div></div>
+          <DialogFooter><Button type="button" variant="outline" onClick={downloadDispatchQr}><Download className="mr-2 h-4 w-4" /> Descargar QR SVG</Button><Button type="button" onClick={() => setDispatchQr('')}>Listo</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

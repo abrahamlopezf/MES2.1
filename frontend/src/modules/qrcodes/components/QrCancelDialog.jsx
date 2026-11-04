@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton, TFTextarea } from '../../../components/tf-ui';
 
 const QrCancelDialog = ({

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { WasteReasonBadge } from './WasteReasonBadge';
 import { ActionButton } from './ActionButton';
 import { AllowedAction } from '@/core/qr-workspace/types/qr-workspace.types';
-import { PackageX, MapPin, Truck } from 'lucide-react';
+import { PackageX, MapPin, Truck } from '@/design-system/components/Icon/googleIconCompat';
 
 interface WasteCardProps {
   code: string;

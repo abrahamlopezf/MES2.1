@@ -8,8 +8,8 @@ import {
 import { 
   AlertCircle, PackageCheck, DollarSign, Activity, 
   TrendingUp, Settings2, Boxes, ArrowRight, ShieldCheck, 
-  Layers, Package, AlertTriangle, Menu, Factory, Wind
-} from 'lucide-react';
+  Layers, Package, AlertTriangle, Factory, Wind
+} from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { Card, Button, Badge } from '../../../design-system';
@@ -258,18 +258,73 @@ const DashboardPage = () => {
   ];
   const focusedArea = areaCards.find(({ key }) => key === selectedArea);
   const focusedAreaData = focusedArea ? areaOverview?.[focusedArea.key] : null;
-  const focusedAreaMetrics = selectedArea === 'almacen'
-    ? (Object.keys(kpisFin).length > 0 ? [
-        ['Valor bajo custodia', formatCurrency(kpisFin.warehouseCustodyValue ?? currentInventoryValue)],
-        ['Inventario en lotes', formatCurrency(kpisFin.warehouseInventoryValue ?? 0)],
-        ['Inventario en silos', formatCurrency(kpisFin.silosInventoryValue ?? 0)],
-        ['Pérdidas registradas', formatCurrency(totalLoss)],
-        ['Lotes recibidos', Number(totalEntradas).toLocaleString('es-MX')],
-        ['Materiales bajo mínimo', Number(materialesStockBajo).toLocaleString('es-MX')],
-      ] : null)
-    : focusedArea && focusedAreaData?.available
-      ? focusedArea.metrics(focusedAreaData)
-      : null;
+  const focusedAreaAvailable = selectedArea === 'almacen'
+    ? Object.keys(kpisFin).length > 0
+    : Boolean(focusedAreaData?.available);
+  const focusedAreaTitle = selectedArea === 'almacen' ? 'Almacén' : focusedArea?.title;
+  const focusedAreaValue = selectedArea === 'almacen'
+    ? Number(kpisFin.warehouseCustodyValue ?? currentInventoryValue)
+    : getAreaInventoryValue(focusedAreaTitle);
+  const focusedAreaKpis = selectedArea === 'almacen'
+    ? [
+        { label: 'Valor bajo custodia', value: formatCurrency(kpisFin.warehouseCustodyValue ?? currentInventoryValue), context: 'Lotes y silos valorizados' },
+        { label: 'Inventario en lotes', value: formatCurrency(kpisFin.warehouseInventoryValue ?? 0), context: 'Existencia disponible en almacén' },
+        { label: 'Inventario en silos', value: formatCurrency(kpisFin.silosInventoryValue ?? 0), context: 'Materia prima bajo custodia' },
+        { label: 'Materiales bajo mínimo', value: Number(materialesStockBajo).toLocaleString('es-MX'), context: `${Number(totalEntradas).toLocaleString('es-MX')} lotes recibidos` },
+      ]
+    : selectedArea === 'extrusion'
+      ? [
+          { label: 'Capital registrado', value: formatCurrency(focusedAreaValue), context: 'Inventario y WIP con costo disponible' },
+          { label: 'Materia prima en WIP', value: `${Number(focusedAreaData?.wip_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg`, context: `${Number(focusedAreaData?.material_items || 0).toLocaleString('es-MX')} materiales` },
+          { label: 'Mezclas con saldo', value: Number(focusedAreaData?.active_mixtures || 0).toLocaleString('es-MX'), context: 'Preparaciones pendientes de consumir' },
+          { label: 'Saldo de mezclas', value: `${Number(focusedAreaData?.mixtures_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg`, context: 'Producto preparado en proceso' },
+        ]
+      : selectedArea === 'telares'
+        ? [
+            { label: 'Capital registrado', value: focusedAreaData?.valuation_complete === false ? 'Parcial' : formatCurrency(focusedAreaValue), context: focusedAreaData?.valuation_complete === false ? 'Valuación pendiente en parte del WIP' : 'Inventario y WIP con costo disponible' },
+            { label: 'Hilo en filetas', value: `${Number(focusedAreaData?.total_wip_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg`, context: 'WIP en telares activos' },
+            { label: 'Telares tejiendo', value: `${Number(focusedAreaData?.total_looms_active || 0).toLocaleString('es-MX')} / ${Number(focusedAreaData?.total_looms_count || 0).toLocaleString('es-MX')}`, context: 'Máquinas con corrida activa' },
+            { label: 'Ocupación de filetas', value: `${Number(focusedAreaData?.avg_creel_utilization_pct || 0).toLocaleString('es-MX')}%`, context: 'Promedio de uso de capacidad' },
+          ]
+        : [
+            { label: 'Capital estimado', value: formatCurrency(focusedAreaValue), context: 'Incluye estimación del valor de tela en piso' },
+            { label: 'Rollos en proceso', value: Number(focusedAreaData?.rolls_in_floor || 0).toLocaleString('es-MX'), context: `${Number(focusedAreaData?.fabric_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg de tela en piso` },
+            { label: 'Rollos por recibir', value: Number(focusedAreaData?.rolls_incoming || 0).toLocaleString('es-MX'), context: 'En tránsito hacia esta área' },
+            { label: 'Materiales en WIP', value: `${Number(focusedAreaData?.materials_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg`, context: `${Number(focusedAreaData?.meters_in_floor || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })} m de tela en piso` },
+          ];
+  const focusedAreaOperations = selectedArea === 'almacen'
+    ? [
+        { name: 'Lotes recibidos', value: Number(totalEntradas), unit: 'lotes' },
+        { name: 'Salidas y bajas', value: Number(bajasRegistradas), unit: 'movimientos' },
+        { name: 'Materiales bajo mínimo', value: Number(materialesStockBajo), unit: 'materiales' },
+      ]
+    : selectedArea === 'extrusion'
+      ? [
+          { name: 'Materia prima en WIP', value: Number(focusedAreaData?.wip_kg || 0), unit: 'kg' },
+          { name: 'Mezclas preparadas', value: Number(focusedAreaData?.mixtures_kg || 0), unit: 'kg' },
+        ]
+      : selectedArea === 'telares'
+        ? [
+            { name: 'Telares tejiendo', value: Number(focusedAreaData?.total_looms_active || 0), unit: 'telares' },
+            { name: 'Telares disponibles', value: Math.max(0, Number(focusedAreaData?.total_looms_count || 0) - Number(focusedAreaData?.total_looms_active || 0)), unit: 'telares' },
+          ]
+        : [
+            { name: 'Rollos en piso', value: Number(focusedAreaData?.rolls_in_floor || 0), unit: 'rollos' },
+            { name: 'Rollos por recibir', value: Number(focusedAreaData?.rolls_incoming || 0), unit: 'rollos' },
+          ];
+  const focusedAreaCostTrend = selectedArea === 'almacen'
+    ? (monthlyFinancialFromBackend || []).slice(-6).map((month) => ({
+        label: month.mes,
+        consumption_cost: Number(month.operativo || 0),
+        loss_cost: Number(month.merma || 0),
+        entry_cost: Number(month.inventario || 0),
+      }))
+    : focusedAreaData?.cost_trend || [];
+  const capitalByAreaData = areaInventoryValues.map(({ name, value }) => ({
+    name,
+    value: Number(value || 0),
+    selected: normalizeAreaName(name) === normalizeAreaName(focusedAreaTitle),
+  }));
 
   // Nombre y rol del usuario
   const roleLabel = ['ADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL'].includes(roleCode) 
@@ -288,15 +343,6 @@ const DashboardPage = () => {
       {/* HEADER GREETING & VIEW TOGGLE */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('open-sidebar'))}
-            data-ignore-accessibility-min-height
-            className="lg:hidden size-12 rounded-xl bg-secondary/80 border border-border p-0 text-foreground hover:text-primary transition-colors shrink-0 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Abrir Menú Principal"
-            title="Menú"
-          >
-            <Menu size={20} />
-          </button>
           <div className="min-w-0 flex-1 pr-12 sm:pr-0">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex flex-wrap items-baseline gap-x-2">
               {selectedArea === 'GENERAL' ? 'Visión Global' : `Dashboard de ${selectedArea === 'almacen' ? 'Almacén' : focusedArea?.title}`} <span className="text-primary opacity-80 text-lg sm:text-xl font-normal">| Estado del Sistema</span>
@@ -358,30 +404,121 @@ const DashboardPage = () => {
       </section>
 
       {selectedArea !== 'GENERAL' && (
-        <section aria-labelledby="focused-area-title" aria-live="polite" className="space-y-4">
+        <section aria-labelledby="focused-area-title" aria-live="polite" className="space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h2 id="focused-area-title" className="text-xl font-black text-foreground">Indicadores de {selectedArea === 'almacen' ? 'Almacén' : focusedArea?.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Vista enfocada en esta área; los indicadores generales se muestran al elegir General.</p>
+              <h2 id="focused-area-title" className="text-xl font-black text-foreground">Dashboard ejecutivo · {focusedAreaTitle}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Capital bajo control, situación operativa y comparación con las demás áreas.</p>
             </div>
-            {areaOverview?.refreshed_at && selectedArea !== 'almacen' && (
+            {areaOverview?.refreshed_at && (
               <span className="text-sm text-muted-foreground">Actualizado {new Date(areaOverview.refreshed_at).toLocaleTimeString('es-MX')}</span>
             )}
           </div>
-          {focusedAreaMetrics ? (
+          {!focusedAreaAvailable ? (
+            <div role="status" className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-5 text-base font-semibold text-amber-900 dark:text-amber-100">
+              No se pudo consultar el resumen de {focusedAreaTitle}. La vista General sigue disponible; vuelve a intentarlo en unos momentos.
+            </div>
+          ) : <>
             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {focusedAreaMetrics.map(([label, value]) => (
-                <div key={label} className="flex min-h-28 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm">
+              {focusedAreaKpis.map(({ label, value, context }, index) => (
+                <div key={label} className={`flex min-h-32 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm ${index === 0 ? 'border-t-4 border-t-primary' : ''}`}>
                   <dt className="text-base font-semibold text-muted-foreground">{label}</dt>
-                  <dd className="mt-3 break-words text-2xl font-black tabular-nums text-foreground">{value}</dd>
+                  <dd className="mt-2 break-words text-2xl font-black tabular-nums text-foreground">{value}</dd>
+                  <p className="mt-2 text-sm text-muted-foreground">{context}</p>
                 </div>
               ))}
             </dl>
-          ) : (
-            <div role="status" className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-5 text-base font-semibold text-amber-900 dark:text-amber-100">
-              No hay datos disponibles para esta área en este momento. Actualiza la vista o vuelve a General para consultar las demás áreas.
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <Card className="min-w-0 p-4 sm:p-5">
+                <div className="mb-3">
+                  <h3 className="text-lg font-bold text-foreground">Capital valorizado por área</h3>
+                  <p className="text-sm text-muted-foreground">Valor actual de inventario y WIP disponible{['globo', 'laminado'].includes(selectedArea) ? ' · incluye estimación de tela' : ''} · MXN</p>
+                </div>
+                {capitalByAreaData.length > 0 ? <>
+                  <div role="img" aria-label={`Comparación del capital registrado en las áreas. ${focusedAreaTitle}: ${formatCurrency(focusedAreaValue)}.`} className="h-64 w-full sm:h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={capitalByAreaData} margin={{ top: 12, right: 12, left: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                        <XAxis dataKey="name" stroke={axisColor} fontSize={13} tickLine={false} axisLine={false} />
+                        <YAxis stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)} mil`} />
+                        <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }} formatter={(value) => [formatCurrency(value), 'Capital registrado']} />
+                        <Bar dataKey="value" name="Capital registrado" radius={[5, 5, 0, 0]} maxBarSize={56}>
+                          {capitalByAreaData.map((entry, index) => <Cell key={`${entry.name}-${index}`} fill={entry.selected ? '#6366f1' : '#64748b'} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-sm text-muted-foreground">El área seleccionada se resalta en morado para ubicarla rápidamente.</p>
+                </> : <p className="rounded-lg bg-muted/40 p-5 text-base text-muted-foreground">Aún no hay costos registrados para comparar.</p>}
+              </Card>
+
+              <Card className="min-w-0 p-4 sm:p-5">
+                <div className="mb-3">
+                  <h3 className="text-lg font-bold text-foreground">Tendencia de costos · últimos 6 meses</h3>
+                  <p className="text-sm text-muted-foreground">Movimientos con costo registrado · MXN</p>
+                </div>
+                {focusedAreaData?.cost_trend_available === false ? (
+                  <p role="status" className="rounded-lg bg-muted/40 p-5 text-base text-muted-foreground">No se pudo consultar la tendencia de costos. Los demás indicadores del área siguen disponibles.</p>
+                ) : focusedAreaCostTrend.some((month) => Number(month.consumption_cost || 0) > 0 || Number(month.loss_cost || 0) > 0 || Number(month.entry_cost || 0) > 0) ? <>
+                  <div role="img" aria-label={`Tendencia de costos de ${focusedAreaTitle} en los últimos seis meses.`} className="h-64 w-full sm:h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={focusedAreaCostTrend} margin={{ top: 12, right: 12, left: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                        <XAxis dataKey="label" stroke={axisColor} fontSize={13} tickLine={false} axisLine={false} />
+                        <YAxis stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)} mil`} />
+                        <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }} formatter={(value) => [formatCurrency(value)]} />
+                        <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
+                        {selectedArea === 'almacen' && <Line type="monotone" dataKey="entry_cost" name="Entradas" stroke="#3b82f6" strokeWidth={3} dot={{ r: 3 }} />}
+                        <Line type="monotone" dataKey="consumption_cost" name={selectedArea === 'almacen' ? 'Consumo' : 'Consumo directo'} stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="loss_cost" name="Merma y scrap" stroke="#ef4444" strokeWidth={3} dot={{ r: 3 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Incluye consumos y pérdidas en movimientos de inventario; no incluye la valuación actual del WIP.</p>
+                </> : <p className="rounded-lg bg-muted/40 p-5 text-base text-muted-foreground">Aún no hay movimientos con costo en este periodo.</p>}
+              </Card>
+
+              <Card className="min-w-0 p-4 sm:p-5">
+                <div className="mb-3">
+                  <h3 className="text-lg font-bold text-foreground">Situación operativa de {focusedAreaTitle}</h3>
+                  <p className="text-sm text-muted-foreground">Indicadores actuales para orientar la revisión del área.</p>
+                </div>
+                {focusedAreaOperations.some((item) => item.value > 0) ? <>
+                  <div role="img" aria-label={`Indicadores operativos de ${focusedAreaTitle}: ${focusedAreaOperations.map((item) => `${item.name}, ${item.value} ${item.unit}`).join('; ')}.`} className="h-64 w-full sm:h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={focusedAreaOperations} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
+                        <XAxis type="number" stroke={axisColor} fontSize={13} tickLine={false} axisLine={false} />
+                        <YAxis type="category" dataKey="name" width={138} stroke={axisColor} fontSize={13} tickLine={false} axisLine={false} tick={{ fontSize: 13 }} />
+                        <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }} formatter={(value, _name, item) => [`${Number(value).toLocaleString('es-MX')} ${item.payload.unit}`, item.payload.name]} />
+                        <Bar dataKey="value" name="Indicador actual" fill="#0ea5e9" radius={[5, 5, 0, 0]} maxBarSize={64} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <dl className="grid gap-2 border-t border-border pt-3 sm:grid-cols-2">
+                    {focusedAreaOperations.map((item) => <div key={item.name} className="flex justify-between gap-3 text-sm"><dt className="text-muted-foreground">{item.name}</dt><dd className="font-bold tabular-nums text-foreground">{Number(item.value).toLocaleString('es-MX')} {item.unit}</dd></div>)}
+                  </dl>
+                </> : <p className="rounded-lg bg-muted/40 p-5 text-base text-muted-foreground">No hay actividad operativa registrada para mostrar en este momento.</p>}
+              </Card>
             </div>
-          )}
+
+            {selectedArea === 'almacen' && materialesStockBajo > 0 && (
+              <div role="status" className="flex flex-col gap-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 text-amber-950 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                <span className="flex items-start gap-2 text-base font-semibold"><AlertTriangle className="mt-0.5 size-5 shrink-0" />{materialesStockBajo} materiales están por debajo del mínimo.</span>
+                <Button variant="outline" onClick={() => setActiveTab('WAREHOUSE')} className="min-h-11 w-full sm:w-auto">Abrir monitor de Almacén <ArrowRight className="size-4" /></Button>
+              </div>
+            )}
+            {['globo', 'laminado'].includes(selectedArea) && (
+              <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">La valuación de tela en piso es estimada; úsala como referencia ejecutiva, no como cierre contable.</p>
+            )}
+            {selectedArea === 'telares' && focusedAreaData?.valuation_complete === false && (
+              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-semibold text-amber-900 dark:text-amber-100">Hay WIP sin costo completo. El capital mostrado incluye únicamente costos disponibles.</p>
+            )}
+            {selectedArea === 'extrusion' && focusedAreaData?.valuation_complete === false && (
+              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-semibold text-amber-900 dark:text-amber-100">Hay material o mezclas sin valuación completa. El capital mostrado incluye únicamente costos disponibles.</p>
+            )}
+          </>}
         </section>
       )}
 

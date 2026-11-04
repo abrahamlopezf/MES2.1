@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, QrCode, Package, Clock, Hash, Layers } from 'lucide-react';
+import { Search, QrCode, Package, Clock, Hash, Layers } from '@/design-system/components/Icon/googleIconCompat';
 import { CameraScanner } from '../../design-system/components/scanner-overlay/CameraScanner';
 import { TFCard, TFButton, TFInput, TFBadge } from '../../components/tf-ui';
 

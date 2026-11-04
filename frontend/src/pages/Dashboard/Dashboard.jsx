@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
-import { Activity, Package, Layers, AlertTriangle, Loader2 } from 'lucide-react';
+import { Activity, Package, Layers, AlertTriangle, Loader2 } from '@/design-system/components/Icon/googleIconCompat';
 import { useQuery } from '@tanstack/react-query';
 import axiosClient from '../../api/axiosClient';
 

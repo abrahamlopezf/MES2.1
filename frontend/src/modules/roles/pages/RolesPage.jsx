@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FilterX, Plus, RefreshCw, Search, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { FilterX, Plus, RefreshCw, Search, ShieldCheck, ChevronDown, ChevronUp } from '@/design-system/components/Icon/googleIconCompat';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 

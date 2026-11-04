@@ -1,5 +1,5 @@
 import { TFCard, TFCardContent } from "../../../components/tf-ui";
-import { Construction } from "lucide-react";
+import { Construction } from '@/design-system/components/Icon/googleIconCompat';
 
 export const StorageLocationsPage = () => {
   return (

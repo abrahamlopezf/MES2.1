@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, AlertCircle, MapPin, Calendar, User } from 'lucide-react';
+import { ArrowLeft, AlertCircle, MapPin, Calendar, User } from '@/design-system/components/Icon/googleIconCompat';
 import { Button, Badge, Card, CardContent, TopBar } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { GlobalErrorBoundary } from '../../../../core/error/GlobalErrorBoundary';

@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/design-system/components/Icon/googleIconCompat';
 
 const LoadingState = ({
   title = 'Cargando información',

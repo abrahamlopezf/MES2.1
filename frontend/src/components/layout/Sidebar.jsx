@@ -66,6 +66,7 @@ const menuGroups = [
         permission: "inventory.receive",
         allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM", "ADMIN_ALMACEN"]
       },
+      { label: "Recepción PTI de Extrusión", path: "/warehouse/pti-extrusion-reception", icon: "move_to_inbox", permission: "", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM", "ADMIN_ALMACEN", "WAREHOUSEMAN"] },
       { label: "Inventario", path: "/warehouse/inventory", icon: "inventory", permission: "inventory.view" },
       // { label: "Inventario de Área", path: "/warehouse/area-inventory", icon: "layers", permission: "inventory.view", hiddenRoles: ["SUPERADMIN", "ADMIN_GRAL"] },
       { label: "Control Merma/Scrap", path: "/warehouse/merma-scrap", icon: "delete_sweep", permission: "warehouse.merma_scrap.view" },
@@ -107,11 +108,11 @@ const menuGroups = [
     hiddenRoles: ["ADMIN_ALM", "WAREHOUSEMAN", "ADMIN_EXT", "ADMIN_EXTRUSION", "ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO"],
     isGroup: true,
     children: [
-      { label: "Dashboard WIP & Filetas", path: "/telares/dashboard", icon: "dashboard", permission: "" },
       { label: "Catálogo Telas / Bandas", path: "/telares/catalogos", icon: "menu_book", permission: "" },
-      { label: "Catálogo de Operadores", path: "/telares/operadores", icon: "group", permission: "" },
+      { label: "Registros de Telares", path: "/production/viajero-tracker", icon: "history", permission: "" },
       { label: "Terminal de Telares", path: "/production/telares", icon: "precision_manufacturing", permission: "" },
-      { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=3&area_name=Telares", icon: "assignment", permission: "" }
+      { label: "Órdenes de Consumo (ODC)", path: "/telares/odc?area_id=3&area_name=Telares", icon: "assignment", permission: "" },
+      { label: "Control de Merma/Scrap", path: "/telares/scrap-control", icon: "scale", permission: "" }
     ]
   },
   {
@@ -154,12 +155,14 @@ const menuGroups = [
 const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileClick }) => {
   const { hasPermission, hasAnyPermission, user } = useAuthStore();
   const location = useLocation();
+  const childMatchesLocation = (child) => {
+    const childPath = String(child.path || '').split('?')[0];
+    return childPath && (location.pathname === childPath || location.pathname.startsWith(`${childPath}/`));
+  };
   const [isOpen, setIsOpen] = useState(
-    item.children?.some(child => location.pathname.includes(child.path)) || false
+    item.children?.some(childMatchesLocation) || false
   );
-  const hasActiveChild = item.children?.some(child =>
-    location.pathname === child.path || location.pathname.startsWith(`${child.path}/`)
-  );
+  const hasActiveChild = item.children?.some(childMatchesLocation);
 
   useEffect(() => {
     if (hasActiveChild) setIsOpen(true);
@@ -171,10 +174,18 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
   const isExtrusionSupervisor = userRole === 'SUPERVISOR_EXTRUSION';
+  const isTelaresSupervisor = userRole === 'SUPERVISOR_TELARES';
+  const isTelaresUserManager = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'].includes(userRole);
+  useEffect(() => {
+    if (item.label === 'Gestión de Usuarios' && ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'].includes(userRole)) {
+      setIsOpen(true);
+    }
+  }, [item.label, userRole]);
   const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
+  const isTelaresSupervisorHome = item.path === '/dashboard' && isSupervisorUser(user) && getUserAreaCode(user) === 'TELARES';
   const isHiddenForRole = item.hiddenRoles?.some(r => r.toUpperCase() === userRole);
   const isAllowedRole = isGlobalAdmin || !item.allowedRoles || item.allowedRoles.some(r => r.toUpperCase() === userRole);
-  if ((!hasAccess && !isGlobalAdmin && !isExtrusionSupervisor) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
+  if ((!hasAccess && !isGlobalAdmin && !isExtrusionSupervisor && !isTelaresSupervisor && !isTelaresSupervisorHome) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
 
   if (!item.isGroup) {
     return (
@@ -260,8 +271,9 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
               : hasPermission(child.permission);
             const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
             const isHiddenForRole = child.hiddenRoles?.some(r => r.toUpperCase() === userRole);
-            const isAllowedRole = isGlobalAdmin || isExtrusionSupervisor || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
-            if ((!hasChildAccess && !isGlobalAdmin && !isExtrusionSupervisor) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
+            const isAllowedRole = isGlobalAdmin || isExtrusionSupervisor || isTelaresSupervisor || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
+            const isTelaresUsersLink = isTelaresUserManager && child.path === '/users';
+            if ((!hasChildAccess && !isGlobalAdmin && !isExtrusionSupervisor && !isTelaresSupervisor && !isTelaresUsersLink) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
             if (child.onClick) {
               return (
                 <button
@@ -347,6 +359,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
 
   const isTelaresAdmin = !isExecutive && !isSupervisor && (['ADMIN_TELARES', 'ADMIN_TEL'].includes(userRole) ||
                          (userArea === 'TELARES' && (userRole.startsWith('ADMIN') || userRole.includes('ADMIN'))));
+  const isTelaresOperator = !isExecutive && !isSupervisor && userRole === 'OPERADOR_TELARES';
 
   const visibleMenuGroups = menuGroups
     .filter(group => {
@@ -362,7 +375,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
       // - Dashboard e Identidad y Lotes sí están disponibles (limitados)
       if (isSupervisor) {
         if (group.label === 'Gestión de Usuarios') {
-          return userRole === 'SUPERVISOR_EXTRUSION' && userArea === 'EXTRUSION';
+          return (userRole === 'SUPERVISOR_EXTRUSION' && userArea === 'EXTRUSION') || (userRole === 'SUPERVISOR_TELARES' && userArea === 'TELARES');
         }
         if (group.label === 'Dashboard' || group.label === 'Identidad y Lotes') {
           return true;
@@ -371,7 +384,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
           return group.label === 'Extrusión';
         }
         if (userArea === 'TELARES') {
-          return group.label === 'Telares' || group.label === 'QR Viajero';
+          return group.label === 'Telares';
         }
         if (userArea === 'ALMACEN') {
           return group.label === 'Almacén';
@@ -395,6 +408,8 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
         return ['Dashboard', 'Gestión de Usuarios', 'Identidad y Lotes', 'Almacén'].includes(group.label);
       }
 
+      if (isTelaresOperator) return group.label === 'Telares';
+
       if (isExtrusionAdmin) {
         // Para el Admin de Extrusión solo debe de aparecer:
         // 1. Su dashboard de Extrusión
@@ -405,12 +420,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
       }
 
       if (isTelaresAdmin) {
-        // Para el Admin de Telares solo debe de aparecer:
-        // 1. Su dashboard de Telares
-        // 2. Gestión de Usuarios (solo usuarios de telares)
-        // 3. Identidad y lotes
-        // 4. Telares completo y QR Viajero
-        return ['Dashboard', 'Gestión de Usuarios', 'Identidad y Lotes', 'Telares', 'QR Viajero'].includes(group.label);
+        return ['Telares', 'Gestión de Usuarios'].includes(group.label);
       }
 
       return true;
@@ -423,9 +433,16 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
         return { ...group, label: 'Dashboard de Extrusión', path: '/extrusion/dashboard' };
       }
       if ((isTelaresAdmin || (isSupervisor && userArea === 'TELARES')) && group.label === 'Dashboard') {
-        return { ...group, label: 'Dashboard de Telares' };
+        return {
+          ...group,
+          label: isSupervisor && userArea === 'TELARES' ? 'Inicio' : 'Dashboard de Telares',
+          icon: isSupervisor && userArea === 'TELARES' ? 'home' : group.icon
+        };
       }
-      if ((isWarehouseUser || isExtrusionAdmin || isTelaresAdmin || (isSupervisor && userRole === 'SUPERVISOR_EXTRUSION')) && group.label === 'Gestión de Usuarios') {
+      if (isTelaresOperator && group.label === 'Telares') {
+        return { ...group, children: group.children?.filter(child => child.path === '/production/telares') };
+      }
+      if ((isWarehouseUser || isExtrusionAdmin || isTelaresAdmin || (isSupervisor && ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(userRole))) && group.label === 'Gestión de Usuarios') {
         return {
           ...group,
           children: group.children?.filter(child => child.path === '/users')

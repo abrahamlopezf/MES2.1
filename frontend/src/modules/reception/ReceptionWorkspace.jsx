@@ -4,7 +4,7 @@ import { SubmitReceptionCommand } from './commands';
 import { useMaterialListQuery } from '../materials/hooks/useMaterialListQuery';
 import { useOperationalAreasQuery, useSuppliersQuery } from '../materials/hooks/useMaterialsQueries';
 import { TFCard, TFButton, TFInput, TFBadge, TFSelect } from '../../components/tf-ui';
-import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode, Sparkles, ExternalLink, AlertCircle } from 'lucide-react';
+import { PackageOpen, ArrowLeft, Hash, Layers, Calendar, QrCode, Sparkles, ExternalLink, AlertCircle } from '@/design-system/components/Icon/googleIconCompat';
 import { SearchSelect } from '../../design-system/components/Input/SearchSelect';
 import { tokens } from '../../design-system/foundation/tokens';
 import { useNavigate, Link } from 'react-router-dom';

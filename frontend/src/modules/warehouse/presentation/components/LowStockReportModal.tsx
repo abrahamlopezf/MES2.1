@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, AlertTriangle, FileText, X, Package, ShoppingCart } from 'lucide-react';
+import { Download, AlertTriangle, FileText, X, Package, ShoppingCart } from '@/design-system/components/Icon/googleIconCompat';
 import { Button, Badge } from '../../../../design-system';
 import { 
   TFDialog as Dialog, 

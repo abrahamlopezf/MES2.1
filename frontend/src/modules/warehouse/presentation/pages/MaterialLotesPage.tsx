@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Boxes, AlertCircle, CheckSquare, X, MousePointerSquareDashed, MapPin, Calendar, User, Hash, Search, Filter, QrCode } from 'lucide-react';
+import { ArrowLeft, Boxes, AlertCircle, CheckSquare, X, MousePointerSquareDashed, MapPin, Calendar, User, Hash, Search, Filter, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent, TopBar } from '../../../../design-system';
 import axiosClient from '../../../../api/axiosClient';
 import { GlobalErrorBoundary } from '../../../../core/error/GlobalErrorBoundary';

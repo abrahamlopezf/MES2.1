@@ -8,7 +8,7 @@ import { useIdentityBatchesQuery, downloadBatchPdf, downloadQrPdf } from '../hoo
 import { useNavigate, Link } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
-import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from 'lucide-react';
+import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from '@/design-system/components/Icon/googleIconCompat';
 import nomenclature from '@shared/config/nomenclature.json';
 import { useAuthStore } from '../../../../store/authStore';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';

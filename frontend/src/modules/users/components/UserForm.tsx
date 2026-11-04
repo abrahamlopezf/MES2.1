@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Save, Power, X, Info } from 'lucide-react';
+import { Save, Power, X, Info } from '@/design-system/components/Icon/googleIconCompat';
 import { toast } from 'sonner';
 
 import { userSchema, UserFormValues } from '../schemas/userSchema';
@@ -50,7 +50,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
   const { user: currentUser } = useAuthStore();
   const roleCode = (currentUser?.role?.code || '').toUpperCase();
   const isGeneralAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL'].includes(roleCode);
-  const isSupervisor = ['SUPERVISOR', 'SUPERVISOR_EXTRUSION'].includes(roleCode);
+  const isSupervisor = roleCode === 'SUPERVISOR' || roleCode.startsWith('SUPERVISOR_');
   const watchedFirstName = form.watch('nombres');
   const watchedLastName = form.watch('apellidos');
 
@@ -359,7 +359,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
                 </PermissionGate>
               )}
 
-              {isEdit && user.status === 'ACTIVE' && !isGeneralAdmin && (
+              {isEdit && user.status === 'ACTIVE' && !isGeneralAdmin && !isSupervisor && (
                 <PermissionGate permission="users.update">
                   <TFButton
                     type="button"

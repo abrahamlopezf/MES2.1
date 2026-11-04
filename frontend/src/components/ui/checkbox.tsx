@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { Check } from "lucide-react"
+import { Check } from '@/design-system/components/Icon/googleIconCompat'
 
 import { cn } from "@/lib/utils"
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GitMerge, ArrowDownRight, QrCode } from 'lucide-react';
+import { GitMerge, ArrowDownRight, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 import { StatusBadge } from './StatusBadge';
 import { ErpStatus } from '@/core/config/statusConfig';
 

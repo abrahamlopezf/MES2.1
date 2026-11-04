@@ -21,7 +21,7 @@ import {
   Mail,
   User,
   KeyRound,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { TejidoOperator } from '../../types/telares.types';
 
 interface OperatorFormData {
@@ -207,7 +207,7 @@ export const TelaresOperatorsPage: React.FC = () => {
   }, [operators]);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-5 p-4 pb-28 sm:p-6 lg:pr-24">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-5 p-4 pb-32 sm:p-6 lg:pr-24 lg:pb-8">
       {/* Header Industrial */}
       <header className="flex flex-col justify-between gap-4 rounded-2xl border-2 border-slate-700 bg-slate-800 p-5 shadow-xl sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
@@ -240,28 +240,28 @@ export const TelaresOperatorsPage: React.FC = () => {
         <div className="rounded-xl border-2 border-slate-700 bg-slate-850 p-4 shadow">
           <div className="text-xs font-bold uppercase text-slate-400">Total Operadores</div>
           <div className="text-2xl font-black text-white">{stats.total}</div>
-          <div className="text-[11px] text-slate-400">Plantilla asignada a Telares</div>
+          <div className="text-xs text-slate-300">Plantilla asignada a Telares</div>
         </div>
         <div className="rounded-xl border-2 border-emerald-500/30 bg-emerald-950/20 p-4 shadow">
           <div className="text-xs font-bold uppercase text-emerald-400">Activos en Piso</div>
           <div className="text-2xl font-black text-emerald-300">{stats.activos}</div>
-          <div className="text-[11px] text-emerald-400/80">Habilitados para turnos</div>
+          <div className="text-xs text-emerald-200">Habilitados para turnos</div>
         </div>
         <div className="rounded-xl border-2 border-purple-500/30 bg-purple-950/20 p-4 shadow">
           <div className="text-xs font-bold uppercase text-purple-400">Supervisores</div>
           <div className="text-2xl font-black text-purple-300">{stats.supervisores}</div>
-          <div className="text-[11px] text-purple-400/80">Gestión de turnos y calidad</div>
+          <div className="text-xs text-purple-200">Gestión de turnos y calidad</div>
         </div>
         <div className="rounded-xl border-2 border-slate-700 bg-slate-850 p-4 shadow">
           <div className="text-xs font-bold uppercase text-slate-400">Inactivos</div>
           <div className="text-2xl font-black text-slate-300">{stats.inactivos}</div>
-          <div className="text-[11px] text-slate-400">Bajas o suspendidos</div>
+          <div className="text-xs text-slate-300">Bajas o suspendidos</div>
         </div>
       </div>
 
       {/* Encabezado de Filtros */}
       <section className="rounded-2xl border-2 border-slate-700 bg-slate-800 p-4 shadow-lg space-y-3">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_auto]">
           {/* Barra de Búsqueda */}
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -283,11 +283,13 @@ export const TelaresOperatorsPage: React.FC = () => {
           </div>
 
           {/* Filtros de Rol */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-xl border border-slate-700">
+          <fieldset className="min-w-0 rounded-xl border border-slate-700 bg-slate-900 p-1.5">
+            <legend className="px-1 text-sm font-semibold text-slate-200">Filtrar por rol</legend>
+            <div className="grid grid-cols-3 gap-1">
             <button
               type="button"
               onClick={() => setRoleFilter('ALL')}
-              className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
                 roleFilter === 'ALL' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -296,7 +298,7 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setRoleFilter('OPERADOR')}
-              className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
                 roleFilter === 'OPERADOR' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -305,20 +307,23 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setRoleFilter('SUPERVISOR')}
-              className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
                 roleFilter === 'SUPERVISOR' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
               Supervisores
             </button>
-          </div>
+            </div>
+          </fieldset>
 
           {/* Filtros de Estado */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-xl border border-slate-700">
+          <fieldset className="min-w-0 rounded-xl border border-slate-700 bg-slate-900 p-1.5">
+            <legend className="px-1 text-sm font-semibold text-slate-200">Filtrar por estado</legend>
+            <div className="grid grid-cols-3 gap-1">
             <button
               type="button"
               onClick={() => setStatusFilter('ALL')}
-              className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
                 statusFilter === 'ALL' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -327,7 +332,7 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('ACTIVE')}
-              className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
                 statusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -336,13 +341,14 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('INACTIVE')}
-              className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
+              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
                 statusFilter === 'INACTIVE' ? 'bg-red-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
               Inactivos
             </button>
-          </div>
+            </div>
+          </fieldset>
         </div>
       </section>
 
@@ -364,7 +370,36 @@ export const TelaresOperatorsPage: React.FC = () => {
             No se encontraron operadores con los criterios de búsqueda seleccionados.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="grid gap-3 p-3 xl:hidden">
+            {filteredOperators.map((op) => {
+              const isActive = op.is_active !== false;
+              const isSupervisor = (op.role_name || '').toLowerCase().includes('supervisor');
+              return (
+                <article key={op.id} className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="break-words text-base font-bold text-white">{op.full_name || `${op.first_name} ${op.last_name}`}</h3>
+                      <p className="mt-1 text-sm text-slate-300">@{op.username}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-1 text-sm font-semibold ${isActive ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-200' : 'border-red-500/40 bg-red-950/40 text-red-200'}`}>{isActive ? 'Activo' : 'Inactivo'}</span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div><dt className="text-xs font-semibold text-slate-400">Nómina</dt><dd className="mt-0.5 font-mono font-bold text-amber-200">{op.numero_nomina || '—'}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-400">Rol</dt><dd className={`mt-0.5 font-semibold ${isSupervisor ? 'text-purple-200' : 'text-blue-200'}`}>{op.role_name || 'Operador de Telares'}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-400">Teléfono</dt><dd className="mt-0.5 text-slate-200">{op.telefono || 'No registrado'}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-400">Correo</dt><dd className="mt-0.5 break-all text-slate-200">{op.email || 'No registrado'}</dd></div>
+                  </dl>
+                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <Button type="button" variant="outline" onClick={() => handleOpenEdit(op)} className="min-h-12 border-slate-600 text-sm font-semibold"><Edit2 className="mr-2 h-4 w-4" />Editar</Button>
+                    <Button type="button" variant="outline" onClick={() => handleToggleStatus(op)} className="min-h-12 border-amber-600/40 text-sm font-semibold text-amber-100">{isActive ? 'Desactivar' : 'Activar'}</Button>
+                    <Button type="button" variant="destructive" onClick={() => handleDelete(op)} className="min-h-12 text-sm font-semibold"><Trash2 className="mr-2 h-4 w-4" />Eliminar</Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="hidden overflow-x-auto xl:block">
             <table className="w-full border-collapse text-left text-sm text-slate-200">
               <thead className="border-b-2 border-slate-700 bg-slate-900 text-xs font-black uppercase text-slate-300">
                 <tr>
@@ -488,6 +523,7 @@ export const TelaresOperatorsPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 

@@ -9,7 +9,7 @@ import {
   Ban,
   Clock,
   ShieldCheck
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 
 export const STATUS_MAP = {
   'RECIBIDO': { label: 'Recibido', variant: 'success', icon: CheckCircle2, description: 'Material ingresado y validado.' },

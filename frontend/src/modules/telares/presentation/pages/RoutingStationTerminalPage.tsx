@@ -22,7 +22,7 @@ import {
   Scissors,
   PackagePlus,
   ClipboardList,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { getCdmxTimeString } from '@/utils/date';
 
 interface RoutingStationProps {
@@ -69,10 +69,19 @@ export const RoutingStationTerminalPage: React.FC<RoutingStationProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus en el escáner
+  // Auto-focus en el escáner y lectura de ?qr= desde el escáner global
   useEffect(() => {
     inputRef.current?.focus();
   }, [validationResult]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qrParam = params.get('qr')?.trim();
+    if (qrParam) {
+      setScannedCode(qrParam);
+      validateQrCode(qrParam);
+    }
+  }, [location.search]);
 
   // Manejar escaneo
   const validateQrCode = async (code: string) => {

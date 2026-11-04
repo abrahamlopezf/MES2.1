@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Info, X } from 'lucide-react';
+import { AlertTriangle, Info, X } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton } from '../components/tf-ui/button';
 
 const ConfirmContext = createContext();

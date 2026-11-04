@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
-import { Search, ChevronDown, AlertTriangle, Plus, Sparkles } from 'lucide-react';
+import { Search, ChevronDown, AlertTriangle, Plus, Sparkles } from '@/design-system/components/Icon/googleIconCompat';
 
 const TFSelect = React.forwardRef(
   (

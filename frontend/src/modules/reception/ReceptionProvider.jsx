@@ -7,7 +7,7 @@ import { EventBus } from '../../core/platform/EventBus/EventBus';
 import { MES_EVENTS } from '../../core/platform/EventBus/DomainEvents';
 import { apiClient } from '../../core/api/apiClient';
 import { useAuthStore } from '../../store/authStore';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 
 /**
  * ReceptionProvider (Runtime Integration)

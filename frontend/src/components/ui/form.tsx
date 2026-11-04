@@ -12,7 +12,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
-import { TriangleAlert } from "lucide-react"
+import { TriangleAlert } from '@/design-system/components/Icon/googleIconCompat'
 
 const Form = FormProvider
 

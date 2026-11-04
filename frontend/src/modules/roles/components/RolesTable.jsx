@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit3, Power, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit3, Power, ShieldCheck, ChevronDown, ChevronUp } from '@/design-system/components/Icon/googleIconCompat';
 
 import { Card, CardContent, Badge, Button } from '../../../design-system';
 

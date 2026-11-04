@@ -17,7 +17,7 @@ import {
   X,
   Airplay,
   ShieldCheck,
-} from 'lucide-react';
+} from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { canViewCosts } from '../../../utils/authHelpers';

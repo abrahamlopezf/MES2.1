@@ -2182,7 +2182,7 @@ class ExtrusionService {
       throw error;
     }
 
-    const { PtiRack, QrCode, QrBatch, Material, Formula, FormulaIngredient, ExtruderQueue, Lote, ProcessPreparation, ExtrusionProductionEntry, ExtrusionScrapLog, Subarea, Area, PtiProduct } = require('../../database/models');
+    const { PtiRack, QrCode, QrBatch, Material, Formula, FormulaIngredient, ExtruderQueue, Extruder, Lote, ProcessPreparation, ExtrusionProductionEntry, ExtrusionScrapLog, Area, PtiProduct } = require('../../database/models');
     const consumptionService = require('./services/consumption.service');
 
     return await sequelize.transaction(async (t) => {
@@ -2214,21 +2214,19 @@ class ExtrusionService {
         throw error;
       }
       const effectiveExtruderId = Number(queueItem.extruder_id);
+      const extruderMachine = await Extruder.findByPk(effectiveExtruderId, { transaction: t });
+      const machineCodeNumber = String(extruderMachine?.code || '').match(/(\d+)$/)?.[1];
+      const effectiveExtruderNumber = Number(machineCodeNumber || effectiveExtruderId);
 
-      // 1. Buscar Rack por código QR o rack_code
+      // 1. El ingreso físico debe identificar el rack por su QR, no por su código visible.
       const rack = await PtiRack.findOne({
-        where: {
-          [sequelize.Sequelize.Op.or]: [
-            { qr_code: rack_qr },
-            { rack_code: rack_qr }
-          ]
-        },
+        where: { qr_code: String(rack_qr || '').trim() },
         transaction: t,
         lock: t.LOCK.UPDATE
       });
 
       if (!rack) {
-        const error = new Error(`Rack con código '${rack_qr}' no encontrado.`);
+        const error = new Error(`No se encontró un rack con el QR escaneado '${rack_qr}'. Escanea el QR físico del rack de destino.`);
         error.statusCode = 404;
         throw error;
       }
@@ -2259,6 +2257,10 @@ class ExtrusionService {
         throw error;
       }
       const linkedFormulaId = Number(ptiProduct.formula_id || 0);
+      const { validatePtiDestination } = require('./services/ptiDestinationRules');
+      const resolvedDestinationRoute = validatePtiDestination({
+        extruderNumber: effectiveExtruderNumber,
+      });
       const expectedPtiId = Number(queueItem.output_pti_product_id || 0);
       if (expectedPtiId > 0
         ? expectedPtiId !== Number(ptiProduct.id)
@@ -2284,14 +2286,14 @@ class ExtrusionService {
         if (Number(rack.current_pti_product_id) !== Number(ptiProduct.id)) {
           throw Object.assign(new Error(`El Rack ${rack.rack_code} está condicionado al PTI ${rack.current_pti_product_id}; el PTI ${ptiProduct.code} es otro producto/color. Usa un rack vacío.`), { statusCode: 409 });
         }
+        if (rack.destination_route !== resolvedDestinationRoute) {
+          throw Object.assign(new Error(`El Rack ${rack.rack_code} ya contiene PTI con destino ${rack.destination_route || 'sin ruta registrada'}. Vacíalo antes de asignar otra ruta.`), { statusCode: 409, code: 'PTI_RACK_DESTINATION_MISMATCH' });
+        }
       }
 
-      const areaTelares = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
-      const bandaSubarea = areaTelares && await Subarea.findOne({
-        where: { area_id: areaTelares.id, nomenclature: 'TB', is_active: true },
-        transaction: t,
-      });
-      const destinationSubareaId = effectiveExtruderId === 1 ? (bandaSubarea?.id || null) : null;
+      // Telares resuelve la subárea con el PTI; el rack guarda la ruta
+      // autorizada seleccionada en el catálogo para impedir desvíos.
+      const destinationSubareaId = null;
       if (rack.current_quantity > 0 && Number(rack.destination_subarea_id || 0) !== Number(destinationSubareaId || 0)) {
         const error = new Error(`El Rack ${rack.rack_code} ya está asignado a otro destino de Telares; usa un rack distinto para evitar mezclar rutas.`);
         error.statusCode = 409;
@@ -2317,7 +2319,11 @@ class ExtrusionService {
           id: { [sequelize.Sequelize.Op.ne]: rack.id },
           [sequelize.Sequelize.Op.or]: [
             { current_quantity: { [sequelize.Sequelize.Op.lte]: 0 } },
-            { current_pti_product_id: ptiProduct.id, destination_subarea_id: destinationSubareaId },
+            {
+              current_pti_product_id: ptiProduct.id,
+              destination_subarea_id: destinationSubareaId,
+              ...(resolvedDestinationRoute ? { destination_route: resolvedDestinationRoute } : {}),
+            },
           ],
         },
         order: [['id', 'ASC']],
@@ -2499,9 +2505,13 @@ class ExtrusionService {
         if (rackCurrentQty > 0 && Number(allocationRack.destination_subarea_id || 0) !== Number(destinationSubareaId || 0)) {
           throw Object.assign(new Error(`El Rack ${allocationRack.rack_code} tiene un destino de Telares incompatible. No se registró la producción.`), { statusCode: 409 });
         }
+        if (rackCurrentQty > 0 && resolvedDestinationRoute && allocationRack.destination_route !== resolvedDestinationRoute) {
+          throw Object.assign(new Error(`El Rack ${allocationRack.rack_code} está condicionado a la ruta ${allocationRack.destination_route || 'sin ruta registrada'}. No se registró la producción.`), { statusCode: 409, code: 'PTI_RACK_DESTINATION_MISMATCH' });
+        }
         allocationRack.current_pti_type_id = effectiveMaterialId;
         allocationRack.current_pti_product_id = ptiProduct.id;
         allocationRack.destination_subarea_id = destinationSubareaId;
+        allocationRack.destination_route = resolvedDestinationRoute;
         allocationRack.current_quantity = rackCurrentQty + allocation.pieces;
         if (rackCurrentQty <= 0 || !allocationRack.unit_weight_kg) allocationRack.unit_weight_kg = rackUnitWeight;
 
@@ -2510,6 +2520,7 @@ class ExtrusionService {
           queue_id: queueItem.id,
           extruder_id: effectiveExtruderId,
           destination_subarea_id: destinationSubareaId,
+          destination_route: resolvedDestinationRoute,
           mixture_qr,
           rack_id: allocationRack.id,
           pti_product_id: ptiProduct.id,
@@ -2571,7 +2582,7 @@ class ExtrusionService {
             status: 'DISPONIBLE',
             reference_folio: preparation?.folio || mixture_qr,
             created_by: userId || null,
-            metadata: { rack_code: allocationRack.rack_code, pti_product_id: ptiProduct.id, pti_code: ptiProduct.code, color: ptiProduct.color || null },
+            metadata: { rack_code: allocationRack.rack_code, pti_product_id: ptiProduct.id, pti_code: ptiProduct.code, color: ptiProduct.color || null, destination_route: resolvedDestinationRoute },
           }, { transaction: t });
         } else {
           updatedRackTraceable.quantity_initial = Number((Number(updatedRackTraceable.quantity_initial) + allocationNetWeightKg).toFixed(3));
@@ -2586,6 +2597,7 @@ class ExtrusionService {
             pti_product_id: ptiProduct.id,
             pti_code: ptiProduct.code,
             color: ptiProduct.color || null,
+            destination_route: resolvedDestinationRoute,
             last_production_entry_id: productionEntry.id,
           };
           await updatedRackTraceable.save({ transaction: t });
@@ -2603,7 +2615,7 @@ class ExtrusionService {
             unit: 'KG',
             process_area_id: extrusionArea.id,
             notes: `Salida PTI ${ptiProduct.code} (${allocationNetWeightKg.toFixed(3)} kg) al rack ${allocationRack.rack_code}; merma asociada ${allocationScrapKg.toFixed(3)} kg.`,
-            metadata: { production_entry_id: productionEntry.id, process_preparation_id: preparation?.id || null, extruder_id: effectiveExtruderId, pti_product_id: ptiProduct.id, color: ptiProduct.color || null, weight_source: weightSource },
+          metadata: { production_entry_id: productionEntry.id, process_preparation_id: preparation?.id || null, extruder_id: effectiveExtruderId, pti_product_id: ptiProduct.id, color: ptiProduct.color || null, destination_route: resolvedDestinationRoute, weight_source: weightSource },
             created_by: userId || null,
           }, { transaction: t });
         }
@@ -2714,7 +2726,8 @@ class ExtrusionService {
         production_entries: productionEntries,
         scrap_logged: scrapLog,
         queue_completion: queueCompletion,
-        destination_subarea: destinationSubareaId ? { id: destinationSubareaId, name: 'TELARES BANDA' } : { id: null, name: 'TELARES' },
+          destination_subarea: destinationSubareaId ? { id: destinationSubareaId, name: 'TELARES' } : null,
+        destination_route: resolvedDestinationRoute,
       };
     });
   }

@@ -17,6 +17,7 @@ const {
   ProductionBom,
   ProductionBomItem,
   LoomRun,
+  TelaresScrapLog,
   ViajeroRoll,
   ViajeroRollOperatorSegment,
   ViajeroRoutingLog,
@@ -44,6 +45,28 @@ const {
   Silo,
   Extruder,
 } = require('../../database/models');
+
+const DIRECT_EXTRUSION_PTI_ROUTES = new Set(['CORTE_BANDA', 'CORTE_CINTA', 'ALMACEN', 'VENTA']);
+const isDirectExtrusionPtiRoute = (rack) => {
+  const route = String(rack?.destination_route || '').trim().toUpperCase();
+  return Boolean(route) && DIRECT_EXTRUSION_PTI_ROUTES.has(route);
+};
+const getExpectedPtiTelaresRoute = (ptiProduct) => Number(ptiProduct?.extrusion_machine_number) === 1 ? 'TELARES_BANDA' : 'TELARES_ROLLO';
+const assertRackAuthorizedForTelares = (rack, ptiProduct) => {
+  const expectedRoute = getExpectedPtiTelaresRoute(ptiProduct);
+  if (rack?.destination_route && rack.destination_route !== expectedRoute) {
+    throw Object.assign(
+      new Error(`El rack ${rack.rack_code} está reservado para ${rack.destination_route}; no puede consumirse en ${expectedRoute}.`),
+      { statusCode: 409, code: 'PTI_TELARES_ROUTE_MISMATCH' },
+    );
+  }
+};
+const isRackAuthorizedForTelares = (rack) => {
+  const ptiProduct = rack?.currentPtiProduct;
+  if (!ptiProduct || isDirectExtrusionPtiRoute(rack)) return false;
+  const expectedRoute = getExpectedPtiTelaresRoute(ptiProduct);
+  return !rack.destination_route || rack.destination_route === expectedRoute;
+};
 
 class TelaresService {
   normalizeStageName(stage) {
@@ -74,9 +97,14 @@ class TelaresService {
     return (bom.items || []).map((item) => {
       const requiredQuantity = Number(item.required_quantity || 0);
       const unit = String(item.required_unit || 'KG').toUpperCase();
+      const perMeter = Number(item.consumption_per_meter || 0);
+      const perMeterUnit = String(item.consumption_per_meter_unit || 'KG').toUpperCase();
       let requiredKg = null;
       let requiredSpools = null;
-      if (requiredQuantity > 0 && outputUnit === 'KG') {
+      if (perMeter > 0) {
+        if (perMeterUnit === 'KG') requiredKg = perMeter * meters;
+        else if (perMeterUnit === 'PIEZAS') requiredSpools = perMeter * meters;
+      } else if (requiredQuantity > 0 && outputUnit === 'KG') {
         const standardWeightKg = Number(bom.output_weight_kg || 0);
         const reportedWeightKg = Number(plannedWeightKg || 0);
         const estimatedWeightKg = reportedWeightKg > 0
@@ -120,9 +148,13 @@ class TelaresService {
         ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
       }),
       PtiRack.findAll({
-        where: { current_pti_product_id: { [Op.in]: productIds }, current_quantity: { [Op.gt]: 0 } },
-        attributes: ['id', 'rack_code', 'qr_code', 'current_pti_product_id', 'current_quantity', 'unit_weight_kg', 'container_type', 'created_at'],
-        include: [{ model: PtiProduct, as: 'currentPtiProduct', attributes: ['id', 'code', 'name', 'color'], required: false }],
+        where: {
+          current_pti_product_id: { [Op.in]: productIds },
+          current_quantity: { [Op.gt]: 0 },
+          [Op.or]: [{ destination_route: null }, { destination_route: { [Op.in]: ['TELARES_ROLLO', 'TELARES_BANDA'] } }],
+        },
+        attributes: ['id', 'rack_code', 'qr_code', 'current_pti_product_id', 'current_quantity', 'unit_weight_kg', 'container_type', 'created_at', 'destination_route'],
+        include: [{ model: PtiProduct, as: 'currentPtiProduct', attributes: ['id', 'code', 'name', 'color', 'denier', 'extrusion_machine_number'], required: false }],
         order: [['created_at', 'ASC'], ['id', 'ASC']],
         transaction,
         // The PTI is an optional LEFT JOIN; lock only rows from the rack table.
@@ -130,36 +162,58 @@ class TelaresService {
       }),
     ]);
     const mode = await this.getPtiTransferMode(transaction);
-    const shortages = demands.map(({ item, requiredKg, requiredSpools }) => {
-      const productId = Number(item.pti_product_id);
+    const groupedDemands = new Map();
+    for (const demand of demands) {
+      const productId = Number(demand.item.pti_product_id);
+      const group = groupedDemands.get(productId) || { item: demand.item, roles: new Set(), requiredKg: 0, requiredSpools: 0, hasKg: false, hasSpools: false };
+      group.roles.add(String(demand.item.role || 'URDIMBRE').toUpperCase());
+      if (demand.requiredKg != null) { group.requiredKg += Number(demand.requiredKg); group.hasKg = true; }
+      if (demand.requiredSpools != null) { group.requiredSpools += Number(demand.requiredSpools); group.hasSpools = true; }
+      groupedDemands.set(productId, group);
+    }
+    const shortages = [...groupedDemands.entries()].map(([productId, group]) => {
+      const { item } = group;
       const productWip = wipRows.filter((row) => Number(row.pti_product_id) === productId);
-      const productRacks = racks.filter((rack) => Number(rack.current_pti_product_id) === productId);
+      const productRacks = racks.filter((rack) => Number(rack.current_pti_product_id) === productId && isRackAuthorizedForTelares(rack));
       const wipSpools = productWip.reduce((sum, row) => sum + Number(row.quantity_remaining_spools || 0), 0);
       const wipKg = productWip.reduce((sum, row) => sum + Number(row.quantity_remaining_spools || 0) * Number(row.unit_weight_kg || 0), 0);
-      const knownSpoolWeights = [
-        ...productWip.map((row) => Number(row.unit_weight_kg || 0)),
-        ...productRacks.map((rack) => Number(rack.unit_weight_kg || 0)),
-      ].filter((weight) => weight > 0);
-      const averageSpoolKg = knownSpoolWeights.length ? knownSpoolWeights.reduce((sum, weight) => sum + weight, 0) / knownSpoolWeights.length : null;
-      const normalizedRequiredKg = requiredKg ?? (requiredSpools != null && averageSpoolKg ? requiredSpools * averageSpoolKg : null);
-      const normalizedRequiredSpools = requiredSpools ?? (requiredKg != null && averageSpoolKg ? requiredKg / averageSpoolKg : null);
+      const knownWipRows = productWip.filter((row) => Number(row.unit_weight_kg || 0) > 0);
+      const knownRackRows = productRacks.filter((rack) => Number(rack.unit_weight_kg || 0) > 0);
+      const knownSpools = knownWipRows.reduce((sum, row) => sum + Number(row.quantity_remaining_spools || 0), 0)
+        + knownRackRows.reduce((sum, rack) => sum + Number(rack.current_quantity || 0), 0);
+      const knownWeightKg = knownWipRows.reduce((sum, row) => sum + Number(row.quantity_remaining_spools || 0) * Number(row.unit_weight_kg || 0), 0)
+        + knownRackRows.reduce((sum, rack) => sum + Number(rack.current_quantity || 0) * Number(rack.unit_weight_kg || 0), 0);
+      const averageSpoolKg = knownSpools > 0 ? knownWeightKg / knownSpools : null;
+      const normalizedRequiredKg = group.hasKg || (group.hasSpools && averageSpoolKg)
+        ? Number(group.requiredKg + (averageSpoolKg ? group.requiredSpools * averageSpoolKg : 0))
+        : null;
+      const normalizedRequiredSpools = group.hasSpools || (group.hasKg && averageSpoolKg)
+        ? Number(group.requiredSpools + (averageSpoolKg ? group.requiredKg / averageSpoolKg : 0))
+        : null;
       const deficitKg = normalizedRequiredKg == null ? null : Math.max(0, normalizedRequiredKg - wipKg);
       const deficitSpools = deficitKg != null && averageSpoolKg ? deficitKg / averageSpoolKg : (normalizedRequiredSpools == null ? null : Math.max(0, normalizedRequiredSpools - wipSpools));
       const fifoRacks = [];
       let suggestedKg = 0;
+      let suggestedSpools = 0;
       for (const rack of productRacks) {
-        if (deficitKg == null || suggestedKg >= deficitKg) break;
+        const kgStillNeeded = deficitKg != null && suggestedKg < deficitKg;
+        const spoolsStillNeeded = deficitSpools != null && suggestedSpools < deficitSpools;
+        if (!kgStillNeeded && !spoolsStillNeeded) break;
         const rackKg = Number(rack.current_quantity) * Number(rack.unit_weight_kg || 0);
         fifoRacks.push({ qr_code: rack.qr_code, rack_code: rack.rack_code, color: item.ptiProduct?.color || rack.currentPtiProduct?.color || null, spools: Number(rack.current_quantity), weight_kg: rack.unit_weight_kg ? Number(rackKg.toFixed(3)) : null });
         suggestedKg += rackKg;
-        if (mode === 'RACK_PARTIAL' && suggestedKg >= deficitKg) break;
+        suggestedSpools += Number(rack.current_quantity || 0);
+        const kgCovered = deficitKg == null || suggestedKg >= deficitKg;
+        const spoolsCovered = deficitSpools == null || suggestedSpools >= deficitSpools;
+        if (mode === 'RACK_PARTIAL' && kgCovered && spoolsCovered) break;
       }
       return {
         pti_product_id: productId,
         code: item.ptiProduct?.code || `PTI-${productId}`,
         name: item.ptiProduct?.name || null,
         color: item.ptiProduct?.color || null,
-        role: item.role,
+        role: [...group.roles].join(', '),
+        roles: [...group.roles],
         required_kg: normalizedRequiredKg == null ? null : Number(normalizedRequiredKg.toFixed(3)),
         required_spools: normalizedRequiredSpools == null ? null : Number(normalizedRequiredSpools.toFixed(2)),
         wip_kg: Number(wipKg.toFixed(3)),
@@ -167,7 +221,7 @@ class TelaresService {
         deficit_kg: deficitKg == null ? null : Number(deficitKg.toFixed(3)),
         deficit_spools: deficitSpools == null ? null : Number(deficitSpools.toFixed(2)),
         fifo_racks: fifoRacks,
-        estimated_full_containers: mode === 'CART_FULL' && deficitKg > 0 ? fifoRacks.length : null,
+        estimated_full_containers: mode === 'CART_FULL' && ((deficitKg != null && deficitKg > 0) || (deficitSpools != null && deficitSpools > 0)) ? fifoRacks.length : null,
         mode,
       };
     });
@@ -212,7 +266,7 @@ class TelaresService {
     if (!clean) return null;
     return PtiRack.findOne({
       where: { [Op.or]: [{ qr_code: clean }, { rack_code: clean }] },
-      attributes: ['id', 'rack_code', 'qr_code', 'current_quantity', 'current_pti_type_id', 'current_pti_product_id', 'destination_subarea_id', 'status', 'container_type', 'unit_weight_kg', 'created_at'],
+      attributes: ['id', 'rack_code', 'qr_code', 'current_quantity', 'current_pti_type_id', 'current_pti_product_id', 'destination_subarea_id', 'destination_route', 'status', 'container_type', 'unit_weight_kg', 'created_at'],
       include: [{
         model: PtiProduct,
         as: 'currentPtiProduct',
@@ -224,8 +278,11 @@ class TelaresService {
 
   async getAvailablePtiRacks() {
     return PtiRack.findAll({
-      where: { current_quantity: { [Op.gt]: 0 } },
-      attributes: ['id', 'rack_code', 'qr_code', 'current_quantity', 'current_pti_type_id', 'current_pti_product_id', 'destination_subarea_id', 'status', 'container_type', 'unit_weight_kg', 'created_at'],
+      where: {
+        current_quantity: { [Op.gt]: 0 },
+        [Op.or]: [{ destination_route: null }, { destination_route: { [Op.in]: ['TELARES_ROLLO', 'TELARES_BANDA'] } }],
+      },
+      attributes: ['id', 'rack_code', 'qr_code', 'current_quantity', 'current_pti_type_id', 'current_pti_product_id', 'destination_subarea_id', 'destination_route', 'status', 'container_type', 'unit_weight_kg', 'created_at'],
       include: [{
         model: PtiProduct,
         as: 'currentPtiProduct',
@@ -233,7 +290,7 @@ class TelaresService {
         required: false,
       }],
       order: [['created_at', 'ASC'], ['id', 'ASC']],
-    });
+    }).then((racks) => racks.filter(isRackAuthorizedForTelares));
   }
 
   async setPtiTransferMode(mode, userId = null) {
@@ -559,14 +616,15 @@ class TelaresService {
         ? (payload.loom_number ? Number(payload.loom_number) : null)
         : (loom?.loom_number ?? (parseInt(code.replace(/\D/g, ''), 10) || null));
 
-      const creelCapacity = Number(payload.creel_capacity_spools ?? loom?.creel_capacity_spools ?? 1800);
-      if (creelCapacity <= 0) throw new Error('La capacidad del creel debe ser mayor a cero.');
+      const requestedCreelCapacity = payload.creel_capacity_spools !== undefined
+        ? (payload.creel_capacity_spools === null || payload.creel_capacity_spools === '' ? null : Number(payload.creel_capacity_spools))
+        : (loom?.creel_capacity_spools == null ? null : Number(loom.creel_capacity_spools));
 
       const values = {
         code,
         name,
         loom_number: loomNumber,
-        creel_capacity_spools: creelCapacity,
+        creel_capacity_spools: requestedCreelCapacity ?? 1800,
         current_spools_count: Number(payload.current_spools_count ?? loom?.current_spools_count ?? 0),
         current_wip_kg: Number(payload.current_wip_kg ?? loom?.current_wip_kg ?? 0),
         model: payload.model ?? loom?.model ?? 'LOHIA LSL-6',
@@ -589,9 +647,16 @@ class TelaresService {
       if (!subarea) throw new Error('La subárea seleccionada no pertenece al área de Telares.');
       const isBandSubarea = /banda/i.test(subarea.name);
       if ((String(values.type).toUpperCase() === 'BANDA') !== isBandSubarea) throw new Error('El tipo del telar no corresponde a la subárea seleccionada.');
+      if (requestedCreelCapacity == null && isBandSubarea) {
+        throw new Error('Indica la capacidad individual de bobinas del WIP para este telar Banda.');
+      }
+      const creelCapacity = requestedCreelCapacity ?? 1800;
+      if (!Number.isInteger(creelCapacity) || creelCapacity <= 0) throw new Error('La capacidad individual del WIP debe ser un número entero mayor a cero.');
+      if (Number(values.current_spools_count || 0) > creelCapacity) throw new Error('La capacidad individual no puede ser menor que las bobinas que ya están cargadas en el telar.');
+      values.creel_capacity_spools = creelCapacity;
       const selectedPtis = ptiIds.length ? await PtiProduct.findAll({ where: { id: ptiIds }, transaction: t }) : [];
       if (selectedPtis.some((pti) => (Number(pti.extrusion_machine_number) === 1) !== isBandSubarea)) {
-        throw new Error('Los PTI de la Extrusora 1 deben configurarse en Telares Banda; los demás PTI corresponden a Telares Rollo.');
+        throw new Error('Las bobinas PTI de la Extrusora 1 solo pueden configurarse en Tejido Banda; las demás extrusoras corresponden a Tejido Tela.');
       }
       const selectedBoms = bomIds.length ? await ProductionBom.findAll({ where: { id: bomIds }, transaction: t }) : [];
       if (selectedBoms.some((bom) => Number(bom.subarea_id || 0) !== Number(values.subarea_id))) {
@@ -619,14 +684,13 @@ class TelaresService {
 
   /**
    * Cargar bobinas desde un Carrito de Transporte / Rack de Extrusión hacia el Creel/Fileta interna del Telar (hasta 1,800 bobinas).
-   * REGLA OPERACIONAL ATÓMICA: La transferencia de PTI entre Extrusión y Telares se realiza ESTRICTAMENTE por carrito
-   * de transporte completo (100% de las bobinas). Queda estrictamente prohibido transferir fragmentos o partes de un carrito.
-   * La cantidad completa deja de ser custodiada por Extrusión (pasa a VACIO) y se suma al WIP específico del telar seleccionado.
+   * La modalidad vigente define si se admite transferencia parcial desde rack o transferencia íntegra desde carrito.
+   * En ambos modos el débito del origen, el ingreso al WIP del telar y el movimiento de trazabilidad son atómicos.
    */
-  async loadLoomCreel({ loom_id, rack_id, spools_to_load, operator_id }) {
+  async loadLoomCreel({ loom_id, rack_id, spools_to_load, scanned_qr, operator_id }) {
     const t = await sequelize.transaction();
     try {
-      const transferMode = await this.getPtiTransferMode(t);
+      const configuredTransferMode = await this.getPtiTransferMode(t);
       const loom = await Loom.findByPk(loom_id, { transaction: t, lock: t.LOCK.UPDATE });
       if (!loom) throw new Error(`Telar ID ${loom_id} no encontrado.`);
 
@@ -638,6 +702,21 @@ class TelaresService {
         lock: { level: t.LOCK.UPDATE, of: PtiRack },
       });
       if (!rack) throw new Error(`Carrito / Rack Maestro ID ${rack_id} no encontrado.`);
+
+      const scannedQr = String(scanned_qr || '').trim();
+      if (!scannedQr) {
+        throw Object.assign(new Error('Escanea el QR original del rack o carrito antes de transferir bobinas.'), { statusCode: 400, code: 'PTI_CONTAINER_QR_REQUIRED' });
+      }
+      if (scannedQr !== String(rack.qr_code || '').trim()) {
+        throw Object.assign(new Error('El QR escaneado no corresponde al rack o carrito seleccionado.'), { statusCode: 409, code: 'PTI_CONTAINER_QR_MISMATCH' });
+      }
+
+      const isCart = String(rack.container_type || 'RACK').trim().toUpperCase() === 'CARRITO';
+      const transferMode = isCart ? 'CART_FULL' : 'RACK_PARTIAL';
+      if (configuredTransferMode !== transferMode) {
+        const expectedModeLabel = isCart ? 'Carrito completo' : 'Rack parcial';
+        throw Object.assign(new Error(`El contenedor escaneado es ${isCart ? 'un carrito' : 'un rack'}, pero el modo activo es ${configuredTransferMode === 'CART_FULL' ? 'Carrito completo' : 'Rack parcial'}. Cambia el modo a ${expectedModeLabel} para continuar.`), { statusCode: 409, code: 'PTI_CONTAINER_MODE_MISMATCH' });
+      }
 
       const availableInRack = Number(rack.current_quantity || 0);
       if (availableInRack <= 0) {
@@ -655,6 +734,11 @@ class TelaresService {
         error.statusCode = 400;
         throw error;
       }
+      if (!Number.isInteger(requestedSpools)) {
+        const error = new Error('La transferencia debe expresarse en bobinas completas; no se permiten fracciones de bobina.');
+        error.statusCode = 400;
+        throw error;
+      }
       if (transferMode === 'CART_FULL' && Math.abs(requestedSpools - availableInRack) > 0.0001) {
         const error = new Error(`Modo carrito completo activo: deben transferirse las ${availableInRack.toFixed(2)} bobinas del carrito, sin fraccionarlo.`);
         error.statusCode = 409;
@@ -668,8 +752,16 @@ class TelaresService {
         error.statusCode = 409;
         throw error;
       }
+      if (isDirectExtrusionPtiRoute(rack)) {
+        const routeLabel = rack.destination_route || 'sin ruta verificada';
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} salió de Extrusión con ruta directa (${routeLabel}). No se puede ingresar a Telares; debe continuar únicamente al destino registrado en su QR.`), { statusCode: 409, code: 'PTI_DIRECT_ROUTE_BLOCKED' });
+      }
 
+      assertRackAuthorizedForTelares(rack, ptiProduct);
       const expectedPtiSubareaId = await this.resolvePtiSubareaId(ptiProduct, t);
+      if (rack.destination_route && rack.destination_route !== getExpectedPtiTelaresRoute(ptiProduct)) {
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} está asignado a ${rack.destination_route}, no a la ruta de este telar.`), { statusCode: 409, code: 'PTI_TELARES_ROUTE_MISMATCH' });
+      }
       const requiredSubareaId = rack.destination_subarea_id || expectedPtiSubareaId;
       if (Number(requiredSubareaId) !== Number(expectedPtiSubareaId)) {
         throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${Number(ptiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
@@ -782,7 +874,6 @@ class TelaresService {
         {
           current_spools_count: newLoomSpools,
           current_wip_kg: newLoomWipKg,
-          active_warp_rack_id: rack.id,
         },
         { transaction: t }
       );
@@ -864,6 +955,15 @@ class TelaresService {
         throw Object.assign(new Error('Selecciona explícitamente la ruta autorizada para esta ficha.'), { statusCode: 400, code: 'PRODUCTION_ROUTE_REQUIRED' });
       }
       const route = this.normalizeProductionRoute(routeSource, productKind);
+      const allowedRouteSources = payload.allowed_routes ?? bom?.allowed_routes ?? [route];
+      if (!Array.isArray(allowedRouteSources) || allowedRouteSources.length === 0) {
+        throw Object.assign(new Error('Autoriza al menos una ruta para esta ficha técnica.'), { statusCode: 400, code: 'ALLOWED_ROUTES_REQUIRED' });
+      }
+      const allowedRoutes = allowedRouteSources.map((allowedRoute) => this.normalizeProductionRoute(allowedRoute, productKind));
+      const routeKey = (candidate) => JSON.stringify(candidate.map((stage) => String(stage).toUpperCase()));
+      if (!allowedRoutes.some((allowedRoute) => routeKey(allowedRoute) === routeKey(route))) {
+        throw Object.assign(new Error('La ruta preferida debe estar incluida entre las rutas autorizadas de la ficha.'), { statusCode: 400, code: 'DEFAULT_ROUTE_NOT_ALLOWED' });
+      }
 
       const ounces = payload.ounces_yd2 !== undefined && payload.ounces_yd2 !== ''
         ? Number(payload.ounces_yd2)
@@ -919,19 +1019,26 @@ class TelaresService {
         if (!['URDIMBRE', 'TRAMA', 'AMBOS', 'REFUERZO'].includes(role)) throw new Error(`Rol de componente no válido para el PTI ${pti.code}.`);
         const ratio = Number(item.ratio_percentage ?? 0);
         const consumption = Number(item.consumption_g_per_m ?? 0);
+        const consumptionPerMeter = item.consumption_per_meter === '' || item.consumption_per_meter === null || item.consumption_per_meter === undefined
+          ? null
+          : Number(item.consumption_per_meter);
+        const consumptionPerMeterUnit = String(item.consumption_per_meter_unit || 'KG').toUpperCase();
         const requiredQuantity = item.required_quantity === '' || item.required_quantity === null || item.required_quantity === undefined
           ? null
           : Number(item.required_quantity);
         const requiredUnit = String(item.required_unit || 'KG').toUpperCase();
-        if (!Number.isFinite(ratio) || ratio < 0 || ratio > 100 || !Number.isFinite(consumption) || consumption < 0) throw new Error(`Consumo o proporción no válida para ${pti.code}.`);
+        if (!Number.isFinite(ratio) || ratio < 0 || ratio > 100 || !Number.isFinite(consumption) || consumption < 0 || (consumptionPerMeter !== null && (!Number.isFinite(consumptionPerMeter) || consumptionPerMeter < 0))) throw new Error(`Consumo o proporción no válida para ${pti.code}.`);
         if (requiredQuantity !== null && (!Number.isFinite(requiredQuantity) || requiredQuantity <= 0)) throw new Error(`La cantidad de PTI por salida debe ser mayor a cero para ${pti.code}.`);
-        if (!isProvisional && requiredQuantity === null && consumption <= 0) throw new Error(`Completa el consumo del PTI ${pti.code} o marca la ficha como provisional.`);
+        if (!['KG', 'PIEZAS'].includes(consumptionPerMeterUnit)) throw new Error('La unidad de consumo por metro debe ser KG o PIEZAS.');
+        if (!isProvisional && requiredQuantity === null && consumption <= 0 && !(consumptionPerMeter > 0)) throw new Error(`Completa el consumo por metro o por base del PTI ${pti.code}, o marca la ficha como provisional.`);
         if (!['KG', 'PIEZAS'].includes(requiredUnit)) throw new Error('La unidad requerida debe ser KG o PIEZAS.');
         normalizedItems.push({
           pti_product_id: pti.id,
           role,
           ratio_percentage: ratio,
           consumption_g_per_m: consumption,
+          consumption_per_meter: consumptionPerMeter,
+          consumption_per_meter_unit: consumptionPerMeterUnit,
           required_quantity: requiredQuantity,
           required_unit: requiredUnit,
           notes: item.notes || null,
@@ -981,6 +1088,7 @@ class TelaresService {
           ? null
           : Number(payload.standard_output_meters ?? bom?.standard_output_meters ?? 0) || null,
         default_route: route.map((stage) => String(stage).toUpperCase()),
+        allowed_routes: allowedRoutes.map((allowedRoute) => allowedRoute.map((stage) => String(stage).toUpperCase())),
         ounces_yd2: ounces,
         fabric_type: fabricType,
         tape_color: fabricType === 'PLANA' ? 'N/A' : requestedTapeColor,
@@ -1055,7 +1163,15 @@ class TelaresService {
       if (!ptiProduct || !rack.current_pti_product_id) {
         throw Object.assign(new Error(`El rack ${rack.rack_code} no tiene un PTI exacto identificado.`), { statusCode: 409 });
       }
+      if (isDirectExtrusionPtiRoute(rack)) {
+        const routeLabel = rack.destination_route || 'sin ruta verificada';
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} salió de Extrusión con ruta directa (${routeLabel}). No se puede asignar a un telar.`), { statusCode: 409, code: 'PTI_DIRECT_ROUTE_BLOCKED' });
+      }
+      assertRackAuthorizedForTelares(rack, ptiProduct);
       const expectedPtiSubareaId = await this.resolvePtiSubareaId(ptiProduct, t);
+      if (rack.destination_route && rack.destination_route !== getExpectedPtiTelaresRoute(ptiProduct)) {
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} está asignado a ${rack.destination_route}, no a la ruta de este telar.`), { statusCode: 409, code: 'PTI_TELARES_ROUTE_MISMATCH' });
+      }
       const destinationSubareaId = rack.destination_subarea_id || expectedPtiSubareaId;
       if (Number(destinationSubareaId) !== Number(expectedPtiSubareaId)) {
         throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${Number(ptiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
@@ -1350,6 +1466,13 @@ class TelaresService {
         custom_route,
         bomProductKind
       );
+      const configuredRoutes = Array.isArray(bom.allowed_routes) && bom.allowed_routes.length
+        ? bom.allowed_routes
+        : [bom.default_route];
+      const routeKey = (route) => JSON.stringify(route.map((stage) => String(stage).toUpperCase()));
+      if (!configuredRoutes.some((configuredRoute) => routeKey(this.normalizeProductionRoute(configuredRoute, bomProductKind)) === routeKey(officialRoute))) {
+        throw Object.assign(new Error('La ruta elegida no está autorizada en el catálogo para este PTI. Selecciona una de las rutas de su ficha técnica.'), { statusCode: 400, code: 'PRODUCTION_ROUTE_NOT_ALLOWED' });
+      }
       const currentStage = 'TELARES';
       const nextAllowedStage = officialRoute[1];
 
@@ -1776,6 +1899,66 @@ class TelaresService {
       }
       return plain;
     });
+  }
+
+  async getScrapLogs({ loom_id, logged_date, from_date, to_date, shift_number, limit = 100 } = {}) {
+    const where = {};
+    if (loom_id && Number(loom_id) > 0) where.loom_id = Number(loom_id);
+    if (shift_number && Number(shift_number) >= 1) where.shift_number = Number(shift_number);
+    if (logged_date) where.logged_date = String(logged_date);
+    else if (from_date || to_date) {
+      where.logged_date = {};
+      if (from_date) where.logged_date[Op.gte] = String(from_date);
+      if (to_date) where.logged_date[Op.lte] = String(to_date);
+    }
+    return TelaresScrapLog.findAll({
+      where,
+      include: [
+        { model: Loom, as: 'loom', attributes: ['id', 'code', 'name', 'loom_number', 'subarea_id'] },
+        { model: User, as: 'recorder', attributes: ['id', 'first_name', 'last_name', 'username'] },
+        { model: User, as: 'updater', attributes: ['id', 'first_name', 'last_name', 'username'] },
+      ],
+      order: [['logged_date', 'DESC'], ['shift_number', 'ASC'], [{ model: Loom, as: 'loom' }, 'loom_number', 'ASC']],
+      limit: Math.min(300, Math.max(1, Number(limit) || 100)),
+    });
+  }
+
+  async saveScrapLog(payload, userId, id = null) {
+    const loomId = Number(payload.loom_id);
+    const workDate = String(payload.logged_date || '').trim();
+    const shiftNumber = Number(payload.shift_number);
+    const weightKg = Number(payload.scrap_weight_kg);
+    if (!Number.isInteger(loomId) || loomId <= 0) throw Object.assign(new Error('Selecciona un telar.'), { statusCode: 400 });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate) || Number.isNaN(Date.parse(`${workDate}T00:00:00Z`))) {
+      throw Object.assign(new Error('Indica una fecha válida.'), { statusCode: 400 });
+    }
+    if (!Number.isInteger(shiftNumber) || shiftNumber < 1 || shiftNumber > 3) {
+      throw Object.assign(new Error('Selecciona un turno válido (1, 2 o 3).'), { statusCode: 400 });
+    }
+    if (!Number.isFinite(weightKg) || weightKg < 0) throw Object.assign(new Error('El peso debe ser cero o mayor y expresarse en kg.'), { statusCode: 400 });
+    const loom = await Loom.findByPk(loomId);
+    if (!loom) throw Object.assign(new Error('El telar seleccionado no existe.'), { statusCode: 404 });
+    const values = {
+      loom_id: loomId,
+      logged_date: workDate,
+      shift_number: shiftNumber,
+      scrap_weight_kg: Number(weightKg.toFixed(3)),
+      notes: String(payload.notes || '').trim() || null,
+    };
+    try {
+      if (id) {
+        const log = await TelaresScrapLog.findByPk(id);
+        if (!log) throw Object.assign(new Error('El registro de merma/scrap ya no existe.'), { statusCode: 404 });
+        await log.update({ ...values, updated_by: userId || null });
+        return log.reload({ include: [{ model: Loom, as: 'loom', attributes: ['id', 'code', 'name', 'loom_number', 'subarea_id'] }] });
+      }
+      return await TelaresScrapLog.create({ ...values, recorded_by: userId || null });
+    } catch (error) {
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        throw Object.assign(new Error('Ya existe un peso registrado para ese telar, fecha y turno. Abre ese registro para corregirlo.'), { statusCode: 409, code: 'TELARES_SCRAP_LOG_DUPLICATE' });
+      }
+      throw error;
+    }
   }
 
   /**
@@ -2385,7 +2568,7 @@ class TelaresService {
 
     const avgCreelPct = looms.length > 0 ? Math.round(totalOccupancySum / looms.length) : 0;
 
-    const mappedCarts = availableCarts.map((c) => {
+    const mappedCarts = availableCarts.filter(isRackAuthorizedForTelares).map((c) => {
       const plain = c.toJSON();
       const qty = Number(plain.current_quantity || 0);
       const unitWRaw = plain.unit_weight_kg || plain.currentPtiProduct?.unit_weight_kg;
@@ -2438,6 +2621,109 @@ class TelaresService {
       transfer_mode: transferMode,
       available_carts: mappedCarts,
       looms: mappedLooms,
+    };
+  }
+
+  async getPerformanceSummary(days = 7) {
+    const periodDays = Number(days) === 30 ? 30 : 7;
+    const today = getCdmxDateString(nowCdmx());
+    const dayCursor = new Date(`${today}T12:00:00-06:00`);
+    const dateKeys = [];
+    for (let offset = periodDays - 1; offset >= 0; offset -= 1) {
+      const date = new Date(dayCursor);
+      date.setDate(date.getDate() - offset);
+      dateKeys.push(getCdmxDateString(date));
+    }
+    const since = new Date(`${dateKeys[0]}T00:00:00-06:00`);
+
+    const runs = await LoomRun.findAll({
+      where: {
+        status: 'FINALIZADA',
+        finished_at: { [Op.gte]: since },
+      },
+      attributes: [
+        'id', 'loom_id', 'meters_planned', 'meters_produced',
+        'total_weight_produced_kg', 'rolls_produced_count', 'finished_at',
+      ],
+      include: [{ model: Loom, as: 'loom', attributes: ['loom_number', 'name'] }],
+      order: [['finished_at', 'ASC'], ['id', 'ASC']],
+    });
+
+    const daily = new Map(dateKeys.map((date) => [date, {
+      date,
+      meters_produced: 0,
+      meters_planned: 0,
+      weight_produced_kg: 0,
+      rolls_produced: 0,
+      runs_completed: 0,
+    }]));
+    const byLoom = new Map();
+    let metersProduced = 0;
+    let metersPlanned = 0;
+    let weightProducedKg = 0;
+    let rollsProduced = 0;
+
+    for (const run of runs) {
+      const date = getCdmxDateString(run.finished_at);
+      const meters = Number(run.meters_produced || 0);
+      const planned = Number(run.meters_planned || 0);
+      const weight = Number(run.total_weight_produced_kg || 0);
+      const rolls = Number(run.rolls_produced_count || 0);
+      const day = daily.get(date);
+      if (day) {
+        day.meters_produced += meters;
+        day.meters_planned += planned;
+        day.weight_produced_kg += weight;
+        day.rolls_produced += rolls;
+        day.runs_completed += 1;
+      }
+
+      metersProduced += meters;
+      metersPlanned += planned;
+      weightProducedKg += weight;
+      rollsProduced += rolls;
+
+      const loomId = run.loom_id;
+      const loom = byLoom.get(loomId) || {
+        loom_number: run.loom?.loom_number || loomId,
+        name: run.loom?.name || `Telar ${run.loom?.loom_number || loomId}`,
+        meters_produced: 0,
+        weight_produced_kg: 0,
+        rolls_produced: 0,
+        runs_completed: 0,
+      };
+      loom.meters_produced += meters;
+      loom.weight_produced_kg += weight;
+      loom.rolls_produced += rolls;
+      loom.runs_completed += 1;
+      byLoom.set(loomId, loom);
+    }
+
+    const round = (value, digits = 1) => Number(value.toFixed(digits));
+    return {
+      period_days: periodDays,
+      totals: {
+        meters_produced: round(metersProduced),
+        meters_planned: round(metersPlanned),
+        weight_produced_kg: round(weightProducedKg),
+        rolls_produced: rollsProduced,
+        runs_completed: runs.length,
+        plan_achievement_pct: metersPlanned > 0 ? round((metersProduced / metersPlanned) * 100) : null,
+      },
+      daily: [...daily.values()].map((day) => ({
+        ...day,
+        meters_produced: round(day.meters_produced),
+        meters_planned: round(day.meters_planned),
+        weight_produced_kg: round(day.weight_produced_kg),
+      })),
+      by_loom: [...byLoom.values()]
+        .map((loom) => ({
+          ...loom,
+          meters_produced: round(loom.meters_produced),
+          weight_produced_kg: round(loom.weight_produced_kg),
+        }))
+        .sort((a, b) => b.meters_produced - a.meters_produced)
+        .slice(0, 8),
     };
   }
 }

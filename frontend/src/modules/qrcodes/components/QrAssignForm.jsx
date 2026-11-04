@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, X } from '@/design-system/components/Icon/googleIconCompat';
 
 import Alert from '../../../components/ui/Alert';
 import Button from '../../../components/ui/Button';

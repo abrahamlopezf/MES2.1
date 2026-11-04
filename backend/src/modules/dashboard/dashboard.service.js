@@ -15,8 +15,23 @@ class DashboardService {
 
     const [extrusion, telares, globo, laminado] = await Promise.all([
       readSafely(
-        () => require('../extrusion/extrusion.service').getExtrusionWip({ includeFinancials: false }),
-        (wip) => ({ available: true, wip_kg: wip.total_kg, material_items: wip.items.length, mixtures_kg: wip.mixtures_total_kg, active_mixtures: wip.mixtures.length })
+        () => require('../extrusion/extrusion.service').getExtrusionWip({ includeFinancials: true }),
+        (wip) => {
+          const materialValuationComplete = wip.items.every((item) => item.value != null);
+          const mixtureValuationComplete = wip.mixtures.every((item) => item.remaining_value != null);
+          return {
+            available: true,
+            wip_kg: wip.total_kg,
+            material_items: wip.items.length,
+            mixtures_kg: wip.mixtures_total_kg,
+            active_mixtures: wip.mixtures.length,
+            wip_valuation_mxn: materialValuationComplete
+              ? Number(wip.items.reduce((sum, item) => sum + Number(item.value || 0), 0).toFixed(2))
+              : null,
+            mixtures_valuation_mxn: mixtureValuationComplete ? wip.mixtures_total_value : null,
+            valuation_complete: materialValuationComplete && mixtureValuationComplete,
+          };
+        }
       ),
       readSafely(
         () => require('../telares/telares.service').getWipSummary(currentUser),
@@ -48,7 +63,62 @@ class DashboardService {
       ),
     ]);
 
-    return { extrusion, telares, globo, laminado, refreshed_at: new Date().toISOString() };
+    let movementCostRows = [];
+    let movementCostTrendAvailable = true;
+    try {
+      const { sequelize } = require('../../config/database');
+      [movementCostRows] = await sequelize.query(`
+        SELECT a.code AS area_code,
+          EXTRACT(YEAR FROM im.created_at)::int AS year,
+          EXTRACT(MONTH FROM im.created_at)::int AS month,
+          COALESCE(SUM(CASE WHEN im.type = 'CONSUMPTION'
+            THEN COALESCE(NULLIF(im.total_cost, 0), ABS(im.quantity_change) * COALESCE(im.unit_cost, 0)) ELSE 0 END), 0) AS consumption_cost,
+          COALESCE(SUM(CASE WHEN im.type IN ('MERMA', 'SCRAP', 'BAJA', 'DISPOSE')
+            THEN COALESCE(NULLIF(im.total_cost, 0), ABS(im.quantity_change) * COALESCE(im.unit_cost, 0)) ELSE 0 END), 0) AS loss_cost
+        FROM inventory_movements im
+        INNER JOIN areas a ON a.id = im.area_id
+        WHERE im.created_at >= date_trunc('month', CURRENT_DATE) - INTERVAL '5 months'
+          AND im.type IN ('CONSUMPTION', 'MERMA', 'SCRAP', 'BAJA', 'DISPOSE')
+        GROUP BY a.code, EXTRACT(YEAR FROM im.created_at), EXTRACT(MONTH FROM im.created_at)
+      `);
+    } catch (error) {
+      movementCostTrendAvailable = false;
+      console.warn('[DashboardService] No se pudo cargar la tendencia de costos por área:', error.message);
+    }
+
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const now = new Date();
+    const recentMonths = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      return {
+        year,
+        month,
+        label: `${monthNames[date.getMonth()]} ${String(year).slice(-2)}`,
+        consumption_cost: 0,
+        loss_cost: 0,
+      };
+    });
+    const costTrendByArea = Object.fromEntries(['EXTRUSION', 'TELARES', 'GLOBO', 'LAMINADO'].map((areaCode) => [
+      areaCode,
+      recentMonths.map((period) => {
+        const row = movementCostRows.find((item) => item.area_code === areaCode && Number(item.year) === period.year && Number(item.month) === period.month);
+        return {
+          ...period,
+          consumption_cost: Number(row?.consumption_cost || 0),
+          loss_cost: Number(row?.loss_cost || 0),
+        };
+      }),
+    ]));
+
+    return {
+      extrusion: { ...extrusion, cost_trend: costTrendByArea.EXTRUSION, cost_trend_available: movementCostTrendAvailable },
+      telares: { ...telares, cost_trend: costTrendByArea.TELARES, cost_trend_available: movementCostTrendAvailable },
+      globo: { ...globo, cost_trend: costTrendByArea.GLOBO, cost_trend_available: movementCostTrendAvailable, valuation_basis: 'ESTIMATED' },
+      laminado: { ...laminado, cost_trend: costTrendByArea.LAMINADO, cost_trend_available: movementCostTrendAvailable, valuation_basis: 'ESTIMATED' },
+      refreshed_at: new Date().toISOString(),
+    };
   }
 
   /**

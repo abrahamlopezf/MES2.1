@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSmartScanner } from './useSmartScanner';
 import { useAuthStore } from '@/store/authStore';
-import { QrCode, X, Camera, Keyboard } from 'lucide-react';
+import { QrCode, X, Camera, Keyboard } from '@/design-system/components/Icon/googleIconCompat';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
 
 export const GlobalScannerModal: React.FC = () => {
@@ -21,7 +21,6 @@ export const GlobalScannerModal: React.FC = () => {
       setIsRendered(true);
       setShowCamera(true);
       setQrCode('');
-      // Pequeño delay para la animación de entrada
       setTimeout(() => setAnimateIn(true), 50);
     };
     window.addEventListener('open-scanner', handleOpen);
@@ -34,7 +33,7 @@ export const GlobalScannerModal: React.FC = () => {
       setIsOpen(false);
       setIsRendered(false);
       setShowCamera(false);
-    }, 300); // match exit transition
+    }, 180);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -60,22 +59,22 @@ export const GlobalScannerModal: React.FC = () => {
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-150 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
       style={{ isolation: 'isolate' }}
     >
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md" 
+        className="absolute inset-0 bg-black/80" 
         onClick={handleClose}
         aria-hidden="true"
       />
 
       <div
-        className={`relative w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${animateIn ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}
+        className={`relative w-full max-w-md bg-card rounded-2xl border-2 border-border shadow-2xl flex flex-col overflow-hidden transition-transform duration-150 ${animateIn ? 'scale-100 translate-y-0' : 'scale-95 translate-y-2'}`}
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-card z-10">
           <h2 className="text-xl font-black text-primary flex items-center gap-2 tracking-tight">
-            <QrCode size={24} className="text-primary" /> Escáner Global
+            <QrCode size={24} className="text-primary" /> Escáner Inteligente QR
           </h2>
           <button 
             onClick={handleClose}
@@ -87,8 +86,8 @@ export const GlobalScannerModal: React.FC = () => {
         
         {/* Content */}
         <div className="p-6 bg-background flex flex-col items-center">
-          <p className="mb-4 text-center text-xs text-muted-foreground">
-            Los racks PTI se reconocen automáticamente: Extrusión registra las bobinas y Telares solicita su transferencia al telar destino.
+          <p className="mb-4 text-center text-xs font-semibold text-muted-foreground">
+            Reconoce cualquier QR de planta (Almacén, ODC, Mezcla, Rack PTI, Rollo Viajero). Si perteneces al área operativa del QR te llevará a su acción; de lo contrario mostrará el Árbol de Trazabilidad completo.
           </p>
           
           {/* Cámara Box */}
@@ -127,7 +126,7 @@ export const GlobalScannerModal: React.FC = () => {
                     setQrCode(e.target.value);
                     if (showCamera && e.target.value.length > 0) setShowCamera(false);
                   }}
-                  placeholder="Ej. ALM-000000151"
+                  placeholder="Ej. ALM-000000151, RACK-PTI-01, VIAJ-..."
                   className="w-full pl-10 pr-4 py-3 bg-card border-2 border-border rounded-xl font-mono text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-foreground font-bold uppercase shadow-sm"
                 />
               </div>

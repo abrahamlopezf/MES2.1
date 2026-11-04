@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Save, X } from 'lucide-react';
+import { Save, X } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton, TFInput, TFTextarea } from '../../../components/tf-ui';
 
 const supplierSchema = z.object({

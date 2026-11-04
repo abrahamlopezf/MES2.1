@@ -62,6 +62,30 @@ export const useCreatePtiRackMutation = () => {
   });
 };
 
+export const useDispatchPtiRackToWarehouseMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ rackId, payload }: { rackId: number; payload: { quantity_pieces?: number; weight_kg?: number; notes?: string } }) => extrusionApi.dispatchPtiRackToWarehouse(rackId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.racks });
+      queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.wipInventory });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'valuation'] });
+    },
+  });
+};
+
+export const useRegisterPtiSaleExitMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ rackId, payload }: { rackId: number; payload?: { rack_qr?: string; notes?: string } }) => extrusionApi.registerPtiSaleExit(rackId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.racks });
+      queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.wipInventory });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'valuation'] });
+    },
+  });
+};
+
 export const useSwitchQueueMutation = () => {
   const queryClient = useQueryClient();
 

@@ -1,4 +1,4 @@
-import { Boxes, FilterX, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Boxes, FilterX, Plus, ChevronLeft, ChevronRight } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../design-system';
 import MaterialMobileCard from './MaterialMobileCard';
 import MaterialsTable from './MaterialsTable';

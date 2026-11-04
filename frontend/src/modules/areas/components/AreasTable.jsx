@@ -1,4 +1,4 @@
-import { Building2 } from 'lucide-react';
+import { Building2 } from '@/design-system/components/Icon/googleIconCompat';
 
 import Badge from '../../../components/ui/Badge';
 import Table from '../../../components/ui/Table';

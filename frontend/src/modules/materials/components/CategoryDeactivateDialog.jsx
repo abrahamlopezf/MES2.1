@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton } from '../../../components/tf-ui';
 import { useBottomSheetAnimation } from '../../../hooks/useBottomSheetAnimation';
 

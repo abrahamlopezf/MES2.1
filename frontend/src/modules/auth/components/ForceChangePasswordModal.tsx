@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Lock, Save } from 'lucide-react';
+import { Lock, Save } from '@/design-system/components/Icon/googleIconCompat';
 import { toast } from 'sonner';
 import api from '@/api/axiosClient';
 

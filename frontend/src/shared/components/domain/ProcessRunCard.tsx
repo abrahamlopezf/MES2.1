@@ -3,7 +3,7 @@ import { ErpStatus } from '@/core/config/statusConfig';
 import { AllowedAction } from '@/core/qr-workspace/types/qr-workspace.types';
 import { StatusBadge } from '@/shared/components/domain/StatusBadge';
 import { ActionButton } from '@/shared/components/domain/ActionButton';
-import { Activity, Clock, PackageCheck, PackageX, ServerCog } from 'lucide-react';
+import { Activity, Clock, PackageCheck, PackageX, ServerCog } from '@/design-system/components/Icon/googleIconCompat';
 import { cn } from '@/lib/utils';
 
 export interface ProcessRun {

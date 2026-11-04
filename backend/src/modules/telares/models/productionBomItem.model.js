@@ -34,6 +34,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 32.50,
       },
+      consumption_per_meter: {
+        type: DataTypes.DECIMAL(12, 6),
+        allowNull: true,
+        comment: 'Consumo del PTI por metro de producto terminado',
+      },
+      consumption_per_meter_unit: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        comment: 'Unidad del consumo por metro: KG o PIEZAS',
+      },
       required_quantity: {
         type: DataTypes.DECIMAL(10, 3),
         allowNull: true,

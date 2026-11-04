@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { QrCode, ScanLine } from 'lucide-react';
+import { QrCode, ScanLine } from '@/design-system/components/Icon/googleIconCompat';
 import { Input } from './Input';
 import { cn } from '../../utils';
 

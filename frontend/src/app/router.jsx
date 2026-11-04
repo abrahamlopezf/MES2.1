@@ -57,6 +57,7 @@ import ViajeroTrackerPage from '../modules/telares/presentation/pages/ViajeroTra
 import TelaresCatalogPage from '../modules/telares/presentation/pages/TelaresCatalogPage';
 import TelaresOperatorsPage from '../modules/telares/presentation/pages/TelaresOperatorsPage';
 import TelaresDashboard from '../modules/telares/presentation/pages/TelaresDashboard';
+import TelaresScrapControlPage from '../modules/telares/presentation/pages/TelaresScrapControlPage';
 import GloboCatalogPage from '../modules/globo/pages/GloboCatalogPage';
 import GloboWipPage from '../modules/globo/pages/GloboWipPage';
 import LaminadoCatalogPage from '../modules/laminado/pages/LaminadoCatalogPage';
@@ -73,6 +74,7 @@ import { ConsumptionOrdersPage } from '../modules/warehouse/presentation/pages/C
 import { AreaInventoryPage } from '../modules/warehouse/presentation/pages/AreaInventoryPage';
 import { WarehouseReportsPage } from '../modules/warehouse/presentation/pages/WarehouseReportsPage';
 import { SilosManagementPage } from '../modules/warehouse/presentation/pages/SilosManagementPage';
+import { ExtrusionPtiReceptionPage } from '../modules/warehouse/presentation/pages/ExtrusionPtiReceptionPage';
 
 export const router = createBrowserRouter([
   {
@@ -230,10 +232,10 @@ export const router = createBrowserRouter([
             path: '/identity/custody',
             element: <PermissionRoute permissions={['qr.assign']}><IdentityCustodyPage /></PermissionRoute>,
           },
-          // Trazabilidad
+          // Trazabilidad (accesible para todos los roles autenticados al escanear cualquier QR)
           {
             path: '/traceability/genealogy',
-            element: <PermissionRoute permissions={['qr.read']}><TraceabilityTreePage /></PermissionRoute>,
+            element: <TraceabilityTreePage />,
           },
           // Historial de QRs (Identity)
           {
@@ -355,7 +357,7 @@ export const router = createBrowserRouter([
                 path: 'laminado',
                 element: (
                   <LaminadoRoute>
-                    <RoutingStationTerminalPage stationNameOverride="LAMINADO" />
+                    <LaminadoWipPage />
                   </LaminadoRoute>
                 )
               },
@@ -411,6 +413,14 @@ export const router = createBrowserRouter([
             element: <TelaresRoute><TelaresCatalogPage /></TelaresRoute>
           },
           {
+            path: '/telares/odc',
+            element: <TelaresRoute><ConsumptionOrdersPage /></TelaresRoute>
+          },
+          {
+            path: '/telares/scrap-control',
+            element: <TelaresRoute><TelaresScrapControlPage /></TelaresRoute>
+          },
+          {
             path: '/telares/operadores',
             element: <TelaresRoute><TelaresOperatorsPage /></TelaresRoute>
           },
@@ -455,6 +465,10 @@ export const router = createBrowserRouter([
               {
                 path: 'inventory',
                 element: <WarehouseInventoryPage />
+              },
+              {
+                path: 'pti-extrusion-reception',
+                element: <ExtrusionPtiReceptionPage />
               },
               {
                 path: 'materials/:materialId/lotes',

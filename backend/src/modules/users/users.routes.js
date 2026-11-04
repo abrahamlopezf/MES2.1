@@ -15,8 +15,8 @@ router.use(authMiddleware);
 
 router.use((req, res, next) => {
   const roleCode = String(req.user?.role?.code || '').toUpperCase();
-  const isExtrusionSupervisor = roleCode === 'SUPERVISOR_EXTRUSION';
-  const allowedSupervisorRequest = isExtrusionSupervisor && (
+  const isAreaSupervisor = ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(roleCode);
+  const allowedSupervisorRequest = isAreaSupervisor && (
     (req.method === 'GET' && (req.path === '/' || /^\/\d+$/.test(req.path)))
     || (req.method === 'POST' && req.path === '/')
     || (req.method === 'PUT' && /^\/\d+$/.test(req.path))
@@ -24,8 +24,8 @@ router.use((req, res, next) => {
   if (isSupervisor(req.user) && !allowedSupervisorRequest) {
     return res.status(403).json({
       success: false,
-      message: isExtrusionSupervisor
-        ? 'El supervisor de Extrusión puede consultar, crear y editar usuarios de su área; no puede gestionar bajas.'
+      message: isAreaSupervisor
+        ? 'El supervisor puede consultar, crear y editar usuarios de su área; no puede gestionar bajas.'
         : 'Los supervisores no tienen acceso a la gestión de usuarios.',
     });
   }
@@ -34,7 +34,7 @@ router.use((req, res, next) => {
 
 const permissionAuthorizer = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
 const authorizeUserPermission = (permission) => (req, res, next) => {
-  if (String(req.user?.role?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION') return next();
+  if (['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(String(req.user?.role?.code || '').toUpperCase())) return next();
   return permissionAuthorizer(permission)(req, res, next);
 };
 

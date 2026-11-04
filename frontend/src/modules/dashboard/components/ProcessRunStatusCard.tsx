@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveRun } from '../types/dashboard.types';
-import { PlayCircle, PauseCircle, StopCircle, CheckCircle2, ActivitySquare } from 'lucide-react';
+import { PlayCircle, PauseCircle, StopCircle, CheckCircle2, ActivitySquare } from '@/design-system/components/Icon/googleIconCompat';
 import { StatusBadge } from '@/shared/components/domain/StatusBadge';
 
 interface ProcessRunStatusCardProps {

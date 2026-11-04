@@ -1,4 +1,4 @@
-import { ShieldAlert, Plus } from 'lucide-react';
+import { ShieldAlert, Plus } from '@/design-system/components/Icon/googleIconCompat';
 import { TFButton, TFCard } from '../../../components/tf-ui';
 
 const SubcatalogActionButtons = ({

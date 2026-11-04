@@ -1,6 +1,6 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, Printer, QrCode } from 'lucide-react';
+import { Download, Printer, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PtiRack } from '../../types/extrusion.types';

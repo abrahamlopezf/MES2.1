@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   useLoomsQuery,
   useBomsQuery,
-  useAssignRackMutation,
   useStartRunMutation,
   useFinishRollMutation,
   useFinishRunMutation,
@@ -22,10 +21,19 @@ import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { Button, Input, Badge } from '@/design-system';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Factory,
-  Layers,
   Play,
   CheckCircle2,
   AlertCircle,
@@ -43,7 +51,9 @@ import {
   Compass,
   Printer,
   Square,
-} from 'lucide-react';
+  ChevronDown,
+  X,
+} from '@/design-system/components/Icon/googleIconCompat';
 
 const isBandaLoom = (loom?: Partial<Loom> | null): boolean =>
   Boolean(
@@ -54,6 +64,28 @@ const isBandaLoom = (loom?: Partial<Loom> | null): boolean =>
         loom.subarea_id === 7 ||
         /banda/i.test(loom.name || ''))
   );
+
+const routeToValue = (route: unknown): string[] => Array.isArray(route)
+  ? route.map((stage) => String(stage).trim().toUpperCase()).filter(Boolean)
+  : String(route || '').split(',').map((stage) => stage.trim().toUpperCase()).filter(Boolean);
+
+const destinationForRoute = (route: unknown): 'LAMINADO' | 'CORTE' | 'LONAS' | 'ALMACEN' | 'VENTA' | null => {
+  const stages = routeToValue(route);
+  if (stages.includes('LAMINADO')) return 'LAMINADO';
+  if (stages.includes('LONAS')) return 'LONAS';
+  if (stages.includes('ALMACEN')) return 'ALMACEN';
+  if (stages.includes('VENTA')) return 'VENTA';
+  if (stages.includes('CORTE')) return 'CORTE';
+  return null;
+};
+
+const DESTINATION_PRESENTATION = {
+  LAMINADO: { label: 'Laminado → Corte', hint: 'Recubrimiento PEBD', icon: '🛡️', color: 'indigo' },
+  CORTE: { label: 'Directo a Corte', hint: 'Proceso de corte', icon: '✂️', color: 'amber' },
+  LONAS: { label: 'Lonas', hint: 'Confección de lonas', icon: '⛺', color: 'emerald' },
+  ALMACEN: { label: 'Almacén', hint: 'Resguardo PT / WIP', icon: '🏭', color: 'cyan' },
+  VENTA: { label: 'Venta', hint: 'Embarque / cliente', icon: '📦', color: 'purple' },
+} as const;
 
 type OperatorSegmentInput = {
   operator_id: number | '';
@@ -73,11 +105,10 @@ export const TelaresTerminalPage: React.FC = () => {
   const { data: looms = [], isLoading: isLoomsLoading, refetch: refetchLooms } = useLoomsQuery();
   const { data: boms = [], isLoading: isBomsLoading } = useBomsQuery();
   const { data: ptiRacks = [] } = useTelaresPtiRacksQuery();
-  const { data: wipSummary } = useTelaresWipSummaryQuery();
+  const { data: wipSummary, isLoading: isWipSummaryLoading, isError: isWipSummaryError, refetch: refetchWipSummary } = useTelaresWipSummaryQuery();
   const { data: operators = [] } = useTejidoOperatorsQuery(false);
 
   // Mutations
-  const assignRackMutation = useAssignRackMutation();
   const startRunMutation = useStartRunMutation();
   const finishRollMutation = useFinishRollMutation();
   const finishRunMutation = useFinishRunMutation();
@@ -90,7 +121,10 @@ export const TelaresTerminalPage: React.FC = () => {
 
   // Filtro de Telares: Todos (21), Circulares (1-17), Banda (18-21)
   const [loomFilter, setLoomFilter] = useState<'ALL' | 'CIRCULARES' | 'BANDA'>('ALL');
+  const [loomSearch, setLoomSearch] = useState('');
   const [selectedLoomId, setSelectedLoomId] = useState<number | null>(null);
+  const [isLoomSelectorOpen, setIsLoomSelectorOpen] = useState(false);
+  const [terminalStage, setTerminalStage] = useState<'PREPARE' | 'RUN' | 'OUTPUT' | 'HISTORY'>('PREPARE');
 
   // El catálogo y el servidor restringen las opciones según el tipo de PTI (Diagramas 1 y 2).
   const [destinationChoice, setDestinationChoice] = useState<'LAMINADO' | 'CORTE' | 'LONAS' | 'ALMACEN' | 'VENTA'>('LAMINADO');
@@ -116,15 +150,12 @@ export const TelaresTerminalPage: React.FC = () => {
   const [plannedInputMode, setPlannedInputMode] = useState<'METROS' | 'PESO'>('METROS');
   const [runShiftSelection, setRunShiftSelection] = useState<string>(() => getCdmxShift().shiftCode);
 
-  // Modal para montar Rack Maestro
-  const [isRackModalOpen, setIsRackModalOpen] = useState(false);
-  const [selectedRackRole, setSelectedRackRole] = useState<'URDIMBRE' | 'TRAMA' | 'AMBOS'>('AMBOS');
-  const [selectedPtiRackId, setSelectedPtiRackId] = useState<number | ''>('');
-
   // Modal para Cargar Fileta Creel (1,800 bobinas WIP)
   const [isCreelModalOpen, setIsCreelModalOpen] = useState(false);
+  const [isCreelConfirmationOpen, setIsCreelConfirmationOpen] = useState(false);
   const [creelSpoolsToLoad, setCreelSpoolsToLoad] = useState<number>(0);
   const [creelRackId, setCreelRackId] = useState<number | ''>('');
+  const [creelScannedQr, setCreelScannedQr] = useState('');
   const [creelTargetLoomId, setCreelTargetLoomId] = useState<number | ''>('');
 
   // Modal de Etiqueta QR Viajero
@@ -136,14 +167,15 @@ export const TelaresTerminalPage: React.FC = () => {
 
   // Filtrado de los 21 telares
   const filteredLooms = useMemo(() => {
+    const query = loomSearch.trim().toLocaleLowerCase();
     if (loomFilter === 'BANDA') {
-      return looms.filter((l) => isBandaLoom(l));
+      return looms.filter((l) => isBandaLoom(l) && (!query || `${l.name} ${l.code} ${l.loom_number || l.id}`.toLocaleLowerCase().includes(query)));
     }
     if (loomFilter === 'CIRCULARES') {
-      return looms.filter((l) => !isBandaLoom(l));
+      return looms.filter((l) => !isBandaLoom(l) && (!query || `${l.name} ${l.code} ${l.loom_number || l.id}`.toLocaleLowerCase().includes(query)));
     }
-    return looms;
-  }, [looms, loomFilter]);
+    return looms.filter((l) => !query || `${l.name} ${l.code} ${l.loom_number || l.id}`.toLocaleLowerCase().includes(query));
+  }, [looms, loomFilter, loomSearch]);
 
   // Telar Activo Seleccionado
   const activeLoom: Loom | null = useMemo(() => {
@@ -153,7 +185,20 @@ export const TelaresTerminalPage: React.FC = () => {
     }
     return looms[0];
   }, [looms, selectedLoomId]);
-  const { data: recentLoomRolls = [] } = useViajeroRollsQuery(
+  const selectableLooms = useMemo(() => {
+    if (activeLoom && !filteredLooms.some((loom) => loom.id === activeLoom.id)) return [activeLoom, ...filteredLooms];
+    return filteredLooms;
+  }, [activeLoom, filteredLooms]);
+  const changeLoomFilter = (filter: 'ALL' | 'CIRCULARES' | 'BANDA') => {
+    const candidates = filter === 'BANDA' ? looms.filter(isBandaLoom) : filter === 'CIRCULARES' ? looms.filter((loom) => !isBandaLoom(loom)) : looms;
+    setLoomFilter(filter);
+    setLoomSearch('');
+    if (!candidates.some((loom) => loom.id === activeLoom?.id)) {
+      setSelectedLoomId(candidates[0]?.id ?? null);
+      setTerminalStage('PREPARE');
+    }
+  };
+  const { data: recentLoomRolls = [], isLoading: isRecentLoomRollsLoading } = useViajeroRollsQuery(
     activeLoom?.id ? { loom_id: activeLoom.id, limit: 8 } : { limit: 8 }
   );
   const creelTargetLoom = useMemo(
@@ -165,6 +210,9 @@ export const TelaresTerminalPage: React.FC = () => {
   const selectedTransferRack = ptiRacks.find((rack: any) => rack.id === Number(creelRackId));
   const transferRackQuantity = Number(selectedTransferRack?.current_quantity || 0);
   const transferCapacityAvailable = Math.max(0, creelTargetCapacity - creelTargetCurrent);
+  const transferWeightKg = selectedTransferRack && Number(selectedTransferRack.unit_weight_kg || selectedTransferRack.currentPtiProduct?.unit_weight_kg || 0) > 0
+    ? Number((Number(creelSpoolsToLoad || 0) * Number(selectedTransferRack.unit_weight_kg || selectedTransferRack.currentPtiProduct?.unit_weight_kg)).toFixed(2))
+    : null;
 
   // Corrida activa en el telar
   const activeRun = useMemo(() => {
@@ -178,88 +226,83 @@ export const TelaresTerminalPage: React.FC = () => {
       (isBandaLoom(activeLoom) ? 'BANDA' : 'ROLLO_TELA')
   ).toUpperCase();
   const isFabricRoll = outputProductKind === 'ROLLO_TELA';
+  const outputBom = activeRun?.bom || selectedBom;
+  const allowedRoutes: string[][] = useMemo(() => {
+    const configured = Array.isArray(outputBom?.allowed_routes) && outputBom.allowed_routes.length
+      ? outputBom.allowed_routes
+      : outputBom?.default_route ? [outputBom.default_route] : [];
+    return configured.map(routeToValue).filter((route) => route.length > 1);
+  }, [outputBom?.id, outputBom?.allowed_routes, outputBom?.default_route]);
+  const allowedDestinationOptions = useMemo(() => {
+    const optionMap = new Map<string, { choice: keyof typeof DESTINATION_PRESENTATION; route: string[] }>();
+    for (const route of allowedRoutes) {
+      const choice = destinationForRoute(route);
+      if (choice && !optionMap.has(choice)) optionMap.set(choice, { choice, route });
+    }
+    return [...optionMap.values()];
+  }, [allowedRoutes]);
+  const allowedRouteSignature = JSON.stringify(allowedRoutes);
 
   useEffect(() => {
-    if (!isFabricRoll && (destinationChoice === 'LAMINADO' || destinationChoice === 'LONAS')) {
-      setDestinationChoice('CORTE');
+    const preferredRoute = routeToValue(outputBom?.default_route);
+    const preferredChoice = destinationForRoute(preferredRoute);
+    if (preferredChoice && allowedDestinationOptions.some((option) => option.choice === preferredChoice)) {
+      setDestinationChoice(preferredChoice);
+    } else if (allowedDestinationOptions.length) {
+      setDestinationChoice(allowedDestinationOptions[0].choice);
     }
-  }, [isFabricRoll, destinationChoice]);
+  }, [outputBom?.id, allowedRouteSignature]);
 
   const getSelectedRoute = (): string[] => {
-    if (!isFabricRoll) {
-      switch (destinationChoice) {
-        case 'ALMACEN':
-          return ['TELARES', 'ALMACEN'];
-        case 'VENTA':
-          return ['TELARES', 'VENTA'];
-        case 'CORTE':
-        default:
-          return ['TELARES', 'CORTE'];
-      }
-    }
-    switch (destinationChoice) {
-      case 'LAMINADO':
-        return ['TELARES', 'LAMINADO', 'CORTE'];
-      case 'LONAS':
-        return ['TELARES', 'LONAS'];
-      case 'VENTA':
-        return ['TELARES', 'VENTA'];
-      case 'ALMACEN':
-        return ['TELARES', 'ALMACEN'];
-      case 'CORTE':
-      default:
-        return ['TELARES', 'CORTE'];
-    }
+    return allowedDestinationOptions.find((option) => option.choice === destinationChoice)?.route || [];
   };
 
-  // Racks disponibles en planta para asignación compatibles con el telar seleccionado
-  const availableRacks = useMemo(() => {
-    const supportedTypes = (activeLoom?.supported_pti_types || []).map(Number);
-    const activeIsBanda = isBandaLoom(activeLoom);
-    return ptiRacks.filter((r: any) => {
-      if (Number(r.current_quantity) <= 0) return false;
-      const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct?.id || r.current_pti_type_id || 0);
-      if (supportedTypes.length && ptiId > 0 && !supportedTypes.includes(ptiId)) return false;
-      const extMachine = Number(r.currentPtiProduct?.extrusion_machine_number || 0);
-      if (extMachine > 0 && (extMachine === 1) !== activeIsBanda) return false;
-      return true;
-    });
-  }, [ptiRacks, activeLoom]);
-
   const creelCompatibleRacks = useMemo(() => {
-    const targetLoom = creelTargetLoom || activeLoom;
+    const targetLoom = creelTargetLoom;
     const supportedTypes = (targetLoom?.supported_pti_types || []).map(Number);
     const targetIsBanda = isBandaLoom(targetLoom);
     return ptiRacks.filter((r: any) => {
       if (Number(r.current_quantity) <= 0) return false;
-      if (!targetLoom) return true;
-      const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct?.id || 0);
+      if (!r.currentPtiProduct) return false;
+      const expectedContainer = transferMode === 'CART_FULL' ? 'CARRITO' : 'RACK';
+      if (transferModeReady && String(r.container_type || 'RACK').trim().toUpperCase() !== expectedContainer) return false;
+      const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct.id || 0);
       if (supportedTypes.length && ptiId > 0 && !supportedTypes.includes(ptiId)) return false;
       const extMachine = Number(r.currentPtiProduct?.extrusion_machine_number || 0);
-      if (extMachine > 0 && (extMachine === 1) !== targetIsBanda) return false;
+      const expectedRoute = extMachine === 1 ? 'TELARES_BANDA' : 'TELARES_ROLLO';
+      if (r.destination_route && r.destination_route !== expectedRoute) return false;
+      if (targetLoom && extMachine > 0 && (extMachine === 1) !== targetIsBanda) return false;
+      if (targetLoom && r.destination_subarea_id != null && Number(r.destination_subarea_id) !== Number(targetLoom.subarea_id)) return false;
       return true;
     });
-  }, [ptiRacks, creelTargetLoom, activeLoom]);
+  }, [ptiRacks, creelTargetLoom, transferMode, transferModeReady]);
+
+  const selectedRackCompatible = Boolean(
+    selectedTransferRack && creelCompatibleRacks.some((rack: any) => rack.id === selectedTransferRack.id),
+  );
 
   useEffect(() => {
-    if (!scannedRackQr || !ptiRacks.length || !looms.length) return;
-    const clean = scannedRackQr.trim().toUpperCase();
-    const rack = ptiRacks.find((item: any) =>
-      [item.qr_code, item.rack_code].some((value) => String(value || '').trim().toUpperCase() === clean)
-    );
+    if (!scannedRackQr || !ptiRacks.length || !looms.length || !transferModeReady) return;
+    const clean = scannedRackQr.trim();
+    const rack = ptiRacks.find((item: any) => String(item.qr_code || '').trim() === clean);
+    const expectedContainer = transferMode === 'CART_FULL' ? 'CARRITO' : 'RACK';
     if (!rack || Number(rack.current_quantity) <= 0) {
-      toast.error('El rack escaneado no está disponible para consumo en Telares.');
+      toast.error('El QR escaneado no corresponde a un rack o carrito con saldo disponible.');
+    } else if (String(rack.container_type || 'RACK').trim().toUpperCase() !== expectedContainer) {
+      toast.error(`El modo activo requiere escanear el QR de un ${expectedContainer === 'CARRITO' ? 'carrito' : 'rack'}.`);
     } else {
       setCreelRackId(rack.id);
+      setCreelScannedQr(String(rack.qr_code));
       setCreelSpoolsToLoad(Number(rack.current_quantity));
       setCreelTargetLoomId('');
+      setIsCreelConfirmationOpen(false);
       setIsCreelModalOpen(true);
-      toast.success(`Rack ${rack.rack_code} identificado. Selecciona el telar y confirma la transferencia.`);
+      toast.success(`${expectedContainer === 'CARRITO' ? 'Carrito' : 'Rack'} ${rack.rack_code} identificado. Selecciona el telar receptor.`);
     }
     const next = new URLSearchParams(searchParams);
     next.delete('ptiRackQr');
     setSearchParams(next, { replace: true });
-  }, [scannedRackQr, ptiRacks, looms.length, searchParams, setSearchParams]);
+  }, [scannedRackQr, ptiRacks, looms.length, transferModeReady, transferMode, searchParams, setSearchParams]);
 
   const compatibleBoms = useMemo(() => {
     const supportedBoms = (activeLoom?.supported_bom_ids || []).map(Number);
@@ -274,6 +317,11 @@ export const TelaresTerminalPage: React.FC = () => {
       return bomIsBanda === activeIsBanda;
     });
   }, [boms, activeLoom]);
+  useEffect(() => {
+    if (selectedBomId && !compatibleBoms.some((bom) => Number(bom.id) === Number(selectedBomId))) {
+      setSelectedBomId('');
+    }
+  }, [compatibleBoms, selectedBomId]);
   const plannedMeters = useMemo(() => {
     if (plannedInputMode === 'METROS') return Number(plannedMetersInput) || 0;
     const targetGramsPerMeter = Number(selectedBom?.target_weight_g_per_m || 0);
@@ -283,23 +331,67 @@ export const TelaresTerminalPage: React.FC = () => {
     if (!selectedBom?.items?.length || plannedMeters <= 0) return [];
     const baselineMeters = Number(selectedBom.standard_output_meters || 0);
     const expectedOutput = Number(selectedBom.expected_output_quantity || 1);
-    const multiplier = baselineMeters > 0 ? (plannedMeters / baselineMeters) * expectedOutput : null;
+    const outputUnit = String(selectedBom.expected_output_unit || 'ROLLO').toUpperCase();
+    const plannedWeightKg = plannedInputMode === 'PESO' ? Number(plannedWeightInput) || 0 : 0;
+    const standardWeightKg = Number(selectedBom.output_weight_kg || 0);
+    const estimatedOutputWeightKg = plannedWeightKg > 0
+      ? plannedWeightKg
+      : standardWeightKg > 0 && baselineMeters > 0
+        ? standardWeightKg * (plannedMeters / baselineMeters)
+        : Number(selectedBom.target_weight_g_per_m || 0) * plannedMeters / 1000;
+    const quantityMultiplier = outputUnit === 'KG'
+      ? (estimatedOutputWeightKg > 0 && expectedOutput > 0 ? estimatedOutputWeightKg / expectedOutput : null)
+      : outputUnit === 'METRO'
+        ? (expectedOutput > 0 ? plannedMeters / expectedOutput : null)
+        : (baselineMeters > 0 ? (plannedMeters / baselineMeters) * expectedOutput : null);
     const loomWip = wipSummary?.looms?.find((loom: any) => Number(loom.id) === Number(activeLoom?.id));
-    return selectedBom.items.filter((item) => item.pti_product_id).map((item) => {
+    const components = selectedBom.items.filter((item) => item.pti_product_id).map((item) => {
       const unit = String(item.required_unit || 'KG').toUpperCase();
       const configured = Number(item.required_quantity || 0);
-      const gramsPerMeter = Number(item.consumption_g_per_m || 0) || Number(selectedBom.target_weight_g_per_m || 0) * Number(item.ratio_percentage || 0) / 100;
-      const requiredKg = multiplier && configured > 0 && unit === 'KG' ? configured * multiplier : (gramsPerMeter > 0 ? gramsPerMeter * plannedMeters / 1000 : null);
-      const requiredSpools = multiplier && configured > 0 && unit === 'PIEZAS' ? configured * multiplier : null;
-      const wip = (loomWip?.pti_inventory || []).filter((entry: any) => Number(entry.pti_product_id) === Number(item.pti_product_id));
+      const perMeter = Number(item.consumption_per_meter || 0);
+      const perMeterUnit = String(item.consumption_per_meter_unit || 'KG').toUpperCase();
+      const legacyKgPerMeter = Number(item.consumption_g_per_m || 0) / 1000 || Number(selectedBom.target_weight_g_per_m || 0) * Number(item.ratio_percentage || 0) / 100000;
+      const requiredKg = perMeter > 0
+        ? (perMeterUnit === 'KG' ? perMeter * plannedMeters : null)
+        : quantityMultiplier && configured > 0 && unit === 'KG' ? configured * quantityMultiplier : (legacyKgPerMeter > 0 ? legacyKgPerMeter * plannedMeters : null);
+      const requiredSpools = perMeter > 0
+        ? (perMeterUnit === 'PIEZAS' ? perMeter * plannedMeters : null)
+        : quantityMultiplier && configured > 0 && unit === 'PIEZAS' ? configured * quantityMultiplier : null;
+      return { item, requiredKg, requiredSpools };
+    });
+    const products = new Map<number, any>();
+    for (const component of components) {
+      const productId = Number(component.item.pti_product_id);
+      const group = products.get(productId) || { ptiProduct: component.item.ptiProduct, components: [], requiredKg: 0, requiredSpools: 0, hasKg: false, hasSpools: false };
+      group.components.push(component);
+      if (component.requiredKg != null) { group.requiredKg += component.requiredKg; group.hasKg = true; }
+      if (component.requiredSpools != null) { group.requiredSpools += component.requiredSpools; group.hasSpools = true; }
+      products.set(productId, group);
+    }
+    return [...products.entries()].map(([productId, group]) => {
+      const wip = (loomWip?.pti_inventory || []).filter((entry: any) => Number(entry.pti_product_id) === productId);
       const wipKg = wip.reduce((sum: number, entry: any) => sum + Number(entry.quantity_kg || 0), 0);
-      const knownSpoolKg = wip.reduce((sum: number, entry: any) => sum + Number(entry.quantity_kg || 0), 0) / Math.max(1, wip.reduce((sum: number, entry: any) => sum + Number(entry.quantity_spools || 0), 0));
+      const wipSpools = wip.reduce((sum: number, entry: any) => sum + Number(entry.quantity_spools || 0), 0);
+      const knownWip = wip.filter((entry: any) => Number(entry.quantity_spools) > 0 && Number(entry.quantity_kg) > 0);
+      const knownRacks = ptiRacks.filter((rack: any) => Number(rack.current_pti_product_id) === productId && Number(rack.current_quantity) > 0 && Number(rack.unit_weight_kg || rack.currentPtiProduct?.unit_weight_kg || 0) > 0);
+      const knownSpools = knownWip.reduce((sum: number, entry: any) => sum + Number(entry.quantity_spools), 0) + knownRacks.reduce((sum: number, rack: any) => sum + Number(rack.current_quantity), 0);
+      const knownWeightKg = knownWip.reduce((sum: number, entry: any) => sum + Number(entry.quantity_kg), 0) + knownRacks.reduce((sum: number, rack: any) => sum + Number(rack.current_quantity) * Number(rack.unit_weight_kg || rack.currentPtiProduct?.unit_weight_kg || 0), 0);
+      const averageSpoolKg = knownSpools > 0 ? knownWeightKg / knownSpools : null;
+      const requiredKg = group.hasKg || (group.hasSpools && averageSpoolKg)
+        ? group.requiredKg + (averageSpoolKg ? group.requiredSpools * averageSpoolKg : 0)
+        : null;
+      const requiredSpools = group.hasSpools || (group.hasKg && averageSpoolKg)
+        ? group.requiredSpools + (averageSpoolKg ? group.requiredKg / averageSpoolKg : 0)
+        : null;
       const deficitKg = requiredKg == null ? null : Math.max(0, requiredKg - wipKg);
-      const deficitSpools = deficitKg != null && knownSpoolKg > 0 ? deficitKg / knownSpoolKg : null;
-      const fifo = ptiRacks.filter((rack: any) => Number(rack.current_pti_product_id) === Number(item.pti_product_id) && Number(rack.current_quantity) > 0);
-      return { item, requiredKg, requiredSpools, wipKg, deficitKg, deficitSpools, fifo };
+      const deficitSpools = requiredSpools == null ? null : Math.max(0, requiredSpools - wipSpools);
+      return { ptiProduct: group.ptiProduct, ptiProductId: productId, components: group.components, requiredKg, requiredSpools, wipKg, wipSpools, deficitKg, deficitSpools, roles: [...new Set(group.components.map(({ item }: any) => String(item.role || '').toUpperCase()))] };
     });
   }, [selectedBom, plannedMeters, wipSummary, activeLoom, ptiRacks]);
+  const hasMaterialShortage = demandPreview.some((row: any) => (row.deficitKg != null && row.deficitKg > 0) || (row.deficitSpools != null && row.deficitSpools > 0));
+  const hasUnconfiguredConsumption = Boolean(selectedBom && (!selectedBom.items?.length || selectedBom.items.some((item: any) => !item.pti_product_id || (!Number(item.consumption_per_meter) && !Number(item.consumption_g_per_m) && !Number(item.required_quantity)))));
+  const hasUnknownAvailability = demandPreview.some((row: any) => row.deficitKg == null && row.deficitSpools == null);
+  const canStartSelectedRun = Boolean(activeLoom && selectedBom && plannedMeters > 0 && demandPreview.length > 0 && !isWipSummaryLoading && !isWipSummaryError && !hasUnconfiguredConsumption && !hasMaterialShortage && !hasUnknownAvailability);
 
   // Operador seleccionado actualmente
   const availableOperators = useMemo(() => operators.filter((op) => op.is_active && !String(op.role_name || '').toLowerCase().includes('supervisor')), [operators]);
@@ -341,39 +433,35 @@ export const TelaresTerminalPage: React.FC = () => {
   const creelCurrent = Number(activeLoom?.current_spools_count || 0);
   const creelPercent = Math.min(100, Math.round((creelCurrent / creelMax) * 100));
 
-  // Manejador: Asignar Rack Maestro
-  const handleAssignRack = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeLoom) return;
-    if (!selectedPtiRackId) {
-      toast.error('Selecciona un Rack de la lista disponible');
-      return;
-    }
-
-    try {
-      const res = await assignRackMutation.mutateAsync({
-        loom_id: activeLoom.id,
-        rack_id: Number(selectedPtiRackId),
-        role: selectedRackRole,
-      });
-      toast.success(res.message || 'Rack Maestro montado exitosamente');
-      setIsRackModalOpen(false);
-      setSelectedPtiRackId('');
-      refetchLooms();
-    } catch (err: any) {
-      toast.error(err.friendlyMessage || err.message || 'Error al asignar Rack');
-    }
-  };
-
   // Manejador: Cargar Fileta Creel (WIP del Telar)
   const handleLoadCreel = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!transferModeReady) {
+      toast.error('No se pudo confirmar el modo de transferencia. Actualiza e inténtalo de nuevo.');
+      return;
+    }
     if (!creelTargetLoom) {
       toast.error('Selecciona el telar que recibirá la custodia del PTI.');
       return;
     }
-    if (!creelRackId) {
-      toast.error('Selecciona el Rack de origen con bobinas');
+    if (!creelRackId || !creelScannedQr) {
+      toast.error('Escanea el QR original del rack o carrito de origen.');
+      return;
+    }
+    if (!selectedRackCompatible) {
+      toast.error('El Rack seleccionado no está autorizado para el telar destino. Verifica el área y el PTI.');
+      return;
+    }
+    if (!Number.isInteger(Number(creelSpoolsToLoad))) {
+      toast.error('La transferencia debe expresarse en bobinas completas.');
+      return;
+    }
+    if (transferMode === 'CART_FULL' && Number(creelSpoolsToLoad) !== transferRackQuantity) {
+      toast.error('El modo Carrito completo requiere transferir todo el saldo disponible.');
+      return;
+    }
+    if (!isCreelConfirmationOpen) {
+      setIsCreelConfirmationOpen(true);
       return;
     }
 
@@ -382,15 +470,28 @@ export const TelaresTerminalPage: React.FC = () => {
         loom_id: creelTargetLoom.id,
         rack_id: Number(creelRackId),
         spools_to_load: Number(creelSpoolsToLoad),
+        scanned_qr: creelScannedQr,
       });
       toast.success(res.message || 'Bobinas cargadas a la fileta');
       setIsCreelModalOpen(false);
+      setIsCreelConfirmationOpen(false);
       setCreelRackId('');
+      setCreelScannedQr('');
+      setCreelSpoolsToLoad(0);
       setCreelTargetLoomId('');
       refetchLooms();
     } catch (err: any) {
       toast.error(err.friendlyMessage || err.message || 'Error al cargar fileta');
     }
+  };
+
+  const closeCreelTransfer = () => {
+    setIsCreelModalOpen(false);
+    setIsCreelConfirmationOpen(false);
+    setCreelRackId('');
+    setCreelScannedQr('');
+    setCreelSpoolsToLoad(0);
+    setCreelTargetLoomId('');
   };
 
   // Manejador: Iniciar Corrida
@@ -401,14 +502,29 @@ export const TelaresTerminalPage: React.FC = () => {
       toast.error('Selecciona una receta / BOM para tejer');
       return;
     }
+    if (!Number.isFinite(plannedMeters) || plannedMeters <= 0) {
+      toast.error('Define una meta de producción mayor a cero para calcular los insumos.');
+      return;
+    }
+    if (hasUnconfiguredConsumption || !demandPreview.length) {
+      toast.error('La ficha no tiene sus consumos de PTI completos. Corrige la ficha antes de iniciar.');
+      return;
+    }
+    if (isWipSummaryLoading || isWipSummaryError || hasUnknownAvailability) {
+      toast.error('Aún no se puede confirmar el WIP de este telar. Actualiza la información e inténtalo de nuevo.');
+      return;
+    }
+    if (hasMaterialShortage) {
+      toast.error('El WIP del telar no cubre la meta. Transfiere las bobinas faltantes antes de iniciar.');
+      return;
+    }
 
     try {
-      const numericMeters = plannedMeters || Number(plannedMetersInput) || 1500;
       await startRunMutation.mutateAsync({
         loom_id: activeLoom.id,
         bom_id: Number(selectedBomId),
         shift: runShiftSelection,
-        meters_planned: numericMeters,
+        meters_planned: plannedMeters,
         ...(plannedInputMode === 'PESO' ? { weight_planned_kg: Number(plannedWeightInput) } : {}),
         notes: notesInput || undefined,
       });
@@ -416,6 +532,7 @@ export const TelaresTerminalPage: React.FC = () => {
       setIsStartRunModalOpen(false);
       refetchLooms();
     } catch (err: any) {
+      await refetchWipSummary();
       const shortage = err.response?.data?.details?.shortages;
       if (Array.isArray(shortage) && shortage.length) {
         const first = shortage.find((row: any) => row.deficit_kg > 0 || row.deficit_spools > 0) || shortage[0];
@@ -508,60 +625,61 @@ export const TelaresTerminalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-3 sm:p-6 space-y-6">
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-3 pb-32 sm:p-6 sm:pb-32 lg:pb-8 space-y-5 sm:space-y-6">
       {/* 1. Barra de Estado Superior Industrial */}
-      <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-4 sm:p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+      <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-3 sm:p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30 sm:h-14 sm:w-14">
             <Factory className="h-8 w-8" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
-                Terminal de Tejido / Telares
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl min-[360px]:text-2xl sm:text-3xl font-black tracking-tight text-white">
+                Terminal de Telares
               </h1>
-              <Badge className="bg-emerald-600/90 text-white font-bold text-xs">EN LÍNEA</Badge>
+              <Badge className="hidden bg-emerald-600/90 text-white font-bold text-xs min-[420px]:inline-flex">EN LÍNEA</Badge>
             </div>
-            <p className="text-sm font-semibold text-slate-300">
-              Operación de los 21 Telares, Filetas Creel (1,800 Bobinas WIP) y Salida con Nomenclatura Oficial
+            <p className="max-w-2xl text-sm leading-relaxed font-medium text-slate-300">
+              Control de producción, materiales y salida de rollos.
             </p>
+            <Badge className="mt-2 bg-emerald-600/90 text-white font-bold text-xs min-[420px]:hidden">EN LÍNEA</Badge>
           </div>
         </div>
 
         {/* Indicadores Clave Rápidos */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center">
           <Button
             onClick={() => navigate('/telares/catalogos')}
             variant="outline"
-            className="h-11 px-3 border-slate-700 bg-slate-900 text-slate-200 font-bold text-xs rounded-xl"
+            className="col-span-2 h-11 w-full px-3 border-slate-700 bg-slate-900 text-slate-100 font-semibold text-sm rounded-xl md:col-span-1 md:w-auto"
           >
             <Factory className="h-4 w-4 mr-1.5" />
             Catálogos y Fichas PDF
           </Button>
-          <div className="rounded-xl bg-slate-900 border border-slate-700 px-4 py-2 text-center flex-1 md:flex-initial">
-            <span className="block text-[11px] font-bold text-slate-400 uppercase">Turno Seleccionado</span>
-            <span className="text-base font-black text-amber-400">TURNO {shiftSelection}°</span>
+          <div className="rounded-xl bg-slate-900 border border-slate-700 px-2 py-2 text-center md:px-4">
+            <span className="block text-xs font-semibold text-slate-300">Turno seleccionado</span>
+            <span className="text-base font-bold text-amber-300">Turno {shiftSelection}°</span>
           </div>
-          <div className="rounded-xl bg-slate-900 border border-slate-700 px-4 py-2 text-center flex-1 md:flex-initial">
-            <span className="block text-[11px] font-bold text-slate-400 uppercase">Telares Operando</span>
+          <div className="rounded-xl bg-slate-900 border border-slate-700 px-2 py-2 text-center md:px-4">
+            <span className="block text-xs font-semibold text-slate-300">Telares operando</span>
             <span className="text-base font-black text-emerald-400">
               {looms.filter((l) => l.status === 'EN_PRODUCCION').length} / {looms.length}
             </span>
           </div>
 
           {/* ODC Telares */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="col-span-2 grid w-full grid-cols-1 gap-2 min-[360px]:grid-cols-2 md:flex md:w-auto">
             <Button
               onClick={() => setIsOdcModalOpen(true)}
-              className="flex-1 sm:flex-initial h-11 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+              className="min-h-12 w-full px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 md:w-auto"
             >
               <PackagePlus className="h-4 w-4" />
-              Solicitar ODC Telares
+              Solicitar ODC
             </Button>
             <Button
               onClick={() => navigate('/warehouse/orders?area_id=3&area_name=Telares')}
               variant="outline"
-              className="flex-1 sm:flex-initial h-11 px-3 border-slate-700 bg-slate-900 text-slate-300 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-slate-800"
+              className="min-h-12 w-full px-3 border-slate-700 bg-slate-900 text-slate-100 font-semibold text-sm rounded-xl flex items-center justify-center gap-1.5 hover:bg-slate-800 md:w-auto"
             >
               <ClipboardList className="h-4 w-4 text-blue-400" />
               Ver ODCs
@@ -570,105 +688,110 @@ export const TelaresTerminalPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Selector de los 21 Telares con Filtro por Subárea */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <p className="text-xs font-black uppercase tracking-wider text-slate-400">
-            SELECCIONA TELAR PARA OPERAR (21 MÁQUINAS EN PLANTA):
-          </p>
-          <div className="flex gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700">
-            <button
-              type="button"
-              onClick={() => setLoomFilter('ALL')}
-              className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
-                loomFilter === 'ALL' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Todos (21)
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoomFilter('CIRCULARES')}
-              className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
-                loomFilter === 'CIRCULARES' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Circulares (1-17)
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoomFilter('BANDA')}
-              className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
-                loomFilter === 'BANDA' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Telares Banda (18-21)
+      {activeLoom && (
+        <nav aria-label="Etapas de la operación" className="rounded-2xl border-2 border-slate-700 bg-slate-800 p-3 shadow-lg sm:p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-white">Flujo de trabajo</h2>
+              <p className="text-sm text-slate-300">{terminalStage === 'PREPARE' ? 'Paso 1 de 3 · Preparar telar' : terminalStage === 'RUN' ? 'Paso 2 de 3 · Corrida' : terminalStage === 'OUTPUT' ? 'Paso 3 de 3 · Registrar rollo' : 'Consulta de salidas'}</p>
+            </div>
+            <button id="stage-tab-HISTORY" type="button" aria-pressed={terminalStage === 'HISTORY'} onClick={() => setTerminalStage('HISTORY')}
+              className={`flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${terminalStage === 'HISTORY' ? 'border-slate-300 bg-slate-700 text-white' : 'border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-700'}`}>
+              <ClipboardList className="h-4 w-4" />Historial
             </button>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-          {filteredLooms.map((loom) => {
-            const isSelected = activeLoom?.id === loom.id;
-            const isRunning = loom.status === 'EN_PRODUCCION';
-            const isBanda = isBandaLoom(loom);
-            const creelSpools = Number(loom.current_spools_count || 0);
-
-            return (
-              <button
-                key={loom.id}
-                type="button"
-                onClick={() => setSelectedLoomId(loom.id)}
-                className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border-4 text-center transition-all min-h-[92px] ${
-                  isSelected
-                    ? isBanda
-                      ? 'border-purple-500 bg-purple-950/80 shadow-lg shadow-purple-500/30'
-                      : 'border-blue-500 bg-blue-950/80 shadow-lg shadow-blue-500/30'
-                    : 'border-slate-700 bg-slate-800 hover:bg-slate-750'
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="text-base font-black text-white font-mono">
-                    #{loom.loom_number || loom.id}
+          <div role="tablist" aria-label="Etapas de producción" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {([
+              { id: 'PREPARE', number: '1', label: 'Preparar telar', icon: Package, hint: creelCurrent > 0 ? 'Fileta con bobinas' : 'Revisar fileta' },
+              { id: 'RUN', number: '2', label: 'Corrida', icon: Play, hint: activeRun ? 'En producción' : 'Iniciar producción' },
+              { id: 'OUTPUT', number: '3', label: 'Registrar rollo', icon: CheckCircle2, hint: activeRun ? 'Disponible' : 'Requiere corrida' },
+            ] as const).map(({ id, number, label, icon: StageIcon, hint }) => {
+              const isCurrent = terminalStage === id;
+              const isDisabled = id === 'OUTPUT' && !activeRun;
+              return (
+                <button key={id} id={`stage-tab-${id}`} type="button" role="tab" aria-selected={isCurrent} aria-controls="terminal-stage-panel" title={isDisabled ? 'Inicia una corrida para registrar un rollo' : undefined} disabled={isDisabled} onClick={() => setTerminalStage(id)}
+                  className={`flex min-h-14 min-w-0 items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[68px] sm:px-3 ${isCurrent ? 'border-blue-400 bg-blue-700 text-white' : 'border-slate-600 bg-slate-900 text-slate-100 hover:bg-slate-700'}`}>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${isCurrent ? 'bg-white text-blue-800' : 'bg-slate-700 text-white'}`}>{number}</span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1 text-sm font-bold leading-tight"><StageIcon className="h-4 w-4 shrink-0 sm:hidden" />{label}</span>
+                    <span className={`mt-1 hidden text-xs sm:block ${isCurrent ? 'text-blue-100' : 'text-slate-300'}`}>{hint}</span>
                   </span>
-                  {isBanda && (
-                    <span className="text-[9px] font-black uppercase bg-purple-900/80 text-purple-200 px-1 rounded">
-                      Banda
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs font-bold text-slate-300 truncate w-full">{loom.name}</span>
-                <div className="mt-1 flex items-center gap-1.5 text-[10px] font-mono">
-                  <span className={creelSpools > 0 ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
-                    {creelSpools.toFixed(0)} bobinas
-                  </span>
-                </div>
-                <span
-                  className={`mt-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                    isRunning ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  {loom.status}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
-      {/* 3. Panel Principal del Telar Activo */}
+      {/* Contenido por etapa: preparación, corrida, registro o historial */}
       {activeLoom && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Columna Izquierda: Información del Telar, Creel WIP y Racks (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Card: Monitor Creel Fileta del Telar (WIP Interno hasta 1,800 Bobinas) */}
-            <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-5 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-700">
-                <div className="flex items-center gap-2">
+        <div id="terminal-stage-panel" role="tabpanel" aria-labelledby={terminalStage === 'HISTORY' ? 'stage-tab-HISTORY' : `stage-tab-${terminalStage}`} className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5">
+          {/* Resumen de materiales, racks y corrida */}
+          <div id="loom-materials" className={`${terminalStage === 'PREPARE' ? 'grid grid-cols-1 gap-4 xl:grid-cols-2 lg:col-span-12' : terminalStage === 'RUN' ? 'lg:col-span-12' : 'hidden'}`}>
+{/* Selecciona aquí el telar que corresponde a esta fileta */}
+
+
+                        {/* Card: Monitor Creel Fileta del Telar (WIP Interno hasta 1,800 Bobinas) */}
+            <div className={`${terminalStage === 'PREPARE' ? 'rounded-2xl bg-slate-800 border-2 border-slate-700 p-5 shadow-xl space-y-4' : 'hidden'}`}>
+              <section aria-labelledby="loom-selector-title" className="mb-4 min-w-0 border-b border-slate-700 pb-4">
+                      <button type="button" id="loom-selector-title" aria-expanded={isLoomSelectorOpen} aria-controls="loom-selector-content" onClick={() => setIsLoomSelectorOpen((open) => !open)} className="flex min-h-14 w-full min-w-0 items-center justify-between gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+                        <span className="min-w-0">
+                          <span className="block text-base font-bold text-white">Telar de esta fileta</span>
+                          <span className="block truncate text-sm font-medium text-slate-300">{activeLoom ? `#${activeLoom.loom_number || activeLoom.id} · ${activeLoom.name}` : isLoomsLoading ? 'Cargando máquinas…' : 'Selecciona una máquina'}</span>
+                          {activeLoom && <span className="block text-xs font-medium text-slate-300">{activeLoom.status === 'EN_PRODUCCION' ? 'En producción' : 'Disponible'} · {Number(activeLoom.current_spools_count || 0)} bobinas en fileta</span>}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="hidden text-sm font-semibold text-blue-200 min-[360px]:inline">{isLoomSelectorOpen ? 'Cerrar selector' : 'Cambiar telar'}</span>
+                          <ChevronDown className={`h-5 w-5 text-slate-200 transition-transform ${isLoomSelectorOpen ? 'rotate-180' : ''}`} />
+                        </span>
+                      </button>
+                      {isLoomSelectorOpen && <div id="loom-selector-content" className="mt-3 min-w-0 border-t border-slate-700 pt-3">
+                      <div className="grid min-w-0 gap-4">
+                        <div className="min-w-0">
+                          <span className="mb-2 block text-sm font-semibold text-slate-200">Filtrar por tipo de telar</span>
+                          <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label="Filtrar telares por tipo">
+                            {([
+                              ['ALL', 'Todos', looms.length],
+                              ['CIRCULARES', 'Circulares', looms.filter((loom) => !isBandaLoom(loom)).length],
+                              ['BANDA', 'Banda', looms.filter((loom) => isBandaLoom(loom)).length],
+                            ] as const).map(([filter, label, count]) => (
+                              <button key={filter} type="button" onClick={() => changeLoomFilter(filter)} aria-pressed={loomFilter === filter}
+                                className={`flex min-h-11 min-w-[6.25rem] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-sm font-semibold transition-colors ${loomFilter === filter ? (filter === 'BANDA' ? 'border-purple-400 bg-purple-700 text-white' : 'border-blue-400 bg-blue-700 text-white') : 'border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-700'}`}>
+                                <span>{label}</span><span className="rounded-full bg-black/20 px-1.5 py-0.5 text-xs">{count}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                          <label className="flex min-w-0 flex-col gap-1.5 text-sm font-semibold text-slate-200">
+                            Buscar máquina
+                            <Input value={loomSearch} onChange={(event) => setLoomSearch(event.target.value)} placeholder="Número o nombre" className="h-12 min-w-0 border-slate-600 bg-slate-900 text-base text-white placeholder:text-slate-400" />
+                          </label>
+                          <label className="flex min-w-0 flex-col gap-1.5 text-sm font-semibold text-slate-200">
+                            Telar para operar
+                            <select value={activeLoom?.id ?? ''} onChange={(event) => { setSelectedLoomId(Number(event.target.value)); setTerminalStage('PREPARE'); setIsLoomSelectorOpen(false); }} className="h-12 w-full min-w-0 rounded-xl border-2 border-slate-600 bg-slate-900 px-3 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+                              {selectableLooms.length === 0 && <option value="">{isLoomsLoading ? 'Cargando máquinas…' : 'No hay máquinas disponibles'}</option>}
+                              {selectableLooms.map((loom) => <option key={loom.id} value={loom.id}>#{loom.loom_number || loom.id} · {loom.name}</option>)}
+                            </select>
+                          </label>
+                          {filteredLooms.length === 0 && (
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-amber-200">
+                              <span>No hay coincidencias para la búsqueda.</span>
+                              <Button type="button" variant="outline" onClick={() => setLoomSearch('')} className="min-h-11 border-amber-400/50 px-3 text-sm text-amber-100">Limpiar búsqueda</Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      </div>}
+                    </section>
+
+              <div className="flex flex-col gap-3 border-b border-slate-700 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-2">
                   <Gauge className="h-6 w-6 text-amber-400" />
                   <div>
-                    <h2 className="text-lg font-black uppercase text-white">Fileta Creel del Telar (WIP)</h2>
-                    <p className="text-xs text-slate-400 font-semibold">
+                    <h2 className="text-lg font-bold text-white">Fileta del telar (WIP)</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-300">Recibe bobinas desde un carrito o rack.</p>
+                    <p className="mt-1 text-sm font-medium text-slate-300">
                       Telar #{activeLoom.loom_number || activeLoom.id} — {activeLoom.name}
                     </p>
                   </div>
@@ -678,7 +801,7 @@ export const TelaresTerminalPage: React.FC = () => {
                     setCreelTargetLoomId(activeLoom.id);
                     setIsCreelModalOpen(true);
                   }}
-                  className="h-10 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+                  className="min-h-12 w-full px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 sm:w-auto"
                 >
                   <Package className="h-4 w-4" />
                   Cargar Fileta
@@ -705,16 +828,16 @@ export const TelaresTerminalPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
                   <div className="rounded-lg bg-slate-800 p-2 border border-slate-700">
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Hilo Montado (kg)</span>
+                    <span className="text-slate-300 block text-xs font-semibold">Hilo montado (kg)</span>
                     <strong className="text-white text-base">{Number(activeLoom.current_wip_kg || 0).toFixed(1)} kg</strong>
                   </div>
                   <div className="rounded-lg bg-slate-800 p-2 border border-slate-700">
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Rollos Fabricados</span>
+                    <span className="text-slate-300 block text-xs font-semibold">Rollos fabricados</span>
                     <strong className="text-blue-400 text-base">{activeLoom.total_rolls_produced || 0}</strong>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-300 font-medium">
+                <p className="text-xs leading-relaxed text-slate-200 font-medium">
                   {creelCurrent > 0
                     ? '✔ Fileta con bobinas montadas: la producción consumirá por FIFO desde este WIP interno.'
                     : '⚠ Fileta sin bobinas en custodia: presiona "Cargar Fileta" para recibir bobinas desde un Carrito / Rack de Extrusión antes de producir.'}
@@ -722,85 +845,109 @@ export const TelaresTerminalPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Card: Racks Maestros Montados */}
-            <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-5 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-700">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-6 w-6 text-blue-400" />
-                  <h2 className="text-lg font-black uppercase text-white">Racks Maestros Montados</h2>
+            {/* Material requerido por ficha: las posiciones y consumos vienen del catálogo, el material disponible del WIP local */}
+            <section className={`${terminalStage === 'PREPARE' ? 'min-w-0 rounded-2xl border-2 border-slate-700 bg-slate-800 p-5 shadow-xl' : 'hidden'}`} aria-labelledby="loom-bom-requirements-title">
+              <div className="flex items-start gap-3 border-b border-slate-700 pb-4">
+                <Package className="mt-0.5 h-6 w-6 shrink-0 text-blue-400" />
+                <div className="min-w-0">
+                  <h2 id="loom-bom-requirements-title" className="text-lg font-bold text-white">Materiales de la ficha</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-300">La ficha indica qué PTI va en cada posición. La terminal revisa el WIP de este telar y consume por FIFO; no necesitas volver a seleccionar el rack ya recibido.</p>
                 </div>
-                <Button
-                  onClick={() => setIsRackModalOpen(true)}
-                  className="h-10 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Montar / Cambiar Rack
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <label className="block space-y-1.5 text-sm font-semibold text-slate-200">
+                  Rollo o banda a producir
+                  <select
+                    value={selectedBomId}
+                    onChange={(event) => setSelectedBomId(Number(event.target.value) || '')}
+                    className="h-12 w-full rounded-xl border-2 border-slate-600 bg-slate-900 px-3 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  >
+                    <option value="">Selecciona una ficha compatible</option>
+                    {compatibleBoms.map((bom) => <option key={bom.id} value={bom.id}>{bom.code} · {bom.output_product_name || bom.name}</option>)}
+                  </select>
+                  {!isBomsLoading && compatibleBoms.length === 0 && <span className="block text-xs text-amber-200">No hay fichas activas y confirmadas compatibles con este telar.</span>}
+                </label>
+
+                <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3 sm:p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-slate-100">Meta planeada</p>
+                    <div className="flex gap-2" role="group" aria-label="Unidad de planeación">
+                      <Button type="button" variant={plannedInputMode === 'METROS' ? 'default' : 'outline'} onClick={() => setPlannedInputMode('METROS')} className="min-h-10 px-3">Metros</Button>
+                      <Button type="button" variant={plannedInputMode === 'PESO' ? 'default' : 'outline'} onClick={() => setPlannedInputMode('PESO')} className="min-h-10 px-3">Peso (kg)</Button>
+                    </div>
+                  </div>
+                  {plannedInputMode === 'METROS' ? (
+                    <label className="mt-3 block space-y-1 text-xs font-semibold text-slate-300">
+                      Metros planeados
+                      <Input type="number" min="0.01" step="0.01" value={plannedMetersInput} onChange={(event) => setPlannedMetersInput(event.target.value)} placeholder="Ej. 1,000" className="h-12 bg-slate-950 text-base text-white" />
+                    </label>
+                  ) : (
+                    <label className="mt-3 block space-y-1 text-xs font-semibold text-slate-300">
+                      Peso planeado (kg)
+                      <Input type="number" min="0.01" step="0.01" value={plannedWeightInput} onChange={(event) => setPlannedWeightInput(event.target.value)} placeholder="Ej. 250" className="h-12 bg-slate-950 text-base text-white" />
+                    </label>
+                  )}
+                  {plannedInputMode === 'PESO' && selectedBom && !Number(selectedBom.target_weight_g_per_m) && <p className="mt-2 text-xs text-amber-200">Falta el gramaje objetivo de la ficha; no se pueden convertir kg a metros para calcular el material.</p>}
+                  {plannedMeters > 0 && <p className="mt-2 text-xs text-slate-300">Meta equivalente: <strong className="text-white">{plannedMeters.toLocaleString('es-MX', { maximumFractionDigits: 2 })} m</strong>{plannedInputMode === 'PESO' ? ` · ${Number(plannedWeightInput).toLocaleString('es-MX')} kg` : ''}</p>}
+                </div>
+
+                {selectedBom && plannedMeters > 0 && (
+                  <div className="space-y-3" aria-live="polite">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold text-white">Requerimientos por posición</h3>
+                      <span className="text-xs text-slate-300">WIP del telar #{activeLoom.loom_number || activeLoom.id}</span>
+                    </div>
+                    {isWipSummaryError && <div role="alert" className="flex flex-col gap-2 rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-sm text-rose-100 sm:flex-row sm:items-center sm:justify-between"><span>No se pudo consultar el WIP del telar. No se iniciará producción con una disponibilidad desconocida.</span><Button type="button" variant="outline" onClick={() => refetchWipSummary()} className="min-h-10 border-rose-300/50 text-rose-100">Reintentar consulta</Button></div>}
+                    {demandPreview.length ? demandPreview.map((demand: any) => (
+                      <article key={demand.ptiProductId} className="rounded-xl border border-slate-700 bg-slate-900 p-3 sm:p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-bold text-white">{demand.ptiProduct?.code || `PTI ${demand.ptiProductId}`} · {demand.ptiProduct?.name || 'Producto sin nombre'}</p>
+                            <p className="mt-0.5 text-xs text-slate-300">Color: {demand.ptiProduct?.color || 'Sin color registrado'}{demand.ptiProduct?.denier ? ` · ${demand.ptiProduct.denier} D` : ''}</p>
+                          </div>
+                          <Badge className={demand.deficitKg == null && demand.deficitSpools == null ? 'bg-slate-700 text-slate-200' : demand.deficitKg > 0 || demand.deficitSpools > 0 ? 'bg-amber-500/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-200'}>
+                            {demand.deficitKg == null && demand.deficitSpools == null ? 'Revisar consumo' : demand.deficitKg > 0 || demand.deficitSpools > 0 ? 'Falta material' : 'WIP suficiente'}
+                          </Badge>
+                        </div>
+                        <div className="mt-3 space-y-1.5">
+                          {demand.components.map(({ item, requiredKg, requiredSpools }: any) => {
+                            const roleLabels: Record<string, string> = { URDIMBRE: 'Urdimbre', TRAMA: 'Trama', AMBOS: 'Urdimbre y trama', REFUERZO: 'Cinta / refuerzo' };
+                            return <p key={item.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1 rounded-lg bg-slate-950/70 px-3 py-2 text-xs">
+                              <span className="font-semibold text-blue-200">{roleLabels[String(item.role).toUpperCase()] || item.role}</span>
+                              <span className="text-slate-200">Requiere {requiredKg == null ? '—' : `${requiredKg.toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg`}{requiredSpools == null ? '' : ` · ${requiredSpools.toLocaleString('es-MX', { maximumFractionDigits: 2 })} bobinas`}</span>
+                            </p>;
+                          })}
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+                          <div className="rounded-lg bg-slate-950 p-2.5"><span className="block text-slate-400">Disponible en este telar</span><strong className="mt-1 block text-white">{demand.wipKg.toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg · {demand.wipSpools.toLocaleString('es-MX', { maximumFractionDigits: 2 })} bobinas</strong></div>
+                          <div className="rounded-lg bg-slate-950 p-2.5"><span className="block text-slate-400">Total para la meta</span><strong className="mt-1 block text-cyan-200">{demand.requiredKg == null ? 'Peso por confirmar' : `${demand.requiredKg.toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg`}{demand.requiredSpools == null ? '' : ` · ${demand.requiredSpools.toLocaleString('es-MX', { maximumFractionDigits: 2 })} bobinas`}</strong></div>
+                          <div className="rounded-lg bg-slate-950 p-2.5"><span className="block text-slate-400">Pendiente de transferir</span><strong className={demand.deficitKg == null && demand.deficitSpools == null ? 'mt-1 block text-slate-200' : demand.deficitKg > 0 || demand.deficitSpools > 0 ? 'mt-1 block text-amber-200' : 'mt-1 block text-emerald-200'}>{demand.deficitKg == null ? (demand.deficitSpools == null ? 'Revisar peso unitario' : `${demand.deficitSpools.toLocaleString('es-MX', { maximumFractionDigits: 2 })} bobinas`) : `${demand.deficitKg.toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg${demand.deficitSpools == null ? '' : ` · ${demand.deficitSpools.toLocaleString('es-MX', { maximumFractionDigits: 2 })} bobinas`}`}</strong></div>
+                        </div>
+                      </article>
+                    )) : <p className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">Esta ficha no tiene PTI ni consumos configurados. Completa su ficha técnica antes de producir.</p>}
+                    {hasUnconfiguredConsumption && <p role="alert" className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">Falta configurar el consumo de uno o más PTI en la ficha. No se podrá iniciar la corrida hasta completarlo.</p>}
+                    {hasUnknownAvailability && <p role="alert" className="rounded-lg border border-slate-600 bg-slate-950/60 p-3 text-sm text-slate-200">No es posible calcular la cobertura en piezas: falta un peso unitario para uno de los PTI. Completa el peso en el catálogo de Extrusión.</p>}
+                    {hasMaterialShortage && <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-amber-100">Transfiere al WIP de este telar solo los PTI que aparecen como faltantes. El sistema conserva lote, QR de origen y consumo FIFO.</p><Button type="button" onClick={() => { setCreelTargetLoomId(activeLoom.id); setIsCreelModalOpen(true); }} className="min-h-11 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700">Transferir bobinas al telar</Button></div>}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {terminalStage === 'PREPARE' && (
+              <div className="flex justify-end xl:col-span-2">
+                <Button type="button" onClick={() => setTerminalStage('RUN')} className="min-h-12 w-full px-5 text-base font-bold sm:w-auto">
+                  Continuar a corrida <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Rack Urdimbre */}
-                <div className="rounded-xl bg-slate-900 border-2 border-slate-700 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-blue-400">URDIMBRE</span>
-                    <Badge className="bg-slate-800 text-slate-300 font-bold text-[10px]">MAESTRO</Badge>
-                  </div>
-                  {activeLoom.warpRack ? (
-                    <div>
-                      <p className="text-xl font-black text-white">{activeLoom.warpRack.rack_code}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {activeLoom.warpRack.currentPtiProduct?.name || 'PTI Extrusión'}
-                      </p>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-emerald-400">
-                          {activeLoom.warpRack.current_quantity}
-                        </span>
-                        <span className="text-xs font-bold text-slate-400">bobinas disp.</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-3 text-center">
-                      <p className="text-xs font-bold text-amber-400">Sin Rack Asignado</p>
-                      <p className="text-[11px] text-slate-500">Toca "Montar" para enlazar</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Rack Trama */}
-                <div className="rounded-xl bg-slate-900 border-2 border-slate-700 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-amber-400">TRAMA</span>
-                    <Badge className="bg-slate-800 text-slate-300 font-bold text-[10px]">MAESTRO</Badge>
-                  </div>
-                  {activeLoom.weftRack ? (
-                    <div>
-                      <p className="text-xl font-black text-white">{activeLoom.weftRack.rack_code}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {activeLoom.weftRack.currentPtiProduct?.name || 'PTI Extrusión'}
-                      </p>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-emerald-400">
-                          {activeLoom.weftRack.current_quantity}
-                        </span>
-                        <span className="text-xs font-bold text-slate-400">bobinas disp.</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-3 text-center">
-                      <p className="text-xs font-bold text-amber-400">Sin Rack Asignado</p>
-                      <p className="text-[11px] text-slate-500">Toca "Montar" para enlazar</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Card: Corrida Activa */}
-            <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-5 shadow-xl space-y-4">
+            <div id="loom-production" className={`${terminalStage === 'RUN' ? 'mx-auto w-full max-w-5xl rounded-2xl bg-slate-800 border-2 border-slate-700 p-5 shadow-xl space-y-4 lg:col-span-12' : 'hidden'}`}>
               <div className="flex items-center justify-between pb-3 border-b border-slate-700">
                 <div className="flex items-center gap-2">
                   <Factory className="h-6 w-6 text-emerald-400" />
-                  <h2 className="text-lg font-black uppercase text-white">Corrida en Tejeduría</h2>
+                  <h2 className="text-lg font-bold text-white">Corrida activa</h2>
                 </div>
                 {activeRun ? (
                   <Badge className="bg-emerald-600 text-white font-bold text-xs px-2.5 py-1">EN PROCESO</Badge>
@@ -829,42 +976,48 @@ export const TelaresTerminalPage: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3 text-center">
                     <div className="rounded-xl bg-slate-900 p-3 border border-slate-700">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase block">Rollos Creados</span>
+                      <span className="text-xs font-semibold text-slate-300 block">Rollos creados</span>
                       <span className="text-2xl font-black text-white">{activeRun.rolls_produced_count}</span>
                     </div>
                     <div className="rounded-xl bg-slate-900 p-3 border border-slate-700">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase block">Metros Producidos</span>
+                      <span className="text-xs font-semibold text-slate-300 block">Metros producidos</span>
                       <span className="text-2xl font-black text-emerald-400">
                         {Number(activeRun.meters_produced).toFixed(0)} m
                       </span>
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={finishRunMutation.isPending}
-                    onClick={() => {
-                      if (!window.confirm(`¿Finalizar la corrida activa ${activeRun.folio} en ${activeLoom.name}? El telar quedará DISPONIBLE conservando su WIP en fileta.`)) {
-                        return;
-                      }
-                      finishRunMutation.mutate(
-                        { run_id: activeRun.id },
-                        {
-                          onSuccess: (res) => {
-                            toast.success(res.message || 'Corrida finalizada.');
-                            refetchLooms();
-                          },
-                          onError: (err: any) => {
-                            toast.error(err?.response?.data?.message || err?.message || 'No se pudo finalizar la corrida.');
-                          },
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={finishRunMutation.isPending}
+                      onClick={() => {
+                        if (!window.confirm(`¿Finalizar la corrida activa ${activeRun.folio} en ${activeLoom.name}? El telar quedará DISPONIBLE conservando su WIP en fileta.`)) {
+                          return;
                         }
-                      );
-                    }}
-                    className="h-11 w-full border-2 border-amber-500/60 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 font-black text-xs uppercase rounded-xl flex items-center justify-center gap-2"
-                  >
-                    <Square className="h-4 w-4" />
-                    {finishRunMutation.isPending ? 'Cerrando Corrida...' : 'Finalizar Corrida / Cambiar Receta'}
+                        finishRunMutation.mutate(
+                          { run_id: activeRun.id },
+                          {
+                            onSuccess: (res) => {
+                              toast.success(res.message || 'Corrida finalizada.');
+                              refetchLooms();
+                            },
+                            onError: (err: any) => {
+                              toast.error(err?.response?.data?.message || err?.message || 'No se pudo finalizar la corrida.');
+                            },
+                          }
+                        );
+                      }}
+                      className="min-h-12 w-full border-2 border-amber-400/70 bg-amber-950/40 px-4 text-base font-semibold text-amber-100 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-900/50"
+                    >
+                      <Square className="h-5 w-5 shrink-0" />
+                      {finishRunMutation.isPending ? 'Cerrando corrida…' : 'Finalizar corrida'}
+                    </Button>
+                    <p className="text-sm leading-relaxed text-slate-300">Finalízala para cambiar de receta. El telar conservará su WIP.</p>
+                  </div>
+                  <Button type="button" onClick={() => setTerminalStage('OUTPUT')} className="h-12 w-full bg-blue-600 hover:bg-blue-700 text-base font-bold text-white">
+                    Continuar a registrar rollo <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </div>
               ) : (
@@ -874,27 +1027,30 @@ export const TelaresTerminalPage: React.FC = () => {
                   </p>
                   <Button
                     onClick={() => setIsStartRunModalOpen(true)}
+                    disabled={!canStartSelectedRun}
                     className="h-12 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl flex items-center justify-center gap-2"
                   >
                     <Play className="h-5 w-5" />
                     Iniciar Corrida de Producción
                   </Button>
+                  {!canStartSelectedRun && <p className="mx-auto max-w-xl text-sm leading-relaxed text-amber-200">Vuelve a Preparar telar, elige una ficha y una meta. El WIP debe cubrir el consumo calculado antes de iniciar.</p>}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Columna Derecha: Reporte de Rollo Terminado con Nomenclatura Estricta (7 cols) */}
-          <div className="lg:col-span-7">
+          {/* Registro de salida con espacio suficiente para los campos y la validación */}
+          <div id="loom-roll-report" className={`${terminalStage === 'OUTPUT' || terminalStage === 'HISTORY' ? 'lg:col-span-12' : 'hidden'}`}>
             <div className="rounded-2xl bg-slate-800 border-2 border-slate-700 p-5 sm:p-6 shadow-xl space-y-6">
+              {terminalStage === 'OUTPUT' && <>
               <div className="flex items-center gap-2 pb-3 border-b border-slate-700">
                 <Sparkles className="h-6 w-6 text-amber-400" />
                 <div>
-                  <h2 className="text-xl font-black uppercase text-white">
-                    Reportar Salida de Rollo de Tela (QR Viajero)
+                  <h2 className="text-xl font-bold text-white">
+                    Registrar rollo y QR Viajero
                   </h2>
-                  <p className="text-xs text-slate-400">
-                    Estructura estricta según especificación: [TELAR]-[TURNO]-[NUM_ROLLO]-[NOMINA]
+                  <p className="text-sm text-slate-300">
+                    Captura la salida para generar la etiqueta con el código oficial.
                   </p>
                 </div>
               </div>
@@ -1129,92 +1285,50 @@ export const TelaresTerminalPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className={`grid grid-cols-2 ${isFabricRoll ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-2.5`}>
-                      {isFabricRoll && (
-                        <button
-                          type="button"
-                          onClick={() => setDestinationChoice('LAMINADO')}
-                          className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                            destinationChoice === 'LAMINADO'
-                              ? 'border-indigo-400 bg-indigo-950/70 text-white shadow-lg shadow-indigo-950/60 ring-2 ring-indigo-400/40'
-                              : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                          }`}
-                        >
-                          <span className="text-2xl">🛡️</span>
-                          <span className="text-xs font-black uppercase tracking-wide">Laminado ➔ Corte</span>
-                          <span className="text-[10px] text-indigo-300 font-bold">Recubrimiento PEBD</span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setDestinationChoice('CORTE')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                          destinationChoice === 'CORTE'
-                            ? 'border-amber-400 bg-amber-950/70 text-white shadow-lg shadow-amber-950/60 ring-2 ring-amber-400/40'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                        }`}
-                      >
-                        <span className="text-2xl">✂️</span>
-                        <span className="text-xs font-black uppercase tracking-wide">
-                          {isFabricRoll ? 'Directo a Corte' : outputProductKind === 'CINTA' ? 'Corte de Cinta' : 'Corte de Banda'}
-                        </span>
-                        <span className="text-[10px] text-amber-300 font-bold">
-                          {isFabricRoll ? 'Corte de Tela' : 'Proceso de Corte'}
-                        </span>
-                      </button>
-
-                      {isFabricRoll && (
-                        <button
-                          type="button"
-                          onClick={() => setDestinationChoice('LONAS')}
-                          className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                            destinationChoice === 'LONAS'
-                              ? 'border-emerald-400 bg-emerald-950/70 text-white shadow-lg shadow-emerald-950/60 ring-2 ring-emerald-400/40'
-                              : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                          }`}
-                        >
-                          <span className="text-2xl">⛺</span>
-                          <span className="text-xs font-black uppercase tracking-wide">Lonas</span>
-                          <span className="text-[10px] text-emerald-300 font-bold">Confección de Lonas</span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setDestinationChoice('ALMACEN')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                          destinationChoice === 'ALMACEN'
-                            ? 'border-cyan-400 bg-cyan-950/70 text-white shadow-lg shadow-cyan-950/60 ring-2 ring-cyan-400/40'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                        }`}
-                      >
-                        <span className="text-2xl">🏭</span>
-                        <span className="text-xs font-black uppercase tracking-wide">Almacén</span>
-                        <span className="text-[10px] text-cyan-300 font-bold">Resguardo PT / WIP</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setDestinationChoice('VENTA')}
-                        className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                          destinationChoice === 'VENTA'
-                            ? 'border-purple-400 bg-purple-950/70 text-white shadow-lg shadow-purple-950/60 ring-2 ring-purple-400/40'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
-                        }`}
-                      >
-                        <span className="text-2xl">📦</span>
-                        <span className="text-xs font-black uppercase tracking-wide">
-                          {isFabricRoll ? 'Venta de Rollo' : 'Venta Directa'}
-                        </span>
-                        <span className="text-[10px] text-purple-300 font-bold">Embarque / Cliente</span>
-                      </button>
+                    <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))' }}>
+                      {allowedDestinationOptions.map(({ choice }) => {
+                        const presentation = DESTINATION_PRESENTATION[choice];
+                        const isSelected = destinationChoice === choice;
+                        const activeColors: Record<string, string> = {
+                          indigo: 'border-indigo-400 bg-indigo-950/70 ring-indigo-400/40',
+                          amber: 'border-amber-400 bg-amber-950/70 ring-amber-400/40',
+                          emerald: 'border-emerald-400 bg-emerald-950/70 ring-emerald-400/40',
+                          cyan: 'border-cyan-400 bg-cyan-950/70 ring-cyan-400/40',
+                          purple: 'border-purple-400 bg-purple-950/70 ring-purple-400/40',
+                        };
+                        const hintColors: Record<string, string> = {
+                          indigo: 'text-indigo-300', amber: 'text-amber-300', emerald: 'text-emerald-300',
+                          cyan: 'text-cyan-300', purple: 'text-purple-300',
+                        };
+                        const label = choice === 'CORTE' && !isFabricRoll
+                          ? outputProductKind === 'CINTA' ? 'Corte de Cinta' : 'Corte de Banda'
+                          : presentation.label;
+                        return (
+                          <button
+                            key={choice}
+                            type="button"
+                            aria-pressed={isSelected}
+                            onClick={() => setDestinationChoice(choice)}
+                            className={`min-h-[92px] p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-colors text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                              isSelected
+                                ? `${activeColors[presentation.color]} text-white shadow-lg ring-2`
+                                : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-500'
+                            }`}
+                          >
+                            <span className="text-2xl" aria-hidden="true">{presentation.icon}</span>
+                            <span className="text-xs font-black uppercase tracking-wide">{label}</span>
+                            <span className={`text-[10px] font-bold ${hintColors[presentation.color]}`}>{presentation.hint}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs font-semibold text-slate-300">
-                      {isFabricRoll
-                        ? 'Destinos oficiales Tejido de Tela (Diagrama 1): Laminado, Corte, Lonas, Almacén o Venta de rollo.'
-                        : 'Destinos oficiales Tejido de Banda / Cintilla (Diagrama 2): Corte, Almacén o Venta.'}
-                    </p>
+                    {allowedDestinationOptions.length === 0 ? (
+                      <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-sm font-bold text-rose-200">
+                        Esta ficha no tiene rutas autorizadas configuradas. Pide al administrador que la actualice en Catálogo Telares / PTI.
+                      </p>
+                    ) : (
+                      <p className="text-xs font-semibold text-slate-300">Solo aparecen rutas autorizadas en la ficha técnica de {outputBom?.name || 'este PTI'}.</p>
+                    )}
 
                     {/* Resumen dinámico del Ruteo que se estampará en el QR Viajero */}
                     <div className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 flex items-center justify-between flex-wrap gap-2">
@@ -1248,7 +1362,7 @@ export const TelaresTerminalPage: React.FC = () => {
                   {/* Botón Principal de Salida */}
                   <Button
                     type="submit"
-                    disabled={finishRollMutation.isPending}
+                    disabled={finishRollMutation.isPending || getSelectedRoute().length < 2}
                     className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white font-black text-lg sm:text-xl uppercase tracking-wider rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 transition-transform active:scale-[0.99]"
                   >
                     <CheckCircle2 className="h-7 w-7" />
@@ -1260,22 +1374,24 @@ export const TelaresTerminalPage: React.FC = () => {
               ) : (
                 <div className="rounded-xl bg-slate-900 border border-dashed border-slate-700 p-8 text-center space-y-3">
                   <AlertCircle className="h-10 w-10 text-amber-400 mx-auto" />
-                  <p className="text-base font-bold text-white">No puedes reportar rollos en este momento.</p>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Inicia primero una corrida de producción seleccionando la receta correspondiente en la columna izquierda.
+                  <p className="text-base font-bold text-white">No hay una corrida activa.</p>
+                  <p className="text-sm text-slate-300 max-w-sm mx-auto">
+                    Vuelve a Corrida para iniciar una producción antes de registrar un rollo.
                   </p>
+                  <Button type="button" onClick={() => setTerminalStage('RUN')} className="min-h-12 px-5 text-sm font-semibold">Volver a Corrida</Button>
                 </div>
               )}
+              </>}
 
               {/* Historial Reciente de Salidas / Rollos de este Telar */}
-              <div className="pt-4 border-t-2 border-slate-700 space-y-3">
+              <div id="loom-roll-history" className={`${terminalStage === 'HISTORY' ? 'pt-1' : 'hidden'}`}>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <h3 className="text-sm font-black uppercase text-white flex items-center gap-1.5">
+                    <h3 className="text-base font-bold text-white flex items-center gap-1.5">
                       <ClipboardList className="h-4 w-4 text-blue-400" />
                       Salidas / Rollos Recientes — {activeLoom.name}
                     </h3>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-sm text-slate-300">
                       Reimprime etiquetas QR Viajeras o consulta la genealogía completa con un clic
                     </p>
                   </div>
@@ -1284,14 +1400,16 @@ export const TelaresTerminalPage: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => navigate('/telares/trazabilidad')}
-                    className="h-8 border-slate-600 bg-slate-900 text-slate-200 font-bold text-xs rounded-xl"
+                    className="min-h-11 border-slate-600 bg-slate-900 px-4 text-sm font-semibold text-slate-100 rounded-xl"
                   >
                     Ver Todo el Historial
                   </Button>
                 </div>
 
-                {recentLoomRolls.length === 0 ? (
-                  <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-4 text-center text-xs text-slate-400 font-semibold">
+                {isRecentLoomRollsLoading ? (
+                  <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-4 text-center text-sm text-slate-300 font-semibold" role="status">Cargando historial de este telar…</div>
+                ) : recentLoomRolls.length === 0 ? (
+                  <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-4 text-center text-sm text-slate-300 font-semibold">
                     Aún no hay salidas registradas en este telar.
                   </div>
                 ) : (
@@ -1305,10 +1423,10 @@ export const TelaresTerminalPage: React.FC = () => {
                           <div className="font-mono font-black text-sm text-amber-300 truncate">
                             {roll.roll_code}
                           </div>
-                          <div className="text-[11px] font-bold text-slate-300 truncate">
+                          <div className="text-sm font-semibold text-slate-200 truncate">
                             {roll.output_product_name || roll.bom?.name || 'Rollo de Telares'}
                           </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
+                          <div className="text-xs text-slate-300 font-mono">
                             {Number(roll.meters).toFixed(0)} m · {Number(roll.weight_kg).toFixed(1)} kg · Ruta: {(roll.route || []).join(' ➔ ')}
                           </div>
                         </div>
@@ -1317,11 +1435,11 @@ export const TelaresTerminalPage: React.FC = () => {
                             type="button"
                             size="sm"
                             onClick={() => setActiveViajeroRoll(roll)}
-                            className="h-9 px-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg flex items-center gap-1"
+                            className="min-h-11 px-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-lg flex items-center gap-2"
                             title="Reimprimir etiqueta QR Viajero"
                           >
                             <Printer className="h-3.5 w-3.5" />
-                            QR
+                            Reimprimir QR
                           </Button>
                         </div>
                       </div>
@@ -1334,105 +1452,37 @@ export const TelaresTerminalPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 1: Montar Rack Maestro */}
-      {isRackModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-slate-800 border-2 border-slate-600 p-6 space-y-5 text-slate-100 shadow-2xl">
-            <h3 className="text-xl font-black uppercase text-white">Montar Rack Maestro al Telar</h3>
-            <p className="text-xs text-slate-300">
-              Selecciona un Rack con bobinas de PTI producidas por Extrusión. El telar consumirá de este Rack sin escaneos unitarios.
-            </p>
-
-            <form onSubmit={handleAssignRack} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase text-slate-300">Posición en Telar:</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['AMBOS', 'URDIMBRE', 'TRAMA'] as const).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setSelectedRackRole(r)}
-                      className={`h-11 rounded-xl text-xs font-black uppercase border-2 ${
-                        selectedRackRole === r
-                          ? 'border-blue-500 bg-blue-900/60 text-white'
-                          : 'border-slate-700 bg-slate-900 text-slate-400'
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
+      {/* Modal: transferir bobinas al WIP del telar */}
+      <Dialog open={isCreelModalOpen} onOpenChange={(open) => { if (!open) closeCreelTransfer(); }}>
+        <DialogPortal>
+          <DialogOverlay className="z-[9998] bg-black/75" />
+          <DialogPrimitive.Content
+            onInteractOutside={(event) => event.preventDefault()}
+            className="fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-slate-600 bg-slate-800 p-4 text-slate-100 shadow-2xl focus:outline-none sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:p-6"
+          >
+            <DialogHeader className="sticky top-[-1rem] z-20 -mx-4 -mt-4 flex flex-row items-start justify-between gap-3 border-b border-slate-700 bg-slate-800 px-4 pb-4 pt-4 text-left sm:top-[-1.5rem] sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-5 sm:pt-6">
+              <div className="min-w-0">
+                <DialogTitle className="flex items-center gap-3 text-lg font-extrabold uppercase leading-tight text-white sm:text-xl">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                    <Package className="h-5 w-5" />
+                  </span>
+                  Transferir PTI a la fileta
+                </DialogTitle>
+                <DialogDescription className="mt-2 max-w-prose text-sm leading-relaxed text-slate-300">
+                  Escanea el QR del contenedor, selecciona el telar destino y confirma la cantidad antes de mover la custodia.
+                </DialogDescription>
               </div>
+              <DialogClose aria-label="Cerrar transferencia" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-600 bg-slate-900 text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+                <X aria-hidden="true" className="h-7 w-7" strokeWidth={2.5} />
+              </DialogClose>
+            </DialogHeader>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase text-slate-300">Rack Disponible de Extrusión:</label>
-                <div className="flex gap-2">
-                  <QrScannerButton
-                    title="Escanear rack de PTI de Extrusión"
-                    onScan={(code) => {
-                      const match = availableRacks.find((rack) =>
-                        [rack.qr_code, rack.rack_code].some((value) => String(value || '').toUpperCase() === code.toUpperCase())
-                      );
-                      if (match) setSelectedPtiRackId(match.id);
-                      else toast.error('El código escaneado no corresponde a un rack con stock.');
-                    }}
-                  />
-                  <select
-                    value={selectedPtiRackId}
-                    onChange={(e) => setSelectedPtiRackId(Number(e.target.value) || '')}
-                    required
-                    className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Seleccionar Rack con Stock --</option>
-                    {availableRacks.map((rack) => (
-                      <option key={rack.id} value={rack.id}>
-                        {rack.rack_code} ({rack.current_quantity} bobinas - {rack.currentPtiProduct?.name || 'PTI'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="submit"
-                  disabled={assignRackMutation.isPending}
-                  className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base rounded-xl"
-                >
-                  {assignRackMutation.isPending ? 'Montando...' : 'Confirmar y Montar Rack'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsRackModalOpen(false)}
-                  className="h-12 border-slate-600 text-slate-300 rounded-xl"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Cargar Fileta Creel (WIP del Telar hasta 1800 Bobinas) */}
-      {isCreelModalOpen && looms.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-800 border-2 border-slate-600 p-6 space-y-4 text-slate-100 shadow-2xl">
-            <h3 className="text-xl font-black uppercase text-white flex items-center gap-2">
-              <Package className="h-6 w-6 text-emerald-400" />
-              Solicitar PTI para Telares
-            </h3>
-            <p className="text-xs text-slate-300">
-              Elige el telar receptor. Al confirmar, las bobinas seleccionadas dejan la custodia de Extrusión y pasan al WIP de ese telar.
-            </p>
-
-            <div className="rounded-xl bg-slate-900 p-3 border border-slate-700 text-xs space-y-1">
-              <p>Telar receptor: <strong className="text-amber-400">{creelTargetLoom?.name || 'Seleccionar telar'}</strong></p>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm sm:grid-cols-2 sm:p-4">
+              <p className="sm:col-span-2">Telar receptor: <strong className="text-amber-400">{creelTargetLoom?.name || 'Seleccionar telar'}</strong></p>
               {creelTargetLoom && <>
-                <p>Capacidad de fileta: <strong className="text-amber-400">{creelTargetCapacity} bobinas</strong></p>
-                <p>Ocupación actual: <strong className="text-emerald-400">{creelTargetCurrent} bobinas</strong></p>
-                <p>Espacio libre: <strong className="text-white">{Math.max(0, creelTargetCapacity - creelTargetCurrent)} bobinas</strong></p>
+                <p>Capacidad: <strong className="text-amber-400">{creelTargetCapacity} bobinas</strong></p>
+                <p>Ocupación: <strong className="text-emerald-400">{creelTargetCurrent} bobinas</strong></p>
+                <p className="sm:col-span-2">Espacio libre: <strong className="text-white">{Math.max(0, creelTargetCapacity - creelTargetCurrent)} bobinas</strong></p>
               </>}
             </div>
 
@@ -1442,18 +1492,17 @@ export const TelaresTerminalPage: React.FC = () => {
                 <select
                   required
                   value={creelTargetLoomId}
-                  onChange={(event) => setCreelTargetLoomId(Number(event.target.value) || '')}
+                  onChange={(event) => { setCreelTargetLoomId(Number(event.target.value) || ''); setIsCreelConfirmationOpen(false); }}
                   className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
+                  disabled={isCreelConfirmationOpen}
                 >
                   <option value="">-- Seleccionar telar destino --</option>
                   {looms.map((loom) => <option key={loom.id} value={loom.id}>{loom.name} · {loom.subarea?.name || loom.type}</option>)}
                 </select>
               </div>
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-                <strong>{transferMode === 'CART_FULL' ? 'Carrito completo:' : 'Rack parcial:'}</strong>{' '}
-                {transferMode === 'CART_FULL'
-                  ? 'se transfiere toda la cantidad disponible del contenedor y pasa a la custodia del telar.'
-                  : 'indica cuántas bobinas físicas recibe este telar; el resto permanece bajo custodia de Extrusión.'}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                <strong className="block text-amber-300">{transferMode === 'CART_FULL' ? 'Modo: carrito completo' : 'Modo: rack con transferencia parcial'}</strong>
+                <span>{transferMode === 'CART_FULL' ? 'Escanea el QR del carrito. Se transferirá todo su saldo, sin permitir una cantidad parcial.' : 'Escanea el QR del rack. Después indica cuántas bobinas físicas tomar; el resto seguirá en Extrusión.'}</span>
               </div>
               {!transferModeReady && (
                 <p role="alert" className="text-xs text-rose-300">
@@ -1461,147 +1510,146 @@ export const TelaresTerminalPage: React.FC = () => {
                 </p>
               )}
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase text-slate-300">Carrito / Rack de Origen (Extrusión):</label>
-                <div className="flex gap-2">
-                  <QrScannerButton
-                    title="Escanear rack de PTI para solicitarlo a Telares"
-                    onScan={(code) => {
-                      const clean = code.trim().toUpperCase();
-                      const found = ptiRacks.find((rack: any) => [rack.qr_code, rack.rack_code].some((value) => String(value || '').toUpperCase() === clean));
-                      if (!found || Number(found.current_quantity) <= 0) {
-                        toast.error('El rack escaneado está vacío o no está disponible para Telares.');
-                        return;
-                      }
-                      setCreelRackId(found.id);
-                      setCreelSpoolsToLoad(Number(found.current_quantity));
-                    }}
-                  />
-                  <select
-                    value={creelRackId}
-                    onChange={(e) => {
-                      const id = Number(e.target.value) || '';
-                      setCreelRackId(id);
-                      const found = ptiRacks.find((r: any) => r.id === id);
-                      if (found) setCreelSpoolsToLoad(Number(found.current_quantity || 0));
-                    }}
-                    required
-                    className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">-- Seleccionar Rack Compatible con Bobinas --</option>
-                    {creelCompatibleRacks.map((rack: any) => (
-                      <option key={rack.id} value={rack.id}>
-                        {rack.rack_code} ({rack.current_quantity} bobinas - {rack.currentPtiProduct?.code || 'PTI'} {rack.currentPtiProduct?.color ? `• ${rack.currentPtiProduct.color}` : ''})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase text-slate-300">
-                    {transferMode === 'CART_FULL' ? 'Bobinas a Cargar (contenedor completo):' : 'Bobinas recibidas en este telar:'}
-                  </label>
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase">
-                    {transferMode === 'CART_FULL' ? 'Transferencia íntegra' : 'Transferencia parcial'}
-                  </span>
-                </div>
-                <Input
-                  type="number"
-                  min={transferMode === 'CART_FULL' ? undefined : 1}
-                  max={Math.min(transferRackQuantity, transferCapacityAvailable)}
-                  step="1"
-                  readOnly={transferMode === 'CART_FULL'}
-                  value={creelSpoolsToLoad}
-                  onChange={(event) => setCreelSpoolsToLoad(Number(event.target.value) || 0)}
-                  className={`bg-slate-950 border-slate-700 text-emerald-400 font-mono font-bold text-lg ${transferMode === 'CART_FULL' ? 'cursor-not-allowed' : ''}`}
+              <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/50 p-3 sm:p-4">
+                <label className="block text-sm font-bold text-slate-200">Escanea el QR del {transferMode === 'CART_FULL' ? 'carrito' : 'rack'} de Extrusión</label>
+                <QrScannerButton
+                  title={`Escanear QR del ${transferMode === 'CART_FULL' ? 'carrito' : 'rack'} de PTI`}
+                  onScan={(code) => {
+                    if (!transferModeReady) {
+                      toast.error('Espera a que se confirme el modo de transferencia.');
+                      return;
+                    }
+                    const clean = code.trim();
+                    const found = ptiRacks.find((rack: any) => String(rack.qr_code || '').trim() === clean);
+                    if (!found || Number(found.current_quantity) <= 0) {
+                      toast.error('El QR no corresponde a un contenedor con bobinas disponibles.');
+                      return;
+                    }
+                    const expectedContainer = transferMode === 'CART_FULL' ? 'CARRITO' : 'RACK';
+                    if (String(found.container_type || 'RACK').trim().toUpperCase() !== expectedContainer) {
+                      toast.error(`El modo activo requiere el QR de un ${expectedContainer === 'CARRITO' ? 'carrito' : 'rack'}.`);
+                      return;
+                    }
+                    if (!creelCompatibleRacks.some((rack: any) => rack.id === found.id)) {
+                      toast.error('El PTI o la ruta del contenedor no son compatibles con el telar seleccionado.');
+                      return;
+                    }
+                    setCreelRackId(found.id);
+                    setCreelScannedQr(String(found.qr_code));
+                    setCreelSpoolsToLoad(Number(found.current_quantity));
+                    setIsCreelConfirmationOpen(false);
+                    toast.success(`${expectedContainer === 'CARRITO' ? 'Carrito' : 'Rack'} ${found.rack_code} leído. Cantidad disponible precargada.`);
+                  }}
                 />
+                {selectedTransferRack && creelScannedQr && (
+                  <div className="space-y-1 rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm" aria-live="polite">
+                    <p className="font-bold text-emerald-200">QR leído · {selectedTransferRack.rack_code}</p>
+                    <p className="break-all font-mono text-xs text-slate-300">{creelScannedQr}</p>
+                    <p className="text-slate-100">{selectedTransferRack.currentPtiProduct?.code || 'PTI'} · {selectedTransferRack.currentPtiProduct?.name || 'Producto sin nombre'}{selectedTransferRack.currentPtiProduct?.color ? ` · ${selectedTransferRack.currentPtiProduct.color}` : ''}</p>
+                    <p className="font-semibold text-emerald-300">Disponible en origen: {transferRackQuantity.toLocaleString('es-MX')} bobinas</p>
+                  </div>
+                )}
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="submit"
-                  disabled={!transferModeReady || loadCreelMutation.isPending || !creelTargetLoom || !creelRackId || creelSpoolsToLoad <= 0 || creelSpoolsToLoad > transferRackQuantity || creelSpoolsToLoad > transferCapacityAvailable || (transferMode === 'CART_FULL' && creelSpoolsToLoad !== transferRackQuantity)}
-                  className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl"
-                >
-                  {loadCreelMutation.isPending ? 'Transfiriendo PTI...' : transferMode === 'CART_FULL' ? 'Confirmar transferencia completa' : 'Confirmar transferencia parcial'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreelModalOpen(false)}
-                  className="h-12 border-slate-600 text-slate-300 rounded-xl"
-                >
-                  Cancelar
-                </Button>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <label htmlFor="creel-spools-to-load" className="text-xs font-bold uppercase text-slate-300">
+                      {transferMode === 'CART_FULL' ? 'Bobinas del carrito (completo)' : 'Bobinas a tomar del rack'}
+                    </label>
+                    {selectedTransferRack && <span className="text-xs font-bold text-emerald-300">{transferRackQuantity.toLocaleString('es-MX')} disponibles</span>}
+                  </div>
+                  <Input
+                    id="creel-spools-to-load"
+                    type="number"
+                    min={1}
+                    max={Math.min(transferRackQuantity, transferCapacityAvailable)}
+                    step="1"
+                    readOnly={transferMode === 'CART_FULL' || isCreelConfirmationOpen}
+                    disabled={!selectedTransferRack}
+                    value={creelSpoolsToLoad || ''}
+                    placeholder={selectedTransferRack ? 'Cantidad de bobinas' : 'Escanea primero el QR'}
+                    onChange={(event) => { setCreelSpoolsToLoad(Number(event.target.value) || 0); setIsCreelConfirmationOpen(false); }}
+                    className={`h-12 bg-slate-950 border-slate-700 text-emerald-300 font-mono font-bold text-lg ${transferMode === 'CART_FULL' || isCreelConfirmationOpen ? 'cursor-not-allowed' : ''}`}
+                  />
+                  {transferMode === 'RACK_PARTIAL' && selectedTransferRack && <p className="text-xs text-slate-300">Indica piezas enteras, hasta {transferRackQuantity.toLocaleString('es-MX')} disponibles y {transferCapacityAvailable.toLocaleString('es-MX')} espacios libres en la fileta.</p>}
+                </div>
+                <div className="flex flex-col justify-center rounded-xl border border-slate-700 bg-slate-900 p-3">
+                  <span className="text-xs font-bold uppercase text-slate-300">Peso calculado</span>
+                  <strong className="mt-1 font-mono text-xl text-cyan-300">{transferWeightKg == null ? 'Pendiente de peso unitario' : `${transferWeightKg.toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg`}</strong>
+                  <span className="mt-1 text-xs text-slate-300">Piezas transferidas × peso unitario registrado</span>
+                </div>
               </div>
+
+              {creelTargetLoom && selectedTransferRack && !selectedRackCompatible && (
+                <p role="alert" className="text-sm font-semibold text-rose-300">Este contenedor no corresponde al destino del telar. Verifica subárea, ruta y PTI.</p>
+              )}
+
+              {isCreelConfirmationOpen ? (
+                <div className="space-y-3 rounded-xl border-2 border-blue-400/50 bg-blue-950/40 p-4" role="alert" aria-live="assertive">
+                  <div>
+                    <h4 className="text-base font-black text-white">Confirma la transferencia</h4>
+                    <p className="mt-1 text-sm text-slate-200">Se moverá la custodia de {Number(creelSpoolsToLoad).toLocaleString('es-MX')} bobinas{transferWeightKg == null ? '' : ` (${transferWeightKg.toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg)`} desde {selectedTransferRack?.rack_code} hacia {creelTargetLoom?.name}.</p>
+                    {transferMode === 'RACK_PARTIAL' && <p className="mt-1 text-xs text-slate-300">Saldo que permanecerá en el rack: {Math.max(0, transferRackQuantity - Number(creelSpoolsToLoad)).toLocaleString('es-MX')} bobinas.</p>}
+                  </div>
+                  <div className="sticky bottom-[-1rem] -mx-4 -mb-4 flex flex-col-reverse gap-2 border-t border-slate-700 bg-slate-800 p-4 sm:bottom-[-1.5rem] sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:p-6">
+                    <Button type="button" variant="outline" onClick={() => setIsCreelConfirmationOpen(false)} className="min-h-11 border-slate-600 text-slate-100">Volver y revisar</Button>
+                    <Button type="submit" disabled={!transferModeReady || loadCreelMutation.isPending} className="min-h-11 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700">
+                      {loadCreelMutation.isPending ? 'Transfiriendo…' : 'Confirmar y transferir'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="sticky bottom-[-1rem] -mx-4 -mb-4 flex flex-col-reverse gap-2 border-t border-slate-700 bg-slate-800 p-4 sm:bottom-[-1.5rem] sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:p-6">
+                  <Button type="button" variant="outline" onClick={closeCreelTransfer} className="min-h-12 border-slate-600 text-slate-100 sm:w-auto">Cancelar</Button>
+                  <Button
+                    type="submit"
+                    disabled={!transferModeReady || loadCreelMutation.isPending || !creelTargetLoom || !creelRackId || !creelScannedQr || !selectedRackCompatible || !Number.isInteger(Number(creelSpoolsToLoad)) || creelSpoolsToLoad <= 0 || creelSpoolsToLoad > transferRackQuantity || creelSpoolsToLoad > transferCapacityAvailable || transferWeightKg == null || (transferMode === 'CART_FULL' && creelSpoolsToLoad !== transferRackQuantity)}
+                    className="min-h-12 flex-1 bg-blue-600 font-bold text-white hover:bg-blue-700"
+                  >
+                    Revisar transferencia
+                  </Button>
+                </div>
+              )}
             </form>
-          </div>
-        </div>
-      )}
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
 
-      {/* MODAL 3: Iniciar Corrida */}
+      {/* Modal: confirmar inicio de corrida */}
       {isStartRunModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-800 border-2 border-slate-600 p-6 space-y-5 text-slate-100 shadow-2xl">
-            <h3 className="text-xl font-black uppercase text-white">Iniciar Corrida de Tejeduría</h3>
-
+          <div className="w-full max-w-lg rounded-2xl border-2 border-slate-600 bg-slate-800 p-5 text-slate-100 shadow-2xl sm:p-6">
+            <div className="mb-4 border-b border-slate-700 pb-4">
+              <h3 className="text-xl font-black text-white">Confirmar inicio de corrida</h3>
+              <p className="mt-1 text-sm leading-relaxed text-slate-300">Verifica ficha, meta y cobertura del WIP de este telar.</p>
+            </div>
             <form onSubmit={handleStartRun} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase text-slate-300">Receta / BOM de Producción:</label>
-                <select
-                  value={selectedBomId}
-                  onChange={(e) => setSelectedBomId(Number(e.target.value) || '')}
-                  required
-                  className="w-full h-12 rounded-xl bg-slate-900 border-2 border-slate-700 px-3 text-sm font-bold text-white focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">-- Seleccionar Receta (BOM) --</option>
-                  {compatibleBoms.map((bom) => (
-                    <option key={bom.id} value={bom.id}>
-                      {bom.code} - {bom.name} ({bom.target_width_cm}cm)
-                    </option>
-                  ))}
+              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                <p className="text-xs font-bold uppercase text-slate-400">Telar</p>
+                <p className="mt-1 font-bold text-white">#{activeLoom?.loom_number || activeLoom?.id} · {activeLoom?.name}</p>
+                <p className="mt-3 text-xs font-bold uppercase text-slate-400">Ficha de producción</p>
+                <p className="mt-1 font-bold text-cyan-200">{selectedBom?.code} · {selectedBom?.output_product_name || selectedBom?.name}</p>
+                <p className="mt-2 text-sm text-slate-200">Meta: <strong>{plannedMeters.toLocaleString('es-MX', { maximumFractionDigits: 2 })} m</strong>{plannedInputMode === 'PESO' ? ` · ${Number(plannedWeightInput).toLocaleString('es-MX')} kg` : ''}</p>
+                <p className="mt-1 text-xs text-slate-300">{demandPreview.length} PTI en la ficha · {canStartSelectedRun ? 'WIP suficiente en la última consulta' : 'La cobertura se volverá a validar al guardar'}.</p>
+              </div>
+              <label className="block space-y-1.5 text-sm font-semibold text-slate-200">
+                Turno
+                <select value={runShiftSelection} onChange={(event) => setRunShiftSelection(event.target.value)} className="h-11 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 text-white">
+                  <option value="TURNO_1">Turno 1</option>
+                  <option value="TURNO_2">Turno 2</option>
+                  <option value="TURNO_3">Turno 3</option>
                 </select>
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/60 p-4">
-                <p className="text-xs font-bold uppercase text-slate-300">Meta de producción y materiales requeridos</p>
-                <div className="flex gap-2">
-                  <Button type="button" variant={plannedInputMode === 'METROS' ? 'default' : 'outline'} onClick={() => setPlannedInputMode('METROS')}>Metros</Button>
-                  <Button type="button" variant={plannedInputMode === 'PESO' ? 'default' : 'outline'} onClick={() => setPlannedInputMode('PESO')}>Peso (kg)</Button>
-                </div>
-                {plannedInputMode === 'METROS' ? (
-                  <Input type="number" min="0.01" value={plannedMetersInput} onChange={(e) => setPlannedMetersInput(e.target.value)} placeholder="Metros a producir" />
-                ) : (
-                  <Input type="number" min="0.01" value={plannedWeightInput} onChange={(e) => setPlannedWeightInput(e.target.value)} placeholder="Peso deseado en kg" />
-                )}
-                {plannedInputMode === 'PESO' && selectedBom && !Number(selectedBom.target_weight_g_per_m) && <p className="text-xs text-amber-300">Configura el peso objetivo por metro en esta receta para convertir kg a metros.</p>}
-                {plannedMeters > 0 && <p className="text-xs text-slate-400">Modelo: <b className="text-slate-200">{selectedBom?.output_product_name || selectedBom?.name || 'Selecciona una receta'}</b> · Meta estimada: <b className="text-slate-200">{plannedMeters.toFixed(1)} m</b></p>}
-                {demandPreview.length > 0 && <div className="space-y-2 pt-1">
-                  {demandPreview.map((demand: any) => <div key={demand.item.id} className="rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-xs">
-                    <div className="flex flex-wrap justify-between gap-2"><b className="text-white">{demand.item.ptiProduct?.code || `PTI ${demand.item.pti_product_id}`} · {demand.item.ptiProduct?.color || 'Color no registrado'}</b><span className={demand.deficitKg > 0 ? 'text-amber-300' : 'text-emerald-300'}>{demand.deficitKg > 0 ? `Faltan ${demand.deficitKg.toFixed(2)} kg${demand.deficitSpools == null ? '' : ` / ${demand.deficitSpools.toFixed(1)} bobinas`}` : 'WIP del telar suficiente'}</span></div>
-                    <p className="mt-1 text-slate-400">Necesario: {demand.requiredKg == null ? 'consumo por configurar' : `${demand.requiredKg.toFixed(2)} kg`}{demand.requiredSpools == null ? '' : ` / ${demand.requiredSpools.toFixed(1)} bobinas`} · Disponible en este telar: {demand.wipKg.toFixed(2)} kg</p>
-                    {demand.deficitKg > 0 && <p className="mt-1 text-sky-300">FIFO: {(demand.fifo || []).map((rack: any) => rack.qr_code || rack.rack_code).filter(Boolean).join(' → ') || 'Sin racks disponibles'} · La solicitud se notificará al Supervisor de Telares.</p>}
-                  </div>)}
-                </div>}
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              </label>
+              {hasMaterialShortage && <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-100">El WIP dejó de cubrir la meta. Regresa a Preparar telar y transfiere lo faltante.</p>}
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" onClick={() => setIsStartRunModalOpen(false)} className="min-h-11 border-slate-600 text-slate-200">Volver</Button>
                 <Button
                   type="submit"
-                  disabled={startRunMutation.isPending}
-                  className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl"
+                  disabled={!canStartSelectedRun || startRunMutation.isPending}
+                  className="min-h-11 flex-1 bg-emerald-600 font-bold text-white hover:bg-emerald-700"
                 >
-                  {startRunMutation.isPending ? 'Iniciando...' : 'Comenzar Corrida'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsStartRunModalOpen(false)}
-                  className="h-12 border-slate-600 text-slate-300 rounded-xl"
-                >
-                  Cancelar
+                  {startRunMutation.isPending ? 'Iniciando…' : 'Confirmar e iniciar'}
                 </Button>
               </div>
             </form>

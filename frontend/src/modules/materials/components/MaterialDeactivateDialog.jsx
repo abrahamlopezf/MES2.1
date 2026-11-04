@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../design-system';
 import { useBottomSheetAnimation } from '../../../hooks/useBottomSheetAnimation';
 

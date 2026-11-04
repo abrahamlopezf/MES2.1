@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../../api/axiosClient';
-import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { MapPin, Loader2, RefreshCw, QrCode, ShieldAlert, FilterX, Info, X, Layers, Trash2, ChevronUp, ChevronDown } from '@/design-system/components/Icon/googleIconCompat';
 import { Badge, Input, Button, TopBar } from '../../../../design-system';
 import { BajaBottomSheet } from '../components/BajaBottomSheet.container';
 import { InfoBottomSheet } from '../components/InfoBottomSheet.container';

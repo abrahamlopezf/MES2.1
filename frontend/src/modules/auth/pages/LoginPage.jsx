@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Lock, LogIn, User, Eye, EyeOff } from 'lucide-react';
+import { Lock, LogIn, User, Eye, EyeOff } from '@/design-system/components/Icon/googleIconCompat';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';

@@ -1,7 +1,20 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { isSupervisorUser, isAdminUser, canManageUsers, getUserAreaCode } from '../utils/authHelpers';
+
+const telaresMenuPaths = [
+  '/telares/dashboard',
+  '/production/telares-dashboard',
+  '/telares/catalogos',
+  '/telares/operadores',
+  '/production/viajero-tracker',
+  '/production/telares',
+  '/production/corte',
+  '/telares/odc',
+  '/telares/scrap-control',
+];
+const hasTelaresMenuAccess = (pathname: string) => telaresMenuPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
 export const SuperAdminRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { user } = useAuthStore();
@@ -23,7 +36,7 @@ export const GlobalAdminRoute: React.FC<{ children?: React.ReactNode }> = ({ chi
 export const UsersManagementRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { user } = useAuthStore();
   const roleCode = String(typeof user?.role === 'string' ? user.role : user?.role?.code || '').toUpperCase();
-  const isAllowed = isAdminUser(user) || canManageUsers(user) || roleCode === 'SUPERVISOR_EXTRUSION';
+  const isAllowed = isAdminUser(user) || canManageUsers(user) || ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(roleCode);
   if (!isAllowed) return <Navigate to="/dashboard" replace />;
   return children ? <>{children}</> : <Outlet />;
 };
@@ -64,10 +77,12 @@ export const ExtrusionRoute: React.FC<{ children?: React.ReactNode }> = ({ child
 
 export const TelaresRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { user } = useAuthStore();
+  const location = useLocation();
 
   const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
   if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode)) return children ? <>{children}</> : <Outlet />;
   if (['ADMIN_TELARES', 'ADMIN_TEL'].includes(roleCode)) {
+    if (!hasTelaresMenuAccess(location.pathname)) return <Navigate to="/telares/catalogos" replace />;
     return children ? <>{children}</> : <Outlet />;
   }
 
@@ -83,6 +98,7 @@ export const TelaresRoute: React.FC<{ children?: React.ReactNode }> = ({ childre
     if (userArea !== 'TELARES') {
       return <Navigate to="/dashboard" replace />;
     }
+    if (!hasTelaresMenuAccess(location.pathname)) return <Navigate to="/telares/catalogos" replace />;
     return children ? <>{children}</> : <Outlet />;
   }
 

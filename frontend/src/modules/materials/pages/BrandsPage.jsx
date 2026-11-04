@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SubcatalogPageTemplate from './SubcatalogPageTemplate';
-import { Award } from 'lucide-react';
+import { Award } from '@/design-system/components/Icon/googleIconCompat';
 import { 
   useMaterialBrandsQuery, 
   useCreateMaterialBrandMutation, 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, X, QrCode, ShieldAlert, Sparkles, CheckCircle2, AlertCircle, Info, Layers } from 'lucide-react';
+import { Save, X, QrCode, ShieldAlert, Sparkles, CheckCircle2, AlertCircle, Info, Layers } from '@/design-system/components/Icon/googleIconCompat';
 import { useConfirmAction } from '../../../providers/ConfirmProvider';
 import { TFAlert, TFButton, TFCard, TFCardContent, TFInput, TFSelect, TFTextarea } from '../../../components/tf-ui';
 import MasterDataActionDialog from '../../../components/shared/MasterDataActionDialog';

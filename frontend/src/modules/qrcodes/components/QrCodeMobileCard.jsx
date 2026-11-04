@@ -1,4 +1,4 @@
-import { CalendarClock, Eye, MapPin, MoreHorizontal, QrCode, ShieldAlert } from 'lucide-react';
+import { CalendarClock, Eye, MapPin, MoreHorizontal, QrCode, ShieldAlert } from '@/design-system/components/Icon/googleIconCompat';
 
 import { TFButton, TFCard, TFCardContent } from '../../../components/tf-ui';
 import QrStatusBadge from './QrStatusBadge';

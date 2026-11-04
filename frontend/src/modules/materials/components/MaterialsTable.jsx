@@ -1,4 +1,4 @@
-import { Edit3, ShieldAlert, Settings } from 'lucide-react';
+import { Edit3, ShieldAlert, Settings } from '@/design-system/components/Icon/googleIconCompat';
 
 import { Button } from '../../../design-system';
 import { getMaterialKey, getMaterialTagKey } from '../utils/recordKeys';

@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => sequelize.define(
     queue_id: { type: DataTypes.INTEGER, allowNull: true },
     extruder_id: { type: DataTypes.INTEGER, allowNull: false },
     destination_subarea_id: { type: DataTypes.INTEGER, allowNull: true },
+    destination_route: { type: DataTypes.STRING(24), allowNull: true },
     mixture_qr: { type: DataTypes.STRING(120), allowNull: false },
     rack_id: { type: DataTypes.INTEGER, allowNull: false },
     pti_product_id: { type: DataTypes.INTEGER, allowNull: false },

@@ -1,4 +1,4 @@
-import { Plus, QrCode, RefreshCw, ScanLine, Shuffle } from 'lucide-react';
+import { Plus, QrCode, RefreshCw, ScanLine, Shuffle } from '@/design-system/components/Icon/googleIconCompat';
 
 import {
   TFBadge,

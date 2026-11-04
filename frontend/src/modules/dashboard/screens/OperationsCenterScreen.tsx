@@ -1,6 +1,6 @@
 import React from 'react';
 import { SectionHeader } from '@/shared/components/domain/SectionHeader';
-import { LayoutDashboard, WifiOff } from 'lucide-react';
+import { LayoutDashboard, WifiOff } from '@/design-system/components/Icon/googleIconCompat';
 import { useOperationsDashboard } from '../api/useOperationsDashboard';
 import { LoadingState } from '@/shared/components/domain/states/LoadingState';
 import { ErrorState } from '@/shared/components/domain/states/ErrorState';
