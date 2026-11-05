@@ -335,7 +335,7 @@ class ExtrusionService {
       if (formulaKind && !machineId) {
         const { Extruder, ExtruderQueue } = require('../../database/models');
         const eligibleMachines = formulaKind === 'EXTRUDER_1'
-          ? await Extruder.findAll({ where: { code: 'EXT-01', is_active: true, status: 'ACTIVE' }, transaction })
+          ? await Extruder.findAll({ where: { machine_number: 1, is_active: true, status: 'ACTIVE' }, transaction })
           : formulaKind === 'FIXED'
             ? await Extruder.findAll({ where: { id: (formula.allowed_extruders || []).map(Number), is_active: true, status: 'ACTIVE' }, transaction })
             : await Extruder.findAll({ where: { is_active: true, status: 'ACTIVE', is_dynamic_member: true }, transaction });
@@ -2260,6 +2260,7 @@ class ExtrusionService {
       const { validatePtiDestination } = require('./services/ptiDestinationRules');
       const resolvedDestinationRoute = validatePtiDestination({
         extruderNumber: effectiveExtruderNumber,
+        telaresSubareaCode: extruderMachine?.telares_subarea_code,
       });
       const expectedPtiId = Number(queueItem.output_pti_product_id || 0);
       if (expectedPtiId > 0
@@ -4835,10 +4836,10 @@ class ExtrusionService {
         }
         const machines = await Extruder.findAll({
           where: { id: requestedIds, is_active: true, status: 'ACTIVE' },
-          attributes: ['id', 'code'],
+          attributes: ['id', 'code', 'machine_number'],
           transaction: t,
         });
-        if (machines.length !== requestedIds.length || machines.some((machine) => ['EXT-01', 'EXT-LIQ'].includes(machine.code))) {
+        if (machines.length !== requestedIds.length || machines.some((machine) => Number(machine.machine_number) === 1 || machine.code === 'EXT-LIQ')) {
           throw Object.assign(new Error('Una o más extrusoras seleccionadas no están disponibles para asignación fija.'), { statusCode: 409 });
         }
         allowedExtruders = requestedIds;
@@ -4955,7 +4956,7 @@ class ExtrusionService {
 
         let requestedExtruderIds = [];
         if (requestedMode === 'EXTRUDER_1') {
-          const machineOne = await Extruder.findOne({ where: { code: 'EXT-01' }, attributes: ['id'], transaction: t });
+          const machineOne = await Extruder.findOne({ where: { machine_number: 1, is_active: true }, attributes: ['id'], transaction: t });
           requestedExtruderIds = machineOne ? [Number(machineOne.id)] : [];
           if (!requestedExtruderIds.length) {
             throw Object.assign(new Error('La Extrusora 1 no está registrada; no se puede guardar su fórmula exclusiva.'), { statusCode: 409 });
@@ -4971,11 +4972,11 @@ class ExtrusionService {
           }
           const selectedMachines = await Extruder.findAll({
             where: { id: requestedExtruderIds, is_active: true, status: 'ACTIVE' },
-            attributes: ['id', 'code'],
+            attributes: ['id', 'code', 'machine_number'],
             transaction: t,
           });
           if (selectedMachines.length !== requestedExtruderIds.length
-            || selectedMachines.some((machine) => ['EXT-01', 'EXT-LIQ'].includes(machine.code))) {
+            || selectedMachines.some((machine) => Number(machine.machine_number) === 1 || machine.code === 'EXT-LIQ')) {
             throw Object.assign(new Error('Una o más extrusoras ya no están disponibles para asignación fija.'), { statusCode: 409 });
           }
           if (!requestedExtruderIds.length) {
@@ -5116,7 +5117,7 @@ class ExtrusionService {
 
         const clientFormulaKind = getClientFormulaKind(formula);
         if (clientFormulaKind === 'EXTRUDER_1') {
-          allowed = activeExtruders.filter((extruder) => extruder.code === 'EXT-01').map((extruder) => Number(extruder.id));
+          allowed = activeExtruders.filter((extruder) => Number(extruder.machine_number) === 1).map((extruder) => Number(extruder.id));
           restricted = [];
         } else if (clientFormulaKind === 'DYNAMIC') {
           allowed = [];
@@ -5226,10 +5227,10 @@ class ExtrusionService {
    * Crea un nuevo producto PTI (carrete/bobina) enlazado a su fórmula de extrusión.
    */
   async createPtiProduct(payload) {
-    const { PtiProduct, Formula } = require('../../database/models');
+    const { PtiProduct, Formula, Extruder, PtiRack } = require('../../database/models');
     const {
       code, name, specifications, unit_weight_kg, unit_price, formula_id, material_id, is_active,
-      extrusion_machine_number, tape_type, color, denier, tape_count, tape_count_tolerance = 10,
+      extrusion_machine_number, extrusion_machine_id, tape_type, color, denier, tape_count, tape_count_tolerance = 10,
       tape_width_mm, transformed_cost_index = 1,
     } = payload;
 
@@ -5258,11 +5259,24 @@ class ExtrusionService {
     }
     validatePtiSingleColor(name, color);
 
+    const machine = extrusion_machine_id
+      ? await Extruder.findOne({ where: { id: Number(extrusion_machine_id), is_active: true } })
+      : await Extruder.findOne({ where: { machine_number: numericProfile.extrusion_machine_number, is_active: true } });
+    if (!machine || Number(machine.machine_number) !== numericProfile.extrusion_machine_number) {
+      throw Object.assign(new Error('La extrusora seleccionada ya no está activa o no coincide con el número de máquina del PTI.'), { statusCode: 400 });
+    }
+
     const formula = formula_id ? await Formula.findByPk(formula_id) : null;
     if (formula_id && !formula) {
       const error = new Error(`La fórmula seleccionada con ID ${formula_id} no existe.`);
       error.statusCode = 404;
       throw error;
+    }
+    if (formula) {
+      const formulaAllowed = isClientFormulaAllowedOnMachine(formula, machine);
+      if (formulaAllowed === false) {
+        throw Object.assign(new Error(`La fórmula ${formula.code} no está autorizada para ${machine.name}.`), { statusCode: 409 });
+      }
     }
     if (formula) {
       const alreadyLinked = await PtiProduct.findOne({ where: { formula_id: formula.id } });
@@ -5299,6 +5313,8 @@ class ExtrusionService {
         unit_weight_kg: weight,
         unit_price: !isNaN(price) && price >= 0 ? price : 0.00,
         extrusion_machine_number: numericProfile.extrusion_machine_number,
+        extrusion_machine_id: machine.id,
+        telares_subarea_code: machine.telares_subarea_code || 'NO_APLICA',
         tape_type: String(tape_type).trim(),
         color: String(color).trim(),
         denier: numericProfile.denier,
@@ -5321,7 +5337,7 @@ class ExtrusionService {
    * Actualiza un producto PTI existente (nombre, código, especificaciones, peso unitario, precio unitario, fórmula, estado).
    */
   async updatePtiProduct(id, payload) {
-    const { PtiProduct, Formula } = require('../../database/models');
+    const { PtiProduct, Formula, Extruder, PtiRack } = require('../../database/models');
     const pti = await PtiProduct.findByPk(id);
     if (!pti) {
       const error = new Error(`Producto PTI con ID ${id} no encontrado.`);
@@ -5373,6 +5389,33 @@ class ExtrusionService {
       pti[field] = value;
     }
 
+    if (payload.extrusion_machine_id !== undefined || payload.extrusion_machine_number !== undefined) {
+      const machine = payload.extrusion_machine_id
+        ? await Extruder.findOne({ where: { id: Number(payload.extrusion_machine_id), is_active: true } })
+        : await Extruder.findOne({ where: { machine_number: Number(payload.extrusion_machine_number), is_active: true } });
+      if (!machine || Number(machine.machine_number) !== Number(payload.extrusion_machine_number ?? machine.machine_number)) {
+        throw Object.assign(new Error('La extrusora seleccionada ya no está activa o no coincide con el perfil del PTI.'), { statusCode: 400 });
+      }
+      if (pti.formula_id) {
+        const assignedFormula = await Formula.findByPk(pti.formula_id);
+        if (assignedFormula && isClientFormulaAllowedOnMachine(assignedFormula, machine) === false) {
+          throw Object.assign(new Error(`La fórmula ${assignedFormula.code} no está autorizada para ${machine.name}.`), { statusCode: 409 });
+        }
+      }
+      if (Number(pti.extrusion_machine_id || 0) !== Number(machine.id)) {
+        const occupiedRack = await PtiRack.findOne({
+          where: { current_pti_product_id: pti.id, current_quantity: { [Op.gt]: 0 } },
+          attributes: ['id', 'rack_code'],
+        });
+        if (occupiedRack) {
+          throw Object.assign(new Error(`No se puede cambiar la máquina del PTI mientras el rack ${occupiedRack.rack_code} tenga bobinas. Vacía el rack primero.`), { statusCode: 409 });
+        }
+      }
+      pti.extrusion_machine_id = machine.id;
+      pti.extrusion_machine_number = Number(machine.machine_number);
+      pti.telares_subarea_code = machine.telares_subarea_code || 'NO_APLICA';
+    }
+
     if (payload.color !== undefined || payload.name !== undefined) {
       validatePtiSingleColor(pti.name, pti.color);
     }
@@ -5384,6 +5427,13 @@ class ExtrusionService {
         const error = new Error(`La fórmula con ID ${fId} no existe.`);
         error.statusCode = 404;
         throw error;
+      }
+      if (formula) {
+        const assignedMachine = await Extruder.findByPk(pti.extrusion_machine_id);
+        const formulaAllowed = isClientFormulaAllowedOnMachine(formula, assignedMachine);
+        if (formulaAllowed === false) {
+          throw Object.assign(new Error(`La fórmula ${formula.code} no está autorizada para la máquina asignada a este PTI.`), { statusCode: 409 });
+        }
       }
       const linkedPti = fId === null ? null : await PtiProduct.findOne({ where: { formula_id: fId } });
       if (linkedPti && linkedPti.id !== pti.id) {
@@ -5462,7 +5512,7 @@ class ExtrusionService {
    * Catálogo de extrusoras y compatibilidad de fórmulas.
    */
   async getMachines() {
-    const { Extruder, Formula, ExtruderFormula, ExtruderQueue } = require('../../database/models');
+    const { Extruder, Formula, ExtruderFormula, ExtruderQueue, PtiProduct } = require('../../database/models');
     const extruders = await Extruder.findAll({
       where: { is_active: true },
       include: [
@@ -5471,6 +5521,11 @@ class ExtrusionService {
           as: 'allowedFormulas',
           attributes: ['id', 'code', 'name'],
           through: { attributes: [], where: { is_allowed: true } }
+        },
+        {
+          model: PtiProduct,
+          as: 'ptiProducts',
+          attributes: ['id', 'code', 'name', 'is_active'],
         }
       ],
       order: [['id', 'ASC']]
@@ -5487,12 +5542,15 @@ class ExtrusionService {
       return {
         id: ext.id,
         code: ext.code,
+        machine_number: ext.machine_number == null ? null : Number(ext.machine_number),
         name: ext.name,
         type: ext.type,
         status: ext.status,
         is_active: Boolean(ext.is_active),
         notes: ext.notes,
         is_dynamic_member: Boolean(ext.is_dynamic_member),
+        telares_subarea_code: ext.telares_subarea_code || 'NO_APLICA',
+        ptiProducts: ext.ptiProducts || [],
         allowedFormulas: ext.allowedFormulas || [],
         compatible_formulas: ext.allowedFormulas || [],
         has_formula_matrix: configuredMachineIds.has(Number(ext.id)),
@@ -5505,19 +5563,31 @@ class ExtrusionService {
     const { Extruder } = require('../../database/models');
     const code = String(payload.code || '').trim().toUpperCase();
     const name = String(payload.name || '').trim();
+    const codeNumber = /^EXT-(\d{1,3})$/.exec(code);
+    const explicitMachineNumber = payload.machine_number === '' || payload.machine_number == null ? codeNumber?.[1] : payload.machine_number;
+    const machineNumber = Number(explicitMachineNumber);
+    const telaresSubareaCode = String(payload.telares_subarea_code || 'TELARES_ROLLO').trim().toUpperCase();
     if (!code || !name) {
       throw Object.assign(new Error('El código y el nombre de la extrusora son obligatorios.'), { statusCode: 400 });
     }
     if (!/^[A-Z0-9][A-Z0-9_-]{1,49}$/.test(code)) {
       throw Object.assign(new Error('El código debe contener de 2 a 50 caracteres: letras, números, guion o guion bajo.'), { statusCode: 400 });
     }
+    if (!Number.isInteger(machineNumber) || machineNumber <= 0) {
+      throw Object.assign(new Error('Indica el número físico de la extrusora (por ejemplo, código EXT-06).'), { statusCode: 400 });
+    }
+    if (!['TELARES_BANDA', 'TELARES_ROLLO', 'NO_APLICA'].includes(telaresSubareaCode)) {
+      throw Object.assign(new Error('Selecciona Telares Banda, Telares Rollo o No aplica como destino del PTI.'), { statusCode: 400 });
+    }
     const isDynamicMember = Boolean(payload.is_dynamic_member);
-    if (code === 'EXT-01' && isDynamicMember) {
+    if (machineNumber === 1 && isDynamicMember) {
       throw Object.assign(new Error('La Extrusora 1 es exclusiva y no puede agregarse al grupo dinámico.'), { statusCode: 400 });
     }
     try {
       return await Extruder.create({
         code,
+        machine_number: machineNumber,
+        telares_subarea_code: telaresSubareaCode,
         name,
         type: String(payload.type || 'STANDARD').trim() || 'STANDARD',
         status: 'ACTIVE',
@@ -5527,7 +5597,7 @@ class ExtrusionService {
       });
     } catch (error) {
       if (error.name === 'SequelizeUniqueConstraintError') {
-        throw Object.assign(new Error(`Ya existe una extrusora con el código ${code}.`), { statusCode: 409 });
+        throw Object.assign(new Error(`Ya existe una extrusora con el código o número ${code}/${machineNumber}.`), { statusCode: 409 });
       }
       throw error;
     }
@@ -5551,6 +5621,24 @@ class ExtrusionService {
       machine.name = name;
     }
     if (payload.type !== undefined) machine.type = String(payload.type).trim() || 'STANDARD';
+    if (payload.telares_subarea_code !== undefined) {
+      const destination = String(payload.telares_subarea_code || '').trim().toUpperCase();
+      if (!['TELARES_BANDA', 'TELARES_ROLLO', 'NO_APLICA'].includes(destination)) {
+        throw Object.assign(new Error('Destino de Telares no válido.'), { statusCode: 400 });
+      }
+      if (destination !== machine.telares_subarea_code) {
+        const { PtiProduct, PtiRack } = require('../../database/models');
+        const pendingQueues = await ExtruderQueue.count({ where: { extruder_id: machine.id, status: ['ACTIVA', 'EN_ESPERA', 'PAUSADA'] } });
+        const ptiIds = await PtiProduct.findAll({ where: { extrusion_machine_id: machine.id }, attributes: ['id'] });
+        const occupiedRack = ptiIds.length ? await PtiRack.findOne({ where: { current_pti_product_id: { [Op.in]: ptiIds.map((pti) => pti.id) }, current_quantity: { [Op.gt]: 0 } } }) : null;
+        if (pendingQueues || occupiedRack) {
+          throw Object.assign(new Error('No se puede cambiar el destino a Telares mientras haya mezclas en cola o PTI con existencia en racks. Cierra esas operaciones primero.'), { statusCode: 409 });
+        }
+      }
+      machine.telares_subarea_code = destination;
+      const { PtiProduct } = require('../../database/models');
+      await PtiProduct.update({ telares_subarea_code: destination }, { where: { extrusion_machine_id: machine.id } });
+    }
     if (payload.status !== undefined) {
       const status = String(payload.status).trim().toUpperCase();
       if (!['ACTIVE', 'MAINTENANCE'].includes(status)) {
@@ -5562,7 +5650,7 @@ class ExtrusionService {
     if (payload.is_active !== undefined) machine.is_active = Boolean(payload.is_active);
     if (payload.is_dynamic_member !== undefined) {
       const isDynamicMember = Boolean(payload.is_dynamic_member);
-      if (machine.code === 'EXT-01' && isDynamicMember) {
+      if (Number(machine.machine_number) === 1 && isDynamicMember) {
         throw Object.assign(new Error('La Extrusora 1 es exclusiva y no puede agregarse al grupo dinámico.'), { statusCode: 400 });
       }
       if (Boolean(machine.is_dynamic_member) !== isDynamicMember) {

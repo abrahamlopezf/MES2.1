@@ -1275,7 +1275,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   </div>
                 </div>
 
-                {expectedPti && <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">La salida de Extrusión se dirige a {Number(expectedPti.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} según la extrusora. El destino posterior se decide en Telares.</div>}
+                {expectedPti && <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">La salida de Extrusión se dirige a {expectedPti.telares_subarea_code === 'TELARES_BANDA' || (!expectedPti.telares_subarea_code && Number(expectedPti.extrusion_machine_number) === 1) ? 'Telares Banda' : expectedPti.telares_subarea_code === 'TELARES_ROLLO' || (!expectedPti.telares_subarea_code && [2, 4, 5].includes(Number(expectedPti.extrusion_machine_number))) ? 'Telares Rollo' : 'un destino fuera de Telares'} según la configuración de la máquina. El destino posterior se decide en Telares.</div>}
 
                 {/* 2. Selector de Rack Destino a Ancho Completo */}
                 <div className="space-y-1.5">

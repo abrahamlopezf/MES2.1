@@ -169,7 +169,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
     const filtered = machines.filter((ext: any) => {
       const dynamicExtruderIds = machines.filter((machine: any) => machine.is_active !== false && machine.status === 'ACTIVE' && machine.is_dynamic_member).map((machine: any) => Number(machine.id));
-      const clientAllowedExtruders = getClientAllowedExtruders(selectedFormula, dynamicExtruderIds);
+      const machineOneId = machines.find((machine: any) => Number(machine.machine_number) === 1 || machine.code === 'EXT-01')?.id || 1;
+      const clientAllowedExtruders = getClientAllowedExtruders(selectedFormula, dynamicExtruderIds, Number(machineOneId));
       if (clientAllowedExtruders) return clientAllowedExtruders.includes(Number(ext.id));
 
       // Matriz técnica solo para fórmulas fuera del catálogo de estos PDF.

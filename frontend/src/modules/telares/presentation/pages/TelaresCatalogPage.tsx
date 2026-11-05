@@ -92,6 +92,7 @@ const emptyBom = () => ({
 
 const routeOptionsForKind = (kind: string) => kind === 'ROLLO_TELA'
   ? [
+      { value: 'TELARES,LAMINADO', label: 'Telares → Laminado' },
       { value: 'TELARES,LAMINADO,CORTE', label: 'Telares → Laminado → Corte' },
       { value: 'TELARES,CORTE', label: 'Telares → Corte directo' },
       { value: 'TELARES,LONAS', label: 'Telares → Lonas' },
@@ -225,7 +226,14 @@ export const TelaresCatalogPage: React.FC = () => {
   const isBandSubarea = /banda/i.test(String(selectedSubarea?.name || ''));
   const configuredRouteOptions = routeOptionsForKind(bomDraft.product_kind);
   const compatiblePtis = useMemo(
-    () => activePtis.filter((pti: any) => (Number(pti.extrusion_machine_number) === 1) === isBandSubarea),
+    () => activePtis.filter((pti: any) => {
+      const configured = String(pti.telares_subarea_code || '').toUpperCase();
+      if (configured === 'NO_APLICA') return false;
+      const legacyMachineNumber = Number(pti.extrusion_machine_number);
+      const isBandPti = configured ? configured === 'TELARES_BANDA' : legacyMachineNumber === 1;
+      if (!configured && ![1, 2, 4, 5].includes(legacyMachineNumber)) return false;
+      return isBandPti === isBandSubarea;
+    }),
     [activePtis, isBandSubarea]
   );
 

@@ -51,9 +51,18 @@ const isDirectExtrusionPtiRoute = (rack) => {
   const route = String(rack?.destination_route || '').trim().toUpperCase();
   return Boolean(route) && DIRECT_EXTRUSION_PTI_ROUTES.has(route);
 };
-const getExpectedPtiTelaresRoute = (ptiProduct) => Number(ptiProduct?.extrusion_machine_number) === 1 ? 'TELARES_BANDA' : 'TELARES_ROLLO';
+const getExpectedPtiTelaresRoute = (ptiProduct) => {
+  const configured = String(ptiProduct?.telares_subarea_code || '').toUpperCase();
+  if (configured === 'TELARES_BANDA' || configured === 'TELARES_ROLLO') return configured;
+  if (configured === 'NO_APLICA') return null;
+  const legacyMachineNumber = Number(ptiProduct?.extrusion_machine_number);
+  if (legacyMachineNumber === 1) return 'TELARES_BANDA';
+  if ([2, 4, 5].includes(legacyMachineNumber)) return 'TELARES_ROLLO';
+  return null;
+};
 const assertRackAuthorizedForTelares = (rack, ptiProduct) => {
   const expectedRoute = getExpectedPtiTelaresRoute(ptiProduct);
+  if (!expectedRoute) throw Object.assign(new Error(`El PTI ${ptiProduct?.code || ''} no está configurado para abastecer Telares.`), { statusCode: 409, code: 'PTI_NOT_ASSIGNED_TO_TELARES' });
   if (rack?.destination_route && rack.destination_route !== expectedRoute) {
     throw Object.assign(
       new Error(`El rack ${rack.rack_code} está reservado para ${rack.destination_route}; no puede consumirse en ${expectedRoute}.`),
@@ -65,7 +74,7 @@ const isRackAuthorizedForTelares = (rack) => {
   const ptiProduct = rack?.currentPtiProduct;
   if (!ptiProduct || isDirectExtrusionPtiRoute(rack)) return false;
   const expectedRoute = getExpectedPtiTelaresRoute(ptiProduct);
-  return !rack.destination_route || rack.destination_route === expectedRoute;
+  return Boolean(expectedRoute) && (!rack.destination_route || rack.destination_route === expectedRoute);
 };
 
 class TelaresService {
@@ -154,7 +163,7 @@ class TelaresService {
           [Op.or]: [{ destination_route: null }, { destination_route: { [Op.in]: ['TELARES_ROLLO', 'TELARES_BANDA'] } }],
         },
         attributes: ['id', 'rack_code', 'qr_code', 'current_pti_product_id', 'current_quantity', 'unit_weight_kg', 'container_type', 'created_at', 'destination_route'],
-        include: [{ model: PtiProduct, as: 'currentPtiProduct', attributes: ['id', 'code', 'name', 'color', 'denier', 'extrusion_machine_number'], required: false }],
+        include: [{ model: PtiProduct, as: 'currentPtiProduct', attributes: ['id', 'code', 'name', 'color', 'denier', 'extrusion_machine_number', 'extrusion_machine_id', 'telares_subarea_code'], required: false }],
         order: [['created_at', 'ASC'], ['id', 'ASC']],
         transaction,
         // The PTI is an optional LEFT JOIN; lock only rows from the rack table.
@@ -270,7 +279,7 @@ class TelaresService {
       include: [{
         model: PtiProduct,
         as: 'currentPtiProduct',
-        attributes: ['id', 'code', 'name', 'color', 'denier', 'tape_width_mm', 'extrusion_machine_number'],
+        attributes: ['id', 'code', 'name', 'color', 'denier', 'tape_width_mm', 'extrusion_machine_number', 'extrusion_machine_id', 'telares_subarea_code'],
         required: false,
       }],
     });
@@ -286,7 +295,7 @@ class TelaresService {
       include: [{
         model: PtiProduct,
         as: 'currentPtiProduct',
-        attributes: ['id', 'code', 'name', 'color', 'denier', 'tape_width_mm', 'extrusion_machine_number'],
+        attributes: ['id', 'code', 'name', 'color', 'denier', 'tape_width_mm', 'extrusion_machine_number', 'extrusion_machine_id', 'telares_subarea_code'],
         required: false,
       }],
       order: [['created_at', 'ASC'], ['id', 'ASC']],
@@ -369,7 +378,16 @@ class TelaresService {
   async resolvePtiSubareaId(ptiProduct, transaction) {
     const area = await Area.findOne({ where: { code: 'TELARES' }, transaction });
     if (!area) throw Object.assign(new Error('No existe el área Telares para resolver el destino del PTI.'), { statusCode: 409 });
-    const nomenclature = Number(ptiProduct?.extrusion_machine_number) === 1 ? 'TB' : 'TR';
+    const configuredSubarea = String(ptiProduct?.telares_subarea_code || '').toUpperCase();
+    if (configuredSubarea === 'NO_APLICA') throw Object.assign(new Error(`El PTI ${ptiProduct?.code || ''} no tiene destino a Telares.`), { statusCode: 409 });
+    const nomenclature = configuredSubarea === 'TELARES_BANDA'
+      ? 'TB'
+      : configuredSubarea === 'TELARES_ROLLO'
+        ? 'TR'
+        : Number(ptiProduct?.extrusion_machine_number) === 1
+          ? 'TB'
+          : [2, 4, 5].includes(Number(ptiProduct?.extrusion_machine_number)) ? 'TR' : null;
+    if (!nomenclature) throw Object.assign(new Error(`El PTI ${ptiProduct?.code || ''} no tiene una subárea de Telares válida configurada.`), { statusCode: 409, code: 'PTI_TELARES_SUBAREA_UNRESOLVED' });
     const subarea = await Subarea.findOne({ where: { area_id: area.id, nomenclature, is_active: true }, transaction });
     if (!subarea) {
       const destination = nomenclature === 'TB' ? 'Telares Banda' : 'Telares Rollo';
@@ -655,7 +673,7 @@ class TelaresService {
       if (Number(values.current_spools_count || 0) > creelCapacity) throw new Error('La capacidad individual no puede ser menor que las bobinas que ya están cargadas en el telar.');
       values.creel_capacity_spools = creelCapacity;
       const selectedPtis = ptiIds.length ? await PtiProduct.findAll({ where: { id: ptiIds }, transaction: t }) : [];
-      if (selectedPtis.some((pti) => (Number(pti.extrusion_machine_number) === 1) !== isBandSubarea)) {
+      if (selectedPtis.some((pti) => getExpectedPtiTelaresRoute(pti) !== (isBandSubarea ? 'TELARES_BANDA' : 'TELARES_ROLLO'))) {
         throw new Error('Las bobinas PTI de la Extrusora 1 solo pueden configurarse en Tejido Banda; las demás extrusoras corresponden a Tejido Tela.');
       }
       const selectedBoms = bomIds.length ? await ProductionBom.findAll({ where: { id: bomIds }, transaction: t }) : [];
@@ -764,7 +782,7 @@ class TelaresService {
       }
       const requiredSubareaId = rack.destination_subarea_id || expectedPtiSubareaId;
       if (Number(requiredSubareaId) !== Number(expectedPtiSubareaId)) {
-        throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${Number(ptiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${getExpectedPtiTelaresRoute(ptiProduct) === 'TELARES_BANDA' ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
       }
       if (Number(requiredSubareaId || 0) !== Number(loom.subarea_id || 0)) {
         const destination = requiredSubareaId ? 'Telares Banda' : 'Telares general';
@@ -1006,7 +1024,7 @@ class TelaresService {
         const ptiId = Number(item.pti_product_id);
         const pti = ptiId > 0 ? await PtiProduct.findByPk(ptiId, { transaction: t }) : null;
         if (!pti || !pti.is_active) throw new Error('Cada componente debe ser un PTI activo del catálogo de Extrusión.');
-        if ((Number(pti.extrusion_machine_number) === 1) !== isBandSubarea) {
+        if (getExpectedPtiTelaresRoute(pti) !== (isBandSubarea ? 'TELARES_BANDA' : 'TELARES_ROLLO')) {
           throw new Error(`El PTI ${pti.code} no corresponde a ${isBandSubarea ? 'Telares Banda (Extrusora 1)' : 'Telares Rollo (Extrusoras 2, 4, 5 o dinámicas)'}.`);
         }
 
@@ -1174,7 +1192,7 @@ class TelaresService {
       }
       const destinationSubareaId = rack.destination_subarea_id || expectedPtiSubareaId;
       if (Number(destinationSubareaId) !== Number(expectedPtiSubareaId)) {
-        throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${Number(ptiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} tiene destino fijo a ${getExpectedPtiTelaresRoute(ptiProduct) === 'TELARES_BANDA' ? 'Telares Banda' : 'Telares Rollo'}.`), { statusCode: 409 });
       }
       if (Number(destinationSubareaId || 0) !== Number(loom.subarea_id || 0)) {
         const destination = destinationSubareaId ? 'TELARES BANDA' : 'TELARES';

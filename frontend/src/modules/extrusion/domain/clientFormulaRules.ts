@@ -29,14 +29,16 @@ export const getClientFormulaKind = (formula?: FormulaRuleTarget | null): 'EXTRU
   const normalized = String(typeof formula === 'string' ? formula : formula?.code || '').trim().toUpperCase();
   if (normalized.startsWith('F-EXT-1-')) return 'EXTRUDER_1';
   if (GENERAL_CLIENT_FORMULA_CODES.has(normalized) || normalized.startsWith('F-EXT-CUSTOM-')) {
-    return String(typeof formula === 'string' ? '' : formula?.extruder_assignment_mode || '').toUpperCase() === 'FIXED' ? 'FIXED' : 'DYNAMIC';
+    const mode = String(typeof formula === 'string' ? '' : formula?.extruder_assignment_mode || '').toUpperCase();
+    if (mode === 'EXTRUDER_1') return 'EXTRUDER_1';
+    return mode === 'FIXED' ? 'FIXED' : 'DYNAMIC';
   }
   return null;
 };
 
-export const getClientAllowedExtruders = (formula?: FormulaRuleTarget | null, dynamicExtruderIds: number[] = []): number[] | null => {
+export const getClientAllowedExtruders = (formula?: FormulaRuleTarget | null, dynamicExtruderIds: number[] = [], exclusiveExtruderId = 1): number[] | null => {
   const kind = getClientFormulaKind(formula);
-  if (kind === 'EXTRUDER_1') return [1];
+  if (kind === 'EXTRUDER_1') return [Number(exclusiveExtruderId)];
   if (kind === 'DYNAMIC') return [...new Set(dynamicExtruderIds.map(Number).filter(Number.isInteger))];
   if (kind === 'FIXED') {
     const ids = typeof formula === 'string' ? [] : formula?.allowed_extruders || [];

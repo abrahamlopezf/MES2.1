@@ -24,6 +24,8 @@ module.exports = (sequelize, DataTypes) => {
         comment: 'Ficha técnica: calibre, denier, micras, resistencia, color, etc.',
       },
       extrusion_machine_number: { type: DataTypes.INTEGER, allowNull: true },
+      extrusion_machine_id: { type: DataTypes.INTEGER, allowNull: true },
+      telares_subarea_code: { type: DataTypes.STRING(30), allowNull: true },
       tape_type: { type: DataTypes.STRING(80), allowNull: true },
       color: { type: DataTypes.STRING(240), allowNull: true },
       denier: { type: DataTypes.INTEGER, allowNull: true },

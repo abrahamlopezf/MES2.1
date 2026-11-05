@@ -999,7 +999,7 @@ export const FormulasPage: React.FC = () => {
                             <div><dt className="font-semibold text-muted-foreground">Denier</dt><dd>{pti.denier ?? '—'}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Cintas</dt><dd>{pti.tape_count == null ? '—' : `${pti.tape_count} ±${pti.tape_count_tolerance ?? 10}`}</dd></div>
                             <div><dt className="font-semibold text-muted-foreground">Ancho</dt><dd>{pti.tape_width_mm == null ? '—' : `${Number(pti.tape_width_mm)} mm`}</dd></div>
-                            <div className="col-span-2"><dt className="font-semibold text-muted-foreground">Subárea de suministro</dt><dd className="mt-0.5 break-words">{Number(pti.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} · asignada según la extrusora</dd></div>
+                            <div className="col-span-2"><dt className="font-semibold text-muted-foreground">Subárea de suministro</dt><dd className="mt-0.5 break-words">{pti.telares_subarea_code === 'TELARES_BANDA' || (!pti.telares_subarea_code && Number(pti.extrusion_machine_number) === 1) ? 'Telares Banda' : pti.telares_subarea_code === 'NO_APLICA' ? 'Sin destino a Telares' : 'Telares Rollo'} · según la máquina configurada</dd></div>
                             {allowCosts && <div><dt className="font-semibold text-muted-foreground">Índice PTI</dt><dd>×{Number(pti.transformed_cost_index || 1).toFixed(4)}</dd></div>}
                           </dl>
                           <div className="border-t border-border pt-3">
@@ -1220,7 +1220,7 @@ export const FormulasPage: React.FC = () => {
                     <div><dt className="text-muted-foreground">Ancho</dt><dd className="font-semibold">{selectedPtiDetails.tape_width_mm == null ? '—' : `${Number(selectedPtiDetails.tape_width_mm)} mm`}</dd></div>
                     <div><dt className="text-muted-foreground">Peso unitario</dt><dd className="font-semibold">{selectedPtiDetails.unit_weight_kg == null ? 'Pendiente' : `${Number(selectedPtiDetails.unit_weight_kg).toFixed(3)} kg`}</dd></div>
                     {allowCosts && <div><dt className="text-muted-foreground">Precio unitario</dt><dd className="font-semibold text-emerald-500">${Number(selectedPtiDetails.unit_price || 0).toFixed(2)}</dd></div>}
-                    <div className="sm:col-span-2"><dt className="text-muted-foreground">Subárea de suministro</dt><dd className="font-semibold">{Number(selectedPtiDetails.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} · asignada según la extrusora</dd></div>
+                    <div className="sm:col-span-2"><dt className="text-muted-foreground">Subárea de suministro</dt><dd className="font-semibold">{selectedPtiDetails.telares_subarea_code === 'TELARES_BANDA' || (!selectedPtiDetails.telares_subarea_code && Number(selectedPtiDetails.extrusion_machine_number) === 1) ? 'Telares Banda' : selectedPtiDetails.telares_subarea_code === 'NO_APLICA' ? 'Sin destino a Telares' : 'Telares Rollo'} · según la máquina configurada</dd></div>
                     {allowCosts && <div><dt className="text-muted-foreground">Índice de costo PTI</dt><dd className="font-mono font-semibold">×{Number(selectedPtiDetails.transformed_cost_index || 1).toFixed(4)}</dd></div>}
                   </dl>
                 </section>

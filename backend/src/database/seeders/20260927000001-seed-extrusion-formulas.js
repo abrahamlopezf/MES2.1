@@ -1,9 +1,9 @@
 'use strict';
 
 const FORMULAS = [
-  // EXCLUSIVO CLIENTE LIQUITANK
+  // Fórmulas de cliente Liquitank; el producto se fabrica en la Extrusora 1.
   {
-    code: 'F-EXT-LIQ-ROJO', name: 'MEZCLA COLOR ROJO (LIQUITANK)', target_area_id: 1, target_machine: 'EXTRUSORA LIQUITANK',
+    code: 'F-EXT-LIQ-ROJO', name: 'MEZCLA COLOR ROJO (LIQUITANK)', target_area_id: 1, target_machine: 'EXTRUSORA 1 · CLIENTE LIQUITANK',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 440.6, percentage: 88.1, unit: 'KG', is_required: false },
       { name: 'POLIPROPILENO (C)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: false },
@@ -12,7 +12,7 @@ const FORMULAS = [
     ]
   },
   {
-    code: 'F-EXT-LIQ-NEGRO', name: 'MEZCLA COLOR NEGRO (LIQUITANK)', target_area_id: 1, target_machine: 'EXTRUSORA LIQUITANK',
+    code: 'F-EXT-LIQ-NEGRO', name: 'MEZCLA COLOR NEGRO (LIQUITANK)', target_area_id: 1, target_machine: 'EXTRUSORA 1 · CLIENTE LIQUITANK',
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 440.6, percentage: 88.1, unit: 'KG', is_required: false },
       { name: 'POLIPROPILENO (C)', quantity: 50.0, percentage: 10.0, unit: 'KG', is_required: false },

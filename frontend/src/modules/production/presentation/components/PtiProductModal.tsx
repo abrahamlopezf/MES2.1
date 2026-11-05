@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Button, Input, Badge, Icon } from '@/design-system';
@@ -7,6 +8,7 @@ import { Formula, PtiProduct } from '@/modules/extrusion/types/extrusion.types';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
 import { colorNamesMatch, getNamedColors } from '@/modules/extrusion/domain/colorRules';
+import { apiClient } from '@/core/api/apiClient';
 
 interface PtiProductModalProps {
   isOpen: boolean;
@@ -43,6 +45,11 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
 
   const createMutation = useCreatePtiProductMutation();
   const updateMutation = useUpdatePtiProductMutation();
+  const { data: machines = [], isLoading: machinesLoading, isError: machinesError } = useQuery({
+    queryKey: ['extrusion', 'machines'],
+    queryFn: async () => (await apiClient.get('/extrusion/machines')).data?.data || [],
+    enabled: isOpen,
+  });
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   useEffect(() => {
@@ -115,6 +122,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
     }
     const technicalProfile = {
       extrusion_machine_number: Number(extrusionMachineNumber),
+      extrusion_machine_id: Number(machines.find((machine: any) => Number(machine.machine_number) === Number(extrusionMachineNumber))?.id) || undefined,
       tape_type: tapeType.trim(),
       color: color.trim(),
       denier: Number(denier),
@@ -332,10 +340,11 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="text-xs font-bold text-muted-foreground space-y-1">
                   Extrusora de referencia *
-                  <select value={extrusionMachineNumber} onChange={(e) => setExtrusionMachineNumber(e.target.value ? Number(e.target.value) : '')} required className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground">
-                    <option value="">Seleccionar extrusora</option>
-                    {[1, 2, 4, 5, 6].map((machine) => <option key={machine} value={machine}>{machine === 6 ? 'Extrusora Liquitank' : `Extrusora ${machine}`}</option>)}
+                  <select value={extrusionMachineNumber} onChange={(e) => setExtrusionMachineNumber(e.target.value ? Number(e.target.value) : '')} required disabled={machinesLoading || machinesError} className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                    <option value="">{machinesLoading ? 'Cargando máquinas…' : machinesError ? 'No se pudo cargar' : 'Seleccionar extrusora'}</option>
+                    {machines.filter((machine: any) => machine.is_active && Number(machine.machine_number) > 0).map((machine: any) => <option key={machine.id} value={machine.machine_number}>{machine.name} · {machine.code}</option>)}
                   </select>
+                  {machinesError && <span role="alert" className="text-xs font-normal text-destructive">No fue posible consultar el catálogo de extrusoras.</span>}
                 </label>
                 <label className="text-xs font-bold text-muted-foreground space-y-1">
                   Tipo de cinta *
@@ -454,7 +463,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending} className="font-bold px-5">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending} className="gap-2 font-bold px-6">
+            <Button type="submit" disabled={isPending || machinesLoading || machinesError} className="gap-2 font-bold px-6">
               {isPending ? (
                 <>
                   <Icon name="progress_activity" size={16} className="animate-spin" />

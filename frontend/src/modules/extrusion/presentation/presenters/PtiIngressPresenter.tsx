@@ -832,7 +832,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 )}
               </div>
 
-              {selectedPtiProduct && <div className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">Este PTI se entrega a {Number(selectedPtiProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} según su extrusora. La ruta posterior del rollo o banda se define en Telares.</div>}
+              {selectedPtiProduct && <div className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">Este PTI se entrega a {selectedPtiProduct.telares_subarea_code === 'TELARES_BANDA' || (!selectedPtiProduct.telares_subarea_code && Number(selectedPtiProduct.extrusion_machine_number) === 1) ? 'Telares Banda' : selectedPtiProduct.telares_subarea_code === 'NO_APLICA' ? 'un destino fuera de Telares' : 'Telares Rollo'} según su máquina. La ruta posterior del rollo o banda se define en Telares.</div>}
             </div>
 
             {/* ---------------------------------------------------- */}

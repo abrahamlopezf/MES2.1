@@ -57,6 +57,8 @@ export interface PtiProduct {
   unit_weight_kg: number | null;
   unit_price: number;
   extrusion_machine_number: number | null;
+  extrusion_machine_id?: number | null;
+  telares_subarea_code?: 'TELARES_BANDA' | 'TELARES_ROLLO' | 'NO_APLICA' | null;
   tape_type: string | null;
   color: string | null;
   denier: number | null;
@@ -78,6 +80,7 @@ export interface CreatePtiProductPayload {
   name: string;
   specifications?: string;
   extrusion_machine_number?: number;
+  extrusion_machine_id?: number;
   tape_type?: string;
   color?: string;
   denier?: number;
@@ -98,6 +101,7 @@ export interface UpdatePtiProductPayload {
   name?: string;
   specifications?: string;
   extrusion_machine_number?: number | null;
+  extrusion_machine_id?: number | null;
   tape_type?: string | null;
   color?: string | null;
   denier?: number | null;
@@ -167,9 +171,11 @@ export interface ExtruderQueue {
 
 export interface ExtruderMachineInfo {
   id: number;
+  machine_number?: number | null;
   name: string;
   type: 'FIXED' | 'DYNAMIC';
   description: string;
+  telares_subarea_code?: 'TELARES_BANDA' | 'TELARES_ROLLO' | 'NO_APLICA';
 }
 
 export interface MachineQueueGroup {

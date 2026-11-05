@@ -43,6 +43,31 @@ function normalizeProductionRoute(route, productKind = 'ROLLO_TELA') {
     );
   }
 
+  // A route is one selected path for one roll. Alternative paths belong in
+  // ProductionBom.allowed_routes as separate arrays; never combine branches
+  // such as CUT + LAMINATION + SALE in the same roll route.
+  const tail = stages.slice(1);
+  const isBanda = ['BANDA', 'CINTA'].includes(kind);
+  const validTail = isBanda
+    ? [['CORTE'], ['ALMACEN'], ['VENTA']]
+    : [
+        ['CORTE'],
+        ['CORTE', 'CONFECCION'],
+        ['LAMINADO'],
+        ['LAMINADO', 'CORTE'],
+        ['LONAS'],
+        ['ALMACEN'],
+        ['VENTA'],
+      ];
+  if (!validTail.some((candidate) => candidate.length === tail.length && candidate.every((stage, index) => stage === tail[index]))) {
+    throw Object.assign(
+      new Error(isBanda
+        ? 'Ruta no válida para Banda/Cintilla. Elige Corte, Almacén o Venta.'
+        : 'Ruta no válida para rollo de tela. Elige Corte, Laminado, Laminado → Corte, Lonas, Almacén o Venta.'),
+      { statusCode: 400, code: 'INVALID_PRODUCTION_ROUTE' },
+    );
+  }
+
   return stages;
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -78,17 +78,17 @@ export const LaminadoCatalogPage: React.FC = () => {
   const [formData, setFormData] = useState(emptySpecificationForm());
 
   // Queries
-  const { data: specs = [], isLoading } = useQuery({
+  const { data: specs = [], isLoading, isError: specsError, refetch: refetchSpecs } = useQuery({
     queryKey: ['laminado-specifications'],
     queryFn: () => laminadoApi.getSpecifications(),
   });
 
-  const { data: boms = [] } = useQuery({
+  const { data: boms = [], isError: bomsError, refetch: refetchBoms } = useQuery({
     queryKey: ['telares-boms'],
     queryFn: () => telaresApi.getBoms(),
   });
 
-  const { data: warehouseMaterials = [] } = useQuery({
+  const { data: warehouseMaterials = [], isError: materialsError, refetch: refetchMaterials } = useQuery({
     queryKey: ['warehouse-materials-list'],
     queryFn: async () => {
       const res = await axiosClient.get('/materials?limit=250');
@@ -145,6 +145,15 @@ export const LaminadoCatalogPage: React.FC = () => {
     setFormData(emptySpecificationForm());
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsModalOpen(false);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isModalOpen]);
 
   const handleOpenEdit = (spec: LaminadoSpecification) => {
     setEditingSpecId(spec.id);
@@ -358,7 +367,13 @@ export const LaminadoCatalogPage: React.FC = () => {
       </div>
 
       {/* Grid of Specifications */}
-      {isLoading ? (
+      {specsError ? (
+        <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-5 text-center">
+          <p className="font-bold text-red-700 dark:text-red-300">No se pudo cargar el catálogo de Laminado.</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">No se mostrarán fórmulas vacías por un error de conexión.</p>
+          <Button onClick={() => refetchSpecs()} className="mt-3 min-h-11">Reintentar</Button>
+        </div>
+      ) : isLoading ? (
         <div className="text-center py-12 text-slate-500">Cargando catálogo de Laminado...</div>
       ) : filteredSpecs.length === 0 ? (
         <div className="text-center py-12 text-slate-500 border rounded-xl bg-white/5">
@@ -402,12 +417,12 @@ export const LaminadoCatalogPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex w-full items-center gap-2 sm:w-auto">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleOpenEdit(spec)}
-                    className="min-h-10 min-w-0 flex-1 whitespace-normal px-2.5 text-xs font-semibold sm:flex-initial"
+                  className="min-h-11 min-w-0 flex-1 whitespace-normal px-3 text-sm font-semibold sm:flex-initial"
                   >
                     <Edit2 className="h-3.5 w-3.5 mr-1" />
                     Editar
@@ -416,7 +431,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => toggleMutation.mutate(spec.id)}
-                    className={`min-h-10 min-w-0 flex-1 whitespace-normal px-2.5 text-xs font-semibold sm:flex-initial ${
+                  className={`min-h-11 min-w-0 flex-1 whitespace-normal px-3 text-sm font-semibold sm:flex-initial ${
                       spec.is_active ? 'text-amber-500 hover:bg-amber-500/10' : 'text-emerald-500 hover:bg-emerald-500/10'
                     }`}
                   >
@@ -525,8 +540,11 @@ export const LaminadoCatalogPage: React.FC = () => {
       {/* Modal Crear / Editar Especificación */}
       {isModalOpen &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/75 p-2 backdrop-blur-sm sm:p-4">
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="laminado-spec-dialog-title"
               className={`relative w-full max-w-3xl my-8 p-6 rounded-2xl border shadow-2xl ${
                 isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
               }`}
@@ -534,19 +552,21 @@ export const LaminadoCatalogPage: React.FC = () => {
               <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
                 <div className="flex items-center gap-2">
                   <Layers className="h-6 w-6 text-amber-500" />
-                  <h2 className="text-xl font-black">
+                  <h2 id="laminado-spec-dialog-title" className="text-lg sm:text-xl font-black">
                     {editingSpecId ? 'Editar Especificación de Laminado' : 'Nueva Especificación / Receta de Laminado'}
                   </h2>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg"
+                  type="button"
+                  aria-label="Cerrar formulario de especificación"
+                  className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-slate-100 rounded-lg"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+              <form onSubmit={handleSubmit} className="space-y-4 max-h-[75dvh] overflow-y-auto pr-1 sm:max-h-[78vh]">
                 {/* 1. Datos Principales */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
@@ -634,6 +654,15 @@ export const LaminadoCatalogPage: React.FC = () => {
                   </div>
 
                 {/* 2. Definición de Rendimiento / PTI */}
+                {(bomsError || materialsError) && (
+                  <div role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-semibold text-amber-800 dark:text-amber-200">No se pudieron cargar todos los datos auxiliares del formulario.</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {bomsError && <Button type="button" variant="outline" className="min-h-11" onClick={() => refetchBoms()}>Reintentar BOM</Button>}
+                      {materialsError && <Button type="button" variant="outline" className="min-h-11" onClick={() => refetchMaterials()}>Reintentar insumos</Button>}
+                    </div>
+                  </div>
+                )}
                 <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
                   <h4 className="text-xs font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
                     <Package className="h-4 w-4" />
@@ -796,7 +825,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                 {/* 4. Insumos de Almacén Requeridos */}
                 <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-3">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-black uppercase text-purple-400 tracking-wider flex items-center gap-1.5">
+                    <h4 className="text-sm font-black uppercase text-purple-400 tracking-wider flex items-center gap-1.5">
                       <Sliders className="h-4 w-4" />
                       Resinas e Insumos de Almacén Requeridos (receta para metros estándar)
                     </h4>
@@ -804,7 +833,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                       type="button"
                       size="sm"
                       onClick={handleAddMaterialRow}
-                      className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+                      className="min-h-11 px-3 text-sm bg-purple-600 hover:bg-purple-700 text-white"
                     >
                       <Plus className="h-3.5 w-3.5 mr-1" />
                       Agregar Insumo
@@ -817,12 +846,12 @@ export const LaminadoCatalogPage: React.FC = () => {
                   ) : (
                     <div className="space-y-2">
                       {formData.materials.map((row, index) => (
-                        <div key={index} className="grid grid-cols-[minmax(0,1fr)_8rem_2rem] gap-2 items-center bg-black/20 p-2 rounded-lg">
+                        <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,8rem)_2.75rem] gap-2 items-center bg-black/20 p-2 rounded-lg max-sm:grid-cols-[minmax(0,1fr)_2.75rem]">
                           <select
                             required
                             value={row.material_id}
                             onChange={(e) => handleMaterialChange(index, 'material_id', e.target.value ? Number(e.target.value) : '')}
-                            className="flex-1 h-9 px-2 rounded border text-xs bg-slate-800 text-slate-200"
+                            className="flex-1 min-h-11 w-full px-2 rounded border text-sm bg-slate-800 text-slate-200 max-sm:col-span-2"
                           >
                             <option value="">-- Seleccionar Resina o Insumo --</option>
                             {recipeMaterials.map((mat: any) => (
@@ -831,7 +860,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                               </option>
                             ))}
                           </select>
-                          {recipeMaterials.length === 0 && <p className="col-span-3 text-xs text-amber-300">No hay materiales activos con unidad base KG en el catálogo de Almacén.</p>}
+                          {recipeMaterials.length === 0 && <p className="col-span-full text-sm text-amber-300">No hay materiales activos con unidad base KG en el catálogo de Almacén.</p>}
 
                           <div>
                             <Input
@@ -843,19 +872,20 @@ export const LaminadoCatalogPage: React.FC = () => {
                               placeholder="KG"
                               value={row.quantity}
                               onChange={(e) => handleMaterialChange(index, 'quantity', e.target.value)}
-                              className="h-9 text-xs"
+                              className="min-h-11 text-sm max-sm:col-span-1"
                             />
                           </div>
 
                           <button
                             type="button"
                             onClick={() => handleRemoveMaterialRow(index)}
-                            className="p-1.5 text-red-400 hover:text-red-300 rounded"
+                            aria-label={`Eliminar insumo ${index + 1}`}
+                            className="min-h-11 min-w-11 flex items-center justify-center text-red-400 hover:text-red-300 rounded"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                          <div className="col-span-3">
-                            <Input placeholder="Nota / especificación opcional" aria-label={`Nota del insumo ${index + 1}`} value={row.notes} onChange={(e) => handleMaterialChange(index, 'notes', e.target.value)} className="h-9 text-xs" />
+                          <div className="col-span-full">
+                            <Input placeholder="Nota / especificación opcional" aria-label={`Nota del insumo ${index + 1}`} value={row.notes} onChange={(e) => handleMaterialChange(index, 'notes', e.target.value)} className="min-h-11 text-sm" />
                           </div>
                         </div>
                       ))}
@@ -864,14 +894,14 @@ export const LaminadoCatalogPage: React.FC = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                <div className="sticky bottom-0 flex flex-col-reverse justify-end gap-3 border-t border-slate-200 bg-white/95 pt-3 dark:border-slate-800 dark:bg-slate-900/95 sm:flex-row">
+                  <Button type="button" variant="outline" className="min-h-11" onClick={() => setIsModalOpen(false)}>
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
                     disabled={createMutation.isPending || updateMutation.isPending}
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                    className="min-h-11 bg-amber-600 hover:bg-amber-700 text-white font-bold"
                   >
                     {createMutation.isPending || updateMutation.isPending ? 'Guardando...' : 'Guardar Especificación'}
                   </Button>

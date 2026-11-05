@@ -20,6 +20,23 @@ const { canViewCosts } = require('../../shared/security/accessRules');
 const normalizeViajeroQr = require('../../shared/utils/normalizeViajeroQr');
 const consumptionOrderService = require('../warehouse/consumptionOrder.service');
 const rollTransformation = require('../wip/rollTransformation');
+const { normalizeProductionRoute, normalizeStageName } = require('../telares/productionRules');
+
+function getLaminadoRouteState(roll) {
+  try {
+    const route = normalizeProductionRoute(roll.route, roll.bom?.product_kind || 'ROLLO_TELA');
+    const stageIndex = route.indexOf('LAMINADO');
+    if (stageIndex < 1) return null;
+    return {
+      route,
+      previousStage: route[stageIndex - 1],
+      isNext: normalizeStageName(roll.next_allowed_stage) === 'LAMINADO',
+      isAtPreviousStage: normalizeStageName(roll.current_stage) === route[stageIndex - 1],
+    };
+  } catch (_error) {
+    return null;
+  }
+}
 
 class LaminadoService {
   /**
@@ -315,7 +332,7 @@ class LaminadoService {
       },
       include: [
         { model: Loom, as: 'loom', attributes: ['id', 'code', 'name', 'type'] },
-        { model: ProductionBom, as: 'bom', attributes: ['id', 'code', 'name', 'target_width_cm', 'target_weight_g_per_m', 'fabric_type'] },
+        { model: ProductionBom, as: 'bom', attributes: ['id', 'code', 'name', 'product_kind', 'target_width_cm', 'target_weight_g_per_m', 'fabric_type'] },
         { model: User, as: 'operator', attributes: ['id', 'first_name', 'last_name', 'username'] },
       ],
       order: [['created_at', 'DESC']],
@@ -611,7 +628,7 @@ class LaminadoService {
       },
       include: [
         { model: Loom, as: 'loom', attributes: ['id', 'code', 'name'] },
-        { model: ProductionBom, as: 'bom', attributes: ['id', 'code', 'name', 'target_width_cm', 'target_weight_g_per_m', 'fabric_type'] },
+        { model: ProductionBom, as: 'bom', attributes: ['id', 'code', 'name', 'product_kind', 'target_width_cm', 'target_weight_g_per_m', 'fabric_type'] },
       ],
     });
 
@@ -624,7 +641,17 @@ class LaminadoService {
     }
 
     const targetArea = 'LAMINADO';
-    const route = roll.route || [];
+    const routeState = getLaminadoRouteState(roll);
+    const route = routeState?.route || roll.route || [];
+
+    if (!routeState) {
+      return {
+        is_allowed: false,
+        error_code: 'INVALID_PRODUCTION_ROUTE',
+        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+        message: 'La ruta del QR no es válida para Laminado. Solicita al administrador corregir la ficha técnica de Telares.',
+      };
+    }
 
     // Verificación 1: ¿Fue encaminado a esta área?
     if (!route.includes(targetArea)) {
@@ -653,7 +680,7 @@ class LaminadoService {
     }
 
     // Verificación de secuencia
-    if (roll.next_allowed_stage !== targetArea) {
+    if (!routeState.isNext || !routeState.isAtPreviousStage) {
       await ViajeroRoutingLog.create({
         viajero_roll_id: roll.id,
         from_stage: roll.current_stage,
@@ -661,7 +688,7 @@ class LaminadoService {
         area_id: 4,
         operator_id: operator_id || null,
         action: 'BLOQUEO_RUTEO_INVALIDO',
-        notes: `Intento de salto de etapa a LAMINADO. Se requería antes: ${roll.next_allowed_stage}`,
+        notes: `Intento fuera de secuencia a LAMINADO. Estado actual: ${roll.current_stage}; se esperaba ${routeState.previousStage} → LAMINADO.`,
       });
 
       return {
@@ -674,7 +701,7 @@ class LaminadoService {
           current_stage: roll.current_stage,
           next_allowed_stage: roll.next_allowed_stage,
         },
-        message: `⛔ SECUENCIA INVÁLIDA: Este rollo debe procesarse primero en '${roll.next_allowed_stage}' antes de poder ingresar a LAMINADO.`,
+        message: `⛔ SECUENCIA INVÁLIDA: Este rollo debe estar en '${routeState.previousStage}' y tener Laminado como siguiente estación.`,
       };
     }
 
@@ -746,7 +773,8 @@ class LaminadoService {
         throw Object.assign(new Error(`El rollo con ID ${roll_id} no existe.`), { statusCode: 404 });
       }
 
-      if (roll.next_allowed_stage !== 'LAMINADO' || roll.status === 'TRANSFORMADO' || !roll.is_active || !roll.route?.includes('LAMINADO')) {
+      const routeState = getLaminadoRouteState(roll);
+      if (!routeState || !routeState.isNext || !routeState.isAtPreviousStage || roll.status === 'TRANSFORMADO' || !roll.is_active) {
         throw Object.assign(new Error(`El rollo no está autorizado para transformación en LAMINADO. Siguiente etapa oficial: ${roll.next_allowed_stage}`), { statusCode: 400 });
       }
 
@@ -812,9 +840,10 @@ class LaminadoService {
         );
 
       // 4. Determinar siguiente estación oficial
-      const route = Array.isArray(roll.route) && roll.route.length > 0 ? roll.route : ['TELARES', 'LAMINADO', 'CORTE'];
+      const route = routeState.route;
       const lamIdx = route.indexOf('LAMINADO');
-      const nextStage = lamIdx >= 0 && lamIdx + 1 < route.length ? route[lamIdx + 1] : 'CORTE';
+      const nextStage = lamIdx >= 0 && lamIdx + 1 < route.length ? route[lamIdx + 1] : 'TERMINADO';
+      const isRouteComplete = nextStage === 'TERMINADO';
 
       // 5. Actualizar Historial y Rollo
       const history = Array.isArray(roll.stages_history) ? [...roll.stages_history] : [];
@@ -842,6 +871,7 @@ class LaminadoService {
         {
           current_stage: 'LAMINADO',
           next_allowed_stage: nextStage,
+          status: isRouteComplete ? 'TRANSFORMADO' : 'DISPONIBLE',
           qr_code: newQrCodeString,
           meters: outMeters,
           weight_kg: outWeight,

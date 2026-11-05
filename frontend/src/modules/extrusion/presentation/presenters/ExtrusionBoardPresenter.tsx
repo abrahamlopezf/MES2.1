@@ -40,7 +40,7 @@ export interface ExtrusionBoardPresenterProps {
   onPendingPtiCancel: () => void;
   pendingPtiStep: 'QUESTION' | 'QUICK_INGRESS';
   quickRacks: Array<{ id: number; rack_code: string; qr_code: string; current_quantity: number; max_capacity: number; current_pti_product_id?: number | null; current_pti_type_id?: number | null; destination_route?: PtiDestinationRoute | null }>;
-  quickPtiProducts: Array<{ id: number; code: string; name: string; color: string | null; extrusion_machine_number?: number | null; material_id?: number | null; unit_price: number }>;
+  quickPtiProducts: Array<{ id: number; code: string; name: string; color: string | null; extrusion_machine_number?: number | null; telares_subarea_code?: string | null; material_id?: number | null; unit_price: number }>;
   quickRackId: number | '';
   onQuickRackChange: (id: number | '') => void;
   quickPtiProductId: number | '';
@@ -550,7 +550,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                     {quickPtiProducts.map((product) => <option key={product.id} value={product.id}>{product.code} · {product.name}{product.color ? ` · ${product.color}` : ''}</option>)}
                   </select>
                 </label>
-                {selectedQuickProduct && <p className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">El PTI se dirige a {Number(selectedQuickProduct.extrusion_machine_number) === 1 ? 'Telares Banda' : 'Telares Rollo'} según la extrusora. El destino posterior se define en Telares.</p>}
+                {selectedQuickProduct && <p className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">El PTI se dirige a {selectedQuickProduct.telares_subarea_code === 'TELARES_BANDA' || (!selectedQuickProduct.telares_subarea_code && Number(selectedQuickProduct.extrusion_machine_number) === 1) ? 'Telares Banda' : selectedQuickProduct.telares_subarea_code === 'NO_APLICA' ? 'un destino fuera de Telares' : 'Telares Rollo'} según la configuración de la máquina. El destino posterior se define en Telares.</p>}
                 <label className="space-y-1 text-sm font-bold">Bobinas por registrar
                   <Input type="number" min="1" step="1" value={quickPieces} onChange={(event) => onQuickPiecesChange(event.target.value)} placeholder="Cantidad de bobinas" />
                 </label>

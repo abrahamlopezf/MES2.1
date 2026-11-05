@@ -130,12 +130,12 @@ const FORMULAS_DATA = [
   {
     code: 'F-EXT-LIQ-ROJO',
     name: 'MEZCLA COLOR ROJO (LIQUITANK)',
-    description: 'Fórmula exclusiva Liquitank Rojo 500kg',
+    description: 'Referencia comercial de cliente Liquitank; fabricada en Extrusora 1. Lote de 500 kg.',
     batch_size_kg: 500.00,
     expected_yield_pieces: 4900.00,
     expected_yield_kg: 485.00,
-    allowed_extruders: [1, 3, 4, 5],
-    restricted_extruders: [],
+    allowed_extruders: [1],
+    restricted_extruders: [2, 4, 5],
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 440.6, percentage: 88.12, is_restricted: false },
       { name: 'POLIPROPILENO (C)', quantity: 50.0, percentage: 10.00, is_restricted: false },
@@ -146,12 +146,12 @@ const FORMULAS_DATA = [
   {
     code: 'F-EXT-LIQ-NEGRO',
     name: 'MEZCLA COLOR NEGRO (LIQUITANK)',
-    description: 'Fórmula exclusiva Liquitank Negro 500kg',
+    description: 'Referencia comercial de cliente Liquitank; fabricada en Extrusora 1. Lote de 500 kg.',
     batch_size_kg: 500.00,
     expected_yield_pieces: 4900.00,
     expected_yield_kg: 485.00,
-    allowed_extruders: [1, 3, 4, 5],
-    restricted_extruders: [],
+    allowed_extruders: [1],
+    restricted_extruders: [2, 4, 5],
     ingredients: [
       { name: 'POLIPROPILENO (A)', quantity: 440.6, percentage: 88.12, is_restricted: false },
       { name: 'POLIPROPILENO (C)', quantity: 50.0, percentage: 10.00, is_restricted: false },

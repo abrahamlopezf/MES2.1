@@ -29,7 +29,24 @@ test('Telares Banda and Cintilla do not offer Laminado as a route', () => {
 
 test('Telares output accepts documented internal destinations without Globo', () => {
   assert.deepEqual(normalizeProductionRoute(['TELARES', 'LAMINADO', 'CORTE']), ['TELARES', 'LAMINADO', 'CORTE']);
+  assert.deepEqual(normalizeProductionRoute(['TELARES', 'LAMINADO']), ['TELARES', 'LAMINADO']);
   assert.deepEqual(normalizeProductionRoute(['TELARES', 'CORTE']), ['TELARES', 'CORTE']);
+  assert.deepEqual(normalizeProductionRoute(['TELARES', 'VENTA']), ['TELARES', 'VENTA']);
+  assert.deepEqual(normalizeProductionRoute(['TELARES', 'LONAS']), ['TELARES', 'LONAS']);
+});
+
+test('Telares stores alternate destinations as separate routes, never one mixed path', () => {
+  const documentedOptions = [
+    ['TELARES', 'CORTE'],
+    ['TELARES', 'LAMINADO'],
+    ['TELARES', 'LONAS'],
+    ['TELARES', 'VENTA'],
+  ];
+  assert.equal(documentedOptions.every((route) => normalizeProductionRoute(route).length > 1), true);
+  assert.throws(
+    () => normalizeProductionRoute(['TELARES', 'CORTE', 'LAMINADO', 'VENTA']),
+    (error) => error.code === 'INVALID_PRODUCTION_ROUTE',
+  );
 });
 
 test('operator ranges cover the produced meters and accept the documented 0.01 boundary', () => {

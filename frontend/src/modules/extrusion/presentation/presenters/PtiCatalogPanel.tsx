@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/core/api/apiClient';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,6 +75,13 @@ export const PtiCatalogPanel: React.FC = () => {
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const { data: products = [], isLoading } = usePtiProductsQuery({ is_active: 'ALL' });
   const { data: formulas = [] } = useFloorFormulasQuery({ is_active: 'ALL' });
+  const { data: machines = [], isLoading: machinesLoading, isError: machinesError } = useQuery({
+    queryKey: ['extrusion', 'machines'],
+    queryFn: async () => {
+      const response = await apiClient.get('/extrusion/machines');
+      return response.data?.data || response.data || [];
+    },
+  });
   const createMutation = useCreatePtiProductMutation();
   const updateMutation = useUpdatePtiProductMutation();
   const deleteMutation = useDeletePtiProductMutation();
@@ -99,6 +108,7 @@ export const PtiCatalogPanel: React.FC = () => {
       code: draft.code.trim() || undefined,
       name,
       extrusion_machine_number: Number(draft.extrusion_machine_number),
+      extrusion_machine_id: Number(machines.find((machine: any) => Number(machine.machine_number) === Number(draft.extrusion_machine_number))?.id) || undefined,
       tape_type: draft.tape_type.trim(),
       color: draft.color.trim(),
       denier: Number(draft.denier),
@@ -155,7 +165,7 @@ export const PtiCatalogPanel: React.FC = () => {
                 {isLoading ? <tr><td colSpan={allowCosts ? 10 : 9} className="p-6 text-center text-muted-foreground">Cargando catálogo…</td></tr> : products.map((product: PtiProduct) => (
                   <tr key={product.id} className="align-top">
                     <td className="p-3"><strong className="block">{product.tape_type || product.name}</strong><span className="font-mono text-xs text-muted-foreground">{product.code}</span></td>
-                    <td className="p-3">{product.extrusion_machine_number ?? '—'}</td>
+                    <td className="p-3">{machines.find((machine: any) => Number(machine.machine_number) === Number(product.extrusion_machine_number))?.name || (product.extrusion_machine_number ? `Extrusora ${product.extrusion_machine_number}` : '—')}<span className="mt-1 block text-xs text-muted-foreground">{product.telares_subarea_code === 'TELARES_BANDA' ? 'Telares Banda' : product.telares_subarea_code === 'TELARES_ROLLO' ? 'Telares Rollo' : ''}</span></td>
                     <td className="max-w-56 whitespace-normal p-3">
                       {product.color || '—'}
                       {(getNamedColors(product.color).length !== 1
@@ -194,7 +204,7 @@ export const PtiCatalogPanel: React.FC = () => {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-bold">Código interno<Input value={draft.code} onChange={(e) => set('code', e.target.value.toUpperCase())} placeholder="Automático si queda vacío" className="mt-1 min-h-12 text-base" /></label>
-            <label className="text-sm font-bold">Extrusora *<select required value={draft.extrusion_machine_number} onChange={(e) => set('extrusion_machine_number', e.target.value)} className="mt-1 min-h-12 w-full rounded-md border border-border bg-background px-3 text-base"><option value="">Selecciona</option>{[1, 2, 4, 5].map((machine) => <option key={machine} value={machine}>Extrusora {machine}</option>)}</select></label>
+            <label className="text-sm font-bold">Máquina que produce este PTI *<select required value={draft.extrusion_machine_number} onChange={(e) => set('extrusion_machine_number', e.target.value)} className="mt-1 min-h-12 w-full rounded-md border border-border bg-background px-3 text-base" disabled={machinesLoading || machinesError}><option value="">{machinesLoading ? 'Cargando máquinas…' : machinesError ? 'No se pudo cargar' : 'Selecciona una máquina'}</option>{machines.filter((machine: any) => machine.is_active && Number(machine.machine_number) > 0).map((machine: any) => <option key={machine.id} value={machine.machine_number}>{machine.name} · {machine.code}</option>)}</select>{machinesError && <span role="alert" className="mt-1 block text-sm font-normal text-destructive">No fue posible consultar las máquinas. Actualiza la pantalla e inténtalo de nuevo.</span>}</label>
             <label className="text-sm font-bold">Tipo de cinta *<Input required value={draft.tape_type} onChange={(e) => set('tape_type', e.target.value)} placeholder="Rafia, Trama, Urdimbre…" className="mt-1 min-h-12 text-base" /></label>
             <label className="text-sm font-bold">Color *<Input required value={draft.color} onChange={(e) => set('color', e.target.value)} placeholder="Ej. Azul" className="mt-1 min-h-12 text-base" /><span className="mt-1 block text-xs font-normal text-muted-foreground">Registra un color por ficha PTI; crea otra ficha para cada color adicional.</span></label>
             <label className="text-sm font-bold">Denier *<Input required type="number" min="1" step="1" value={draft.denier} onChange={(e) => set('denier', e.target.value)} className="mt-1 min-h-12 text-base" /></label>
@@ -204,7 +214,7 @@ export const PtiCatalogPanel: React.FC = () => {
           </div>
           <div className="rounded-lg bg-muted/30 p-3 text-xs"><span className="font-semibold text-muted-foreground">Nombre de producto:</span><p className="mt-1 font-bold text-foreground">{makeName(draft) || 'Se genera con el tipo, denier, ancho y color'}</p></div>
           <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4 text-sm text-muted-foreground">
-            El PTI de Extrusión alimenta Telares automáticamente: Extrusora 1 a Telares Banda y las demás extrusoras a Telares Rollo. El destino posterior se define al registrar la producción en Telares.
+            El destino a Telares se configura en la ficha de cada máquina. Las fichas de Telares definen después el camino autorizado del producto terminado (Corte, Laminado, Lonas, Almacén o Venta), según la combinación de PTI que consuma.
           </div>
           <div className="space-y-3 border-t border-border pt-3">
             {allowCosts && (
@@ -224,7 +234,7 @@ export const PtiCatalogPanel: React.FC = () => {
             <label className="block text-sm font-bold">Notas técnicas adicionales<textarea value={draft.specifications} onChange={(e) => set('specifications', e.target.value)} rows={3} className="mt-1 w-full rounded-md border border-border bg-background p-3 text-base" /></label>
             <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5" checked={draft.is_active} onChange={(e) => set('is_active', e.target.checked)} />PTI activo</label>
           </div>
-          <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={reset} className="min-h-12">Cancelar</Button><Button type="submit" disabled={isSaving} className="min-h-12">{isSaving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar PTI'}</Button></div>
+          <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={reset} className="min-h-12">Cancelar</Button><Button type="submit" disabled={isSaving || machinesLoading || machinesError} className="min-h-12">{isSaving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar PTI'}</Button></div>
         </form>
           </DialogContent>
         </Dialog>

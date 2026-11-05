@@ -48,7 +48,7 @@ export const LaminadoWipPage: React.FC = () => {
     setIsScanModalOpen(true);
   }, [initialQrFromUrl]);
 
-  const { data: wipData, isLoading, isFetching, refetch } = useQuery({
+  const { data: wipData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['laminado-wip-summary'],
     queryFn: () => laminadoApi.getWipSummary(),
     refetchInterval: 15000,
@@ -185,7 +185,7 @@ export const LaminadoWipPage: React.FC = () => {
                 <p className="text-2xl font-black mt-1 text-emerald-500">
                   ${Number(macro.total_valuation_mxn).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-slate-400 mt-0.5">Tela + Resinas en custodia</p>
+                <p className="text-xs text-slate-400 mt-0.5">Estimación · Tela + resinas en custodia</p>
               </>
             ) : <p className="text-xs text-slate-400 mt-2">Sin valuación disponible</p>}
           </div>
@@ -194,10 +194,13 @@ export const LaminadoWipPage: React.FC = () => {
 
       {/* Navigation Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-        <div className="flex flex-wrap gap-2">
+        <div role="tablist" aria-label="Secciones del WIP de Laminado" className="grid w-full grid-cols-2 gap-2 xl:flex xl:w-auto">
           <button
+            role="tab"
+            aria-selected={activeTab === 'rolls'}
+            aria-controls="laminado-wip-panel"
             onClick={() => setActiveTab('rolls')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'rolls'
                 ? 'bg-amber-600 text-white shadow-md'
                 : isDark
@@ -206,12 +209,15 @@ export const LaminadoWipPage: React.FC = () => {
             }`}
           >
             <Layers className="h-4 w-4" />
-            Rollos en Piso Laminado ({rollsInFloor.length})
+            En piso ({rollsInFloor.length})
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === 'warehouse'}
+            aria-controls="laminado-wip-panel"
             onClick={() => setActiveTab('warehouse')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'warehouse'
                 ? 'bg-purple-600 text-white shadow-md'
                 : isDark
@@ -220,12 +226,15 @@ export const LaminadoWipPage: React.FC = () => {
             }`}
           >
             <Package className="h-4 w-4" />
-            Resinas e Insumos en Piso ({warehouseMaterials.length})
+            Insumos ({warehouseMaterials.length})
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === 'incoming'}
+            aria-controls="laminado-wip-panel"
             onClick={() => setActiveTab('incoming')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'incoming'
                 ? 'bg-orange-600 text-white shadow-md'
                 : isDark
@@ -234,12 +243,15 @@ export const LaminadoWipPage: React.FC = () => {
             }`}
           >
             <Clock className="h-4 w-4" />
-            En Tránsito hacia Laminado ({rollsIncoming.length})
+            Por recibir ({rollsIncoming.length})
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === 'history'}
+            aria-controls="laminado-wip-panel"
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+            className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'history'
                 ? 'bg-emerald-600 text-white shadow-md'
                 : isDark
@@ -248,7 +260,7 @@ export const LaminadoWipPage: React.FC = () => {
             }`}
           >
             <CheckCircle2 className="h-4 w-4" />
-            PTIs Laminados Recientes ({recentTransformed.length})
+            Finalizados ({recentTransformed.length})
           </button>
         </div>
 
@@ -257,14 +269,21 @@ export const LaminadoWipPage: React.FC = () => {
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar..."
-            className="pl-8 h-9 text-xs bg-transparent"
+            placeholder={activeTab === 'rolls' ? 'Buscar rollo, QR o telar' : activeTab === 'warehouse' ? 'Buscar insumo, código o lote' : 'La búsqueda no aplica en esta sección'}
+            disabled={activeTab === 'incoming' || activeTab === 'history'}
+            className="pl-8 min-h-11 text-sm bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       </div>
 
       {/* Tab Content */}
-      {isLoading ? (
+      {isError ? (
+        <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-5 text-center">
+          <p className="font-bold text-red-700 dark:text-red-300">No se pudo cargar el WIP de Laminado.</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Verifica tu conexión e inténtalo de nuevo. Los datos no se muestran como inventario vacío.</p>
+          <Button onClick={() => refetch()} className="mt-3 min-h-11">Reintentar</Button>
+        </div>
+      ) : isLoading ? (
         <div className="text-center py-16 text-slate-500">Cargando inventario WIP de Laminado...</div>
       ) : activeTab === 'rolls' ? (
         /* TAB 1: Rollos en Piso Laminado */
@@ -331,10 +350,10 @@ export const LaminadoWipPage: React.FC = () => {
                     <User className="h-3.5 w-3.5" />
                     {roll.operator}
                   </span>
-                  <Button
+          <Button
                     size="sm"
                     onClick={() => navigate(`/production/laminado?qr=${roll.qr_code}`)}
-                    className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                    className="min-h-11 px-4 text-sm bg-amber-600 hover:bg-amber-700 text-white font-bold"
                   >
                     Laminar Rollo
                     <ArrowRight className="h-3 w-3 ml-1" />
@@ -439,7 +458,7 @@ export const LaminadoWipPage: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => setSelectedRollForPreparation(roll)}
-                    className="flex-1 text-xs border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
+                    className="min-h-11 flex-1 text-sm border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold"
                   >
                     🔍 Verificar WIP
                   </Button>
@@ -449,7 +468,7 @@ export const LaminadoWipPage: React.FC = () => {
                       setScanInitialQr(roll.qr_code);
                       setIsScanModalOpen(true);
                     }}
-                    className="flex-1 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                    className="min-h-11 flex-1 text-sm bg-amber-600 hover:bg-amber-700 text-white font-bold"
                   >
                     📷 Recibir Rollo
                   </Button>
@@ -465,7 +484,8 @@ export const LaminadoWipPage: React.FC = () => {
             Aún no hay rollos registrados como finalizados en la etapa Laminado el día de hoy.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <>
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase">
                 <tr>
@@ -491,6 +511,25 @@ export const LaminadoWipPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <div className="space-y-3 md:hidden">
+            {recentTransformed.map((item) => (
+              <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-base font-bold text-amber-600 dark:text-amber-400">{item.roll_code}</p>
+                    <p className="mt-1 break-words text-sm text-slate-700 dark:text-slate-300">{item.bom_name}</p>
+                  </div>
+                  <time className="shrink-0 text-right text-xs text-slate-500">{new Date(item.finished_at).toLocaleDateString()}</time>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div><dt className="text-slate-500">Metros</dt><dd className="font-semibold">{item.meters_out} m</dd></div>
+                  <div><dt className="text-slate-500">Peso</dt><dd className="font-semibold">{item.weight_out_kg} kg</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-500">Operador</dt><dd className="font-semibold">{item.operator}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+          </>
         )
       )}
 

@@ -49,7 +49,9 @@ export const EditFormulaModal: React.FC<EditFormulaModalProps> = ({ isOpen, onCl
   const fixedAssignmentCandidates = useMemo(() => machines.filter((machine) =>
     machine.is_active !== false
     && String(machine.status || 'ACTIVE').trim().toUpperCase() === 'ACTIVE'
-    && !['EXT-01', 'EXT-LIQ'].includes(String(machine.code || '').trim().toUpperCase())
+    && Number(machine.machine_number) !== 1
+    && String(machine.code || '').trim().toUpperCase() !== 'EXT-01'
+    && String(machine.code || '').trim().toUpperCase() !== 'EXT-LIQ'
   ), [machines]);
 
   useEffect(() => {

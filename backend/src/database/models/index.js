@@ -831,6 +831,9 @@ db.ExtrusionScrapLog.belongsTo(db.User, {
 const initPtiProductModel = require('../../modules/extrusion/models/ptiProduct.model');
 db.PtiProduct = initPtiProductModel(sequelize, DataTypes);
 
+db.Extruder.hasMany(db.PtiProduct, { foreignKey: 'extrusion_machine_id', as: 'ptiProducts' });
+db.PtiProduct.belongsTo(db.Extruder, { foreignKey: 'extrusion_machine_id', as: 'extrusionMachine' });
+
 // Formula -> PTI Products
 db.Formula.hasMany(db.PtiProduct, {
   foreignKey: 'formula_id',

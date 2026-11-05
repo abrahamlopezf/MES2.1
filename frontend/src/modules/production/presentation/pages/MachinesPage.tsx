@@ -13,7 +13,7 @@ export const MachinesPage = () => {
   const [isFormulasModalOpen, setIsFormulasModalOpen] = useState(false);
   const [isCreateMachineOpen, setIsCreateMachineOpen] = useState(false);
   const [editingMachine, setEditingMachine] = useState<any | null>(null);
-  const [machineDraft, setMachineDraft] = useState({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false });
+  const [machineDraft, setMachineDraft] = useState({ code: '', machine_number: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false, telares_subarea_code: 'TELARES_ROLLO' });
   const [selectedFormulaIds, setSelectedFormulaIds] = useState<number[]>([]);
 
   const queryClient = useQueryClient();
@@ -26,7 +26,7 @@ export const MachinesPage = () => {
       queryClient.invalidateQueries({ queryKey: ['extrusion', 'queues'] });
       toast.success('Extrusora creada y catálogo actualizado.');
       setIsCreateMachineOpen(false);
-      setMachineDraft({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false });
+      setMachineDraft({ code: '', machine_number: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false, telares_subarea_code: 'TELARES_ROLLO' });
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'No se pudo crear la extrusora.'),
   });
@@ -92,7 +92,7 @@ export const MachinesPage = () => {
 
   const handleEditMachine = (machine: any) => {
     setEditingMachine(machine);
-    setMachineDraft({ code: machine.code || '', name: machine.name || '', type: machine.type || 'STANDARD', notes: machine.notes || '', status: machine.status || 'ACTIVE', is_dynamic_member: Boolean(machine.is_dynamic_member) });
+    setMachineDraft({ code: machine.code || '', machine_number: String(machine.machine_number ?? ''), name: machine.name || '', type: machine.type || 'STANDARD', notes: machine.notes || '', status: machine.status || 'ACTIVE', is_dynamic_member: Boolean(machine.is_dynamic_member), telares_subarea_code: machine.telares_subarea_code || 'NO_APLICA' });
   };
 
   return (
@@ -118,7 +118,7 @@ export const MachinesPage = () => {
             <Icon name="qr_code_scanner" size={18} /> Leer QR
           </Button>
           <PermissionGate permission="extrusion.runs.manage">
-            <Button type="button" onClick={() => { setMachineDraft({ code: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false }); setIsCreateMachineOpen(true); }} className="min-h-11 gap-2">
+            <Button type="button" onClick={() => { setMachineDraft({ code: '', machine_number: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false, telares_subarea_code: 'TELARES_ROLLO' }); setIsCreateMachineOpen(true); }} className="min-h-11 gap-2">
               <Icon name="add" size={18} /> Nueva extrusora
             </Button>
           </PermissionGate>
@@ -186,8 +186,10 @@ export const MachinesPage = () => {
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <h3 className="break-words text-lg font-black leading-tight text-foreground">{machine.name}</h3>
                             <Badge variant="outline" className="shrink-0 font-mono text-xs font-bold">{machine.code}</Badge>
+                            {machine.machine_number != null && <Badge variant="outline" className="shrink-0 text-xs font-bold">Máquina física {machine.machine_number}</Badge>}
                           </div>
                           <p className="mt-1 truncate text-sm font-semibold text-muted-foreground">Tipo: {machine.type}</p>
+                          <p className="mt-1 text-xs font-semibold text-muted-foreground">Salida PTI: {machine.telares_subarea_code === 'TELARES_BANDA' ? 'Telares Banda' : machine.telares_subarea_code === 'TELARES_ROLLO' ? 'Telares Rollo' : 'Sin destino a Telares'}</p>
                         </div>
                         <PermissionGate permission="extrusion.runs.manage">
                           <Button type="button" variant="outline" onClick={() => handleEditMachine(machine)} className="min-h-11 min-w-11 shrink-0 px-2" aria-label={`Editar ${machine.name}`} title={`Editar ${machine.name}`}>
@@ -210,6 +212,11 @@ export const MachinesPage = () => {
                     <Badge variant={hasActiveOrders ? 'warning' : 'outline'} className="min-h-9 max-w-full whitespace-normal text-left text-sm font-semibold">
                       {hasActiveOrders ? `${machine.active_orders_count} mezcla(s) en cola o proceso` : 'Sin cola activa'}
                     </Badge>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">
+                    <p className="font-bold text-muted-foreground">PTI enlazados a esta extrusora</p>
+                    {machine.ptiProducts?.length ? <p className="mt-1 font-mono text-foreground">{machine.ptiProducts.map((pti: any) => pti.code).join(' · ')}</p> : <p className="mt-1 text-muted-foreground">Sin fichas enlazadas. Asigna la máquina desde el catálogo de PTI.</p>}
                   </div>
 
                   {/* Footer de Tarjeta: Compatibilidad y Acciones */}
@@ -244,8 +251,14 @@ export const MachinesPage = () => {
               <h3 className="font-black text-lg">Editar {editingMachine.code}</h3>
               <button type="button" onClick={() => setEditingMachine(null)} aria-label="Cerrar edición de extrusora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">✕</button>
             </div>
-            <label className={`flex items-start gap-3 rounded-lg border border-border p-3 text-base text-foreground ${editingMachine.code === 'EXT-01' ? 'opacity-60' : ''}`}>
-              <input type="checkbox" checked={machineDraft.is_dynamic_member} disabled={editingMachine.code === 'EXT-01'} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
+            <label className="block space-y-2 text-sm font-bold text-foreground">Destino de sus PTI a Telares
+              <select value={machineDraft.telares_subarea_code} onChange={(event) => setMachineDraft({ ...machineDraft, telares_subarea_code: event.target.value })} className="min-h-11 w-full rounded-md border border-border bg-background px-3">
+                <option value="TELARES_BANDA">Telares Banda</option><option value="TELARES_ROLLO">Telares Rollo</option><option value="NO_APLICA">No aplica a Telares</option>
+              </select>
+              <span className="block text-xs font-normal text-muted-foreground">Al cambiarlo, se actualizan las fichas PTI ligadas a esta máquina. La ruta posterior del rollo/banda se define en la ficha de Telares.</span>
+            </label>
+            <label className={`flex items-start gap-3 rounded-lg border border-border p-3 text-base text-foreground ${Number(editingMachine.machine_number) === 1 ? 'opacity-60' : ''}`}>
+              <input type="checkbox" checked={machineDraft.is_dynamic_member} disabled={Number(editingMachine.machine_number) === 1} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
               <span><strong>Incluir en el grupo dinámico</strong><span className="mt-1 block text-sm text-muted-foreground">Habilita las fórmulas generales del cliente para esta máquina. No aplica a Extrusora 1.</span></span>
             </label>
             <label className="block space-y-2 text-sm font-bold text-foreground">
@@ -276,10 +289,14 @@ export const MachinesPage = () => {
               <button type="button" onClick={() => setIsCreateMachineOpen(false)} aria-label="Cerrar formulario de extrusora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">✕</button>
             </div>
             <label className="block space-y-2 text-base font-bold text-foreground">Código <Input value={machineDraft.code} onChange={(e) => setMachineDraft({ ...machineDraft, code: e.target.value.toUpperCase() })} placeholder="Ej. EXT-06" required maxLength={50} /></label>
+            <label className="block space-y-2 text-base font-bold text-foreground">Número físico de máquina <Input type="number" min="1" step="1" value={machineDraft.machine_number} onChange={(e) => setMachineDraft({ ...machineDraft, machine_number: e.target.value })} placeholder="Ej. 6" required /></label>
             <label className="block space-y-2 text-base font-bold text-foreground">Nombre <Input value={machineDraft.name} onChange={(e) => setMachineDraft({ ...machineDraft, name: e.target.value })} placeholder="Ej. Extrusora 6" required maxLength={100} /></label>
             <label className="block space-y-2 text-base font-bold text-foreground">Tipo / uso <Input value={machineDraft.type} onChange={(e) => setMachineDraft({ ...machineDraft, type: e.target.value })} placeholder="STANDARD" maxLength={50} /></label>
-            <label className="flex items-start gap-3 rounded-lg border border-border p-3 text-base text-foreground">
-              <input type="checkbox" checked={machineDraft.is_dynamic_member} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
+            <label className="block space-y-2 text-base font-bold text-foreground">Destino de los PTI
+              <select value={machineDraft.telares_subarea_code} onChange={(e) => setMachineDraft({ ...machineDraft, telares_subarea_code: e.target.value })} className="min-h-11 w-full rounded-md border border-border bg-background px-3"><option value="TELARES_BANDA">Telares Banda</option><option value="TELARES_ROLLO">Telares Rollo</option><option value="NO_APLICA">No aplica a Telares</option></select>
+            </label>
+            <label className={`flex items-start gap-3 rounded-lg border border-border p-3 text-base text-foreground ${Number(machineDraft.machine_number) === 1 ? 'opacity-60' : ''}`}>
+              <input type="checkbox" checked={Number(machineDraft.machine_number) === 1 ? false : machineDraft.is_dynamic_member} disabled={Number(machineDraft.machine_number) === 1} onChange={(event) => setMachineDraft({ ...machineDraft, is_dynamic_member: event.target.checked })} className="mt-0.5" />
               <span><strong>Incluir en el grupo dinámico</strong><span className="mt-1 block text-sm text-muted-foreground">Podrá recibir fórmulas generales; la Extrusora 1 seguirá siendo exclusiva.</span></span>
             </label>
             <label className="block space-y-2 text-base font-bold text-foreground">Notas <textarea value={machineDraft.notes} onChange={(e) => setMachineDraft({ ...machineDraft, notes: e.target.value })} rows={2} className="w-full rounded-md border border-border bg-background p-3 text-base font-medium text-foreground" /></label>

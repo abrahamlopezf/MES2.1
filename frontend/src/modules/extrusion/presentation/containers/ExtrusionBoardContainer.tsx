@@ -95,7 +95,8 @@ export const ExtrusionBoardContainer: React.FC = () => {
     const dynamicIds = (Array.isArray(machines) ? machines : [])
       .filter((machine: any) => machine.is_dynamic_member && machine.is_active !== false && machine.status === 'ACTIVE')
       .map((machine: any) => Number(machine.id));
-    const clientAllowed = getClientAllowedExtruders(formula, dynamicIds);
+    const machineOneId = (Array.isArray(machines) ? machines : []).find((machine: any) => Number(machine.machine_number) === 1 || machine.code === 'EXT-01')?.id || 1;
+    const clientAllowed = getClientAllowedExtruders(formula, dynamicIds, Number(machineOneId));
     if (clientAllowed) return !clientAllowed.includes(Number(machineId));
     if (isClientFormula(formula.code)) return true;
     if (machineId !== 4) return false;

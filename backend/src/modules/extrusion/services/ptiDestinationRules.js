@@ -9,18 +9,21 @@ const DESTINATION_LABELS = Object.freeze({
   VENTA: 'Venta (salida restringida)',
 });
 
-function getCompatibleDestinationOptions({ extruderNumber, denier }) {
+function getCompatibleDestinationOptions({ extruderNumber, telaresSubareaCode }) {
   const machine = Number(extruderNumber);
   if (!Number.isInteger(machine) || machine < 1) return [];
-  // Extrusión solo entrega PTI a la subárea de Telares que le corresponde.
-  // Los destinos posteriores se deciden al terminar el rollo/banda en Telares.
+  // Prefer explicit machine routing. Number-based mapping remains only for
+  // legacy rows created before routing was configurable in the machine catalog.
+  const configured = String(telaresSubareaCode || '').trim().toUpperCase();
+  if (configured === 'TELARES_BANDA' || configured === 'TELARES_ROLLO') return [configured];
+  if (configured === 'NO_APLICA') return [];
   if (machine === 1) return ['TELARES_BANDA'];
-  if (machine > 1) return ['TELARES_ROLLO'];
+  if ([2, 4, 5].includes(machine)) return ['TELARES_ROLLO'];
   return [];
 }
 
-function validatePtiDestination({ extruderNumber }) {
-  const allowed = getCompatibleDestinationOptions({ extruderNumber });
+function validatePtiDestination({ extruderNumber, telaresSubareaCode }) {
+  const allowed = getCompatibleDestinationOptions({ extruderNumber, telaresSubareaCode });
   if (!allowed.length) {
     throw Object.assign(
       new Error('No se pudo determinar la subárea de Telares para este PTI. Revisa la extrusora de referencia en el catálogo.'),

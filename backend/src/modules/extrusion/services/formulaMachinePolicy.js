@@ -13,6 +13,7 @@ const getClientFormulaKind = (formulaOrCode) => {
   if (code.startsWith('F-EXT-1-')) return 'EXTRUDER_1';
   if (GENERAL_CLIENT_FORMULA_CODES.has(code) || isCustomClientFormula(code)) {
     const mode = String(typeof formulaOrCode === 'string' ? '' : formulaOrCode?.extruder_assignment_mode || '').toUpperCase();
+    if (mode === 'EXTRUDER_1') return 'EXTRUDER_1';
     return mode === 'FIXED' ? 'FIXED' : 'DYNAMIC';
   }
   return null;
@@ -22,8 +23,11 @@ const isClientFormulaAllowedOnMachine = (formulaOrCode, machine) => {
   const kind = getClientFormulaKind(formulaOrCode);
   if (!kind) return null;
   if (!machine || machine.is_active === false || machine.status !== 'ACTIVE') return false;
-  if (kind === 'EXTRUDER_1') return machine.code === 'EXT-01';
-  if (machine.code === 'EXT-01' || machine.code === 'EXT-LIQ') return false;
+  const isPhysicalExtruderOne = machine.machine_number != null
+    ? Number(machine.machine_number) === 1
+    : machine.code === 'EXT-01';
+  if (kind === 'EXTRUDER_1') return isPhysicalExtruderOne;
+  if (isPhysicalExtruderOne || machine.code === 'EXT-LIQ') return false;
   if (kind === 'FIXED') {
     const allowedExtruders = Array.isArray(typeof formulaOrCode === 'string' ? null : formulaOrCode?.allowed_extruders)
       ? formulaOrCode.allowed_extruders.map(Number)

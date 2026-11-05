@@ -42,7 +42,9 @@ export const CreateFormulaModal: React.FC<CreateFormulaModalProps> = ({ isOpen, 
   const fixedCandidates = useMemo(() => machines.filter((machine) =>
     machine.is_active !== false
     && String(machine.status || 'ACTIVE').trim().toUpperCase() === 'ACTIVE'
-    && !['EXT-01', 'EXT-LIQ'].includes(String(machine.code || '').trim().toUpperCase())
+    && Number(machine.machine_number) !== 1
+    && String(machine.code || '').trim().toUpperCase() !== 'EXT-01'
+    && String(machine.code || '').trim().toUpperCase() !== 'EXT-LIQ'
   ), [machines]);
 
   if (!isOpen) return null;

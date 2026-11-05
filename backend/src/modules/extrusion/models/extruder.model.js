@@ -12,6 +12,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
+      machine_number: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Número físico de extrusora informado por planta; no equivale al ID de base de datos.',
+      },
+      telares_subarea_code: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+        comment: 'Destino de bobinas: TELARES_BANDA, TELARES_ROLLO o NO_APLICA.',
+      },
       name: {
         type: DataTypes.STRING(100),
         allowNull: false,

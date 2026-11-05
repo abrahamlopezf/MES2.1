@@ -69,6 +69,21 @@ const routeToValue = (route: unknown): string[] => Array.isArray(route)
   ? route.map((stage) => String(stage).trim().toUpperCase()).filter(Boolean)
   : String(route || '').split(',').map((stage) => stage.trim().toUpperCase()).filter(Boolean);
 
+const hasSupportedProductionRoute = (bom: any): boolean => {
+  const routes = Array.isArray(bom.allowed_routes) && bom.allowed_routes.length
+    ? bom.allowed_routes
+    : bom.default_route ? [bom.default_route] : [];
+  const isBanda = ['BANDA', 'CINTA'].includes(String(bom.product_kind || '').toUpperCase());
+  const validTails = isBanda
+    ? [['CORTE'], ['ALMACEN'], ['VENTA']]
+    : [['CORTE'], ['CORTE', 'CONFECCION'], ['LAMINADO'], ['LAMINADO', 'CORTE'], ['LONAS'], ['ALMACEN'], ['VENTA']];
+  return routes.some((value: unknown) => {
+    const route = routeToValue(value);
+    return route[0] === 'TELARES'
+      && validTails.some((tail) => tail.length === route.length - 1 && tail.every((stage, index) => stage === route[index + 1]));
+  });
+};
+
 const destinationForRoute = (route: unknown): 'LAMINADO' | 'CORTE' | 'LONAS' | 'ALMACEN' | 'VENTA' | null => {
   const stages = routeToValue(route);
   if (stages.includes('LAMINADO')) return 'LAMINADO';
@@ -127,7 +142,7 @@ export const TelaresTerminalPage: React.FC = () => {
   const [terminalStage, setTerminalStage] = useState<'PREPARE' | 'RUN' | 'OUTPUT' | 'HISTORY'>('PREPARE');
 
   // El catálogo y el servidor restringen las opciones según el tipo de PTI (Diagramas 1 y 2).
-  const [destinationChoice, setDestinationChoice] = useState<'LAMINADO' | 'CORTE' | 'LONAS' | 'ALMACEN' | 'VENTA'>('LAMINADO');
+  const [destinationChoice, setDestinationChoice] = useState('');
 
   // Estados locales para reporte de rollo
   const [metersInput, setMetersInput] = useState<string>('500');
@@ -231,13 +246,20 @@ export const TelaresTerminalPage: React.FC = () => {
     const configured = Array.isArray(outputBom?.allowed_routes) && outputBom.allowed_routes.length
       ? outputBom.allowed_routes
       : outputBom?.default_route ? [outputBom.default_route] : [];
-    return configured.map(routeToValue).filter((route) => route.length > 1);
-  }, [outputBom?.id, outputBom?.allowed_routes, outputBom?.default_route]);
+    const isBanda = ['BANDA', 'CINTA'].includes(outputProductKind);
+    const validTails = isBanda
+      ? [['CORTE'], ['ALMACEN'], ['VENTA']]
+      : [['CORTE'], ['CORTE', 'CONFECCION'], ['LAMINADO'], ['LAMINADO', 'CORTE'], ['LONAS'], ['ALMACEN'], ['VENTA']];
+    return configured.map(routeToValue).filter((route) => (
+      route[0] === 'TELARES'
+      && validTails.some((tail) => tail.length === route.length - 1 && tail.every((stage, index) => stage === route[index + 1]))
+    ));
+  }, [outputBom?.id, outputBom?.allowed_routes, outputBom?.default_route, outputProductKind]);
   const allowedDestinationOptions = useMemo(() => {
-    const optionMap = new Map<string, { choice: keyof typeof DESTINATION_PRESENTATION; route: string[] }>();
+    const optionMap = new Map<string, { route: string[] }>();
     for (const route of allowedRoutes) {
-      const choice = destinationForRoute(route);
-      if (choice && !optionMap.has(choice)) optionMap.set(choice, { choice, route });
+      const key = route.join(',');
+      if (!optionMap.has(key)) optionMap.set(key, { route });
     }
     return [...optionMap.values()];
   }, [allowedRoutes]);
@@ -245,16 +267,16 @@ export const TelaresTerminalPage: React.FC = () => {
 
   useEffect(() => {
     const preferredRoute = routeToValue(outputBom?.default_route);
-    const preferredChoice = destinationForRoute(preferredRoute);
-    if (preferredChoice && allowedDestinationOptions.some((option) => option.choice === preferredChoice)) {
-      setDestinationChoice(preferredChoice);
+    const preferredKey = preferredRoute.join(',');
+    if (preferredRoute.length && allowedDestinationOptions.some((option) => option.route.join(',') === preferredKey)) {
+      setDestinationChoice(preferredKey);
     } else if (allowedDestinationOptions.length) {
-      setDestinationChoice(allowedDestinationOptions[0].choice);
+      setDestinationChoice(allowedDestinationOptions[0].route.join(','));
     }
   }, [outputBom?.id, allowedRouteSignature]);
 
   const getSelectedRoute = (): string[] => {
-    return allowedDestinationOptions.find((option) => option.choice === destinationChoice)?.route || [];
+    return allowedDestinationOptions.find((option) => option.route.join(',') === destinationChoice)?.route || [];
   };
 
   const creelCompatibleRacks = useMemo(() => {
@@ -268,10 +290,15 @@ export const TelaresTerminalPage: React.FC = () => {
       if (transferModeReady && String(r.container_type || 'RACK').trim().toUpperCase() !== expectedContainer) return false;
       const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct.id || 0);
       if (supportedTypes.length && ptiId > 0 && !supportedTypes.includes(ptiId)) return false;
+      const configuredSubarea = String(r.currentPtiProduct?.telares_subarea_code || '').trim().toUpperCase();
       const extMachine = Number(r.currentPtiProduct?.extrusion_machine_number || 0);
-      const expectedRoute = extMachine === 1 ? 'TELARES_BANDA' : 'TELARES_ROLLO';
+      const expectedRoute = configuredSubarea === 'TELARES_BANDA' || configuredSubarea === 'TELARES_ROLLO'
+        ? configuredSubarea
+        : extMachine === 1 ? 'TELARES_BANDA' : [2, 4, 5].includes(extMachine) ? 'TELARES_ROLLO' : null;
+      if (!expectedRoute) return false;
       if (r.destination_route && r.destination_route !== expectedRoute) return false;
-      if (targetLoom && extMachine > 0 && (extMachine === 1) !== targetIsBanda) return false;
+      if (configuredSubarea === 'NO_APLICA') return false;
+      if (targetLoom && (expectedRoute === 'TELARES_BANDA') !== targetIsBanda) return false;
       if (targetLoom && r.destination_subarea_id != null && Number(r.destination_subarea_id) !== Number(targetLoom.subarea_id)) return false;
       return true;
     });
@@ -309,6 +336,7 @@ export const TelaresTerminalPage: React.FC = () => {
     const activeIsBanda = isBandaLoom(activeLoom);
     return boms.filter((bom) => {
       if (!bom.is_active || bom.is_provisional) return false;
+      if (!hasSupportedProductionRoute(bom)) return false;
       if (supportedBoms.length && !supportedBoms.includes(Number(bom.id))) return false;
       if (activeLoom?.subarea_id && bom.subarea_id) {
         return Number(bom.subarea_id) === Number(activeLoom.subarea_id);
@@ -1286,8 +1314,10 @@ export const TelaresTerminalPage: React.FC = () => {
                     </div>
 
                     <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))' }}>
-                      {allowedDestinationOptions.map(({ choice }) => {
-                        const presentation = DESTINATION_PRESENTATION[choice];
+                      {allowedDestinationOptions.map(({ route }) => {
+                        const choice = route.join(',');
+                        const destination = destinationForRoute(route) || 'CORTE';
+                        const presentation = DESTINATION_PRESENTATION[destination];
                         const isSelected = destinationChoice === choice;
                         const activeColors: Record<string, string> = {
                           indigo: 'border-indigo-400 bg-indigo-950/70 ring-indigo-400/40',
@@ -1300,9 +1330,13 @@ export const TelaresTerminalPage: React.FC = () => {
                           indigo: 'text-indigo-300', amber: 'text-amber-300', emerald: 'text-emerald-300',
                           cyan: 'text-cyan-300', purple: 'text-purple-300',
                         };
-                        const label = choice === 'CORTE' && !isFabricRoll
+                        const routeLabels: Record<string, string> = {
+                          LAMINADO: 'Laminado', CORTE: 'Corte', CONFECCION: 'Confección', LONAS: 'Lonas',
+                          ALMACEN: 'Almacén', VENTA: 'Venta',
+                        };
+                        const label = route.length === 2 && route[1] === 'CORTE' && !isFabricRoll
                           ? outputProductKind === 'CINTA' ? 'Corte de Cinta' : 'Corte de Banda'
-                          : presentation.label;
+                          : route.slice(1).map((stage) => routeLabels[stage] || stage).join(' → ');
                         return (
                           <button
                             key={choice}
