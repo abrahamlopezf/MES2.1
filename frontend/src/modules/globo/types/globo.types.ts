@@ -25,6 +25,8 @@ export interface LoomRollRequirements {
 export interface GloboSpecification {
   id: number;
   code: string;
+  output_pti_code: string;
+  configuration_status?: 'BORRADOR' | 'ACTIVA';
   name: string;
   description?: string;
   process_type: 'EXPANSION' | 'FUELLE' | 'CALIBRADO' | 'REFUERZO';
@@ -107,5 +109,6 @@ export interface GloboWipSummary {
   rolls_incoming: GloboWipRoll[];
   warehouse_materials: GloboWarehouseWipMaterial[];
   recent_transformed: GloboRecentTransformed[];
+  scrap_logs?: Array<{ id: number; source_qr: string; output_qr: string; output_pti_code: string; specification_code: string; processed_meters: number; good_meters: number; scrap_meters: number; good_weight_kg: number; scrap_weight_kg: number | null; reason?: string | null; recorded_by: string; created_at: string }>;
   specifications: GloboSpecification[];
 }

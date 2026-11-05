@@ -959,6 +959,7 @@ db.GloboSpecification = require('../../modules/globo/models/globoSpecification.m
 db.GloboSpecificationMaterial = require('../../modules/globo/models/globoSpecificationMaterial.model')(sequelize, DataTypes);
 db.LaminadoSpecification = require('../../modules/laminado/models/laminadoSpecification.model')(sequelize, DataTypes);
 db.LaminadoSpecificationMaterial = require('../../modules/laminado/models/laminadoSpecificationMaterial.model')(sequelize, DataTypes);
+db.AreaProcessScrapLog = require('../../modules/wip/areaProcessScrapLog.model')(sequelize, DataTypes);
 
 db.GloboSpecification.hasMany(db.GloboSpecificationMaterial, { foreignKey: 'globo_spec_id', as: 'materials' });
 db.GloboSpecificationMaterial.belongsTo(db.GloboSpecification, { foreignKey: 'globo_spec_id', as: 'specification' });
@@ -967,6 +968,11 @@ db.GloboSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id'
 db.LaminadoSpecification.hasMany(db.LaminadoSpecificationMaterial, { foreignKey: 'laminado_spec_id', as: 'materials' });
 db.LaminadoSpecificationMaterial.belongsTo(db.LaminadoSpecification, { foreignKey: 'laminado_spec_id', as: 'specification' });
 db.LaminadoSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+db.AreaProcessScrapLog.belongsTo(db.Area, { foreignKey: 'area_id', as: 'area' });
+db.AreaProcessScrapLog.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id', as: 'roll' });
+db.AreaProcessScrapLog.belongsTo(db.QrCode, { foreignKey: 'source_qr_code_id', as: 'sourceQr' });
+db.AreaProcessScrapLog.belongsTo(db.QrCode, { foreignKey: 'output_qr_code_id', as: 'outputQr' });
+db.AreaProcessScrapLog.belongsTo(db.User, { foreignKey: 'recorded_by', as: 'recorder' });
 
 module.exports = db;
 

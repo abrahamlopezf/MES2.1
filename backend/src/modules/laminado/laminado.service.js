@@ -15,11 +15,16 @@ const {
   Notification,
   Loom,
   User,
+  AreaProcessScrapLog,
+  TraceableItem,
+  TraceabilityLink,
+  TraceabilityMovement,
 } = require('../../database/models');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const normalizeViajeroQr = require('../../shared/utils/normalizeViajeroQr');
 const consumptionOrderService = require('../warehouse/consumptionOrder.service');
 const rollTransformation = require('../wip/rollTransformation');
+const specificationCatalog = require('../wip/specificationCatalog');
 const { normalizeProductionRoute, normalizeStageName } = require('../telares/productionRules');
 
 function getLaminadoRouteState(roll) {
@@ -124,197 +129,18 @@ class LaminadoService {
   }
 
   async createSpecification(payload, currentUser = null) {
-    const {
-      code,
-      name,
-      description,
-      lamination_type,
-      target_width_cm,
-      coating_grammage_g_per_m2,
-      output_product_name,
-      expected_output_quantity,
-      expected_output_unit,
-      standard_output_meters,
-      standard_waste_percentage,
-      cost_transformation_index,
-      loom_roll_requirements,
-      materials = [],
-    } = payload;
-
-    rollTransformation.validateSpecificationPayload(payload, 'LAMINADO');
-    await rollTransformation.validateRecipeMaterialUnits(payload.materials || []);
-    const allowedBomIds = [...new Set(payload.loom_roll_requirements.allowed_bom_ids.map(Number))];
-    const activeBomCount = await ProductionBom.count({ where: { id: { [Op.in]: allowedBomIds }, is_active: true } });
-    if (activeBomCount !== allowedBomIds.length) throw Object.assign(new Error('La receta incluye un BOM inexistente o inactivo.'), { statusCode: 400, code: 'INVALID_SPECIFICATION_BOM' });
-
-    if (!code || !name) {
-      const err = new Error('Código y Nombre de especificación son obligatorios.');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const existing = await LaminadoSpecification.findOne({ where: { code: String(code).trim().toUpperCase() } });
-    if (existing) {
-      const err = new Error(`El código "${code}" ya existe en el catálogo de Laminado.`);
-      err.statusCode = 409;
-      throw err;
-    }
-
-    const t = await sequelize.transaction();
-    try {
-      const spec = await LaminadoSpecification.create(
-        {
-          code: String(code).trim().toUpperCase(),
-          name: String(name).trim(),
-          description: description || null,
-          lamination_type: lamination_type || 'EXTRUSION_COATING',
-          target_width_cm: target_width_cm ?? 50.0,
-          coating_grammage_g_per_m2: coating_grammage_g_per_m2 ?? 20.0,
-          output_product_name: output_product_name || 'Rollo Laminado Terminado',
-          expected_output_quantity: expected_output_quantity ?? 1.0,
-          expected_output_unit: expected_output_unit || 'ROLLO',
-          standard_output_meters: standard_output_meters ?? 1000.0,
-          standard_waste_percentage: standard_waste_percentage ?? 2.0,
-          cost_transformation_index: canViewCosts(currentUser) ? (cost_transformation_index || 1.05) : 1.0,
-          loom_roll_requirements: loom_roll_requirements || {
-            allowed_bom_ids: [],
-            accepts_from_globo: true,
-            min_width_cm: 40.0,
-            max_width_cm: 75.0,
-            fabric_type: 'TUBULAR',
-            meters_per_output: 1000,
-            notes: '',
-          },
-          is_active: true,
-        },
-        { transaction: t }
-      );
-
-      if (Array.isArray(materials) && materials.length > 0) {
-        for (const item of materials) {
-          if (item.material_id) {
-            await LaminadoSpecificationMaterial.create(
-              {
-                laminado_spec_id: spec.id,
-                material_id: item.material_id,
-                quantity: item.quantity || 0,
-                unit: item.unit || 'KG',
-                notes: item.notes || null,
-              },
-              { transaction: t }
-            );
-          }
-        }
-      }
-
-      await t.commit();
-      return this.getSpecificationById(spec.id, currentUser);
-    } catch (err) {
-      await t.rollback();
-      throw err;
-    }
+    const created = await specificationCatalog.create({ Model: LaminadoSpecification, MaterialModel: LaminadoSpecificationMaterial, foreignKey: 'laminado_spec_id', area: 'LAMINADO', payload, user: currentUser, canViewCosts });
+    return this.getSpecificationById(created.id, currentUser);
   }
 
   async updateSpecification(id, payload, currentUser = null) {
-    const spec = await LaminadoSpecification.findByPk(id);
-    if (!spec) {
-      const err = new Error(`Especificación de Laminado #${id} no encontrada.`);
-      err.statusCode = 404;
-      throw err;
-    }
-
-    rollTransformation.validateSpecificationPayload({ ...spec.toJSON(), ...payload, loom_roll_requirements: payload.loom_roll_requirements ?? spec.loom_roll_requirements }, 'LAMINADO');
-    if (Array.isArray(payload.materials)) await rollTransformation.validateRecipeMaterialUnits(payload.materials);
-    const allowedBomIds = [...new Set((payload.loom_roll_requirements ?? spec.loom_roll_requirements).allowed_bom_ids.map(Number))];
-    const activeBomCount = await ProductionBom.count({ where: { id: { [Op.in]: allowedBomIds }, is_active: true } });
-    if (activeBomCount !== allowedBomIds.length) throw Object.assign(new Error('La receta incluye un BOM inexistente o inactivo.'), { statusCode: 400, code: 'INVALID_SPECIFICATION_BOM' });
-
-    const t = await sequelize.transaction();
-    try {
-      const {
-        code,
-        name,
-        description,
-        lamination_type,
-        target_width_cm,
-        coating_grammage_g_per_m2,
-        output_product_name,
-        expected_output_quantity,
-        expected_output_unit,
-        standard_output_meters,
-        standard_waste_percentage,
-        cost_transformation_index,
-        loom_roll_requirements,
-        materials,
-      } = payload;
-
-      if (code && code.trim().toUpperCase() !== spec.code) {
-        const existing = await LaminadoSpecification.findOne({
-          where: { code: code.trim().toUpperCase(), id: { [Op.ne]: id } },
-        });
-        if (existing) {
-          const err = new Error(`El código "${code}" ya está en uso.`);
-          err.statusCode = 409;
-          throw err;
-        }
-        spec.code = code.trim().toUpperCase();
-      }
-
-      if (name) spec.name = name.trim();
-      if (description !== undefined) spec.description = description;
-      if (lamination_type) spec.lamination_type = lamination_type;
-      if (target_width_cm !== undefined) spec.target_width_cm = target_width_cm;
-      if (coating_grammage_g_per_m2 !== undefined) spec.coating_grammage_g_per_m2 = coating_grammage_g_per_m2;
-      if (output_product_name) spec.output_product_name = output_product_name;
-      if (expected_output_quantity !== undefined) spec.expected_output_quantity = expected_output_quantity;
-      if (expected_output_unit) spec.expected_output_unit = expected_output_unit;
-      if (standard_output_meters !== undefined) spec.standard_output_meters = standard_output_meters;
-      if (standard_waste_percentage !== undefined) spec.standard_waste_percentage = standard_waste_percentage;
-      if (canViewCosts(currentUser) && cost_transformation_index !== undefined) {
-        spec.cost_transformation_index = cost_transformation_index;
-      }
-      if (loom_roll_requirements) spec.loom_roll_requirements = loom_roll_requirements;
-
-      await spec.save({ transaction: t });
-
-      if (Array.isArray(materials)) {
-        await LaminadoSpecificationMaterial.destroy({ where: { laminado_spec_id: id }, transaction: t });
-        for (const item of materials) {
-          if (item.material_id) {
-            await LaminadoSpecificationMaterial.create(
-              {
-                laminado_spec_id: id,
-                material_id: item.material_id,
-                quantity: item.quantity || 0,
-                unit: item.unit || 'KG',
-                notes: item.notes || null,
-              },
-              { transaction: t }
-            );
-          }
-        }
-      }
-
-      await t.commit();
-      return this.getSpecificationById(id, currentUser);
-    } catch (err) {
-      await t.rollback();
-      throw err;
-    }
+    await specificationCatalog.update({ Model: LaminadoSpecification, MaterialModel: LaminadoSpecificationMaterial, foreignKey: 'laminado_spec_id', id, area: 'LAMINADO', payload, user: currentUser, canViewCosts });
+    return this.getSpecificationById(id, currentUser);
   }
 
   async toggleSpecification(id) {
-    const spec = await LaminadoSpecification.findByPk(id);
-    if (!spec) {
-      const err = new Error(`Especificación de Laminado #${id} no encontrada.`);
-      err.statusCode = 404;
-      throw err;
-    }
-    spec.is_active = !spec.is_active;
-    await spec.save();
-    return { id: spec.id, is_active: spec.is_active, message: `Especificación ${spec.code} ${spec.is_active ? 'activada' : 'desactivada'}.` };
+    return specificationCatalog.activate({ Model: LaminadoSpecification, MaterialModel: LaminadoSpecificationMaterial, id, area: 'LAMINADO' });
   }
-
   /**
    * WIP Interno de Laminado: Rollos en custodia/espera + Resinas e Insumos en Piso + Métricas
    */
@@ -400,7 +226,7 @@ class LaminadoService {
         const unitCost = Number(w.lote?.unit_cost || 0);
         return sum + Number(w.amount || 0) * unitCost;
       }, 0);
-      const fabricVal = totalWeightFabricKg * 42.0; // Valuación estimada con valor agregado
+      const fabricVal = rollsInFloor.reduce((sum, roll) => sum + Number(roll.calculated_roll_cost || 0), 0);
       totalValuationMxn = Number((warehouseVal + fabricVal).toFixed(2));
     }
 
@@ -461,6 +287,15 @@ class LaminadoService {
         }
         return item;
       }),
+      scrap_logs: (await AreaProcessScrapLog.findAll({
+        where: { area_id: 4 },
+        include: [
+          { model: QrCode, as: 'sourceQr', attributes: ['qr_code'] },
+          { model: QrCode, as: 'outputQr', attributes: ['qr_code'] },
+          { model: User, as: 'recorder', attributes: ['id', 'first_name', 'last_name'] },
+        ],
+        order: [['created_at', 'DESC']], limit: 100,
+      })).map((log) => ({ id: log.id, roll_id: log.viajero_roll_id, source_qr: log.sourceQr?.qr_code || 'N/A', output_qr: log.outputQr?.qr_code || 'N/A', output_pti_code: log.output_pti_code, specification_code: log.specification_code, processed_meters: Number(log.processed_meters), good_meters: Number(log.good_meters), scrap_meters: Number(log.scrap_meters), good_weight_kg: Number(log.good_weight_kg), scrap_weight_kg: log.scrap_weight_kg == null ? null : Number(log.scrap_weight_kg), reason: log.reason, notes: log.notes, recorded_by: log.recorder ? `${log.recorder.first_name || ''} ${log.recorder.last_name || ''}`.trim() : 'N/A', created_at: log.created_at })),
       recent_transformed: recentTransformed.map((log) => ({
         id: log.id,
         roll_code: log.roll?.roll_code || 'N/A',
@@ -759,7 +594,7 @@ class LaminadoService {
    * - Genera y asigna el NUEVO QR al rollo (${roll_code}-LAM)
    * - Actualiza etapa y Kardex de enrutamiento
    */
-  async transformRoll({ roll_id, specification_id, meters_out, weight_out_kg, operator_id, currentUser = null, notes }) {
+  async transformRoll({ roll_id, specification_id, meters_out, weight_out_kg, scrap_meters = 0, scrap_weight_kg, scrap_reason, operator_id, currentUser = null, notes }) {
     const allowCosts = canViewCosts(currentUser);
 
     return await sequelize.transaction(async (t) => {
@@ -790,17 +625,21 @@ class LaminadoService {
       });
 
       if (!spec) throw Object.assign(new Error(`La especificación con ID ${specification_id} no existe.`), { statusCode: 404 });
+      rollTransformation.validateSpecificationPayload(spec.toJSON(), 'LAMINADO');
       if (!spec.is_active || !rollTransformation.compatibility(spec, roll, 'LAMINADO')) {
         throw Object.assign(new Error('La especificación está inactiva o no es compatible con el rollo.'), { statusCode: 409, code: 'SPEC_NOT_COMPATIBLE' });
       }
 
       const outMeters = Number(meters_out || roll.meters);
       const outWeight = Number(weight_out_kg || roll.weight_kg);
+      const scrapMeters = Number(scrap_meters || 0);
+      const processedMeters = Number((outMeters + scrapMeters).toFixed(2));
 
-      if (!(outMeters > 0) || !(outWeight > 0) || outMeters > Number(roll.meters) + 0.001) {
-        throw Object.assign(new Error('Los metros y el peso resultantes deben ser mayores a cero y los metros no pueden superar la entrada.'), { statusCode: 400 });
+      const scrapWeight = scrap_weight_kg === undefined || scrap_weight_kg === '' ? null : Number(scrap_weight_kg);
+      if (!(outMeters > 0) || !(outWeight > 0) || !Number.isFinite(scrapMeters) || scrapMeters < 0 || (scrapWeight !== null && (!Number.isFinite(scrapWeight) || scrapWeight < 0 || scrapWeight > Number(roll.weight_kg) + 0.01)) || Math.abs(processedMeters - Number(roll.meters)) > 0.02) {
+        throw Object.assign(new Error('La producción buena más los metros de merma deben cubrir exactamente los metros de entrada; revisa también el peso de merma capturado.'), { statusCode: 400, code: 'PROCESS_METER_BALANCE' });
       }
-      const { consumed: consumedMaterialsSummary, materialCost: totalStageMaterialCost } = await rollTransformation.consumeWip({ spec, meters: outMeters, areaId: 4, transaction: t });
+      const { consumed: consumedMaterialsSummary, sourceQrConsumptions, materialCost: totalStageMaterialCost } = await rollTransformation.consumeWip({ spec, meters: processedMeters, areaId: 4, transaction: t, performedBy: operator_id });
 
       // 2. Calcular Nuevo Costo Transformado
       const previousCost = Number(roll.calculated_roll_cost || 0);
@@ -809,6 +648,10 @@ class LaminadoService {
 
       // 3. Generar Nuevo QR para el Rollo Transformado
       const newQrCodeString = `${roll.roll_code}-LAM`;
+      const route = routeState.route;
+      const lamIdx = route.indexOf('LAMINADO');
+      const nextStage = lamIdx >= 0 && lamIdx + 1 < route.length ? route[lamIdx + 1] : 'TERMINADO';
+      const isRouteComplete = nextStage === 'TERMINADO';
 
       let batch = await QrBatch.findOne({ transaction: t });
       if (!batch) {
@@ -839,11 +682,52 @@ class LaminadoService {
           { transaction: t }
         );
 
+      const outputTraceable = await TraceableItem.create({
+        qr_code_id: qrRecord.id,
+        item_type: isRouteComplete ? 'FINISHED_PRODUCT' : 'INTERMEDIATE_PRODUCT',
+        product_name: spec.output_product_name,
+        origin_area_id: 4,
+        current_area_id: 4,
+        quantity_initial: outWeight,
+        quantity_current: outWeight,
+        unit: 'KG',
+        status: 'DISPONIBLE',
+        metadata: { output_pti_code: spec.output_pti_code, specification_id: spec.id, specification_code: spec.code, meters: outMeters, scrap_meters: scrapMeters },
+        created_by: operator_id || null,
+      }, { transaction: t });
+      await TraceabilityMovement.create({ traceable_item_id: outputTraceable.id, qr_code_id: qrRecord.id, movement_type: isRouteComplete ? 'FINALIZACION' : 'GENERACION_INTERMEDIA', from_area_id: 4, to_area_id: 4, quantity: outWeight, unit: 'KG', balance_after: outWeight, reference_folio: spec.code, notes: `Generación de PTI ${spec.output_pti_code} en Laminado`, metadata: { output_qr: newQrCodeString, meters: outMeters, specification_code: spec.code }, performed_by: operator_id || null }, { transaction: t });
+      const consumedKg = sourceQrConsumptions.reduce((sum, row) => sum + row.quantity_used_kg, 0);
+      for (const source of sourceQrConsumptions) await TraceabilityLink.create({
+        parent_traceable_item_id: source.traceable_item_id,
+        child_traceable_item_id: outputTraceable.id,
+        parent_qr_code_id: source.qr_code_id,
+        child_qr_code_id: qrRecord.id,
+        link_type: 'TRANSFORMACION',
+        quantity_used: source.quantity_used_kg,
+        quantity_generated: Number((outWeight * source.quantity_used_kg / Math.max(consumedKg, 0.001)).toFixed(3)),
+        scrap_quantity: scrapWeight > 0 ? Number((scrapWeight * source.quantity_used_kg / Math.max(consumedKg, 0.001)).toFixed(3)) : 0,
+        unit: 'KG', process_area_id: 4,
+        notes: `Consumo de ${source.qr_code} para ${spec.output_pti_code}`,
+        metadata: { material_id: source.material_id, specification_code: spec.code, processed_meters: processedMeters },
+        created_by: operator_id || null,
+      }, { transaction: t });
+      const previousQr = await QrCode.findOne({ where: { qr_code: roll.qr_code }, transaction: t, lock: t.LOCK.UPDATE });
+      if (previousQr) {
+        const previousTraceable = await TraceableItem.findOne({ where: { qr_code_id: previousQr.id }, transaction: t, lock: t.LOCK.UPDATE });
+        if (previousTraceable) {
+          await TraceabilityLink.create({ parent_traceable_item_id: previousTraceable.id, child_traceable_item_id: outputTraceable.id, parent_qr_code_id: previousQr.id, child_qr_code_id: qrRecord.id, link_type: 'TRANSFORMACION', quantity_used: Number(roll.weight_kg), quantity_generated: outWeight, scrap_quantity: Number(scrap_weight_kg || 0), unit: 'KG', process_area_id: 4, notes: `Transformación de rollo en LAMINADO; PTI ${spec.output_pti_code}`, metadata: { input_meters: Number(roll.meters), good_meters: outMeters, scrap_meters: scrapMeters, scrap_reason: scrap_reason || null }, created_by: operator_id || null }, { transaction: t });
+          previousTraceable.quantity_current = 0;
+          previousTraceable.status = 'CONSUMIDO';
+          await previousTraceable.save({ transaction: t });
+          await TraceabilityMovement.create({ traceable_item_id: previousTraceable.id, qr_code_id: previousQr.id, movement_type: 'CONSUMO_PROCESO', from_area_id: 4, to_area_id: 4, quantity: Number(roll.weight_kg), unit: 'KG', balance_after: 0, reference_folio: spec.code, notes: `Transformado a PTI ${spec.output_pti_code}`, metadata: { output_qr: newQrCodeString, good_meters: outMeters, scrap_meters: scrapMeters }, performed_by: operator_id || null }, { transaction: t });
+        }
+      }
+      if (scrapMeters > 0 || Number(scrap_weight_kg || 0) > 0) {
+        if (!previousQr) throw Object.assign(new Error('No se pudo identificar el QR de origen para registrar la merma.'), { statusCode: 409 });
+        await AreaProcessScrapLog.create({ area_id: 4, viajero_roll_id: roll.id, source_qr_code_id: previousQr.id, output_qr_code_id: qrRecord.id, output_pti_code: spec.output_pti_code, specification_code: spec.code, processed_meters: processedMeters, good_meters: outMeters, scrap_meters: scrapMeters, good_weight_kg: outWeight, scrap_weight_kg: scrapWeight, reason: scrap_reason || null, notes: notes || null, recorded_by: operator_id || null }, { transaction: t });
+      }
+
       // 4. Determinar siguiente estación oficial
-      const route = routeState.route;
-      const lamIdx = route.indexOf('LAMINADO');
-      const nextStage = lamIdx >= 0 && lamIdx + 1 < route.length ? route[lamIdx + 1] : 'TERMINADO';
-      const isRouteComplete = nextStage === 'TERMINADO';
 
       // 5. Actualizar Historial y Rollo
       const history = Array.isArray(roll.stages_history) ? [...roll.stages_history] : [];
@@ -856,6 +740,9 @@ class LaminadoService {
         specification_id: spec.id,
         specification_code: spec.code,
         meters_in: Number(roll.meters),
+        processed_meters: processedMeters,
+        scrap_meters: scrapMeters,
+        scrap_weight_kg: scrap_weight_kg == null ? null : Number(scrap_weight_kg),
         meters_out: outMeters,
         weight_in_kg: Number(roll.weight_kg),
         weight_out_kg: outWeight,
@@ -880,7 +767,6 @@ class LaminadoService {
         },
         { transaction: t }
       );
-      const previousQr = await QrCode.findOne({ where: { qr_code: history.at(-1)?.previous_qr }, transaction: t, lock: t.LOCK.UPDATE });
       if (previousQr) await previousQr.update({ status: 'TRANSFORMED', is_active: false }, { transaction: t });
       await qrRecord.update({ status: 'ACTIVE', assigned_area_id: 4 }, { transaction: t });
 
@@ -918,6 +804,7 @@ class LaminadoService {
         new_qr_code: newQrCodeString,
         new_transformed_cost: allowCosts ? newTransformedCost : null,
         consumed_materials: consumedMaterialsSummary,
+        scrap: { processed_meters: processedMeters, good_meters: outMeters, scrap_meters: scrapMeters, scrap_weight_kg: scrap_weight_kg == null ? null : Number(scrap_weight_kg) },
         message: `✔ Rollo transformado exitosamente en LAMINADO. Nuevo QR asignado: ${newQrCodeString}`,
       };
     });

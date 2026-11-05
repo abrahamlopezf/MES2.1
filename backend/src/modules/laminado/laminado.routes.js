@@ -14,7 +14,7 @@ const areaRoles = (...allowedRoles) => (req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Laminado.' });
 };
 const areaView = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO');
-const areaAdmin = areaRoles('ADMIN_LAMINADO');
+const areaAdmin = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO');
 const areaProcess = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO');
 const supervisorOrAdmin = areaRoles('ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO');
 

@@ -20,7 +20,7 @@ import {
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
-import { canViewCosts } from '../../../utils/authHelpers';
+import { canViewCosts, getUserAreaCode, isAdminUser, isAreaAdminUser, isSupervisorUser } from '../../../utils/authHelpers';
 import { laminadoApi } from '../services/laminadoApi';
 import { telaresApi } from '../../telares/services/telaresApi';
 import axiosClient from '../../../api/axiosClient';
@@ -39,6 +39,7 @@ interface MaterialItemDraft {
 
 const emptySpecificationForm = () => ({
   code: '',
+  output_pti_code: '',
   name: '',
   description: '',
   lamination_type: '' as '' | 'EXTRUSION_COATING' | 'MONOCAPA' | 'BICAPA' | 'BOPP_FILM' | 'PAPEL_KRAFT' | 'OTRO',
@@ -69,6 +70,7 @@ export const LaminadoCatalogPage: React.FC = () => {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
   const allowCosts = canViewCosts(user);
+  const canManageCatalog = isAdminUser(user) || (getUserAreaCode(user) === 'LAMINADO' && (isAreaAdminUser(user) || isSupervisorUser(user)));
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -159,18 +161,19 @@ export const LaminadoCatalogPage: React.FC = () => {
     setEditingSpecId(spec.id);
     setFormData({
       code: spec.code,
+      output_pti_code: spec.output_pti_code || '',
       name: spec.name,
       description: spec.description || '',
       lamination_type: ['EXTRUSION_COATING', 'MONOCAPA', 'BICAPA', 'BOPP_FILM', 'PAPEL_KRAFT'].includes(spec.lamination_type) ? spec.lamination_type : 'OTRO',
       custom_lamination_type: ['EXTRUSION_COATING', 'MONOCAPA', 'BICAPA', 'BOPP_FILM', 'PAPEL_KRAFT'].includes(spec.lamination_type) ? '' : String(spec.lamination_type),
-      target_width_cm: Number(spec.target_width_cm),
-      coating_grammage_g_per_m2: Number(spec.coating_grammage_g_per_m2),
+      target_width_cm: spec.target_width_cm == null ? '' : Number(spec.target_width_cm),
+      coating_grammage_g_per_m2: spec.coating_grammage_g_per_m2 == null ? '' : Number(spec.coating_grammage_g_per_m2),
       output_product_name: spec.output_product_name || '',
-      expected_output_quantity: Number(spec.expected_output_quantity),
+      expected_output_quantity: spec.expected_output_quantity == null ? '' : Number(spec.expected_output_quantity),
       expected_output_unit: spec.expected_output_unit || '',
-      standard_output_meters: Number(spec.standard_output_meters),
-      standard_waste_percentage: Number(spec.standard_waste_percentage),
-      cost_transformation_index: Number(spec.cost_transformation_index),
+      standard_output_meters: spec.standard_output_meters == null ? '' : Number(spec.standard_output_meters),
+      standard_waste_percentage: spec.standard_waste_percentage == null ? '' : Number(spec.standard_waste_percentage),
+      cost_transformation_index: spec.cost_transformation_index == null ? '' : Number(spec.cost_transformation_index),
       loom_roll_requirements: {
         allowed_bom_ids: spec.loom_roll_requirements?.allowed_bom_ids || [],
         accepts_from_globo: spec.loom_roll_requirements?.accepts_from_globo ?? true,
@@ -232,29 +235,21 @@ export const LaminadoCatalogPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const partialMaterial = formData.materials.some((m) => !m.material_id || !Number(m.quantity) || Number(m.quantity) <= 0);
-    if (!formData.code.trim() || !formData.name.trim() || !formData.lamination_type || (formData.lamination_type === 'OTRO' && !formData.custom_lamination_type.trim()) || !formData.output_product_name.trim() || !formData.expected_output_unit.trim() ||
-        !formData.loom_roll_requirements.allowed_bom_ids.length || !formData.loom_roll_requirements.fabric_type || !formData.loom_roll_requirements.accepted_input_stages.length || partialMaterial) {
-      toast.error('Completa los datos obligatorios, selecciona al menos un BOM compatible y termina o elimina cada línea de insumo.');
+    if (!formData.code.trim() || !formData.name.trim() || !formData.output_pti_code.trim() || !formData.output_product_name.trim() || partialMaterial) {
+      toast.error('Indica el código y nombre de la ficha y el código y nombre del PTI. Completa o elimina cada línea de insumo iniciada.');
       return;
     }
-    const positiveFields = [formData.target_width_cm, formData.coating_grammage_g_per_m2, formData.expected_output_quantity, formData.standard_output_meters,
-      formData.loom_roll_requirements.min_width_cm, formData.loom_roll_requirements.max_width_cm];
-    if (positiveFields.some((value) => !Number.isFinite(Number(value)) || Number(value) <= 0) || formData.standard_waste_percentage === '' || !Number.isFinite(Number(formData.standard_waste_percentage)) || Number(formData.standard_waste_percentage) < 0 ||
-        Number(formData.loom_roll_requirements.min_width_cm) > Number(formData.loom_roll_requirements.max_width_cm) || (allowCosts && Number(formData.cost_transformation_index) <= 0)) {
-      toast.error('Revisa anchos, gramajes, metros, cantidad estándar, merma y factor de costo.');
-      return;
-    }
-
     const payload = {
       ...formData,
-      lamination_type: formData.lamination_type === 'OTRO' ? formData.custom_lamination_type.trim().toUpperCase() : formData.lamination_type,
-      target_width_cm: Number(formData.target_width_cm),
-      coating_grammage_g_per_m2: Number(formData.coating_grammage_g_per_m2),
-      expected_output_quantity: Number(formData.expected_output_quantity),
-      standard_output_meters: Number(formData.standard_output_meters),
-      standard_waste_percentage: Number(formData.standard_waste_percentage),
-      cost_transformation_index: allowCosts ? Number(formData.cost_transformation_index) : 1,
-      loom_roll_requirements: { ...formData.loom_roll_requirements, min_width_cm: Number(formData.loom_roll_requirements.min_width_cm), max_width_cm: Number(formData.loom_roll_requirements.max_width_cm), meters_per_output: Number(formData.standard_output_meters), accepts_from_globo: formData.loom_roll_requirements.accepted_input_stages.includes('GLOBO') },
+      lamination_type: formData.lamination_type === 'OTRO' ? formData.custom_lamination_type.trim().toUpperCase() : formData.lamination_type || null,
+      target_width_cm: formData.target_width_cm === '' ? null : Number(formData.target_width_cm),
+      coating_grammage_g_per_m2: formData.coating_grammage_g_per_m2 === '' ? null : Number(formData.coating_grammage_g_per_m2),
+      expected_output_quantity: formData.expected_output_quantity === '' ? null : Number(formData.expected_output_quantity),
+      expected_output_unit: formData.expected_output_unit || null,
+      standard_output_meters: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters),
+      standard_waste_percentage: formData.standard_waste_percentage === '' ? null : Number(formData.standard_waste_percentage),
+      cost_transformation_index: allowCosts && formData.cost_transformation_index !== '' ? Number(formData.cost_transformation_index) : null,
+      loom_roll_requirements: { ...formData.loom_roll_requirements, min_width_cm: formData.loom_roll_requirements.min_width_cm === '' ? null : Number(formData.loom_roll_requirements.min_width_cm), max_width_cm: formData.loom_roll_requirements.max_width_cm === '' ? null : Number(formData.loom_roll_requirements.max_width_cm), meters_per_output: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters), accepts_from_globo: formData.loom_roll_requirements.accepted_input_stages.includes('GLOBO') },
       materials: formData.materials
         .map((m) => ({
           material_id: Number(m.material_id),
@@ -304,7 +299,7 @@ export const LaminadoCatalogPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {canManageCatalog && <div className="flex items-center gap-3">
           <Button
             onClick={handleOpenCreate}
             className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 flex items-center gap-2 shadow-md"
@@ -312,7 +307,7 @@ export const LaminadoCatalogPage: React.FC = () => {
             <Plus className="h-5 w-5" />
             Nueva Especificación Laminado
           </Button>
-        </div>
+        </div>}
       </div>
 
       {/* KPI Cards / Quick Stats */}
@@ -417,7 +412,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                   )}
                 </div>
 
-              <div className="flex w-full items-center gap-2 sm:w-auto">
+              {canManageCatalog && <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Button
                     size="sm"
                     variant="outline"
@@ -437,7 +432,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                   >
                     {spec.is_active ? 'Desactivar' : 'Activar'}
                   </Button>
-                </div>
+                </div>}
               </div>
 
               {/* Strip Datos Clave */}
@@ -445,19 +440,19 @@ export const LaminadoCatalogPage: React.FC = () => {
                 <div>
                   <span className="text-slate-500 block">Producto Salida:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
-                    {spec.output_product_name}
+                    {spec.output_pti_code || 'PTI sin código'} · {spec.output_product_name || 'Producto pendiente'}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Ancho / Capa PE:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {spec.target_width_cm} cm | {spec.coating_grammage_g_per_m2} g/m²
+                    {spec.target_width_cm ?? '—'} cm | {spec.coating_grammage_g_per_m2 ?? '—'} g/m²
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Lote PTI:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {spec.standard_output_meters} m ({spec.expected_output_quantity} {spec.expected_output_unit})
+                    {spec.standard_output_meters ?? '—'} m ({spec.expected_output_quantity ?? '—'} {spec.expected_output_unit || '—'})
                   </span>
                 </div>
               </div>
@@ -566,7 +561,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 max-h-[75dvh] overflow-y-auto pr-1 sm:max-h-[78vh]">
+              <form noValidate onSubmit={handleSubmit} className="space-y-4 max-h-[75dvh] overflow-y-auto pr-1 sm:max-h-[78vh]">
                 {/* 1. Datos Principales */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
@@ -622,7 +617,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                       step="0.1"
                         required
                       value={formData.target_width_cm}
-                      onChange={(e) => setFormData({ ...formData, target_width_cm: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, target_width_cm: e.target.value === '' ? '' : Number(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -633,7 +628,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                       step="0.1"
                         required
                       value={formData.coating_grammage_g_per_m2}
-                      onChange={(e) => setFormData({ ...formData, coating_grammage_g_per_m2: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, coating_grammage_g_per_m2: e.target.value === '' ? '' : Number(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -644,7 +639,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                       step="0.1"
                         required
                       value={formData.standard_waste_percentage}
-                      onChange={(e) => setFormData({ ...formData, standard_waste_percentage: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, standard_waste_percentage: e.target.value === '' ? '' : Number(e.target.value) })}
                     />
                   </div>
                 </div>
@@ -652,6 +647,10 @@ export const LaminadoCatalogPage: React.FC = () => {
                     <label className="text-xs font-bold text-slate-400 block mb-1">Descripción / notas de proceso</label>
                     <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={2} className="w-full rounded-md border bg-transparent px-3 py-2 text-sm" placeholder="Instrucciones de preparación, acabado o control" />
                   </div>
+
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  Puedes guardar la ficha como borrador mientras se confirman el flujo, los consumos y las medidas. Un borrador no se ofrece para producción.
+                </div>
 
                 {/* 2. Definición de Rendimiento / PTI */}
                 {(bomsError || materialsError) && (
@@ -669,6 +668,10 @@ export const LaminadoCatalogPage: React.FC = () => {
                     Definición de Salida (PTI Laminado)
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 block mb-1">Código de PTI de Laminado *</label>
+                      <Input required value={formData.output_pti_code} onChange={(e) => setFormData({ ...formData, output_pti_code: e.target.value.toUpperCase() })} placeholder="Ej. LAM-PTI-001" className="font-mono" />
+                    </div>
                     <div className="md:col-span-2">
                       <label className="text-xs font-bold text-slate-400 block mb-1">Producto de salida *</label>
                       <Input
@@ -686,7 +689,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                         step="0.01"
                         required
                         value={formData.standard_output_meters}
-                        onChange={(e) => setFormData({ ...formData, standard_output_meters: Number(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, standard_output_meters: e.target.value === '' ? '' : Number(e.target.value) })}
                       />
                     </div>
                   </div>
@@ -709,7 +712,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                         step="0.01"
                         required
                         value={formData.cost_transformation_index}
-                        onChange={(e) => setFormData({ ...formData, cost_transformation_index: Number(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, cost_transformation_index: e.target.value === '' ? '' : Number(e.target.value) })}
                       />
                     </div>
                   )}
@@ -784,7 +787,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                             ...formData,
                             loom_roll_requirements: {
                               ...formData.loom_roll_requirements,
-                              min_width_cm: Number(e.target.value),
+                              min_width_cm: e.target.value === '' ? '' : Number(e.target.value),
                             },
                           })
                         }
@@ -803,7 +806,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                             ...formData,
                             loom_roll_requirements: {
                               ...formData.loom_roll_requirements,
-                              max_width_cm: Number(e.target.value),
+                              max_width_cm: e.target.value === '' ? '' : Number(e.target.value),
                             },
                           })
                         }

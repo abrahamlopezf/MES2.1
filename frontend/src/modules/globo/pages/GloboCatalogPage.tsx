@@ -23,7 +23,7 @@ import {
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
-import { canViewCosts } from '../../../utils/authHelpers';
+import { canViewCosts, getUserAreaCode, isAdminUser, isAreaAdminUser, isSupervisorUser } from '../../../utils/authHelpers';
 import { globoApi } from '../services/globoApi';
 import { telaresApi } from '../../telares/services/telaresApi';
 import axiosClient from '../../../api/axiosClient';
@@ -42,6 +42,7 @@ interface MaterialItemDraft {
 
 const emptySpecificationForm = () => ({
   code: '',
+  output_pti_code: '',
   name: '',
   description: '',
   process_type: '' as '' | 'EXPANSION' | 'FUELLE' | 'CALIBRADO' | 'REFUERZO' | 'OTRO',
@@ -70,6 +71,7 @@ export const GloboCatalogPage: React.FC = () => {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
   const allowCosts = canViewCosts(user);
+  const canManageCatalog = isAdminUser(user) || (getUserAreaCode(user) === 'GLOBO' && (isAreaAdminUser(user) || isSupervisorUser(user)));
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,18 +153,19 @@ export const GloboCatalogPage: React.FC = () => {
     setEditingSpecId(spec.id);
     setFormData({
       code: spec.code,
+      output_pti_code: spec.output_pti_code || '',
       name: spec.name,
       description: spec.description || '',
       process_type: ['EXPANSION', 'FUELLE', 'CALIBRADO', 'REFUERZO'].includes(spec.process_type) ? spec.process_type : 'OTRO',
       custom_process_type: ['EXPANSION', 'FUELLE', 'CALIBRADO', 'REFUERZO'].includes(spec.process_type) ? '' : String(spec.process_type),
-      target_width_cm: Number(spec.target_width_cm),
-      target_grammage_g_per_m: Number(spec.target_grammage_g_per_m),
+      target_width_cm: spec.target_width_cm == null ? '' : Number(spec.target_width_cm),
+      target_grammage_g_per_m: spec.target_grammage_g_per_m == null ? '' : Number(spec.target_grammage_g_per_m),
       output_product_name: spec.output_product_name || '',
-      expected_output_quantity: Number(spec.expected_output_quantity),
+      expected_output_quantity: spec.expected_output_quantity == null ? '' : Number(spec.expected_output_quantity),
       expected_output_unit: spec.expected_output_unit || '',
-      standard_output_meters: Number(spec.standard_output_meters),
-      standard_waste_percentage: Number(spec.standard_waste_percentage),
-      cost_transformation_index: Number(spec.cost_transformation_index),
+      standard_output_meters: spec.standard_output_meters == null ? '' : Number(spec.standard_output_meters),
+      standard_waste_percentage: spec.standard_waste_percentage == null ? '' : Number(spec.standard_waste_percentage),
+      cost_transformation_index: spec.cost_transformation_index == null ? '' : Number(spec.cost_transformation_index),
       loom_roll_requirements: {
         allowed_bom_ids: spec.loom_roll_requirements?.allowed_bom_ids || [],
         min_width_cm: Number(spec.loom_roll_requirements?.min_width_cm),
@@ -222,29 +225,21 @@ export const GloboCatalogPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const partialMaterial = formData.materials.some((m) => !m.material_id || !Number(m.quantity) || Number(m.quantity) <= 0);
-    if (!formData.code.trim() || !formData.name.trim() || !formData.process_type || (formData.process_type === 'OTRO' && !formData.custom_process_type.trim()) || !formData.output_product_name.trim() || !formData.expected_output_unit.trim() ||
-        !formData.loom_roll_requirements.allowed_bom_ids.length || !formData.loom_roll_requirements.fabric_type || partialMaterial) {
-      toast.error('Completa los datos obligatorios, selecciona al menos un BOM compatible y termina o elimina cada línea de insumo.');
+    if (!formData.code.trim() || !formData.name.trim() || !formData.output_pti_code.trim() || !formData.output_product_name.trim() || partialMaterial) {
+      toast.error('Indica el código y nombre de la ficha y el código y nombre del PTI. Completa o elimina cada línea de insumo iniciada.');
       return;
     }
-    const positiveFields = [formData.target_width_cm, formData.target_grammage_g_per_m, formData.expected_output_quantity, formData.standard_output_meters,
-      formData.loom_roll_requirements.min_width_cm, formData.loom_roll_requirements.max_width_cm];
-    if (positiveFields.some((value) => !Number.isFinite(Number(value)) || Number(value) <= 0) || formData.standard_waste_percentage === '' || !Number.isFinite(Number(formData.standard_waste_percentage)) || Number(formData.standard_waste_percentage) < 0 ||
-        Number(formData.loom_roll_requirements.min_width_cm) > Number(formData.loom_roll_requirements.max_width_cm) || (allowCosts && Number(formData.cost_transformation_index) <= 0)) {
-      toast.error('Revisa anchos, gramajes, metros, cantidad estándar, merma y factor de costo.');
-      return;
-    }
-
     const payload = {
       ...formData,
-      process_type: formData.process_type === 'OTRO' ? formData.custom_process_type.trim().toUpperCase() : formData.process_type,
-      target_width_cm: Number(formData.target_width_cm),
-      target_grammage_g_per_m: Number(formData.target_grammage_g_per_m),
-      expected_output_quantity: Number(formData.expected_output_quantity),
-      standard_output_meters: Number(formData.standard_output_meters),
-      standard_waste_percentage: Number(formData.standard_waste_percentage),
-      cost_transformation_index: allowCosts ? Number(formData.cost_transformation_index) : 1,
-      loom_roll_requirements: { ...formData.loom_roll_requirements, min_width_cm: Number(formData.loom_roll_requirements.min_width_cm), max_width_cm: Number(formData.loom_roll_requirements.max_width_cm), meters_per_output: Number(formData.standard_output_meters) },
+      process_type: formData.process_type === 'OTRO' ? formData.custom_process_type.trim().toUpperCase() : formData.process_type || null,
+      target_width_cm: formData.target_width_cm === '' ? null : Number(formData.target_width_cm),
+      target_grammage_g_per_m: formData.target_grammage_g_per_m === '' ? null : Number(formData.target_grammage_g_per_m),
+      expected_output_quantity: formData.expected_output_quantity === '' ? null : Number(formData.expected_output_quantity),
+      expected_output_unit: formData.expected_output_unit || null,
+      standard_output_meters: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters),
+      standard_waste_percentage: formData.standard_waste_percentage === '' ? null : Number(formData.standard_waste_percentage),
+      cost_transformation_index: allowCosts && formData.cost_transformation_index !== '' ? Number(formData.cost_transformation_index) : null,
+      loom_roll_requirements: { ...formData.loom_roll_requirements, min_width_cm: formData.loom_roll_requirements.min_width_cm === '' ? null : Number(formData.loom_roll_requirements.min_width_cm), max_width_cm: formData.loom_roll_requirements.max_width_cm === '' ? null : Number(formData.loom_roll_requirements.max_width_cm), meters_per_output: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters) },
       materials: formData.materials
         .map((m) => ({
           material_id: Number(m.material_id),
@@ -294,7 +289,7 @@ export const GloboCatalogPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {canManageCatalog && <div className="flex items-center gap-3">
           <Button
             onClick={handleOpenCreate}
             className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-4 py-2 flex items-center gap-2 shadow-md"
@@ -302,7 +297,7 @@ export const GloboCatalogPage: React.FC = () => {
             <Plus className="h-5 w-5" />
             Nueva Especificación Globo
           </Button>
-        </div>
+        </div>}
       </div>
 
       {/* KPI Cards / Quick Stats */}
@@ -402,7 +397,7 @@ export const GloboCatalogPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex w-full items-center gap-2 sm:w-auto">
+                {canManageCatalog && <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Button
                     size="sm"
                     variant="outline"
@@ -422,7 +417,7 @@ export const GloboCatalogPage: React.FC = () => {
                   >
                     {spec.is_active ? 'Desactivar' : 'Activar'}
                   </Button>
-                </div>
+                </div>}
               </div>
 
               {/* Technical Target Strip */}
@@ -430,19 +425,19 @@ export const GloboCatalogPage: React.FC = () => {
                 <div>
                   <span className="text-slate-500 block">Producto Salida:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
-                    {spec.output_product_name}
+                    {spec.output_pti_code || 'PTI sin código'} · {spec.output_product_name || 'Producto pendiente'}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Ancho / Gramaje:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {spec.target_width_cm} cm | {spec.target_grammage_g_per_m} g/m
+                    {spec.target_width_cm ?? '—'} cm | {spec.target_grammage_g_per_m ?? '—'} g/m
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Lote PTI:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {spec.standard_output_meters} m ({spec.expected_output_quantity} {spec.expected_output_unit})
+                    {spec.standard_output_meters ?? '—'} m ({spec.expected_output_quantity ?? '—'} {spec.expected_output_unit || '—'})
                   </span>
                 </div>
               </div>
@@ -546,7 +541,7 @@ export const GloboCatalogPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+              <form noValidate onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
                 {/* 1. Datos Principales */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
@@ -601,7 +596,7 @@ export const GloboCatalogPage: React.FC = () => {
                       step="0.1"
                       required
                       value={formData.target_width_cm}
-                      onChange={(e) => setFormData({ ...formData, target_width_cm: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, target_width_cm: e.target.value === '' ? '' : Number(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -612,7 +607,7 @@ export const GloboCatalogPage: React.FC = () => {
                       step="0.1"
                       required
                       value={formData.target_grammage_g_per_m}
-                      onChange={(e) => setFormData({ ...formData, target_grammage_g_per_m: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, target_grammage_g_per_m: e.target.value === '' ? '' : Number(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -623,7 +618,7 @@ export const GloboCatalogPage: React.FC = () => {
                       step="0.1"
                       required
                       value={formData.standard_waste_percentage}
-                      onChange={(e) => setFormData({ ...formData, standard_waste_percentage: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, standard_waste_percentage: e.target.value === '' ? '' : Number(e.target.value) })}
                     />
                   </div>
                 </div>
@@ -638,6 +633,10 @@ export const GloboCatalogPage: React.FC = () => {
                     />
                   </div>
 
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  Puedes guardar la ficha como borrador mientras se confirman el flujo, los consumos y las medidas. Un borrador no se ofrece para producción.
+                </div>
+
                 {/* 2. Definición de Rendimiento / PTI */}
                 <div className="p-3.5 rounded-xl border border-orange-500/30 bg-orange-500/5 space-y-3">
                   <h4 className="text-xs font-black uppercase text-orange-400 tracking-wider flex items-center gap-1.5">
@@ -645,6 +644,10 @@ export const GloboCatalogPage: React.FC = () => {
                     Definición de Salida (PTI Globo)
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 block mb-1">Código de PTI de Globo *</label>
+                      <Input required value={formData.output_pti_code} onChange={(e) => setFormData({ ...formData, output_pti_code: e.target.value.toUpperCase() })} placeholder="Ej. GLO-PTI-001" className="font-mono" />
+                    </div>
                     <div className="md:col-span-2">
                       <label className="text-xs font-bold text-slate-400 block mb-1">Producto de salida *</label>
                       <Input
@@ -662,7 +665,7 @@ export const GloboCatalogPage: React.FC = () => {
                         step="0.01"
                         required
                         value={formData.standard_output_meters}
-                        onChange={(e) => setFormData({ ...formData, standard_output_meters: Number(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, standard_output_meters: e.target.value === '' ? '' : Number(e.target.value) })}
                       />
                     </div>
                   </div>
@@ -685,7 +688,7 @@ export const GloboCatalogPage: React.FC = () => {
                         step="0.01"
                         required
                         value={formData.cost_transformation_index}
-                        onChange={(e) => setFormData({ ...formData, cost_transformation_index: Number(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, cost_transformation_index: e.target.value === '' ? '' : Number(e.target.value) })}
                       />
                     </div>
                   )}
@@ -743,7 +746,7 @@ export const GloboCatalogPage: React.FC = () => {
                             ...formData,
                             loom_roll_requirements: {
                               ...formData.loom_roll_requirements,
-                              min_width_cm: Number(e.target.value),
+                              min_width_cm: e.target.value === '' ? '' : Number(e.target.value),
                             },
                           })
                         }
@@ -762,7 +765,7 @@ export const GloboCatalogPage: React.FC = () => {
                             ...formData,
                             loom_roll_requirements: {
                               ...formData.loom_roll_requirements,
-                              max_width_cm: Number(e.target.value),
+                              max_width_cm: e.target.value === '' ? '' : Number(e.target.value),
                             },
                           })
                         }

@@ -57,6 +57,9 @@ export const globoApi = {
     specification_id: number;
     meters_out?: number;
     weight_out_kg?: number;
+      scrap_meters?: number;
+      scrap_weight_kg?: number;
+      scrap_reason?: string;
     notes?: string;
   }) => {
     const res = await axiosClient.post('/globo/wip/transform-roll', payload);

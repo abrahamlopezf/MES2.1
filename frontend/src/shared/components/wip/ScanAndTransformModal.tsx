@@ -32,6 +32,9 @@ interface ScanAndTransformModalProps {
       specification_id: number;
       meters_out?: number;
       weight_out_kg?: number;
+      scrap_meters?: number;
+      scrap_weight_kg?: number;
+      scrap_reason?: string;
       notes?: string;
     }) => Promise<any>;
   };
@@ -60,6 +63,9 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
   // Estados de producción editables
   const [metersOut, setMetersOut] = useState<string>('');
   const [weightOut, setWeightOut] = useState<string>('');
+  const [scrapMeters, setScrapMeters] = useState<string>('0');
+  const [scrapWeight, setScrapWeight] = useState<string>('');
+  const [scrapReason, setScrapReason] = useState('');
   const [notes, setNotes] = useState<string>('');
 
   // Estado final de éxito
@@ -70,6 +76,9 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
       setQrInput(initialQr);
       setVerificationResult(null);
       setTransformedData(null);
+      setScrapMeters('0');
+      setScrapWeight('');
+      setScrapReason('');
       if (initialQr) {
         handleVerify(initialQr);
       }
@@ -97,6 +106,8 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
       if (res.is_allowed && res.roll) {
         setMetersOut(String(res.roll.meters || ''));
         setWeightOut(String(res.roll.weight_kg || ''));
+        setScrapMeters('0');
+        setScrapWeight('');
         if (res.compatible_specifications?.length > 0) {
           setSelectedSpecId(res.compatible_specifications[0].id);
         }
@@ -113,6 +124,13 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
       toast.error('Selecciona una especificación válida');
       return;
     }
+    const sourceMeters = Number(verificationResult.roll.meters || 0);
+    const goodMeters = Number(metersOut);
+    const discardedMeters = Number(scrapMeters || 0);
+    if (!(goodMeters > 0) || discardedMeters < 0 || Math.abs(goodMeters + discardedMeters - sourceMeters) > 0.02) {
+      toast.error('Los metros buenos y los metros de merma deben sumar los metros completos del rollo.');
+      return;
+    }
 
     setTransforming(true);
     try {
@@ -121,6 +139,9 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
         specification_id: selectedSpecId,
         meters_out: metersOut ? Number(metersOut) : undefined,
         weight_out_kg: weightOut ? Number(weightOut) : undefined,
+        scrap_meters: discardedMeters,
+        scrap_weight_kg: scrapWeight ? Number(scrapWeight) : undefined,
+        scrap_reason: scrapReason.trim() || undefined,
         notes: notes || undefined,
       });
 
@@ -327,7 +348,8 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <p className="text-xs text-slate-400">Registra los metros buenos y defectuosos. Deben sumar los metros recibidos; el consumo de receta se calcula sobre todo el material procesado.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-black uppercase text-slate-400">
                           Metros Resultantes (m):
@@ -343,15 +365,31 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
 
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-black uppercase text-slate-400">
-                          Peso Resultante (kg):
+                          Metros de merma:
                         </label>
                         <input
                           type="number"
-                          step="any"
-                          value={weightOut}
-                          onChange={(e) => setWeightOut(e.target.value)}
-                          className="w-full h-12 bg-slate-900 border-2 border-slate-700 rounded-xl px-4 text-lg font-mono font-black text-emerald-400 focus:border-blue-500 focus:outline-none"
+                          min="0"
+                          max={verificationResult.roll.meters}
+                          step="0.01"
+                          value={scrapMeters}
+                          onChange={(e) => setScrapMeters(e.target.value)}
+                          className="w-full h-12 bg-slate-900 border-2 border-slate-700 rounded-xl px-4 text-lg font-mono font-black text-amber-400 focus:border-blue-500 focus:outline-none"
                         />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-black uppercase text-slate-400">Peso bueno (kg):</label>
+                        <input type="number" min="0.001" step="any" value={weightOut} onChange={(e) => setWeightOut(e.target.value)} className="w-full h-12 bg-slate-900 border-2 border-slate-700 rounded-xl px-4 text-lg font-mono font-black text-emerald-400 focus:border-blue-500 focus:outline-none" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-black uppercase text-slate-400">Peso de merma (kg, si se pesó):</label>
+                        <input type="number" min="0" step="any" value={scrapWeight} onChange={(e) => setScrapWeight(e.target.value)} className="w-full h-12 bg-slate-900 border-2 border-slate-700 rounded-xl px-4 text-lg font-mono font-black text-amber-400 focus:border-blue-500 focus:outline-none" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-black uppercase text-slate-400">Motivo de merma:</label>
+                        <input type="text" maxLength={80} value={scrapReason} onChange={(e) => setScrapReason(e.target.value)} placeholder="Opcional" className="w-full h-12 bg-slate-900 border-2 border-slate-700 rounded-xl px-4 text-sm text-white focus:border-blue-500 focus:outline-none" />
                       </div>
                     </div>
 

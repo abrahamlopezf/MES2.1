@@ -12,6 +12,15 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
+      output_pti_code: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      configuration_status: {
+        type: DataTypes.STRING(16),
+        allowNull: false,
+        defaultValue: 'BORRADOR',
+      },
       name: {
         type: DataTypes.STRING(150),
         allowNull: false,
@@ -22,19 +31,16 @@ module.exports = (sequelize, DataTypes) => {
       },
       process_type: {
         type: DataTypes.STRING(50),
-        allowNull: false,
-        defaultValue: 'EXPANSION',
+        allowNull: true,
         comment: 'EXPANSION, FUELLE, CALIBRADO, REFUERZO',
       },
       target_width_cm: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-        defaultValue: 60.00,
+        allowNull: true,
       },
       target_grammage_g_per_m: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-        defaultValue: 70.00,
+        allowNull: true,
       },
       output_product_name: {
         type: DataTypes.STRING(150),
@@ -43,45 +49,33 @@ module.exports = (sequelize, DataTypes) => {
       },
       expected_output_quantity: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-        defaultValue: 1.00,
+        allowNull: true,
       },
       expected_output_unit: {
         type: DataTypes.STRING(20),
-        allowNull: false,
-        defaultValue: 'ROLLO',
+        allowNull: true,
       },
       standard_output_meters: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true,
-        defaultValue: 1000.00,
       },
       standard_waste_percentage: {
         type: DataTypes.DECIMAL(5, 2),
-        allowNull: false,
-        defaultValue: 1.50,
+        allowNull: true,
       },
       cost_transformation_index: {
         type: DataTypes.DECIMAL(8, 4),
-        allowNull: false,
-        defaultValue: 1.0000,
+        allowNull: true,
       },
       loom_roll_requirements: {
         type: DataTypes.JSONB,
         allowNull: false,
-        defaultValue: {
-          allowed_bom_ids: [],
-          min_width_cm: 45.0,
-          max_width_cm: 65.0,
-          fabric_type: 'TUBULAR',
-          meters_per_output: 1000,
-          notes: '',
-        },
+        defaultValue: {},
       },
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: true,
+        defaultValue: false,
       },
     },
     {

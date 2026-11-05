@@ -100,12 +100,15 @@ class GloboController {
 
   async transformRoll(req, res, next) {
     try {
-      const { roll_id, specification_id, meters_out, weight_out_kg, notes } = req.body;
+      const { roll_id, specification_id, meters_out, weight_out_kg, scrap_meters, scrap_weight_kg, scrap_reason, notes } = req.body;
       const data = await globoService.transformRoll({
         roll_id,
         specification_id,
         meters_out,
         weight_out_kg,
+        scrap_meters,
+        scrap_weight_kg,
+        scrap_reason,
         operator_id: req.user.id,
         currentUser: req.user,
         notes,

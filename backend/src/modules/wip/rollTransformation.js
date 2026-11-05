@@ -1,7 +1,7 @@
 'use strict';
 
 const { Op } = require('sequelize');
-const { WipInventory, Lote, Material, MaterialUnit } = require('../../database/models');
+const { WipInventory, Lote, Material, MaterialUnit, QrCode, TraceableItem, TraceabilityMovement } = require('../../database/models');
 
 const requirementsFor = (spec, meters) => {
   const standardMeters = Number(spec.standard_output_meters || 0);
@@ -80,6 +80,7 @@ const validateSpecificationPayload = (payload, area, { partial = false } = {}) =
   const waste = Number(payload.standard_waste_percentage);
   if ((!partial || payload.standard_waste_percentage !== undefined) && (!Number.isFinite(waste) || waste < 0)) errors.push('La merma estándar no puede ser negativa.');
   if ((!partial || payload.code !== undefined) && !String(payload.code || '').trim()) errors.push(`El código de ${label} es obligatorio.`);
+  if ((!partial || payload.output_pti_code !== undefined) && !String(payload.output_pti_code || '').trim()) errors.push('El código del PTI de salida es obligatorio.');
   if ((!partial || payload.name !== undefined) && !String(payload.name || '').trim()) errors.push(`El nombre de ${label} es obligatorio.`);
   if ((!partial || payload.output_product_name !== undefined) && !String(payload.output_product_name || '').trim()) errors.push('El nombre del producto de salida es obligatorio.');
   if ((!partial || payload.expected_output_unit !== undefined) && !String(payload.expected_output_unit || '').trim()) errors.push('La unidad de salida estándar es obligatoria.');
@@ -116,6 +117,52 @@ const validateSpecificationPayload = (payload, area, { partial = false } = {}) =
   if (errors.length) {
     throw Object.assign(new Error(errors.join(' ')), { statusCode: 400, code: 'INVALID_SPECIFICATION', details: errors });
   }
+};
+
+const validateSpecificationDraftPayload = (payload, area) => {
+  const label = area === 'GLOBO' ? 'Globo' : 'Laminado';
+  const errors = [];
+  if (!String(payload.code || '').trim()) errors.push(`El código de ${label} es obligatorio.`);
+  if (!String(payload.name || '').trim()) errors.push(`El nombre de ${label} es obligatorio.`);
+  if (!String(payload.output_pti_code || '').trim()) errors.push('El código del PTI de salida es obligatorio.');
+  if (!String(payload.output_product_name || '').trim()) errors.push('El nombre del PTI de salida es obligatorio.');
+
+  const typeField = area === 'GLOBO' ? 'process_type' : 'lamination_type';
+  if (payload[typeField] && String(payload[typeField]).trim().length > 50) errors.push(`El tipo de ${label} no puede superar 50 caracteres.`);
+
+  const positiveFields = area === 'GLOBO'
+    ? ['target_width_cm', 'target_grammage_g_per_m', 'expected_output_quantity', 'standard_output_meters']
+    : ['target_width_cm', 'coating_grammage_g_per_m2', 'expected_output_quantity', 'standard_output_meters'];
+  for (const field of positiveFields) {
+    if (payload[field] === undefined || payload[field] === null || payload[field] === '') continue;
+    if (!Number.isFinite(Number(payload[field])) || Number(payload[field]) <= 0) errors.push(`${field} debe ser mayor que cero.`);
+  }
+  if (payload.standard_waste_percentage !== undefined && payload.standard_waste_percentage !== null && payload.standard_waste_percentage !== '' && (!Number.isFinite(Number(payload.standard_waste_percentage)) || Number(payload.standard_waste_percentage) < 0)) {
+    errors.push('La merma estándar no puede ser negativa.');
+  }
+  if (payload.cost_transformation_index !== undefined && payload.cost_transformation_index !== null && payload.cost_transformation_index !== '' && (!Number.isFinite(Number(payload.cost_transformation_index)) || Number(payload.cost_transformation_index) <= 0)) {
+    errors.push('El factor de costo debe ser mayor que cero.');
+  }
+
+  const flow = payload.loom_roll_requirements || {};
+  const bomIds = Array.isArray(flow.allowed_bom_ids) ? flow.allowed_bom_ids : [];
+  if (bomIds.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0)) errors.push('La selección de fichas de Telares contiene un identificador inválido.');
+  const minWidth = flow.min_width_cm;
+  const maxWidth = flow.max_width_cm;
+  if (minWidth !== undefined && minWidth !== null && minWidth !== '' && (!Number.isFinite(Number(minWidth)) || Number(minWidth) <= 0)) errors.push('El ancho mínimo debe ser mayor que cero.');
+  if (maxWidth !== undefined && maxWidth !== null && maxWidth !== '' && (!Number.isFinite(Number(maxWidth)) || Number(maxWidth) <= 0)) errors.push('El ancho máximo debe ser mayor que cero.');
+  if (minWidth && maxWidth && Number(minWidth) > Number(maxWidth)) errors.push('El ancho mínimo no puede superar el máximo.');
+  if (flow.fabric_type && !['TUBULAR', 'PLANA', 'CUALQUIERA'].includes(String(flow.fabric_type).toUpperCase())) errors.push('El tipo de tela compatible no es válido.');
+  if (area === 'LAMINADO' && Array.isArray(flow.accepted_input_stages) && flow.accepted_input_stages.some((stage) => !['TELARES', 'GLOBO'].includes(String(stage).toUpperCase()))) {
+    errors.push('La ficha puede aceptar rollos de Telares, Globo o ambas etapas.');
+  }
+
+  if (Array.isArray(payload.materials)) payload.materials.forEach((material, index) => {
+    if (!material.material_id || !Number.isFinite(Number(material.quantity)) || Number(material.quantity) <= 0) errors.push(`Completa o elimina la línea de insumo ${index + 1}.`);
+    else if (String(material.unit || 'KG').toUpperCase() !== 'KG') errors.push(`El insumo ${index + 1} debe usar KG.`);
+  });
+
+  if (errors.length) throw Object.assign(new Error(errors.join(' ')), { statusCode: 400, code: 'INVALID_SPECIFICATION_DRAFT', details: errors });
 };
 
 const validateRecipeMaterialUnits = async (materials = []) => {
@@ -166,7 +213,7 @@ const assessWip = async ({ spec, meters, areaId }) => {
   };
 };
 
-const consumeWip = async ({ spec, meters, areaId, transaction }) => {
+const consumeWip = async ({ spec, meters, areaId, transaction, performedBy }) => {
   const requirements = requirementsFor(spec, meters);
   const lockedRowsByMaterial = new Map();
 
@@ -174,7 +221,10 @@ const consumeWip = async ({ spec, meters, areaId, transaction }) => {
   for (const requirement of requirements) {
     const rows = await WipInventory.findAll({
       where: { area_id: areaId, material_id: requirement.material_id, amount: { [Op.gt]: 0 } },
-      include: [{ model: Lote, as: 'lote' }],
+      include: [
+        { model: Lote, as: 'lote' },
+        { model: QrCode, as: 'qr_code' },
+      ],
       order: [['created_at', 'ASC'], ['id', 'ASC']],
       transaction,
       lock: { level: transaction.LOCK.UPDATE, of: WipInventory },
@@ -191,6 +241,7 @@ const consumeWip = async ({ spec, meters, areaId, transaction }) => {
   }
 
   const consumed = [];
+  const sourceQrConsumptions = [];
   let materialCost = 0;
   for (const requirement of requirements) {
     let remaining = requirement.required_kg;
@@ -198,8 +249,38 @@ const consumeWip = async ({ spec, meters, areaId, transaction }) => {
     for (const row of lockedRowsByMaterial.get(requirement.material_id) || []) {
       if (remaining <= 0.001) break;
       const take = Number(Math.min(Number(row.amount), remaining).toFixed(3));
+      const traceable = row.qr_code_id
+        ? await TraceableItem.findOne({ where: { qr_code_id: row.qr_code_id }, transaction, lock: { level: transaction.LOCK.UPDATE, of: TraceableItem } })
+        : null;
+      if (!row.qr_code_id || !traceable) {
+        throw Object.assign(new Error(`El lote WIP de ${requirement.name} no tiene un QR hijo trazable. No se realizó ningún consumo.`), { statusCode: 409, code: 'WIP_CHILD_QR_REQUIRED' });
+      }
+      const traceableBefore = Number(traceable.quantity_current || 0);
+      if (traceableBefore + 0.001 < take) {
+        throw Object.assign(new Error(`El saldo del QR hijo ${row.qr_code.qr_code} no coincide con el WIP de ${requirement.name}.`), { statusCode: 409, code: 'WIP_QR_BALANCE_MISMATCH' });
+      }
       row.amount = Number((Number(row.amount) - take).toFixed(3));
       await row.save({ transaction });
+      const traceableAfter = Number((traceableBefore - take).toFixed(3));
+      traceable.quantity_current = traceableAfter;
+      if (traceableAfter <= 0.001) traceable.status = 'CONSUMIDO';
+      await traceable.save({ transaction });
+      if (traceableAfter <= 0.001) await row.qr_code.update({ status: 'CONSUMED', is_active: false }, { transaction });
+      await TraceabilityMovement.create({
+        traceable_item_id: traceable.id,
+        qr_code_id: row.qr_code_id,
+        movement_type: 'CONSUMO_PROCESO',
+        from_area_id: areaId,
+        to_area_id: areaId,
+        quantity: take,
+        unit: 'KG',
+        balance_after: Math.max(0, traceableAfter),
+        reference_folio: spec.code,
+        notes: `Consumo de receta para PTI ${spec.output_pti_code || spec.output_product_name}`,
+        metadata: { specification_code: spec.code, material_id: requirement.material_id, wip_inventory_id: row.id },
+        performed_by: performedBy || null,
+      }, { transaction });
+      sourceQrConsumptions.push({ qr_code_id: row.qr_code_id, traceable_item_id: traceable.id, qr_code: row.qr_code.qr_code, material_id: requirement.material_id, quantity_used_kg: take });
       const unitCost = Number(row.lote?.unit_cost || 0);
       lineCost += take * unitCost;
       remaining = Number((remaining - take).toFixed(3));
@@ -213,7 +294,7 @@ const consumeWip = async ({ spec, meters, areaId, transaction }) => {
       material_cost: Number(lineCost.toFixed(4)),
     });
   }
-  return { consumed, materialCost: Number(materialCost.toFixed(4)) };
+  return { consumed, sourceQrConsumptions, materialCost: Number(materialCost.toFixed(4)) };
 };
 
-module.exports = { requirementsFor, compatibility, validateSpecificationPayload, validateRecipeMaterialUnits, assessWip, consumeWip };
+module.exports = { requirementsFor, compatibility, validateSpecificationPayload, validateSpecificationDraftPayload, validateRecipeMaterialUnits, assessWip, consumeWip };

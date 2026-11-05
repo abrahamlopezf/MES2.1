@@ -14,7 +14,7 @@ const areaRoles = (...allowedRoles) => (req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Globo.' });
 };
 const areaView = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
-const areaAdmin = areaRoles('ADMIN_GLOBO');
+const areaAdmin = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO');
 const areaProcess = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
 const supervisorOrAdmin = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO');
 

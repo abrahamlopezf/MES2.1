@@ -36,7 +36,7 @@ export const LaminadoWipPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialQrFromUrl = searchParams.get('qr')?.trim() || '';
 
-  const [activeTab, setActiveTab] = useState<'rolls' | 'warehouse' | 'incoming' | 'history'>('rolls');
+  const [activeTab, setActiveTab] = useState<'rolls' | 'warehouse' | 'incoming' | 'history' | 'scrap'>('rolls');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRollForPreparation, setSelectedRollForPreparation] = useState<any | null>(null);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
@@ -59,6 +59,7 @@ export const LaminadoWipPage: React.FC = () => {
   const rollsIncoming = wipData?.rolls_incoming || [];
   const warehouseMaterials = wipData?.warehouse_materials || [];
   const recentTransformed = wipData?.recent_transformed || [];
+  const scrapLogs = wipData?.scrap_logs || [];
 
   const filteredRolls = rollsInFloor.filter(
     (r) =>
@@ -262,6 +263,9 @@ export const LaminadoWipPage: React.FC = () => {
             <CheckCircle2 className="h-4 w-4" />
             Finalizados ({recentTransformed.length})
           </button>
+          <button role="tab" aria-selected={activeTab === 'scrap'} aria-controls="laminado-wip-panel" onClick={() => setActiveTab('scrap')} className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 ${activeTab === 'scrap' ? 'bg-rose-600 text-white shadow-md' : isDark ? 'bg-slate-900 text-slate-300 hover:bg-slate-800' : 'bg-white text-slate-700 hover:bg-slate-100 border'}`}>
+            <Scale className="h-4 w-4" /> Merma / Scrap ({scrapLogs.length})
+          </button>
         </div>
 
         <div className="relative w-full sm:w-64">
@@ -417,6 +421,8 @@ export const LaminadoWipPage: React.FC = () => {
             ))}
           </div>
         )
+      ) : activeTab === 'scrap' ? (
+        scrapLogs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-slate-400">No hay registros de merma o scrap en Laminado.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{scrapLogs.map((log: any) => <article key={log.id} className="rounded-xl border border-rose-500/30 bg-slate-900/70 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="font-mono text-rose-300">{log.output_pti_code}</strong><time className="text-xs text-slate-400">{new Date(log.created_at).toLocaleString()}</time></div><p className="mt-1 text-sm text-slate-300">Ficha {log.specification_code} · {log.recorded_by}</p><dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm"><div><dt className="text-xs text-slate-500">Procesado</dt><dd className="font-mono">{log.processed_meters} m</dd></div><div><dt className="text-xs text-slate-500">Bueno</dt><dd className="font-mono text-emerald-400">{log.good_meters} m</dd></div><div><dt className="text-xs text-slate-500">Merma</dt><dd className="font-mono text-rose-300">{log.scrap_meters} m</dd></div><div><dt className="text-xs text-slate-500">Peso merma</dt><dd className="font-mono">{log.scrap_weight_kg ?? 'Sin pesar'}{log.scrap_weight_kg == null ? '' : ' kg'}</dd></div></dl><p className="mt-3 break-all text-xs text-slate-400">QR origen: {log.source_qr} → QR PTI: {log.output_qr}</p>{log.reason && <p className="mt-1 text-xs text-slate-400">Motivo: {log.reason}</p>}</article>)}</div>
       ) : activeTab === 'incoming' ? (
         /* TAB 3: En Tránsito hacia Laminado */
         rollsIncoming.length === 0 ? (

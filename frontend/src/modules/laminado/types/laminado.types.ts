@@ -26,6 +26,8 @@ export interface LaminadoLoomRollRequirements {
 export interface LaminadoSpecification {
   id: number;
   code: string;
+  output_pti_code: string;
+  configuration_status?: 'BORRADOR' | 'ACTIVA';
   name: string;
   description?: string;
   lamination_type: 'EXTRUSION_COATING' | 'MONOCAPA' | 'BICAPA' | 'BOPP_FILM' | 'PAPEL_KRAFT';
@@ -108,5 +110,6 @@ export interface LaminadoWipSummary {
   rolls_incoming: LaminadoWipRoll[];
   warehouse_materials: LaminadoWarehouseWipMaterial[];
   recent_transformed: LaminadoRecentTransformed[];
+  scrap_logs?: Array<{ id: number; source_qr: string; output_qr: string; output_pti_code: string; specification_code: string; processed_meters: number; good_meters: number; scrap_meters: number; good_weight_kg: number; scrap_weight_kg: number | null; reason?: string | null; recorded_by: string; created_at: string }>;
   specifications: LaminadoSpecification[];
 }
