@@ -1133,8 +1133,23 @@ const manualEntry = async (payload, currentUser) => {
       const folios = payload.entries.map((entry) => String(entry.folio || '').trim()).filter(Boolean);
       if (folios.length) targetSilo.current_lot_number = [...new Set(folios)].join(', ').slice(0, 100);
       await targetSilo.save({ transaction: t });
+      // PP ingresado a silo no incrementa el inventario general: el saldo
+      // operativo vive en silos.current_stock_kg. Conservamos, aun así, cada
+      // factura en el kardex de Almacén usando una fila de inventario puente
+      // en cero para satisfacer la relación histórica de inventory_movements.
+      let siloInventory = await Inventory.findOne({
+        where: { material_id: payload.material_id },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!siloInventory) {
+        siloInventory = await Inventory.create({
+          material_id: payload.material_id,
+          amount: 0,
+        }, { transaction: t });
+      }
       const { AuditLog } = require('../../database/models');
-      await AuditLog.create({
+      const siloReceiptAudit = await AuditLog.create({
         action: 'SILO_MANUAL_RECEIPT',
         entity_type: 'SILO',
         entity_id: String(targetSilo.id),
@@ -1149,6 +1164,22 @@ const manualEntry = async (payload, currentUser) => {
           return { folio: entry.folio, invoice_date: entry.invoice_date || exchange.requestedDate, quantity: Number(entry.quantity), invoice_unit_cost: Number(entry.unit_cost), invoice_unit_cost_mxn: mxnUnitCostFor(entry), invoice_unit_cost_usd: usdUnitCostFor(entry), currency: invoiceCurrency, exchange_rate_mxn_per_usd: exchange.rate, exchange_rate_date: exchange.date, exchange_rate_source: exchange.source, lot_type: entry.lot_type || null };
         }) },
       }, { transaction: t });
+
+      const { buildSiloReceiptMovementRows } = require('./siloReceiptMovement');
+      const siloMovements = buildSiloReceiptMovementRows({
+        entries: payload.entries,
+        inventoryId: siloInventory.id,
+        userId: currentUser.id,
+        siloId: targetSilo.id,
+        siloCode: targetSilo.code,
+        auditLogId: siloReceiptAudit.id,
+        unitCostFor: mxnUnitCostFor,
+      });
+      // Persist the relational silo key separately from its human-readable code.
+      await InventoryMovement.bulkCreate(siloMovements.map((movement) => ({
+        ...movement,
+        silo_id: targetSilo.id,
+      })), { transaction: t });
     }
 
     // 3. Bulk create movements

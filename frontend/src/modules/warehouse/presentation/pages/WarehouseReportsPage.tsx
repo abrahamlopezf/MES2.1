@@ -521,12 +521,12 @@ export const WarehouseReportsPage: React.FC = () => {
                           {row.siloCode && <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-1">Silo {row.siloCode} · Preparación {row.preparationFolio || 'S/R'}</p>}
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs leading-snug font-bold uppercase shrink-0 ${
-                          row.type === 'MANUAL_ENTRY' || row.type === 'RECEPTION' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                          row.type === 'MANUAL_ENTRY' || row.type === 'RECEPTION' || row.type === 'SILO_ENTRY' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
                           row.type === 'CONSUMPTION' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
                           row.type === 'DEVOLUCION' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                           'bg-red-500/10 text-red-500 border border-red-500/20'
                         }`}>
-                          {row.type}
+                          {row.type === 'SILO_ENTRY' ? 'ENTRADA A SILO' : row.type}
                         </span>
                       </div>
 
@@ -575,12 +575,12 @@ export const WarehouseReportsPage: React.FC = () => {
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                              row.type === 'MANUAL_ENTRY' || row.type === 'RECEPTION' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                              row.type === 'MANUAL_ENTRY' || row.type === 'RECEPTION' || row.type === 'SILO_ENTRY' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
                               row.type === 'CONSUMPTION' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
                               row.type === 'DEVOLUCION' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                               'bg-red-500/10 text-red-500 border border-red-500/20'
                             }`}>
-                              {row.type}
+                              {row.type === 'SILO_ENTRY' ? 'ENTRADA A SILO' : row.type}
                             </span>
                           </td>
                           <td className="py-3 px-4">

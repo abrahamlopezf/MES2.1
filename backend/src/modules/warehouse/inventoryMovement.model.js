@@ -70,6 +70,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      source_audit_log_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+      },
+      source_reference: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+      },
       process_preparation_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

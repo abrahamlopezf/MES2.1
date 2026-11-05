@@ -29,14 +29,23 @@ class WarehouseReportService {
 
     // A) Tendencias Mensuales (Ene - Dic)
     const [entriesTrend] = await sequelize.query(`
-      SELECT 
-        EXTRACT(MONTH FROM l.date_received)::int as m,
-        COUNT(l.id) as count,
-        COALESCE(SUM(l.initial_amount), 0) as total_qty,
-        COALESCE(SUM(l.initial_amount * COALESCE(l.unit_cost, 0)), 0) as total_cost
-      FROM lotes l
-      WHERE EXTRACT(YEAR FROM l.date_received) = ${year}
-      GROUP BY EXTRACT(MONTH FROM l.date_received)
+      SELECT m, SUM(count)::int AS count, SUM(total_qty) AS total_qty, SUM(total_cost) AS total_cost
+      FROM (
+        SELECT EXTRACT(MONTH FROM l.date_received)::int AS m, COUNT(l.id)::int AS count,
+          COALESCE(SUM(l.initial_amount), 0) AS total_qty,
+          COALESCE(SUM(l.initial_amount * COALESCE(l.unit_cost, 0)), 0) AS total_cost
+        FROM lotes l
+        WHERE EXTRACT(YEAR FROM l.date_received) = ${year}
+        GROUP BY EXTRACT(MONTH FROM l.date_received)
+        UNION ALL
+        SELECT EXTRACT(MONTH FROM im.created_at)::int AS m, COUNT(im.id)::int AS count,
+          COALESCE(SUM(im.quantity_change), 0) AS total_qty,
+          COALESCE(SUM(COALESCE(NULLIF(im.total_cost, 0), im.quantity_change * COALESCE(im.unit_cost, 0))), 0) AS total_cost
+        FROM inventory_movements im
+        WHERE im.type = 'SILO_ENTRY' AND EXTRACT(YEAR FROM im.created_at) = ${year}
+        GROUP BY EXTRACT(MONTH FROM im.created_at)
+      ) entries
+      GROUP BY m
       ORDER BY m ASC
     `);
 
@@ -107,12 +116,20 @@ class WarehouseReportService {
 
     // B) Totales para el período seleccionado
     const [periodEntries] = await sequelize.query(`
-      SELECT 
-        COUNT(l.id) as total_lots,
-        COALESCE(SUM(l.initial_amount), 0) as total_qty,
-        COALESCE(SUM(l.initial_amount * COALESCE(l.unit_cost, 0)), 0) as total_cost
-      FROM lotes l
-      WHERE ${dateFilterSqlLotes}
+      SELECT SUM(total_lots)::int AS total_lots, SUM(total_qty) AS total_qty, SUM(total_cost) AS total_cost
+      FROM (
+        SELECT COUNT(l.id)::int AS total_lots,
+          COALESCE(SUM(l.initial_amount), 0) AS total_qty,
+          COALESCE(SUM(l.initial_amount * COALESCE(l.unit_cost, 0)), 0) AS total_cost
+        FROM lotes l
+        WHERE ${dateFilterSqlLotes}
+        UNION ALL
+        SELECT COUNT(im.id)::int AS total_lots,
+          COALESCE(SUM(im.quantity_change), 0) AS total_qty,
+          COALESCE(SUM(COALESCE(NULLIF(im.total_cost, 0), im.quantity_change * COALESCE(im.unit_cost, 0))), 0) AS total_cost
+        FROM inventory_movements im
+        WHERE im.type = 'SILO_ENTRY' AND ${dateFilterSqlMovements}
+      ) entries
     `);
 
     const [periodConsumptions] = await sequelize.query(`

@@ -2,6 +2,7 @@ const { sequelize, ConsumptionOrder, ConsumptionOrderItem, QrCode, Material, Lot
 const { encryptQrData } = require('../../shared/utils/crypto.utils');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
+const { getLotBackedInventoryReconciliation } = require('./inventoryLotReconciliation');
 
 class ConsumptionOrderService {
   async createOrder(data, transaction = null) {
@@ -582,8 +583,50 @@ class ConsumptionOrderService {
     }
 
     // 1. Descontar Almacén y conservar área, ODC y costo del movimiento.
-    const inventory = await Inventory.findOne({ where: { material_id: itemToFulfill.material_id }, transaction, lock: transaction.LOCK.UPDATE });
-    if (!inventory) throw Object.assign(new Error('No existe inventario global del material para conciliar el surtido de la ODC.'), { statusCode: 409 });
+    const [inventory] = await Inventory.findOrCreate({
+      where: { material_id: itemToFulfill.material_id },
+      defaults: { material_id: itemToFulfill.material_id, amount: 0 },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    const activeLotsAfterScan = Number(await Lote.sum('available_amount', {
+      where: {
+        material_id: itemToFulfill.material_id,
+        is_active: true,
+        available_amount: { [Op.gt]: 0 },
+      },
+      transaction,
+    })) || 0;
+    const reconciliation = getLotBackedInventoryReconciliation(
+      inventory.amount,
+      activeLotsAfterScan,
+      qtyToTake,
+    );
+    if (reconciliation.delta > 0.0005) {
+      const inventoryBeforeReconciliation = Number(inventory.amount) || 0;
+      inventory.amount = reconciliation.expectedBeforeScan;
+      await inventory.save({ transaction });
+      const { AuditLog } = require('../../database/models');
+      await AuditLog.create({
+        action: 'INVENTORY_BALANCE_RECONCILED_FROM_LOTS',
+        entity_type: 'INVENTORY',
+        entity_id: String(inventory.id),
+        module: 'WAREHOUSE',
+        user_id: resolved_by,
+        description: `Se sincronizó el saldo global con lotes activos durante el surtido de ${order.order_number}.`,
+        before_data: { amount: inventoryBeforeReconciliation },
+        after_data: { amount: reconciliation.expectedBeforeScan },
+        metadata: {
+          material_id: itemToFulfill.material_id,
+          order_id: order.id,
+          order_item_id: itemToFulfill.id,
+          scanned_lot_id: scannedLote.id,
+          scanned_lot_folio: itemToFulfill.lote.folio,
+          lot_backed_amount_before_scan: reconciliation.expectedBeforeScan,
+          reconciliation_delta: reconciliation.delta,
+        },
+      }, { transaction });
+    }
     if (Number(inventory.amount) + 0.0005 < qtyToTake) {
       throw Object.assign(new Error(`El inventario global (${Number(inventory.amount).toFixed(3)}) es menor que el surtido requerido (${qtyToTake.toFixed(3)}). Corrige la conciliación antes de entregar.`), { statusCode: 409 });
     }
