@@ -42,6 +42,7 @@ module.exports = (sequelize, DataTypes) => {
       from_mix_share: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
       to_mix_share: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
       shift_code: { type: DataTypes.STRING(30), allowNull: true },
+      shift_session_id: { type: DataTypes.INTEGER, allowNull: true },
       mixture_consumption_applied: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       actual_weight_method: { type: DataTypes.STRING(32), allowNull: false, defaultValue: 'PESAJE_DIRECTO' },
       shift_closure_id: { type: DataTypes.INTEGER, allowNull: true },

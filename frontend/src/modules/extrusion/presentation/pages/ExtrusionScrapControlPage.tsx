@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { extrusionApi } from '../../services/extrusionApi';
 import { useExtruderQueuesQuery } from '../../hooks/useExtrusionFloorQueries';
 import { ExtrusionShiftClosurePanel } from '../presenters/ExtrusionShiftClosurePanel';
+import { ExtrusionShiftSessionPanel } from '../presenters/ExtrusionShiftSessionPanel';
 
 type ControlTab = 'shift' | 'history';
 type ScrapStatusFilter = 'ALL' | 'PENDING' | 'CLOSED';
@@ -128,6 +129,7 @@ export const ExtrusionScrapControlPage: React.FC = () => {
       </div>
 
       <section role="tabpanel" id="scrap-panel-shift" aria-labelledby="scrap-tab-shift" tabIndex={0} hidden={tab !== 'shift'} className="space-y-4">
+          <ExtrusionShiftSessionPanel />
           <ExtrusionShiftClosurePanel />
       </section>
       <section role="tabpanel" id="scrap-panel-history" aria-labelledby="scrap-tab-history" tabIndex={0} hidden={tab !== 'history'} className="space-y-4">

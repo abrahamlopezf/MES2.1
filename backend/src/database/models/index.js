@@ -659,6 +659,7 @@ db.ExtrusionTransition = require('../../modules/extrusion/models/extrusionTransi
 db.ExtrusionProductionEntry = require('../../modules/extrusion/models/extrusionProductionEntry.model')(sequelize, DataTypes);
 db.ExtrusionScrapAdjustment = require('../../modules/extrusion/models/extrusionScrapAdjustment.model')(sequelize, DataTypes);
 db.ExtrusionShiftClosure = require('../../modules/extrusion/models/extrusionShiftClosure.model')(sequelize, DataTypes);
+db.ExtrusionShiftSession = require('../../modules/extrusion/models/extrusionShiftSession.model')(sequelize, DataTypes);
 db.ExtrusionProductionAdjustment = sequelize.define('ExtrusionProductionAdjustment', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   production_entry_id: { type: DataTypes.INTEGER, allowNull: false },
@@ -800,6 +801,9 @@ db.ExtrusionTransition.belongsTo(db.ExtruderQueue, { foreignKey: 'from_queue_id'
 db.ExtrusionTransition.belongsTo(db.ExtruderQueue, { foreignKey: 'to_queue_id', as: 'toQueue' });
 db.Extruder.hasMany(db.ExtrusionShiftClosure, { foreignKey: 'extruder_id', as: 'shiftClosures' });
 db.ExtrusionShiftClosure.belongsTo(db.Extruder, { foreignKey: 'extruder_id', as: 'extruder' });
+db.ExtrusionShiftSession.belongsTo(db.User, { foreignKey: 'supervisor_id', as: 'supervisor' });
+db.ExtrusionShiftSession.belongsTo(db.User, { foreignKey: 'closed_by', as: 'closedBy' });
+db.ExtrusionShiftSession.hasMany(db.PtiRack, { foreignKey: 'custody_shift_session_id', as: 'custodyRacks' });
 db.PtiRack.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
 db.ExtrusionProductionEntry.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
 db.ExtrusionTransition.hasMany(db.ExtrusionScrapLog, {

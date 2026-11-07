@@ -75,6 +75,7 @@ const dispatchToWarehouse = async (payload, user) => {
       lock: transaction.LOCK.UPDATE,
     });
     if (!rack) throw fail('No se encontró el rack de Extrusión.', 404);
+    if (rack.custody_shift_session_id) throw fail(`El rack ${rack.rack_code} está en custodia del turno de Extrusión y no puede salir hasta cerrar ese turno.`, 409);
     if (Number(rack.current_quantity) <= 0 || !rack.current_pti_product_id) throw fail('El rack está vacío.');
     if (rack.destination_route !== 'ALMACEN') throw fail('Este rack no está destinado a Almacén. Su ruta asignada es ' + (rack.destination_route || 'sin ruta') + '.');
     const ptiProduct = rack.currentPtiProduct;
@@ -247,6 +248,7 @@ const registerSaleExit = async (payload, user) => {
       lock: transaction.LOCK.UPDATE,
     });
     if (!rack) throw fail('No se encontró el rack de Extrusión.', 404);
+    if (rack.custody_shift_session_id) throw fail(`El rack ${rack.rack_code} está en custodia del turno de Extrusión y no puede salir hasta cerrar ese turno.`, 409);
     if (rackQr && ![rack.qr_code, rack.rack_code].some((candidate) => String(candidate || '').trim().toUpperCase() === rackQr.toUpperCase())) {
       throw fail('El QR escaneado no corresponde al rack seleccionado.', 409);
     }

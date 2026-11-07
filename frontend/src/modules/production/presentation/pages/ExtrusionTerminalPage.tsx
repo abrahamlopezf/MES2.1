@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { QRCodeSVG } from 'qrcode.react';
+import { ExtrusionShiftSessionPanel } from '../../../extrusion/presentation/presenters/ExtrusionShiftSessionPanel';
 
 interface SessionRoll {
   rollIndex: number;
@@ -809,6 +810,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
           </section>
         </div>
       )}
+      <ExtrusionShiftSessionPanel />
       {/* Header Banner Estandarizado */}
       <section className="bg-card rounded-xl border border-border shadow-sm p-4 sm:px-6 sm:py-3.5 w-full shrink-0">
         <div className="flex flex-col items-stretch gap-4 xl:flex-row xl:items-center xl:justify-between">

@@ -720,6 +720,9 @@ class TelaresService {
         lock: { level: t.LOCK.UPDATE, of: PtiRack },
       });
       if (!rack) throw new Error(`Carrito / Rack Maestro ID ${rack_id} no encontrado.`);
+      if (rack.custody_shift_session_id) {
+        throw Object.assign(new Error(`El rack ${rack.rack_code} está en custodia del turno de Extrusión y no puede moverse hasta que ese turno se cierre.`), { statusCode: 409, code: 'PTI_RACK_SHIFT_LOCKED' });
+      }
 
       const scannedQr = String(scanned_qr || '').trim();
       if (!scannedQr) {

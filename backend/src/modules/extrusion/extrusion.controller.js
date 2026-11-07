@@ -10,7 +10,8 @@ class ExtrusionController {
       // payload needs: formula_id, destination_qr_code, inputs: [{qr_code, quantity}]
       const result = await extrusionService.mixFormula({
         ...req.body,
-        area_id: req.user.area_id
+        area_id: req.user.area_id,
+        shift_session_id: req.extrusionShiftSession?.id,
       }, req.user.id);
 
       return res.status(201).json({
@@ -61,7 +62,7 @@ class ExtrusionController {
 
   async createMixRequest(req, res, next) {
     try {
-      const preparation = await extrusionService.createMixRequest(req.body, req.user.id);
+      const preparation = await extrusionService.createMixRequest({ ...req.body, shift_session_id: req.extrusionShiftSession?.id }, req.user.id);
       return res.status(201).json({
         success: true,
         message: 'Solicitud de mezcla creada',
@@ -118,7 +119,8 @@ class ExtrusionController {
     try {
       const result = await extrusionService.switchQueuePriority({
         ...req.body,
-        userId: req.user?.id || 1
+        userId: req.user?.id || 1,
+        shift_session_id: req.extrusionShiftSession?.id,
       });
 
       return res.status(200).json({
@@ -135,7 +137,8 @@ class ExtrusionController {
     try {
       const result = await extrusionService.scanRackPti({
         ...req.body,
-        userId: req.user?.id || 1
+        userId: req.user?.id || 1,
+        shift_session_id: req.extrusionShiftSession?.id,
       });
 
       return res.status(200).json({
@@ -176,7 +179,7 @@ class ExtrusionController {
 
   async enqueueMix(req, res, next) {
     try {
-      const result = await extrusionService.enqueueMix(req.body);
+      const result = await extrusionService.enqueueMix({ ...req.body, shift_session_id: req.extrusionShiftSession?.id });
       return res.status(201).json({
         success: true,
         message: 'Mezcla agregada a la cola exitosamente.',
@@ -241,7 +244,8 @@ class ExtrusionController {
     try {
       const result = await extrusionService.registerOperationalScrap({
         ...req.body,
-        userId: req.user?.id || 1
+        userId: req.user?.id || 1,
+        shift_session_id: req.extrusionShiftSession?.id,
       });
       return res.status(201).json({
         success: true,
@@ -292,6 +296,7 @@ class ExtrusionController {
       const result = await extrusionService.adjustScrapWeight({
         ...req.body,
         scrap_log_id: req.params.id,
+        shift_session_id: req.extrusionShiftSession?.id,
         userId: req.user?.id,
       });
       return res.status(200).json({ success: true, message: 'Pesaje de scrap actualizado con auditoría.', data: result });
@@ -309,6 +314,21 @@ class ExtrusionController {
     }
   }
 
+  async getActiveExtrusionShiftSession(req, res, next) {
+    try { return res.status(200).json({ success: true, data: await extrusionService.getActiveExtrusionShiftSession() }); }
+    catch (error) { next(error); }
+  }
+
+  async openExtrusionShiftSession(req, res, next) {
+    try { return res.status(201).json({ success: true, data: await extrusionService.openExtrusionShiftSession({ ...req.body, user: req.user }) }); }
+    catch (error) { next(error); }
+  }
+
+  async closeExtrusionShiftSession(req, res, next) {
+    try { return res.status(200).json({ success: true, data: await extrusionService.closeExtrusionShiftSession({ sessionId: req.params.id, user: req.user }) }); }
+    catch (error) { next(error); }
+  }
+
   async getExtrusionShiftActivity(req, res, next) {
     try {
       const activity = await extrusionService.getExtrusionShiftActivity(req.query);
@@ -323,6 +343,7 @@ class ExtrusionController {
       const entry = await extrusionService.adjustProductionEntry({
         ...req.body,
         production_entry_id: req.params.id,
+        shift_session_id: req.extrusionShiftSession?.id,
         userId: req.user?.id,
       });
       return res.status(200).json({ success: true, message: 'Producción corregida con auditoría.', data: entry });
@@ -347,6 +368,7 @@ class ExtrusionController {
       const result = await extrusionService.scrapWipMixture({
         preparationId: req.params.id,
         userId: req.user?.id || null,
+        shift_session_id: req.extrusionShiftSession?.id,
       });
       return res.status(200).json({ success: true, message: 'Saldo de mezcla enviado a scrap.', data: result });
     } catch (error) {
@@ -457,6 +479,7 @@ class ExtrusionController {
     try {
       const result = await extrusionService.splitMixtureContainers({
         ...req.body,
+        shift_session_id: req.extrusionShiftSession?.id,
         userId: req.user?.id || 1
       });
       return res.status(201).json({
@@ -473,7 +496,8 @@ class ExtrusionController {
     try {
       const result = await extrusionService.recordMixtureTransition({
         ...req.body,
-        userId: req.user?.id || 1
+        userId: req.user?.id || 1,
+        shift_session_id: req.extrusionShiftSession?.id,
       });
       return res.status(201).json({
         success: true,

@@ -238,7 +238,7 @@ class ExtrusionService {
 
   async mixFormula(payload, userId) {
     return sequelize.transaction(async (transaction) => {
-      const { formula_id, output_color, preparation_id, destination_qr_code, container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes } = payload;
+      const { formula_id, output_color, preparation_id, destination_qr_code, container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes, shift_session_id } = payload;
       let effectiveAreaId = area_id;
       if (!effectiveAreaId) {
         const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction });
@@ -470,6 +470,7 @@ class ExtrusionService {
         preparation.status = 'PREPARADA';
         preparation.prepared_by = userId;
         preparation.prepared_at = new Date();
+        preparation.shift_session_id = Number(shift_session_id) || preparation.shift_session_id || null;
         if (notes) preparation.notes = notes;
         preparation.is_silo_kit = false;
         await preparation.save({ transaction });
@@ -477,6 +478,7 @@ class ExtrusionService {
         const folio = `MIX-EXT-${Date.now()}`;
         preparation = await ProcessPreparation.create({
           folio,
+          shift_session_id: Number(shift_session_id) || null,
           formula_id,
           from_area_id: effectiveAreaId,
           to_area_id: effectiveAreaId,
@@ -1002,6 +1004,7 @@ class ExtrusionService {
         for (const c of createdContainers) {
           const queueItem = await ExtruderQueue.create({
             extruder_id: machineId,
+            shift_session_id: Number(shift_session_id) || null,
             consumption_order_qr_id: c.qr_code,
             formula_id: formula.id,
             process_preparation_id: preparation.id,
@@ -1366,7 +1369,7 @@ class ExtrusionService {
   }
 
   async createMixRequest(payload, userId) {
-    const { formula_id, to_area_id, quantity, notes } = payload;
+    const { formula_id, to_area_id, quantity, notes, shift_session_id } = payload;
     
     // validate formula (support both Formula and ProcessFormula)
     const { Formula, ProcessFormula } = require('../../database/models');
@@ -1381,6 +1384,7 @@ class ExtrusionService {
     
     const preparation = await ProcessPreparation.create({
       folio,
+      shift_session_id: Number(shift_session_id) || null,
       formula_id,
       from_area_id: 1, // Central Mixing Area ID - Adjust according to seed
       to_area_id,      // The extruder requesting it
@@ -1653,7 +1657,7 @@ class ExtrusionService {
   /**
    * Cambia la prioridad de una mezcla, pausando la activa y registrando merma de purga.
    */
-  async switchQueuePriority({ extruder_id, target_queue_id, queue_id, scanned_qr, prioritize_formula_id, purge_percentage, scrap_items = [], shift_code, notes, remaining_mix_disposition, userId }) {
+  async switchQueuePriority({ extruder_id, target_queue_id, queue_id, scanned_qr, prioritize_formula_id, purge_percentage, scrap_items = [], shift_code, shift_session_id, notes, remaining_mix_disposition, userId }) {
     const targetId = Number(target_queue_id || queue_id);
     if (!targetId) {
       const error = new Error('ID de la mezcla en cola a priorizar es obligatorio.');
@@ -1675,6 +1679,8 @@ class ExtrusionService {
         error.statusCode = 404;
         throw error;
       }
+      if (!shift_session_id) throw Object.assign(new Error('Se requiere un turno operativo abierto para priorizar una mezcla.'), { statusCode: 409 });
+      targetQueue.shift_session_id = Number(shift_session_id);
       if (!['EN_ESPERA', 'PAUSADA', 'ACTIVA'].includes(targetQueue.status)) {
         const error = new Error(`No se puede activar una mezcla en estado ${targetQueue.status}.`);
         error.statusCode = 409;
@@ -1744,6 +1750,7 @@ class ExtrusionService {
       const currentActive = await ExtruderQueue.findOne({
         where: {
           extruder_id: machineId,
+          shift_session_id: Number(shift_session_id) || null,
           status: 'ACTIVA'
         },
         transaction: t,
@@ -1872,6 +1879,7 @@ class ExtrusionService {
             category: 'SCRAP_ESPECIAL',
             color: currentActive.output_pti_color || null,
             shift_code: shift_code || 'TURNO_1',
+            shift_session_id: Number(shift_session_id) || currentActive.shift_session_id || null,
             mixture_consumption_applied: true,
             actual_weight_method: 'SALDO_CONTENEDOR_ESTIMADO',
             valuation_unit_cost: Number.isFinite(previousCost) && previousCost > 0 ? previousCost : null,
@@ -1994,6 +2002,7 @@ class ExtrusionService {
             from_mix_share: fromShare,
             to_mix_share: toShare,
             shift_code: shift_code || 'TURNO_1',
+            shift_session_id: Number(shift_session_id) || currentActive.shift_session_id || null,
             actual_weight_method: actualWeight == null ? 'ESTIMADO_POR_EVENTO' : 'PESAJE_DIRECTO',
             valuation_unit_cost: scrapUnitCost,
             valuation_total_cost: scrapUnitCost == null ? null : Number((weighedScrapKg * scrapUnitCost).toFixed(4)),
@@ -2039,6 +2048,7 @@ class ExtrusionService {
       // 5. Iniciar la nueva mezcla con la más alta prioridad
       const maxPriority = (await ExtruderQueue.max('priority', { where: { extruder_id: machineId }, transaction: t })) || 0;
       targetQueue.status = 'ACTIVA';
+      targetQueue.shift_session_id = Number(shift_session_id);
       targetQueue.priority = Number(maxPriority) + (formulaGroupWaiting.length || 1);
       await targetQueue.save({ transaction: t });
 
@@ -2051,6 +2061,7 @@ class ExtrusionService {
         for (const sibling of pausedSiblings) {
           if (Number(sibling.id) === Number(targetQueue.id)) continue;
           sibling.status = 'EN_ESPERA';
+          sibling.shift_session_id = Number(shift_session_id);
           await sibling.save({ transaction: t });
         }
       }
@@ -2170,7 +2181,8 @@ class ExtrusionService {
     scrap_color,
     shift_code,
     notes,
-    userId
+    userId,
+    shift_session_id
   }) {
     let pieces = Number(quantity);
     const scaleWeight = Number(weight_kg);
@@ -2204,6 +2216,11 @@ class ExtrusionService {
         error.statusCode = 404;
         throw error;
       }
+      if (!shift_session_id || (queueItem.shift_session_id && Number(queueItem.shift_session_id) !== Number(shift_session_id))) {
+        throw Object.assign(new Error('La mezcla no pertenece al turno operativo activo.'), { statusCode: 409 });
+      }
+      queueItem.shift_session_id = Number(shift_session_id);
+      await queueItem.save({ transaction: t });
       const queueOutputSnapshots = await fetchQueueOutputSnapshots(sequelize, [queueItem.id], t);
       if (queueOutputSnapshots.has(Number(queueItem.id))) {
         Object.assign(queueItem, queueOutputSnapshots.get(Number(queueItem.id)));
@@ -2229,6 +2246,9 @@ class ExtrusionService {
         const error = new Error(`No se encontró un rack con el QR escaneado '${rack_qr}'. Escanea el QR físico del rack de destino.`);
         error.statusCode = 404;
         throw error;
+      }
+      if (rack.custody_shift_session_id && Number(rack.custody_shift_session_id) !== Number(shift_session_id)) {
+        throw Object.assign(new Error(`El rack ${rack.rack_code} permanece en custodia hasta cerrar el turno que lo produjo.`), { statusCode: 409, code: 'PTI_RACK_SHIFT_LOCKED' });
       }
 
       // Punto 5: Cálculo automático de piezas por peso en báscula si se ingresó peso
@@ -2318,6 +2338,7 @@ class ExtrusionService {
       const compatibleRacks = await PtiRack.findAll({
         where: {
           id: { [sequelize.Sequelize.Op.ne]: rack.id },
+          custody_shift_session_id: { [sequelize.Sequelize.Op.or]: [null, Number(shift_session_id)] },
           [sequelize.Sequelize.Op.or]: [
             { current_quantity: { [sequelize.Sequelize.Op.lte]: 0 } },
             {
@@ -2513,12 +2534,14 @@ class ExtrusionService {
         allocationRack.current_pti_product_id = ptiProduct.id;
         allocationRack.destination_subarea_id = destinationSubareaId;
         allocationRack.destination_route = resolvedDestinationRoute;
+        allocationRack.custody_shift_session_id = Number(shift_session_id);
         allocationRack.current_quantity = rackCurrentQty + allocation.pieces;
         if (rackCurrentQty <= 0 || !allocationRack.unit_weight_kg) allocationRack.unit_weight_kg = rackUnitWeight;
 
         const productionEntry = await ExtrusionProductionEntry.create({
           process_preparation_id: preparation?.id || null,
           queue_id: queueItem.id,
+          shift_session_id: Number(shift_session_id),
           extruder_id: effectiveExtruderId,
           destination_subarea_id: destinationSubareaId,
           destination_route: resolvedDestinationRoute,
@@ -2688,6 +2711,7 @@ class ExtrusionService {
         const { ExtrusionScrapLog } = require('../../database/models');
         scrapLog = await ExtrusionScrapLog.create({
           extruder_id: effectiveExtruderId,
+          shift_session_id: Number(shift_session_id),
             source_production_entry_id: productionEntry?.id || null,
             from_mixture_qr_id: mixture_qr,
           to_mixture_qr_id: null,
@@ -2860,7 +2884,7 @@ class ExtrusionService {
   /**
    * Encola una mezcla ya preparada en una extrusora compatible.
    */
-  async enqueueMix({ extruder_id, consumption_order_qr_id, formula_id, priority = 1, notes, transaction = null }) {
+  async enqueueMix({ extruder_id, consumption_order_qr_id, formula_id, priority = 1, notes, shift_session_id = null, transaction = null }) {
     const machineId = Number(extruder_id);
     const { Extruder, ExtruderFormula, ExtruderQueue, Formula, FormulaIngredient, Material, ProcessPreparation, QrCode, TraceableItem, PtiProduct } = require('../../database/models');
 
@@ -2890,6 +2914,7 @@ class ExtrusionService {
     if (existingQueue) {
       throw Object.assign(new Error(`El contenedor ${consumption_order_qr_id} ya está en la cola ${existingQueue.id}.`), { statusCode: 409 });
     }
+    if (!shift_session_id) throw Object.assign(new Error('Se requiere un turno operativo abierto para encolar mezclas.'), { statusCode: 409 });
 
     // A prepared mix QR is the production container identity. Preserve its
     // preparation link so transition scrap, consumption, FIFO history, and
@@ -2932,6 +2957,7 @@ class ExtrusionService {
       consumption_order_qr_id,
       formula_id,
       process_preparation_id: preparation?.id || null,
+      shift_session_id: Number(shift_session_id) || preparation?.shift_session_id || null,
       priority: Number(priority) || 1,
       status: 'EN_ESPERA',
       // Legacy column retained for schema compatibility. Silos feed the mixer,
@@ -3174,7 +3200,8 @@ class ExtrusionService {
     first_pti_quantity = 0,
     reason = 'CAMBIO_DE_FORMULA',
     notes,
-    userId
+    userId,
+    shift_session_id
   }) {
     const { ExtruderQueue } = require('../../database/models');
     const machineId = Number(extruder_id);
@@ -3202,6 +3229,7 @@ class ExtrusionService {
     const result = await this.switchQueuePriority({
       extruder_id: machineId,
       target_queue_id: nextQueue.id,
+      shift_session_id,
       scrap_items: transitionItems,
       notes: notes || `${reason}. Bobinas lote previo: ${last_pti_quantity}; bobinas lote nuevo: ${first_pti_quantity}.`,
       userId,
@@ -3458,6 +3486,7 @@ class ExtrusionService {
     category = 'OPERATIVA',
     color,
     shift_code,
+    shift_session_id,
     source_material_id,
     source_lote_id,
     notes,
@@ -3583,7 +3612,7 @@ class ExtrusionService {
     };
   }
 
-  async adjustScrapWeight({ scrap_log_id, actual_weight_kg, correction_reason, userId }) {
+  async adjustScrapWeight({ scrap_log_id, actual_weight_kg, correction_reason, shift_session_id, userId }) {
     const actual = Number(actual_weight_kg);
     if (!Number.isFinite(actual) || actual <= 0 || !correction_reason?.trim()) {
       const error = new Error('El peso real debe ser mayor a cero y requiere motivo de ajuste.');
@@ -3597,6 +3626,9 @@ class ExtrusionService {
         const error = new Error('Registro de scrap no encontrado.');
         error.statusCode = 404;
         throw error;
+      }
+      if (!shift_session_id || Number(scrap.shift_session_id) !== Number(shift_session_id)) {
+        throw Object.assign(new Error('Solo se puede ajustar scrap generado durante el turno operativo abierto. Los cierres anteriores quedan inmutables.'), { statusCode: 409 });
       }
       const previous = Number(scrap.actual_weight_kg ?? scrap.estimated_weight_kg ?? scrap.scrap_weight_kg);
       await ExtrusionScrapAdjustment.create({
@@ -3722,10 +3754,11 @@ class ExtrusionService {
   }
 
   async getExtrusionShiftActivity({ shift_date, shift_code, extruder_id }, options = {}) {
-    const { start, end } = getExtrusionShiftWindow(shift_date, shift_code);
     const transaction = options.transaction;
     const transactionOptions = transaction ? { transaction } : {};
-    const { Extruder, ExtruderQueue, ExtrusionProductionEntry, ExtrusionTransition, ProcessPreparation } = require('../../database/models');
+    const { Extruder, ExtruderQueue, ExtrusionProductionEntry, ExtrusionTransition, ProcessPreparation, ExtrusionShiftSession } = require('../../database/models');
+    const activeSession = shift_date && shift_code ? await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code, status: 'ABIERTO' }, ...transactionOptions }) : null;
+    const { start, end } = activeSession ? { start: activeSession.opened_at, end: new Date() } : getExtrusionShiftWindow(shift_date, shift_code);
     const machineFilter = extruder_id ? { extruder_id: Number(extruder_id) } : {};
     const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION' }, attributes: ['id'], ...transactionOptions });
     const preparations = extrusionArea ? await ProcessPreparation.findAll({
@@ -3735,6 +3768,7 @@ class ExtrusionService {
     }) : [];
     const preparedIds = preparations.map((row) => Number(row.id));
     const queueActivityConditions = [{ created_at: { [Op.gte]: start, [Op.lt]: end } }];
+    if (activeSession) queueActivityConditions.push({ shift_session_id: activeSession.id });
     if (preparedIds.length) queueActivityConditions.push({ process_preparation_id: { [Op.in]: preparedIds } });
     // Una transacción Sequelize ocupa una sola conexión PostgreSQL; lanzar
     // consultas concurrentes sobre ella produce client.query deprecations y
@@ -3746,7 +3780,7 @@ class ExtrusionService {
       });
     const queues = await ExtruderQueue.findAll({
         where: { ...machineFilter, [Op.or]: queueActivityConditions },
-        attributes: ['id', 'extruder_id', 'process_preparation_id', 'consumption_order_qr_id', 'created_at'],
+      attributes: ['id', 'extruder_id', 'process_preparation_id', 'consumption_order_qr_id', 'shift_session_id', 'created_at'],
         ...transactionOptions,
       });
     const transitions = await ExtrusionTransition.findAll({
@@ -3757,6 +3791,7 @@ class ExtrusionService {
     const preparedIdSet = new Set(preparedIds);
     const qualifyingQueues = queues.filter((queue) =>
       preparedIdSet.has(Number(queue.process_preparation_id))
+      || (activeSession && Number(queue.shift_session_id) === Number(activeSession.id))
       || (new Date(queue.created_at) >= start && new Date(queue.created_at) < end)
     );
     const machineIds = new Set([
@@ -3786,10 +3821,138 @@ class ExtrusionService {
         has_qualifying_activity: hasQualifyingShiftActivity({ productionEntries: productionEntries.length, preparedMixes: preparedMixes.length, transitions: machineTransitions.length }),
       };
     }).filter((machine) => machine.activity_count > 0);
-    return { shift_date, shift_code, starts_at: start, ends_at: end, used_extruders: usedExtruders };
+    return { shift_date, shift_code, starts_at: start, ends_at: end, shift_session_id: activeSession?.id || null, used_extruders: usedExtruders };
   }
 
-  async closeExtrusionShift({ extruder_id, shift_date, shift_code, actual_scrap_weight_kg, actual_total_weight_kg, grouped_weighings, weighings, notes, userId }) {
+  async getActiveExtrusionShiftSession() {
+    const { ExtrusionShiftSession, User } = require('../../database/models');
+    const session = await ExtrusionShiftSession.findOne({
+      where: { status: 'ABIERTO' },
+      include: [{ model: User, as: 'supervisor', attributes: ['id', 'username', 'first_name', 'last_name'] }],
+      order: [['opened_at', 'DESC']],
+    });
+    if (!session) return null;
+    return { ...session.toJSON(), summary: await this.getExtrusionShiftSessionSummary(session) };
+  }
+
+  async getExtrusionShiftSessionSummary(session, options = {}) {
+    const { ExtruderQueue, ExtrusionProductionEntry, ExtrusionScrapLog, ProcessPreparation, ProcessPreparationInput, PtiProduct } = require('../../database/models');
+    const transaction = options.transaction;
+    const common = transaction ? { transaction } : {};
+    const since = session.opened_at;
+    const until = session.closed_at || new Date();
+    const preparations = await ProcessPreparation.findAll({
+      where: { shift_session_id: session.id },
+      include: [{ model: ProcessPreparationInput, as: 'inputs', required: false, include: [{ model: Material, as: 'material', attributes: ['id', 'code', 'name'] }] }],
+      ...common,
+    });
+    const queueRows = await ExtruderQueue.findAll({ where: { shift_session_id: session.id }, ...common });
+    const production = await ExtrusionProductionEntry.findAll({ where: { shift_session_id: session.id, voided_at: null }, include: [{ model: PtiProduct, as: 'ptiProduct', attributes: ['id', 'code', 'name'] }], ...common });
+    const scrap = await ExtrusionScrapLog.findAll({ where: { shift_session_id: session.id }, ...common });
+    const producedByPti = new Map();
+    for (const entry of production) {
+      const key = entry.pti_product_id;
+      const row = producedByPti.get(key) || { pti_product_id: key, code: entry.ptiProduct?.code || null, name: entry.ptiProduct?.name || null, pieces: 0, weight_kg: 0 };
+      row.pieces += Number(entry.pieces || 0);
+      row.weight_kg += Number(entry.net_weight_kg || 0);
+      producedByPti.set(key, row);
+    }
+    const consumedByMaterial = new Map();
+    for (const prep of preparations) for (const input of (prep.inputs || [])) {
+      const key = `${input.material_id}:${input.source_silo_id || ''}:${input.source_lote_id || ''}:${input.source_qr_code_id || ''}`;
+      const row = consumedByMaterial.get(key) || {
+        material_id: input.material_id,
+        code: input.material?.code || null,
+        name: input.material?.name || null,
+        source_silo_id: input.source_silo_id || null,
+        source_lote_id: input.source_lote_id || null,
+        source_qr_code_id: input.source_qr_code_id || null,
+        quantity: 0,
+        unit: input.unit || null,
+      };
+      row.quantity += Number(input.quantity || input.consumed_quantity || 0);
+      consumedByMaterial.set(key, row);
+    }
+    const activity = await this.getExtrusionShiftActivity({ shift_date: session.shift_date, shift_code: session.shift_code }, transaction ? { transaction } : {});
+    const usedMachines = activity.used_extruders.filter((machine) => machine.has_qualifying_activity);
+    const closures = usedMachines.length ? await require('../../database/models').ExtrusionShiftClosure.findAll({
+      where: { shift_date: session.shift_date, shift_code: session.shift_code, extruder_id: usedMachines.map((machine) => machine.id), status: 'CERRADO' },
+      attributes: ['extruder_id'],
+      ...common,
+    }) : [];
+    const closedMachineIds = new Set(closures.map((closure) => Number(closure.extruder_id)));
+    return {
+      prepared_mixes: preparations.length,
+      prepared_mix_kg: Number(preparations.reduce((sum, prep) => sum + Number(prep.total_quantity || 0), 0).toFixed(3)),
+      queued_mixes: queueRows.length,
+      production_entries: production.length,
+      mixture_consumed_kg: Number(production.reduce((sum, row) => sum + Number(row.mixture_consumed_kg || 0), 0).toFixed(3)),
+      produced_by_pti: [...producedByPti.values()].map((row) => ({ ...row, weight_kg: Number(row.weight_kg.toFixed(3)) })),
+      consumed_by_material: [...consumedByMaterial.values()].map((row) => ({ ...row, quantity: Number(row.quantity.toFixed(3)) })),
+      scrap_records: scrap.length,
+      estimated_scrap_kg: Number(scrap.reduce((sum, row) => sum + Number(row.estimated_weight_kg || row.scrap_weight_kg || 0), 0).toFixed(3)),
+      weighed_scrap_kg: Number(scrap.reduce((sum, row) => sum + Number(row.actual_weight_kg || 0), 0).toFixed(3)),
+      racks_in_custody: await require('../../database/models').PtiRack.count({ where: { custody_shift_session_id: session.id }, ...common }),
+      pending_extruder_closures: usedMachines.filter((machine) => !closedMachineIds.has(Number(machine.id))).map((machine) => machine.name || machine.code),
+      opened_at: since,
+      closed_at: until,
+    };
+  }
+
+  async openExtrusionShiftSession({ shift_date, shift_code, user }) {
+    const role = String(user?.role?.code || user?.role?.name || user?.role || '').toUpperCase();
+    if (role !== 'SUPERVISOR_EXTRUSION') throw Object.assign(new Error('Solo un Supervisor de Extrusión puede iniciar y quedar como responsable del turno.'), { statusCode: 403 });
+    if (!shift_date || !String(shift_code || '').trim()) throw Object.assign(new Error('Selecciona la fecha y el turno antes de iniciar.'), { statusCode: 400 });
+    const { ExtrusionShiftSession } = require('../../database/models');
+    const existing = await ExtrusionShiftSession.findOne({ where: { status: 'ABIERTO' } });
+    if (existing) throw Object.assign(new Error(`Ya existe un turno abierto (${existing.shift_code}, ${existing.shift_date}) a cargo del supervisor ${existing.supervisor_id}.`), { statusCode: 409 });
+    const duplicate = await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code: String(shift_code).trim() } });
+    if (duplicate) throw Object.assign(new Error('Ya existe un registro operativo para esa fecha y turno. Verifica fecha/turno o solicita una corrección administrativa.'), { statusCode: 409 });
+    const { ExtrusionShiftClosure } = require('../../database/models');
+    if (await ExtrusionShiftClosure.count({ where: { shift_date, shift_code: String(shift_code).trim() } })) {
+      throw Object.assign(new Error('Ese turno ya tiene conciliaciones históricas de merma. No puede volver a abrirse con el mismo código y fecha.'), { statusCode: 409 });
+    }
+    return sequelize.transaction(async (transaction) => {
+      const session = await ExtrusionShiftSession.create({ shift_date, shift_code: String(shift_code).trim(), supervisor_id: Number(user.id), opened_at: new Date(), status: 'ABIERTO' }, { transaction });
+      // Las corridas activas heredadas pasan a quedar declaradas bajo el supervisor que abre el turno.
+      const { ExtruderQueue, ProcessPreparation } = require('../../database/models');
+      const activeQueues = await ExtruderQueue.findAll({ where: { status: 'ACTIVA' }, attributes: ['id', 'process_preparation_id'], transaction, lock: transaction.LOCK.UPDATE });
+      await ExtruderQueue.update({ shift_session_id: session.id }, { where: { status: 'ACTIVA' }, transaction });
+      const preparationIds = activeQueues.map((queue) => Number(queue.process_preparation_id)).filter(Boolean);
+      if (preparationIds.length) await ProcessPreparation.update({ shift_session_id: session.id }, { where: { id: preparationIds }, transaction });
+      return session;
+    });
+  }
+
+  async closeExtrusionShiftSession({ sessionId, user }) {
+    const role = String(user?.role?.code || user?.role?.name || user?.role || '').toUpperCase();
+    const { ExtrusionShiftSession, ExtrusionShiftClosure } = require('../../database/models');
+    return sequelize.transaction(async (transaction) => {
+      const session = await ExtrusionShiftSession.findByPk(sessionId, { transaction, lock: transaction.LOCK.UPDATE });
+      if (!session || session.status !== 'ABIERTO') throw Object.assign(new Error('No hay un turno operativo abierto para cerrar.'), { statusCode: 409 });
+      const executive = ['SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(role);
+      if (!executive && Number(session.supervisor_id) !== Number(user.id)) throw Object.assign(new Error('Solo el supervisor responsable puede cerrar este turno.'), { statusCode: 403 });
+      const activity = await this.getExtrusionShiftActivity({ shift_date: session.shift_date, shift_code: session.shift_code }, { transaction });
+      const used = activity.used_extruders.filter((machine) => machine.has_qualifying_activity);
+      for (const machine of used) {
+        const closure = await ExtrusionShiftClosure.findOne({ where: { extruder_id: machine.id, shift_date: session.shift_date, shift_code: session.shift_code, status: 'CERRADO' }, transaction });
+        if (!closure) throw Object.assign(new Error(`Falta conciliar merma y scrap de ${machine.name || machine.code} antes de cerrar el turno general.`), { statusCode: 409 });
+      }
+      const snapshot = await this.getExtrusionShiftSessionSummary(session, { transaction });
+      const { ExtruderQueue } = require('../../database/models');
+      await ExtruderQueue.update({ status: 'PAUSADA' }, { where: { shift_session_id: session.id, status: 'ACTIVA' }, transaction });
+      session.status = 'CERRADO';
+      session.closed_at = new Date();
+      session.closed_by = Number(user.id);
+      session.closing_snapshot = snapshot;
+      await session.save({ transaction });
+      // Al cerrar turno, los racks vuelven a estar disponibles para el siguiente turno.
+      await require('../../database/models').PtiRack.update({ custody_shift_session_id: null }, { where: { custody_shift_session_id: session.id }, transaction });
+      return session;
+    });
+  }
+
+  async closeExtrusionShift({ extruder_id, shift_date, shift_code, shift_session_id, actual_scrap_weight_kg, actual_total_weight_kg, grouped_weighings, weighings, notes, userId }) {
     const bulkWeightInput = actual_scrap_weight_kg ?? actual_total_weight_kg;
     const bulkMode = bulkWeightInput !== undefined && bulkWeightInput !== null;
     const bulkWeight = bulkMode ? Number(bulkWeightInput) : null;
@@ -3803,12 +3966,13 @@ class ExtrusionService {
       throw Object.assign(new Error('Cada grupo de scrap requiere categoría y un peso real mayor o igual a cero.'), { statusCode: 400 });
     }
     const { Op } = require('sequelize');
-    const { Extruder, ExtruderQueue, ExtrusionScrapLog, ExtrusionShiftClosure, ExtrusionTransition, ExtrusionProductionEntry } = require('../../database/models');
+    const { Extruder, ExtruderQueue, ExtrusionScrapLog, ExtrusionShiftClosure, ExtrusionTransition, ExtrusionProductionEntry, ExtrusionShiftSession } = require('../../database/models');
     const machineId = Number(extruder_id);
     return sequelize.transaction(async (transaction) => {
       const machine = await Extruder.findByPk(machineId, { transaction, lock: transaction.LOCK.UPDATE });
       if (!machine) throw Object.assign(new Error('Extrusora no encontrada.'), { statusCode: 404 });
-      const { start, end } = getExtrusionShiftWindow(shift_date, shift_code);
+      const activeSession = await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code, status: 'ABIERTO' }, transaction, lock: transaction.LOCK.UPDATE });
+      const { start, end } = activeSession ? { start: activeSession.opened_at, end: new Date() } : getExtrusionShiftWindow(shift_date, shift_code);
       const existingClosure = await ExtrusionShiftClosure.findOne({ where: { extruder_id: machineId, shift_date, shift_code }, transaction, lock: transaction.LOCK.UPDATE });
       if (existingClosure) throw Object.assign(new Error('Este turno ya fue conciliado y cerrado.'), { statusCode: 409 });
       const logs = await ExtrusionScrapLog.findAll({
@@ -3847,6 +4011,7 @@ class ExtrusionService {
           const { ExtrusionScrapLog: ScrapLog } = require('../../database/models');
           const unassigned = await ScrapLog.create({
             extruder_id: machineId, from_mixture_qr_id: 'MERMA_NO_ATRIBUIDA', to_mixture_qr_id: null,
+            shift_session_id: Number(shift_session_id) || activeSession?.id || null,
             scrap_weight_kg: bulkWeight, estimated_weight_kg: 0, actual_weight_kg: bulkWeight,
             reason: 'MERMA_NO_ATRIBUIDA', category: 'MERMA_NO_ATRIBUIDA', shift_code,
             actual_weight_method: 'PESAJE_AGREGADO_NO_ATRIBUIDO', mixture_consumption_applied: false,
@@ -3890,6 +4055,7 @@ class ExtrusionService {
             if (weight <= 0) continue;
             const created = await ScrapLog.create({
               extruder_id: machineId,
+              shift_session_id: Number(shift_session_id) || activeSession?.id || null,
               from_mixture_qr_id: 'MERMA_CIERRE_TURNO',
               to_mixture_qr_id: null,
               scrap_weight_kg: weight,
@@ -4102,7 +4268,7 @@ class ExtrusionService {
     });
   }
 
-  async adjustProductionEntry({ production_entry_id, pieces, net_weight_kg, correction_reason, userId }) {
+  async adjustProductionEntry({ production_entry_id, pieces, net_weight_kg, correction_reason, shift_session_id, userId }) {
     const correctedPieces = Number(pieces);
     const correctedWeight = Number(net_weight_kg);
     if (!Number.isInteger(correctedPieces) || correctedPieces <= 0 || !Number.isFinite(correctedWeight) || correctedWeight <= 0 || !correction_reason?.trim()) {
@@ -4113,6 +4279,9 @@ class ExtrusionService {
     return sequelize.transaction(async (transaction) => {
       const entry = await ExtrusionProductionEntry.findByPk(production_entry_id, { transaction, lock: transaction.LOCK.UPDATE });
       if (!entry || entry.voided_at) throw Object.assign(new Error('Registro de producción inexistente o anulado.'), { statusCode: 404 });
+      if (!shift_session_id || Number(entry.shift_session_id) !== Number(shift_session_id)) {
+        throw Object.assign(new Error('Solo se puede corregir producción del turno operativo abierto. Los cierres anteriores quedan inmutables.'), { statusCode: 409 });
+      }
       const previousPieces = Number(entry.pieces);
       const previousWeight = Number(entry.net_weight_kg);
       if (entry.process_preparation_id) {
@@ -4305,7 +4474,7 @@ class ExtrusionService {
     };
   }
 
-  async scrapWipMixture({ preparationId, userId }) {
+  async scrapWipMixture({ preparationId, userId, shift_session_id }) {
     const { ProcessPreparation, ExtruderQueue, TraceableItem, ExtrusionScrapLog } = require('../../database/models');
     const prepId = Number(preparationId);
     if (!Number.isInteger(prepId) || prepId <= 0) {
@@ -4315,6 +4484,7 @@ class ExtrusionService {
     return sequelize.transaction(async (transaction) => {
       const preparation = await ProcessPreparation.findByPk(prepId, { transaction, lock: transaction.LOCK.UPDATE });
       if (!preparation) throw Object.assign(new Error('No se encontró la preparación de mezcla.'), { statusCode: 404 });
+      if (!shift_session_id) throw Object.assign(new Error('Se requiere un turno operativo abierto para registrar este scrap.'), { statusCode: 409 });
 
       const queueRows = await ExtruderQueue.findAll({
         where: { process_preparation_id: preparation.id },
@@ -4356,6 +4526,7 @@ class ExtrusionService {
       for (const { container, queue, kg } of containersWithQueue) {
         const log = await ExtrusionScrapLog.create({
           extruder_id: queue.extruder_id,
+          shift_session_id: Number(shift_session_id),
           from_mixture_qr_id: container.qr_code.qr_code,
           to_mixture_qr_id: null,
           source_qr_code_id: container.qr_code.id,

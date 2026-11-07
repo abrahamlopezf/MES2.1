@@ -15380,4 +15380,25 @@ notNull Violation: InventoryMovement.performed_by cannot be null
     at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
     at async PtiProduct.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
     at async ExtrusionService.getPtiProducts (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:5181:12)
-    at async getPtiProducts (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:535:27)\n\n
+    at async getPtiProducts (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:535:27)\n\n2026-11-05T16:03:00.382Z\nMessage: no existe la columna LaminadoSpecification.output_pti_code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async LaminadoSpecification.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async LaminadoService.getSpecifications (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\laminado\laminado.service.js:53:19)
+    at async LaminadoController.getSpecifications (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\laminado\laminado.controller.js:6:20)\n\n2026-11-05T16:03:01.645Z\nMessage: no existe la columna LaminadoSpecification.output_pti_code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async LaminadoSpecification.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async LaminadoService.getSpecifications (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\laminado\laminado.service.js:53:19)
+    at async LaminadoController.getSpecifications (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\laminado\laminado.controller.js:6:20)\n\n2026-11-05T16:03:03.745Z\nMessage: no existe la columna LaminadoSpecification.output_pti_code\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async LaminadoSpecification.findAll (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async LaminadoService.getSpecifications (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\laminado\laminado.service.js:53:19)
+    at async LaminadoController.getSpecifications (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\laminado\laminado.controller.js:6:20)\n\n

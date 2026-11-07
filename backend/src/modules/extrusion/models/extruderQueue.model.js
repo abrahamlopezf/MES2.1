@@ -28,6 +28,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: 'FK a la fórmula asociada a la mezcla',
       },
       process_preparation_id: { type: DataTypes.INTEGER, allowNull: true },
+      shift_session_id: { type: DataTypes.INTEGER, allowNull: true },
       priority: {
         type: DataTypes.INTEGER,
         allowNull: false,

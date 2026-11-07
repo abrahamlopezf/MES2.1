@@ -37,6 +37,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'Ruta comercial/operativa asignada al PTI de Extrusora 1.',
       },
+      custody_shift_session_id: { type: DataTypes.INTEGER, allowNull: true, comment: 'Turno que produjo este PTI; bloquea movimientos hasta su cierre.' },
       current_quantity: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,

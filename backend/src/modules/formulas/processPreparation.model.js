@@ -8,6 +8,8 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
       },
 
+    shift_session_id: { type: DataTypes.INTEGER, allowNull: true },
+
       folio: {
         type: DataTypes.STRING(80),
         allowNull: false,

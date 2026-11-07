@@ -2,6 +2,7 @@ module.exports = (sequelize, DataTypes) => sequelize.define(
   'ExtrusionProductionEntry',
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    shift_session_id: { type: DataTypes.INTEGER, allowNull: true },
     process_preparation_id: { type: DataTypes.INTEGER, allowNull: true },
     queue_id: { type: DataTypes.INTEGER, allowNull: true },
     extruder_id: { type: DataTypes.INTEGER, allowNull: false },

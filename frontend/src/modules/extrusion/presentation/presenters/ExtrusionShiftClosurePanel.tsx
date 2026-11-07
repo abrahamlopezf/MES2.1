@@ -25,6 +25,18 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
   const [additionalScrap, setAdditionalScrap] = useState<'UNCONFIRMED' | 'NO' | 'YES'>('UNCONFIRMED');
   const queryClient = useQueryClient();
   const { data: groups = [] } = useExtruderQueuesQuery();
+  const activeSessionQuery = useQuery({
+    queryKey: ['extrusion', 'active-shift-session'],
+    queryFn: extrusionApi.getActiveShiftSession,
+    staleTime: 0,
+  });
+  useEffect(() => {
+    const active = activeSessionQuery.data;
+    if (active) {
+      setShiftDate(active.shift_date);
+      setShiftCode(active.shift_code);
+    }
+  }, [activeSessionQuery.data]);
   const activityQuery = useQuery({
     queryKey: ['extrusion', 'shift-activity', shiftDate, shiftCode],
     queryFn: () => extrusionApi.getShiftActivity({ shift_date: shiftDate, shift_code: shiftCode }),
