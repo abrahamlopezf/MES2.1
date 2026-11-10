@@ -2,7 +2,7 @@ const express = require('express');
 
 const warehouseController = require('./warehouse.controller');
 const consumptionOrderController = require('./consumptionOrder.controller');
-const { receiveMaterialSchema } = require('./warehouse.validator');
+const { receiveMaterialSchema, consumptionOrderSchema } = require('./warehouse.validator');
 
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
@@ -199,6 +199,7 @@ router.post(
 // Consumption Orders
 router.post(
   '/consumption-orders',
+  validateRequest(consumptionOrderSchema),
   consumptionOrderController.createOrder
 );
 
@@ -239,11 +240,13 @@ router.put(
 // CONTROL Y GESTIÓN DE SILOS EN ALMACÉN
 // ==========================================
 const extrusionController = require('../extrusion/extrusion.controller');
+const authorizeSiloAdministration = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN');
+const authorizeSiloRead = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION');
 router.get('/silos/exchange-rate', roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'), warehouseController.getExchangeRate);
-router.get('/silos', extrusionController.getSilos);
-router.post('/silos', extrusionController.createSilo);
-router.put('/silos/:id', extrusionController.updateSilo);
-router.delete('/silos/:id', extrusionController.deleteSilo);
+router.get('/silos', authorizeSiloRead, extrusionController.getSilos);
+router.post('/silos', authorizeSiloAdministration, extrusionController.createSilo);
+router.put('/silos/:id', authorizeSiloAdministration, extrusionController.updateSilo);
+router.delete('/silos/:id', authorizeSiloAdministration, extrusionController.deleteSilo);
 router.post('/silos/invoice-entry', roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN'), extrusionController.receiveSiloInvoiceEntry);
 
 module.exports = router;

@@ -4,12 +4,43 @@ const { Op } = require('sequelize');
 const { notifyAdmins } = require('../notifications/notification.service');
 const { generateConsumptionOrderPdf } = require('./printer/consumptionOrderPdf');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
+const { getUserAreaId, getUserAreaCode, isAdmin } = require('../../shared/security/accessRules');
+
+const WAREHOUSE_ADMIN_ROLES = ['ADMIN_ALM', 'ADMIN_ALMACEN'];
+const PROCESS_AREA_CODES = new Set([
+  'EXTRUSION', 'TELARES', 'LAMINADO', 'GLOBO', 'CORTE', 'CONFECCION',
+  'IMPRENTA', 'PEGADO', 'ENSAMBLADO', 'ETIQUETADO', 'DOBLADO', 'PRENSADO',
+]);
+
+const canManageAllOrders = (user) => {
+  const roleCode = String(user?.role?.code || '').toUpperCase();
+  return isAdmin(user) || WAREHOUSE_ADMIN_ROLES.includes(roleCode);
+};
+
+const canAccessOrder = (user, order) => {
+  if (canManageAllOrders(user)) return true;
+  const userAreaId = getUserAreaId(user);
+  return Number(order.requested_by) === Number(user.id)
+    || (userAreaId != null && Number(order.requesting_area_id) === Number(userAreaId));
+};
+
+const denyOrderAccess = (res) => res.status(404).json({ error: 'Orden no encontrada' });
 
 exports.createOrder = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, notes, requesting_area_id } = req.body;
     const requested_by = req.user.id; // from auth middleware
+
+    const areaCode = getUserAreaCode(req.user);
+    const userAreaId = getUserAreaId(req.user);
+    const canRequestAnyArea = isAdmin(req.user);
+    if (!canRequestAnyArea && (!PROCESS_AREA_CODES.has(areaCode)
+      || userAreaId == null
+      || Number(requesting_area_id) !== Number(userAreaId))) {
+      await t.rollback();
+      return res.status(403).json({ error: 'Solo puedes solicitar consumos para tu propia área de producción.' });
+    }
 
     const order = await consumptionOrderService.createOrder(
       { requested_by, requesting_area_id, items, notes },
@@ -85,9 +116,15 @@ exports.scanItem = async (req, res) => {
       throw new Error('El código QR es requerido.');
     }
 
-    const decryptedQrCode = decryptQrData(qr_code);
+    // Accept both signed AGY envelopes and the raw codes printed on existing
+    // warehouse lot labels. Raw values are not trusted here: the service must
+    // resolve them to an active, non-empty inventory lot before any stock moves.
+    const scannedQrValue = String(qr_code).trim();
+    const resolvedQrValue = scannedQrValue.startsWith('AGY:')
+      ? decryptQrData(scannedQrValue)
+      : scannedQrValue;
 
-    const order = await consumptionOrderService.scanFulfillmentItem(uuid, decryptedQrCode, resolved_by, t);
+    const order = await consumptionOrderService.scanFulfillmentItem(uuid, resolvedQrValue, resolved_by, t);
     
     await t.commit();
     res.json(order);
@@ -106,6 +143,8 @@ exports.getOrderDetails = async (req, res) => {
     if (!order) {
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
+
+    if (!canAccessOrder(req.user, order)) return denyOrderAccess(res);
 
     res.json(order);
   } catch (error) {
@@ -144,6 +183,8 @@ exports.printOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
+
+    if (!canAccessOrder(req.user, order)) return denyOrderAccess(res);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=ORD-${order.order_number}.pdf`);

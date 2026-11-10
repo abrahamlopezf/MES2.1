@@ -16,7 +16,7 @@ import { ExtruderQueue, Formula, PtiProduct } from '../../types/extrusion.types'
 import { getClientAllowedExtruders, isClientFormula } from '../../domain/clientFormulaRules';
 import { useExtrusionMixing } from '../../hooks/useExtrusionMixing';
 import { MixContainersPrintModal, MixResultData } from '../../../production/presentation/components/MixContainersPrintModal';
-import { getCdmxShift } from '@/utils/date';
+import { getExtrusionCdmxShift } from '@/utils/date';
 
 export const ExtrusionBoardContainer: React.FC = () => {
   const {
@@ -72,8 +72,10 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const [activeQueue, setActiveQueue] = useState<ExtruderQueue | null>(null);
   const [scannedPausedQr, setScannedPausedQr] = useState<string | null>(null);
   const [prioritizeFormulaId, setPrioritizeFormulaId] = useState<number | null>(null);
-  const [shiftCode, setShiftCode] = useState(() => getCdmxShift().shiftCode);
+  const [shiftCode, setShiftCode] = useState(() => getExtrusionCdmxShift().shiftCode);
   const [purgePercentage, setPurgePercentage] = useState('');
+  const [purgeWeightKg, setPurgeWeightKg] = useState('');
+  const [remnantWeightKg, setRemnantWeightKg] = useState('');
   const [remainingMixDisposition, setRemainingMixDisposition] = useState<'WIP' | 'SCRAP_ESPECIAL' | ''>('');
 
   // State para Modal de Encolar
@@ -116,12 +118,14 @@ export const ExtrusionBoardContainer: React.FC = () => {
   };
 
   const openSwitchModal = (target: ExtruderQueue, active: ExtruderQueue | null, formulaId?: number) => {
-    setShiftCode(getCdmxShift().shiftCode);
+    setShiftCode(getExtrusionCdmxShift().shiftCode);
     setTargetQueue(target);
     setActiveQueue(active);
     setScannedPausedQr(null);
     setPrioritizeFormulaId(formulaId ?? null);
     setPurgePercentage('');
+    setPurgeWeightKg('');
+    setRemnantWeightKg('');
     setRemainingMixDisposition('');
     setIsSwitchModalOpen(true);
   };
@@ -217,12 +221,22 @@ export const ExtrusionBoardContainer: React.FC = () => {
       toast.error('Indica un porcentaje de purgante entre 0 y 100.');
       return;
     }
+    const purgeWeight = Number(purgeWeightKg);
+    if (activeQueue && activeQueue.id !== targetQueue.id && (!Number.isFinite(purgeWeight) || purgeWeight <= 0)) {
+      toast.error('Pesa el purgante colocado en el husillo e ingresa un peso mayor a 0 kg.');
+      return;
+    }
     if (targetQueue.status === 'PAUSADA' && scannedPausedQr !== String(targetQueue.consumption_order_qr_id).trim().toUpperCase()) {
       toast.error('Escanea el QR original de la mezcla pausada antes de confirmar su reanudación.');
       return;
     }
     const remainingKg = Number(activeQueue?.container_remaining_quantity_kg ?? activeQueue?.preparation?.remaining_quantity_kg ?? 0);
-    if (activeQueue && activeQueue.id !== targetQueue.id && remainingKg > 0.001 && !remainingMixDisposition) {
+    const measuredRemnant = Number(remnantWeightKg);
+    if (activeQueue && activeQueue.id !== targetQueue.id && remainingKg > 0.001 && (!remnantWeightKg || !Number.isFinite(measuredRemnant) || measuredRemnant < 0 || measuredRemnant > remainingKg + 0.001)) {
+      toast.error(`Pesa el remanente e ingresa un valor entre 0 y ${remainingKg.toFixed(3)} kg.`);
+      return;
+    }
+    if (activeQueue && activeQueue.id !== targetQueue.id && measuredRemnant > 0.001 && !remainingMixDisposition) {
       toast.error('Decide qué hacer con el saldo del contenedor activo: conservarlo en WIP o registrarlo como scrap especial.');
       return;
     }
@@ -235,7 +249,8 @@ export const ExtrusionBoardContainer: React.FC = () => {
         ...(prioritizeFormulaId == null ? {} : { prioritize_formula_id: prioritizeFormulaId }),
         scrap_items: scrapItems,
         ...(activeQueue && activeQueue.id !== targetQueue.id ? { purge_percentage: percentage } : {}),
-        ...(activeQueue && activeQueue.id !== targetQueue.id && remainingKg > 0.001 ? { remaining_mix_disposition: remainingMixDisposition } : {}),
+        ...(activeQueue && activeQueue.id !== targetQueue.id ? { purge_weight_kg: purgeWeight, remnant_weight_kg: measuredRemnant } : {}),
+        ...(activeQueue && activeQueue.id !== targetQueue.id && measuredRemnant > 0.001 ? { remaining_mix_disposition: remainingMixDisposition } : {}),
         shift_code: shiftCode
       });
 
@@ -328,6 +343,10 @@ export const ExtrusionBoardContainer: React.FC = () => {
       activeQueue={activeQueue}
       purgePercentage={purgePercentage}
       onPurgePercentageChange={setPurgePercentage}
+      purgeWeightKg={purgeWeightKg}
+      onPurgeWeightKgChange={setPurgeWeightKg}
+      remnantWeightKg={remnantWeightKg}
+      onRemnantWeightKgChange={setRemnantWeightKg}
       remainingMixDisposition={remainingMixDisposition}
       onRemainingMixDispositionChange={setRemainingMixDisposition}
       estimatedTransitionScrapKg={Number(((Number(targetQueue?.preparation?.remaining_quantity_kg || 0) * (Number(purgePercentage) || 0)) / 100).toFixed(3))}

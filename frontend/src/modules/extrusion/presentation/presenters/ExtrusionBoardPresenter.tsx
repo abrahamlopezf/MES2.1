@@ -54,6 +54,10 @@ export interface ExtrusionBoardPresenterProps {
   activeQueue: ExtruderQueue | null;
   purgePercentage: string;
   onPurgePercentageChange: (val: string) => void;
+  purgeWeightKg: string;
+  onPurgeWeightKgChange: (val: string) => void;
+  remnantWeightKg: string;
+  onRemnantWeightKgChange: (val: string) => void;
   remainingMixDisposition: 'WIP' | 'SCRAP_ESPECIAL' | '';
   onRemainingMixDispositionChange: (value: 'WIP' | 'SCRAP_ESPECIAL' | '') => void;
   estimatedTransitionScrapKg: number;
@@ -337,6 +341,10 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   activeQueue,
   purgePercentage,
   onPurgePercentageChange,
+  purgeWeightKg,
+  onPurgeWeightKgChange,
+  remnantWeightKg,
+  onRemnantWeightKgChange,
   remainingMixDisposition,
   onRemainingMixDispositionChange,
   estimatedTransitionScrapKg,
@@ -358,6 +366,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   onOpenContainerQr,
 }) => {
   const { user } = useAuthStore();
+  const activeRemainingKg = Number(activeQueue?.container_remaining_quantity_kg ?? activeQueue?.preparation?.remaining_quantity_kg ?? 0);
   const allowCosts = canViewCosts(user);
   const selectedQuickProduct = quickPtiProducts.find((product) => Number(product.id) === Number(quickPtiProductId));
   const [activeTabMachineId, setActiveTabMachineId] = React.useState<number | null>(null);
@@ -637,8 +646,11 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
             </div>
 
             {activeQueue ? <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
-              <p className="text-sm font-semibold text-muted-foreground">Indica la proporción de purgante usada para limpiar el husillo. La merma estimada se calculará automáticamente; el peso real se capturará al cierre del turno por color.</p>
-              <label className="block max-w-xs space-y-1 text-sm font-bold">Porcentaje de purgante (%)
+              <p className="text-sm font-semibold text-muted-foreground">Pesa y registra el purgante colocado en el husillo y el remanente de la mezcla activa. Los registros quedan asociados al turno y al supervisor.</p>
+              <label className="block max-w-xs space-y-1 text-sm font-bold">Peso real del purgante (kg) *
+                <Input type="number" min="0.001" step="0.001" value={purgeWeightKg} onChange={(event) => onPurgeWeightKgChange(event.target.value)} placeholder="Pesa el purgante" />
+              </label>
+              <label className="block max-w-xs space-y-1 text-sm font-bold">Proporción estimada de purgante (%) *
                 <div className="relative"><Input type="number" min="0" max="100" step="0.1" value={purgePercentage} onChange={(event) => onPurgePercentageChange(event.target.value)} placeholder="Ej. 5" className="pr-10" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span></div>
               </label>
               {purgePercentage !== '' && <div className="rounded-lg border border-primary/30 bg-primary/5 p-3" aria-live="polite">
@@ -646,9 +658,12 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 <p className="mt-1 text-xl font-black tabular-nums">{estimatedTransitionScrapKg.toFixed(3)} kg</p>
                 <p className="mt-1 text-xs text-muted-foreground">Saldo del contenedor entrante × porcentaje de purgante. Se ajustará con el pesaje real al cierre del turno.</p>
               </div>}
-              {Number(activeQueue.container_remaining_quantity_kg || 0) > 0.001 && <fieldset className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+              {activeRemainingKg > 0.001 && <fieldset className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
                 <legend className="px-1 text-sm font-black text-foreground">Saldo restante del contenedor activo</legend>
-                <p className="text-sm font-bold text-amber-800 dark:text-amber-200">{Number(activeQueue.container_remaining_quantity_kg).toFixed(3)} kg · el supervisor debe decidir qué hacer antes del cambio.</p>
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-200">Saldo calculado: {activeRemainingKg.toFixed(3)} kg. Pesa el material antes de decidir su destino.</p>
+                <label className="block max-w-xs space-y-1 text-sm font-bold">Peso real del remanente (kg) *
+                  <Input type="number" min="0" max={activeRemainingKg} step="0.001" value={remnantWeightKg} onChange={(event) => onRemnantWeightKgChange(event.target.value)} placeholder="Pesa el remanente" />
+                </label>
                 <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-background/50 p-2 text-sm">
                   <input type="radio" name="remaining-mix-disposition" checked={remainingMixDisposition === 'WIP'} onChange={() => onRemainingMixDispositionChange('WIP')} className="mt-1" />
                   <span><strong>Devolver a WIP los contenedores restantes de esta preparación.</strong> Se liberarán de la cola y podrán reencolarse después mediante sus QR.</span>
@@ -676,7 +691,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
               </Button>
               <Button
                 onClick={onConfirmSwitch}
-                disabled={isSwitching || (Boolean(activeQueue && activeQueue.id !== targetQueue.id) && (purgePercentage === '' || Number(purgePercentage) < 0 || Number(purgePercentage) > 100 || (Number(activeQueue.container_remaining_quantity_kg || 0) > 0.001 && !remainingMixDisposition))) || (targetQueue.status === 'PAUSADA' && !resumeQrVerified)}
+                disabled={isSwitching || (Boolean(activeQueue && activeQueue.id !== targetQueue.id) && (purgeWeightKg === '' || Number(purgeWeightKg) <= 0 || purgePercentage === '' || Number(purgePercentage) < 0 || Number(purgePercentage) > 100 || (activeRemainingKg > 0.001 && (remnantWeightKg === '' || Number(remnantWeightKg) < 0 || Number(remnantWeightKg) > activeRemainingKg + 0.001 || (Number(remnantWeightKg) > 0.001 && !remainingMixDisposition))))) || (targetQueue.status === 'PAUSADA' && !resumeQrVerified)}
                 className="font-black bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {isSwitching ? 'Procesando Transición...' : targetQueue.status === 'PAUSADA' ? 'Confirmar y reanudar mezcla' : 'Confirmar e Iniciar Nueva Mezcla'}

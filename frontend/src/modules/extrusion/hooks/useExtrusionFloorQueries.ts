@@ -223,6 +223,8 @@ export const useMixtureTransitionMutation = () => {
       from_mixture_qr?: string;
       to_mixture_qr?: string;
       transition_scrap_kg: number;
+      purge_weight_kg: number;
+      remnant_weight_kg?: number;
       last_pti_quantity?: number;
       first_pti_quantity?: number;
       reason?: string;

@@ -1,3 +1,7 @@
+require('dotenv').config();
+if (!process.env.REMOTE_DATABASE_URL) throw new Error('REMOTE_DATABASE_URL is required for this script.');
+if (!process.env.LOCAL_DB_PASSWORD) throw new Error('LOCAL_DB_PASSWORD is required for this script.');
+if (process.env.ALLOW_REMOTE_SCHEMA_FIX !== 'YES') throw new Error('Set ALLOW_REMOTE_SCHEMA_FIX=YES only after reviewing the remote schema changes.');
 const { Client } = require('pg');
 
 async function fixAndSync() {
@@ -6,11 +10,11 @@ async function fixAndSync() {
     port: 5432,
     database: 'sistema_enterprise',
     user: 'postgres',
-    password: 'QhBv47RkNK$1096'
+    password: process.env.LOCAL_DB_PASSWORD
   });
 
   const neonClient = new Client({
-    connectionString: 'postgresql://neondb_owner:npg_ZyON69GToUgJ@ep-icy-shadow-avk05pd7.c-11.us-east-1.aws.neon.tech/neondb?sslmode=require'
+    connectionString: process.env.REMOTE_DATABASE_URL
   });
 
   try {

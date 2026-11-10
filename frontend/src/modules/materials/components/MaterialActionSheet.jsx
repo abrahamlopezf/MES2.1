@@ -21,23 +21,26 @@ const MaterialActionSheet = ({
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[200] flex flex-col justify-end transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:items-center sm:justify-center sm:p-6 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
       style={{ isolation: 'isolate' }}
     >
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm" 
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div
         ref={sheetRef}
-        className={`relative w-full sm:max-w-3xl sm:mx-auto bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="master-data-action-title"
+        className={`relative z-[201] w-full sm:max-w-3xl sm:mx-auto bg-card rounded-t-3xl sm:rounded-2xl border-t sm:border border-border flex flex-col overflow-hidden max-h-[95dvh] sm:max-h-[90dvh] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0 opacity-100 sm:scale-100' : 'translate-y-full opacity-100 sm:translate-y-2 sm:scale-[0.98]'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
         <div 
-          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card sm:hidden"
           onTouchStart={handlers.onTouchStart}
           onTouchMove={handlers.onTouchMove}
           onTouchEnd={() => handlers.onTouchEnd(onClose)}
@@ -47,7 +50,7 @@ const MaterialActionSheet = ({
 
         <div className="px-4 sm:px-5 py-3 border-b border-border flex justify-between items-center bg-card">
           <div className="flex flex-col min-w-0 pr-2">
-            <h3 className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2 truncate">
+            <h3 id="master-data-action-title" className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2 truncate">
               {title}
             </h3>
             {description && (
@@ -59,13 +62,14 @@ const MaterialActionSheet = ({
           <button 
             onClick={onClose}
             type="button"
-            className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
+            aria-label="Cerrar formulario de catálogo"
+            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl border border-border bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-0 overflow-hidden flex-1 flex flex-col bg-background">
+        <div className="p-0 min-h-0 overflow-y-auto overflow-x-hidden flex-1 flex flex-col bg-background">
           {children}
         </div>
       </div>

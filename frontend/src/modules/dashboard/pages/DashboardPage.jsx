@@ -1,19 +1,18 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip as RechartsTooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, ComposedChart, Legend
+  Cell, ComposedChart, Legend
 } from 'recharts';
 import { 
   AlertCircle, PackageCheck, DollarSign, Activity, 
-  TrendingUp, Settings2, Boxes, ArrowRight, ShieldCheck, 
-  Layers, Package, AlertTriangle, Factory, Wind
+  TrendingUp, Settings2, Boxes, ArrowRight,
+  Layers, AlertTriangle, Factory, Wind
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
-import { Card, Button, Badge } from '../../../design-system';
-import { TFSelect } from '../../../components/tf-ui';
+import { Card, Badge } from '../../../design-system';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../core/api/apiClient';
 import { WarehouseDashboard } from '../../warehouse/presentation/pages/WarehouseDashboard';
@@ -21,7 +20,7 @@ import { ExtrusionDashboard } from '../../production/presentation/pages/Extrusio
 import { TelaresDashboard } from '../../telares/presentation/pages/TelaresDashboard';
 import GloboWipPage from '../../globo/pages/GloboWipPage';
 import LaminadoWipPage from '../../laminado/pages/LaminadoWipPage';
-import { isSupervisorUser, getUserAreaCode } from '../../../utils/authHelpers';
+import { getUserAreaCode } from '../../../utils/authHelpers';
 
 
 const formatCurrency = (value) => {
@@ -68,8 +67,6 @@ const DashboardPage = () => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
-  const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState('EXECUTIVE'); // 'EXECUTIVE' | 'WAREHOUSE'
   const [selectedArea, setSelectedArea] = useState('GENERAL');
 
   const roleCode = String(typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
@@ -86,21 +83,6 @@ const DashboardPage = () => {
     queryFn: async () => {
       try {
         const response = await apiClient.get('/dashboard/financial');
-        return response.data?.data || response.data || {};
-      } catch (e) {
-        return {};
-      }
-    },
-    enabled: isExecutive,
-    refetchInterval: 30000,
-  });
-
-  // 2. Dashboard Operativo
-  const { data: opData, isLoading: isLoadingOp } = useQuery({
-    queryKey: ['dashboard', 'operations'],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get('/dashboard/operations');
         return response.data?.data || response.data || {};
       } catch (e) {
         return {};
@@ -138,33 +120,7 @@ const DashboardPage = () => {
     return <WarehouseDashboard />;
   }
 
-  // Si el usuario ejecutivo seleccionó ver el Monitor Detallado de Almacén
-  if (activeTab === 'WAREHOUSE') {
-    return (
-      <div className="flex flex-col gap-4">
-        {/* Barra superior de retorno / cambio de vista ejecutiva */}
-        <div className="bg-card border-b border-border px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-xs">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Vista Activa:</span>
-            <Badge variant="outline" className="font-bold text-xs bg-primary/10 text-primary border-primary/30">
-              Monitor Detallado de Almacén
-            </Badge>
-          </div>
-          <Button 
-            variant="default" 
-            size="sm" 
-            onClick={() => setActiveTab('EXECUTIVE')}
-            className="font-bold gap-2 text-xs h-8"
-          >
-            ← Volver a Visión Global Ejecutiva
-          </Button>
-        </div>
-        <WarehouseDashboard />
-      </div>
-    );
-  }
-
-  if (isLoadingFin || isLoadingOp || isLoadingAreaOverview) {
+  if (isLoadingFin || isLoadingAreaOverview) {
     return (
       <div className="h-full flex items-center justify-center p-12">
         <p className="text-xl text-foreground opacity-60 font-bold animate-pulse">Cargando Visión Ejecutiva...</p>
@@ -173,8 +129,6 @@ const DashboardPage = () => {
   }
 
   const kpisFin = finData?.kpis || {};
-  const kpisOp = opData?.kpis || {};
-
   const currentInventoryValue = kpisFin.currentInventoryValue ?? 0;
   const totalLoss = kpisFin.totalLoss ?? ((kpisFin.totalLostScrap || 0) + (kpisFin.totalLostMerma || 0) + (kpisFin.totalLostBaja || 0));
   const totalInvested = kpisFin.totalInvested ?? 0;
@@ -192,25 +146,16 @@ const DashboardPage = () => {
     return Number(areaInventoryValues.find(({ name }) => normalizeAreaName(name) === expectedName)?.value || 0);
   };
 
-  // Evolución Financiera de Inventario y Pérdidas (Totalmente conectada a datos reales del backend)
+  // Datos financieros del área enfocada y etiquetas de áreas planificadas.
   const monthlyFinancialFromBackend = finData?.charts?.monthlyFinancial;
-  const currentMonthIdx = new Date().getMonth(); // 0-indexed (Octubre = 9)
-  const defaultMonths = ['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct'];
-  
-  const globalFinancialData = Array.isArray(monthlyFinancialFromBackend) && monthlyFinancialFromBackend.length > 0
-    ? monthlyFinancialFromBackend.slice(Math.max(0, currentMonthIdx - 5), currentMonthIdx + 1)
-    : defaultMonths.map(mes => ({ mes, inventario: 0, merma: 0, operativo: 0 }));
-
-  // Distribución del Capital basada en datos reales de almacén y pérdidas
-  const remainingInvested = Math.max(0, totalInvested - currentInventoryValue - totalLoss);
-  const distributionData = [
-    { name: 'Valor en Inventario', value: currentInventoryValue, fill: '#3b82f6' },
-    { name: 'Merma Registrada', value: kpisFin.totalLostMerma ?? 0, fill: '#f59e0b' },
-    { name: 'Scrap Generado', value: kpisFin.totalLostScrap ?? 0, fill: '#ef4444' },
-    { name: 'Bajas / Desechos', value: kpisFin.totalLostBaja ?? 0, fill: '#dc2626' },
-    { name: 'Capital Invertido Restante', value: remainingInvested, fill: '#10b981' },
-  ].filter(d => d.value > 0);
-  const hasDistributionData = distributionData.length > 0;
+  const scrapSummary = finData?.charts?.scrapSummary || {};
+  const scrapByMonth = finData?.charts?.scrapByMonth || [];
+  const scrapByArea = finData?.charts?.scrapByArea || [];
+  const areaInventoryChart = areaInventoryValues
+    .map(({ name, value, has_value }) => ({ name, value: Number(value || 0), has_value }))
+    .sort((a, b) => b.value - a.value);
+  const hasAreaInventoryData = areaInventoryChart.some(({ value }) => value > 0);
+  const hasScrapTrend = scrapByMonth.some(({ actual_kg, estimated_kg }) => Number(actual_kg || 0) > 0 || Number(estimated_kg || 0) > 0);
   const areaCards = [
     {
       key: 'extrusion', title: 'Extrusión', icon: Settings2, tone: 'text-indigo-500 bg-indigo-500/10',
@@ -333,14 +278,10 @@ const DashboardPage = () => {
       ? 'Superadministrador' 
       : 'Administrador';
 
-  if (activeTab === 'WAREHOUSE') {
-    return <WarehouseDashboard activeTab={activeTab} onSwitchTab={setActiveTab} />;
-  }
-
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 pb-32 sm:pb-16 bg-background overflow-x-hidden w-full">
       
-      {/* HEADER GREETING & VIEW TOGGLE */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1 pr-12 sm:pr-0">
@@ -353,36 +294,15 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* SELECTOR DE VISTA EJECUTIVA / MONITOR ALMACÉN */}
-        <div className="flex items-center gap-2 bg-secondary/60 p-1.5 rounded-xl border border-border shrink-0 w-full sm:w-auto">
-          <button
-            onClick={() => setActiveTab('EXECUTIVE')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'EXECUTIVE'
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Visión Global Ejecutiva
-          </button>
-          <button
-            onClick={() => setActiveTab('WAREHOUSE')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'WAREHOUSE'
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Boxes className="size-3.5" />
-            Monitor de Almacén
-          </button>
-        </div>
       </div>
 
       <section aria-labelledby="dashboard-area-filter-title" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <div className="mb-3">
-          <h2 id="dashboard-area-filter-title" className="text-lg font-black text-foreground">Área del tablero</h2>
-          <p className="mt-1 text-sm text-muted-foreground">General reúne los indicadores consolidados. Elige un área para enfocarte en sus datos.</p>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="dashboard-area-filter-title" className="text-lg font-black text-foreground">Filtros del tablero</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Selecciona un área o consulta la visión general consolidada.</p>
+          </div>
+          <span className="w-fit rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-muted-foreground">Datos actuales · MXN</span>
         </div>
         <div role="group" aria-label="Filtrar dashboard por área" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {dashboardAreas.map(({ key, title, icon: AreaIcon }) => {
@@ -506,7 +426,7 @@ const DashboardPage = () => {
             {selectedArea === 'almacen' && materialesStockBajo > 0 && (
               <div role="status" className="flex flex-col gap-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 text-amber-950 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between">
                 <span className="flex items-start gap-2 text-base font-semibold"><AlertTriangle className="mt-0.5 size-5 shrink-0" />{materialesStockBajo} materiales están por debajo del mínimo.</span>
-                <Button variant="outline" onClick={() => setActiveTab('WAREHOUSE')} className="min-h-11 w-full sm:w-auto">Abrir monitor de Almacén <ArrowRight className="size-4" /></Button>
+                <Link to="/warehouse/inventory" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-bold text-foreground hover:bg-muted sm:w-auto">Abrir inventario de Almacén <ArrowRight className="size-4" /></Link>
               </div>
             )}
             {['globo', 'laminado'].includes(selectedArea) && (
@@ -522,42 +442,18 @@ const DashboardPage = () => {
         </section>
       )}
 
-      {/* TOP FILTERS */}
-      {selectedArea === 'GENERAL' && <div className="w-full shrink-0">
-        <div className="bg-secondary/40 p-4 sm:p-5 rounded-2xl border border-border/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="shrink-0 flex justify-between items-center w-full lg:w-auto">
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">Filtros Globales</h2>
-              <p className="text-xs text-muted-foreground">Perspectiva ejecutiva consolidada</p>
-            </div>
-            <button 
-              className="lg:hidden text-primary text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-lg"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              {showFilters ? 'Ocultar' : 'Mostrar'}
-            </button>
-          </div>
-
-          <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 lg:max-w-3xl ${showFilters ? 'block' : 'hidden lg:grid'}`}>
-            <TFSelect label="Año Fiscal" options={[{value: '2026', label: '2026'}]} value="2026" onChange={() => {}} />
-            <TFSelect label="Trimestre" options={[{value: 'q2', label: 'Q2 (Actual)'}]} value="q2" onChange={() => {}} />
-            <TFSelect label="Moneda" options={[{value: 'mxn', label: 'MXN'}]} value="mxn" onChange={() => {}} />
-          </div>
-        </div>
-      </div>}
-
       {/* TOP KPIs - Reflejo Real de Almacén y Finanzas */}
       {selectedArea === 'GENERAL' && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ExecutiveKpiCard
-          title="Pérdidas Consolidadas" 
+          title="Pérdidas valorizadas"
           value={totalLoss} 
           isCurrency={true} 
           colorClass="border-red-500" 
           icon={AlertCircle}
-          subtitle={`${kpisFin.totalLossQty || 0} unidades en merma, scrap y bajas`}
+          subtitle={`${kpisFin.totalLossQty || 0} unidades en movimientos de merma, scrap y bajas`}
         />
         <ExecutiveKpiCard
-          title="Valor Total de Inventarios"
+          title="Valor de inventario y WIP"
           value={currentInventoryValue}
           isCurrency={true}
           colorClass="border-blue-500"
@@ -583,85 +479,70 @@ const DashboardPage = () => {
         />
       </div>}
 
-      {/* CHARTS ROW */}
-      {selectedArea === 'GENERAL' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Evolution Chart */}
-        <Card className="lg:col-span-2 p-5 shadow-sm border-border/50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold text-foreground opacity-70 uppercase tracking-wider">
-              Evolución Financiera (Últimos 6 Meses)
-            </h3>
-            <Badge variant="outline" className="text-[10px] font-bold">Datos en Tiempo Real</Badge>
+      {/* RESUMEN EJECUTIVO DE COSTOS Y MERMA */}
+      {selectedArea === 'GENERAL' && <section aria-label="Costos y merma consolidados" className="space-y-4">
+        <Card className="p-4 sm:p-5 shadow-sm border-border/70">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-black text-foreground">Valor registrado por área</h2>
+              <p className="text-sm text-muted-foreground">Inventario, silos bajo custodia de Almacén y WIP con costo registrado · MXN</p>
+            </div>
+            <Badge variant="outline" className="w-fit text-xs font-bold">Actualización cada 30 s</Badge>
           </div>
-          <div className="h-[280px] w-full">
+          {hasAreaInventoryData ? <div role="img" aria-label="Gráfica de barras del valor registrado de inventario y WIP por área, en pesos mexicanos." className="h-[300px] w-full sm:h-[340px]">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={globalFinancialData} margin={{ top: 5, right: 15, left: 15, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-                <XAxis dataKey="mes" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis yAxisId="left" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
-                <YAxis yAxisId="right" orientation="right" width={64} stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(val)}`} />
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
-                  itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}
-                  formatter={(value) => formatCurrency(value)}
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar yAxisId="left" dataKey="inventario" name="VALOR INVENTARIO" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={45} />
-                <Bar yAxisId="left" dataKey="operativo" name="COSTO OPERATIVO" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={45} />
-                <Line yAxisId="right" type="monotone" dataKey="merma" name="MERMA / SCRAP" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
-              </ComposedChart>
+              <BarChart data={areaInventoryChart} layout="vertical" margin={{ top: 4, right: 20, left: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
+                <XAxis type="number" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toLocaleString('es-MX')} mil`} />
+                <YAxis type="category" dataKey="name" width={105} stroke={axisColor} fontSize={13} tickLine={false} axisLine={false} />
+                <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }} formatter={(value) => [formatCurrency(value), 'Valor registrado']} />
+                <Bar dataKey="value" name="Valor registrado" fill="#3b82f6" radius={[0, 6, 6, 0]} maxBarSize={34} />
+              </BarChart>
             </ResponsiveContainer>
-          </div>
+          </div> : <p role="status" className="rounded-lg bg-muted/40 p-5 text-base text-muted-foreground">No hay valores de inventario o WIP disponibles para graficar.</p>}
+          <p className="mt-3 text-xs text-muted-foreground">Las áreas con $0 no tienen valor contabilizado en inventario/WIP en este momento. El total de la tarjeta superior refleja costos disponibles; bienes sin costo y áreas aún no integradas no se estiman.</p>
         </Card>
 
-        {/* Distribution Chart */}
-        <Card className="p-5 shadow-sm border-border/50 flex flex-col justify-between">
-          <div>
-            <h3 className="text-xs font-bold text-foreground opacity-70 mb-2 uppercase tracking-wider text-center">
-              Distribución del Capital
-            </h3>
-            <p className="text-[11px] text-muted-foreground text-center mb-4">Desglose real de activos y pérdidas</p>
-          </div>
-          <div className="h-[240px] w-full flex items-center justify-center">
-            {hasDistributionData ? (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Card className="min-w-0 p-4 sm:p-5 shadow-sm border-border/70 xl:col-span-2">
+            <div className="mb-3">
+              <h2 className="text-lg font-black text-foreground">Merma y scrap de producción</h2>
+              <p className="text-sm text-muted-foreground">Registro mensual en kilogramos · últimos 6 meses · consulta cada 30 s</p>
+            </div>
+            {hasScrapTrend ? <div role="img" aria-label="Tendencia mensual de merma y scrap de producción, separando pesaje real y estimado." className="h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={distributionData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="45%"
-                    outerRadius="75%"
-                    dataKey="value"
-                    stroke={tooltipBg}
-                    strokeWidth={2}
-                  >
-                    {distributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }}
-                    itemStyle={{ color: isDark ? '#f4f4f5' : '#18181b' }}
-                    formatter={(value) => formatCurrency(value)}
-                  />
-                  <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                </PieChart>
+                <ComposedChart data={scrapByMonth} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+                  <XAxis dataKey="month" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value).toLocaleString('es-MX')} kg`} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#f4f4f5' : '#18181b' }} formatter={(value) => [`${Number(value).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg`]} />
+                  <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
+                  <Line type="monotone" dataKey="actual_kg" name="Pesaje real" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="estimated_kg" name="Estimado" stroke="#f59e0b" strokeWidth={3} strokeDasharray="6 4" dot={{ r: 3 }} />
+                </ComposedChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
-                <div className="size-12 rounded-full bg-secondary/60 flex items-center justify-center mb-2">
-                  <Package className="size-6 opacity-40 text-muted-foreground" />
-                </div>
-                <p className="text-xs font-bold text-foreground opacity-75">Sin distribución de capital activa</p>
-                <p className="text-[11px] opacity-60 max-w-[220px] mt-1">El gráfico se activará al registrar las primeras recepciones de material.</p>
-              </div>
-            )}
-          </div>
-        </Card>
+            </div> : <p role="status" className="rounded-lg bg-muted/40 p-5 text-base text-muted-foreground">No hay registros de merma/scrap de producción en los últimos seis meses.</p>}
+          </Card>
 
-      </div>}
+          <Card className="flex min-w-0 flex-col gap-4 p-4 sm:p-5 shadow-sm border-border/70">
+            <div>
+              <p className="text-sm font-bold text-muted-foreground">Total histórico registrado en producción</p>
+              <p className="mt-1 text-3xl font-black tabular-nums text-foreground">{Number(scrapSummary.total_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })} <span className="text-lg text-muted-foreground">kg</span></p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-y border-border/70 py-3">
+              <div><p className="text-xs text-muted-foreground">Pesado</p><p className="text-lg font-extrabold tabular-nums text-red-500">{Number(scrapSummary.actual_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg</p></div>
+              <div><p className="text-xs text-muted-foreground">Estimado</p><p className="text-lg font-extrabold tabular-nums text-amber-500">{Number(scrapSummary.estimated_kg || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg</p></div>
+            </div>
+            <ul className="space-y-2" aria-label="Desglose histórico por área">
+              {scrapByArea.map((area) => <li key={area.key} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">{area.name}{!area.available && <span className="ml-1 text-xs">(sin consulta)</span>}</span>
+                <strong className="tabular-nums text-foreground">{area.available ? `${Number(area.actual_kg + area.estimated_kg).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg` : '—'}</strong>
+              </li>)}
+            </ul>
+            <p className="mt-auto rounded-lg bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">Las pérdidas de Almacén se muestran en MXN arriba. No se suman aquí porque sus movimientos pueden usar unidades distintas a kg.</p>
+          </Card>
+        </div>
+      </section>}
 
       {selectedArea === 'GENERAL' && <>
       {/* AREAS GRID (RESUMEN NETO CONECTADO A ALMACÉN) */}
@@ -686,14 +567,9 @@ const DashboardPage = () => {
                 <p className="text-[10px] font-semibold text-muted-foreground">Gestión de lotes, catálogo y mermas</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setActiveTab('WAREHOUSE')}
-              className="text-xs font-bold gap-1 text-primary border-primary/30 hover:bg-primary/10 h-8"
-            >
-              Abrir Monitor Detallado <ArrowRight className="size-3.5" />
-            </Button>
+            <Link to="/warehouse/inventory" className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-primary/30 px-3 text-xs font-bold text-primary hover:bg-primary/10">
+              Abrir inventario <ArrowRight className="size-3.5" />
+            </Link>
           </div>
 
           <div className="p-5 flex flex-col gap-4 bg-card">
@@ -735,12 +611,7 @@ const DashboardPage = () => {
                   <AlertTriangle className="size-4 shrink-0" />
                   {materialesStockBajo} material(es) se encuentran por debajo del stock mínimo.
                 </span>
-                <button 
-                  onClick={() => setActiveTab('WAREHOUSE')}
-                  className="text-xs font-black underline hover:opacity-80"
-                >
-                  Ver reporte
-                </button>
+                <Link to="/warehouse/inventory" className="text-xs font-black underline hover:opacity-80">Abrir inventario</Link>
               </div>
             )}
           </div>
@@ -784,6 +655,13 @@ const DashboardPage = () => {
             );
           })}
         </div>
+        <Card className="flex flex-col gap-2 border-dashed border-border/80 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h4 className="text-sm font-extrabold text-foreground">Corte y Confección</h4>
+            <p className="text-sm text-muted-foreground">Área contemplada para una siguiente integración. Sus WIP, procesos y costos no forman parte de los totales actuales.</p>
+          </div>
+          <Badge variant="outline" className="w-fit border-amber-500/40 bg-amber-500/10 text-sm font-bold text-amber-700 dark:text-amber-300">Pendiente de integrar</Badge>
+        </Card>
       </section>
       </>}
     </div>

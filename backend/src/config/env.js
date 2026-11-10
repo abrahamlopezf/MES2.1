@@ -29,10 +29,14 @@ const env = {
 
   jwt: {
     secret:
-      process.env.JWT_SECRET || 'development_secret',
+      process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'development_secret'),
 
     expiresIn: process.env.JWT_EXPIRES_IN || '12h',
   },
 };
+
+if (env.isProduction && (!env.jwt.secret || Buffer.byteLength(env.jwt.secret) < 32)) {
+  throw new Error('JWT_SECRET debe tener al menos 32 bytes en producción.');
+}
 
 module.exports = env;

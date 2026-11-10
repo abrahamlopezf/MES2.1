@@ -1,8 +1,10 @@
+require('dotenv').config();
 const { login } = require('./src/modules/auth/auth.service');
 
 async function test() {
   try {
-    const { token } = await login('admin_alm', 'Demo123!');
+    if (!process.env.TEST_ACCOUNT_PASSWORD) throw new Error('TEST_ACCOUNT_PASSWORD is required.');
+    const { token } = await login(process.env.TEST_ACCOUNT_USERNAME || 'admin_alm', process.env.TEST_ACCOUNT_PASSWORD);
     const res = await fetch('http://localhost:5000/api/v1/users', {
       method: 'POST',
       headers: {
@@ -18,7 +20,7 @@ async function test() {
         numero_nomina: '',
         username: '',
         is_active: true,
-        password: 'Temporal123!'
+        password: process.env.TEST_ACCOUNT_PASSWORD
       })
     });
     const data = await res.json();

@@ -37,7 +37,10 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[10000] flex flex-col justify-end transition-opacity duration-300 md:items-center md:justify-center md:p-6 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="inventory-details-title"
     >
       {/* Overlay */}
       <div 
@@ -49,12 +52,12 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[90dvh] transition-transform duration-300 ease-out transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative my-0 flex min-h-0 max-h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card transition-transform duration-300 ease-out transform md:my-auto md:max-h-[calc(100dvh-3rem)] md:rounded-2xl md:border ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle Area */}
         <div 
-          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          className="flex w-full shrink-0 touch-none items-center justify-center bg-card pt-3 pb-2 md:hidden"
           onTouchStart={handlers.onTouchStart}
           onTouchMove={handlers.onTouchMove}
           onTouchEnd={() => handlers.onTouchEnd(onClose)}
@@ -63,51 +66,55 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
         </div>
 
         {/* Header */}
-        <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 pb-4 sm:px-5">
           <div className="flex items-center gap-2 text-foreground">
             <Info size={20} className="text-primary" />
-            <h3 className="font-bold text-lg leading-none">Detalles del Inventario</h3>
+            <h3 id="inventory-details-title" className="font-bold text-lg leading-tight">Detalles del Inventario</h3>
           </div>
           <button 
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground hover:bg-secondary p-1.5 rounded-full transition-colors bg-secondary/50"
+            aria-label="Cerrar detalles del inventario"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary/50 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-5 bg-background">
-          {/* Material Details Card */}
-          <div className="bg-secondary/20 border border-border p-4 rounded-xl flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h4 className="font-bold text-lg text-foreground leading-tight">
-                  {item.material?.internal_code || '---'}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background p-4 sm:p-5">
+          <div className="flex flex-col gap-5">
+          {/* Material summary */}
+          <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label="Resumen del material">
+            <div className="flex min-w-0 items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h4 className="break-words text-xl font-bold leading-tight text-foreground sm:text-2xl">
+                  {item.material?.internal_code || 'Sin código'}
                 </h4>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {item.material?.name || '---'}
+                <p className="mt-1 text-base leading-snug text-muted-foreground">
+                  {item.material?.name || 'Sin nombre'}
                 </p>
               </div>
-              <Badge variant="secondary" className="shrink-0 text-xs py-1">
-                {item.material?.ranking?.nomenclature || '---'}
-              </Badge>
+              {item.material?.ranking?.nomenclature && (
+                <Badge variant="outline" className="shrink-0 border-border bg-background px-3 py-1 text-sm font-semibold text-foreground">
+                  {item.material.ranking.nomenclature}
+                </Badge>
+              )}
             </div>
-            
-            <div className="grid grid-cols-2 gap-3 mt-1">
-              <div className="bg-card rounded-lg p-3 border border-border/50 shadow-sm">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Cantidad Actual</p>
-                <p className="font-bold text-xl text-primary flex items-baseline gap-1">
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border bg-background p-4">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Cantidad actual</p>
+                <p className="flex items-baseline gap-2 text-2xl font-bold tabular-nums text-primary">
                   {Number(item.amount).toFixed(2)}
-                  <span className="text-sm font-semibold text-muted-foreground">{item.material?.base_unit?.code || ''}</span>
+                  <span className="text-base font-semibold text-muted-foreground">{item.material?.base_unit?.code || ''}</span>
                 </p>
               </div>
-              <div className="bg-card rounded-lg p-3 border border-border/50 shadow-sm">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Clasificación</p>
-                <p className="font-bold text-sm text-foreground mt-1">{item.material?.ranking?.name || '---'}</p>
+              <div className="rounded-xl border border-border bg-background p-4">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Clasificación</p>
+                <p className="text-base font-semibold text-foreground">{item.material?.ranking?.name || 'Sin clasificación'}</p>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Lotes List */}
           <div>
@@ -140,47 +147,54 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
                   return (
                     <div 
                       key={lote.id}
-                      className={`flex flex-col sm:flex-row gap-2 sm:gap-4 p-3.5 rounded-xl border items-start sm:items-center justify-between shadow-sm transition-all
-                        ${isDepleted ? 'border-destructive/30 bg-destructive/5 opacity-50 grayscale-[50%]' : 'border-border bg-card'}`}
+                      className={`grid min-w-0 gap-3 rounded-xl border p-4 transition-colors sm:grid-cols-[minmax(0,1.5fr)_minmax(12rem,1fr)_auto] sm:items-center sm:gap-4
+                        ${isDepleted ? 'border-destructive/30 bg-destructive/5 opacity-60' : 'border-border bg-card'}`}
                     >
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className={`font-bold text-sm truncate ${isDepleted ? 'text-destructive' : 'text-foreground'}`}>
+                      <div className="flex min-w-0 flex-col">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <span className={`break-all text-base font-bold ${isDepleted ? 'text-destructive' : 'text-foreground'}`}>
                             Folio: {lote.folio || 'LEGACY-LOT'}
                           </span>
                           {isDepleted && (
-                            <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4">DADO DE BAJA</Badge>
+                            <Badge variant="destructive" className="h-6 px-2 text-xs">Dado de baja</Badge>
                           )}
                           {isPartial && (
-                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-amber-500/30 text-amber-600 bg-amber-500/10 whitespace-nowrap">
-                              BAJA PARCIAL: -{disposed.toFixed(2)}
+                            <Badge variant="outline" className="whitespace-nowrap border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-600">
+                              Baja parcial · {disposed.toFixed(2)} {lote.material?.base_unit?.code || ''}
                             </Badge>
                           )}
                         </div>
-                        <span className="text-xs text-muted-foreground font-medium">
+                        <span className="text-sm font-medium text-muted-foreground">
                           {new Date(lote.date_received).toLocaleString()}
                         </span>
                       </div>
                       
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-border/50 sm:border-0">
+                      <div className="flex min-w-0 items-center gap-3 border-t border-border/70 pt-3 sm:border-0 sm:pt-0">
                         {lote.qr_code?.uuid && !isDepleted && (
                           <button
                             onClick={() => downloadQrPdf(lote.qr_code.uuid, lote.qr_code.qr_code).catch(() => toast.error('Error al descargar QR'))}
-                            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors border border-primary/20 flex items-center justify-center shrink-0"
+                            aria-label={`Descargar QR del lote ${lote.folio || 'LEGACY-LOT'}`}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
                             title="Descargar Código QR"
                           >
-                            <QrCode size={16} />
+                            <QrCode size={20} />
                           </button>
                         )}
-                        <div className="text-xs text-muted-foreground flex flex-col items-start sm:items-end">
-                          <span>Por: <span className="font-semibold text-foreground">{lote.user?.first_name} {lote.user?.last_name}</span></span>
+                        <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-muted-foreground sm:flex-none">
+                          <span className="truncate">Registró: <span className="font-semibold text-foreground">{lote.user?.first_name} {lote.user?.last_name}</span></span>
                           {lote.location && (
-                            <span className="mt-0.5">Loc: <span className="font-semibold text-foreground">{lote.location.code}</span></span>
+                            <span>Ubicación: <span className="font-semibold text-foreground">{lote.location.code}</span></span>
                           )}
                         </div>
-                        <Badge variant="outline" className={`shrink-0 text-sm py-1 ${isDepleted ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-primary/5 text-primary border-primary/20'}`}>
-                          {available.toFixed(2)} <span className="text-[10px] ml-1 font-medium">{lote.material?.base_unit?.code || ''}</span>
-                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 sm:justify-end">
+                        <span className="text-sm font-medium text-muted-foreground sm:hidden">Disponible</span>
+                        <div className="sm:text-right">
+                          <span className="hidden text-xs font-medium text-muted-foreground sm:block">Disponible</span>
+                          <Badge variant="outline" className={`mt-0.5 shrink-0 rounded-lg px-3 py-1.5 text-base font-bold tabular-nums ${isDepleted ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-border bg-background text-foreground'}`}>
+                            {available.toFixed(2)} <span className="ml-1 text-xs font-semibold">{lote.material?.base_unit?.code || ''}</span>
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   );
@@ -188,17 +202,18 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
               )}
             </div>
           </div>
+          </div>
         </div>
         
         {/* Bottom Actions fixed to bottom */}
-        <div className="sticky bottom-0 p-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex gap-3 pb-8">
-           <Button variant="secondary" onClick={onClose} className="flex-1 font-bold py-6 rounded-xl">
+        <div className="z-10 flex shrink-0 gap-3 border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4 md:pb-4">
+           <Button variant="secondary" onClick={onClose} className="min-h-12 flex-1 rounded-xl font-bold">
             Cerrar
           </Button>
           <Button 
             variant="default" 
             onClick={onViewAllLotes}
-            className="flex-1 font-bold py-6 rounded-xl shadow-md"
+            className="min-h-12 flex-1 rounded-xl font-bold shadow-md"
           >
             Ver Historial
           </Button>

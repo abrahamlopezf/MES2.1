@@ -1,3 +1,4 @@
+require('dotenv').config();
 /**
  * Script de validación integral para los Puntos 1 al 7
  * Ejecuta validaciones contra el Backend local (puerto 4000)
@@ -33,7 +34,7 @@ async function runValidation() {
   console.log('[PASO 0] Autenticando usuario superadmin (nexus)...');
   const loginRes = await req('POST', '/auth/login', {
     identifier: 'nexus',
-    password: 'Admin123!'
+    password: process.env.TEST_ACCOUNT_PASSWORD
   });
   const token = loginRes.data?.token || loginRes.token;
   console.log('✔ Autenticado con éxito. Token recibido.\n');

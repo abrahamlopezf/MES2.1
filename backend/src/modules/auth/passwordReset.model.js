@@ -18,6 +18,10 @@ const initPasswordResetModel = (sequelize) => {
         type: DataTypes.STRING(6),
         allowNull: false,
       },
+      code_hash: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+      },
       expires_at: {
         type: DataTypes.DATE,
         allowNull: false,

@@ -115,23 +115,26 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[200] flex flex-col justify-end transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:items-center sm:justify-center sm:p-6 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
       style={{ isolation: 'isolate' }}
     >
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm" 
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="baja-dialog-title"
+        className={`relative z-[201] w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] transform sm:max-w-4xl sm:rounded-2xl sm:border sm:max-h-[90dvh] ${animateIn && currentY === 0 ? 'translate-y-0 opacity-100 sm:scale-100' : 'translate-y-full opacity-100 sm:translate-y-2 sm:scale-[0.98]'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
         <div 
-          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card sm:hidden"
           onTouchStart={handlers.onTouchStart}
           onTouchMove={handlers.onTouchMove}
           onTouchEnd={() => handlers.onTouchEnd(onClose)}
@@ -140,8 +143,8 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
         </div>
 
         {/* Header */}
-        <div className={`px-5 pb-4 sm:pt-5 border-b border-border flex justify-between items-center ${isResolutionMode ? 'bg-warning/10 border-warning/20' : 'bg-card'}`}>
-          <h3 className="font-bold text-lg flex items-center gap-2">
+        <div className={`px-4 py-3 sm:px-6 sm:py-4 border-b border-border flex justify-between items-center gap-4 ${isResolutionMode ? 'bg-warning/10 border-warning/20' : 'bg-card'}`}>
+          <h3 id="baja-dialog-title" className="min-w-0 font-bold text-base sm:text-lg flex items-center gap-2">
             <Package size={20} className={isResolutionMode ? 'text-warning' : 'text-foreground'} />
             <span className={isResolutionMode ? 'text-warning' : 'text-foreground'}>
               {isResolutionMode ? 'Autorización de Baja' : 'Nueva Baja de Material'}
@@ -149,14 +152,16 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
           </h3>
           <button 
             onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
+            type="button"
+            aria-label="Cerrar modal de baja"
+            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl border border-border bg-transparent text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-0 overflow-y-auto flex-1 flex flex-col bg-background">
+        <div className="p-0 overflow-y-auto overflow-x-hidden flex-1 flex flex-col bg-background">
           
           {step === 'SCANNING' ? (
             <div className="flex-1 flex flex-col justify-center items-center py-4 px-5">
@@ -185,11 +190,11 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                 <h4 className="font-bold text-foreground text-xl">¿Cómo desea buscar el material?</h4>
                 <p className="text-muted-foreground text-sm max-w-xs mx-auto">Seleccione si desea utilizar la cámara para leer el código QR del lote o buscarlo manualmente en el catálogo.</p>
               </div>
-              <div className="flex flex-col w-full gap-3 mt-4">
-                <Button variant="primary" size="lg" onClick={() => onSetStep('SCANNING')} className="font-bold py-6 text-lg rounded-xl shadow-md">
+              <div className="flex flex-col w-full max-w-md gap-3 mt-4 mx-auto">
+                <Button variant="default" size="lg" onClick={() => onSetStep('SCANNING')} className="min-h-12 font-bold text-base sm:text-lg rounded-xl shadow-md">
                   <QrCode className="mr-2" /> Escanear Código QR
                 </Button>
-                <Button variant="secondary" size="lg" onClick={() => onSetStep('FORM')} className="font-bold py-6 text-lg rounded-xl">
+                <Button variant="outline" size="lg" onClick={() => onSetStep('FORM')} className="min-h-12 font-bold text-base sm:text-lg rounded-xl border-border bg-card hover:bg-muted">
                   Selección Manual
                 </Button>
               </div>
@@ -200,7 +205,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
               <p>Cargando detalles de la solicitud...</p>
             </div>
           ) : (
-            <div className="p-5 flex flex-col gap-6">
+            <div className="p-4 sm:p-6 flex flex-col gap-6">
               {isResolutionMode && (
                 <div className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-start gap-3">
                   <ShieldAlert className="text-warning shrink-0 mt-0.5" size={20} />
@@ -275,7 +280,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                             onChange={onChangeSelectedMaterial}
                             getLabel={(m: any) => `${m.internal_code} - ${m.name}`}
                             getDescription={(m: any) => m.description || undefined}
-                            getValue={(m: any) => m.id.toString()}
+                            getValue={(m: any) => String(m.id ?? '')}
                             placeholder="Buscar material..."
                             emptyMessage="No se encontraron materiales"
                             disabled={isMaterialLocked}
@@ -330,7 +335,8 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                           {!isResolutionMode && (
                             <button 
                               onClick={() => onRemoveItem(item.originalIdx)}
-                              className="absolute top-3 right-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-full transition-colors"
+                              className="absolute top-3 right-3 h-10 w-10 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
+                              aria-label={`Quitar lote ${item.folio || item.lote_id || item.originalIdx + 1}`}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -364,8 +370,8 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
           )}
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-4 sm:pb-4">
+        {/* Footer del formulario: evita tapar las opciones iniciales y el escáner */}
+        {step === 'FORM' && <div className="sticky bottom-0 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex justify-between items-center px-5 py-3 border-b border-border/50 bg-secondary/10">
              <div className="flex flex-col">
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Lotes</span>
@@ -384,7 +390,7 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                   variant="outline" 
                   onClick={() => onResolveRequest('REJECTED')} 
                   disabled={isSubmitting} 
-                  className="flex-1 font-bold py-6 rounded-xl text-destructive hover:bg-destructive/10 border-destructive/20"
+                  className="min-h-12 flex-1 font-bold rounded-xl text-destructive hover:bg-destructive/10 border-destructive/20"
                 >
                   {isSubmitting ? 'Procesando...' : 'Rechazar'}
                 </Button>
@@ -392,28 +398,28 @@ export const BajaBottomSheetPresenter: React.FC<BajaBottomSheetPresenterProps> =
                   variant="default" 
                   onClick={() => onResolveRequest('APPROVED')} 
                   disabled={isSubmitting}
-                  className="flex-[1.5] font-bold py-6 rounded-xl shadow-md bg-warning hover:bg-warning/90 text-warning-foreground"
+                  className="min-h-12 flex-[1.5] font-bold rounded-xl shadow-md bg-warning hover:bg-warning/90 text-warning-foreground"
                 >
                   {isSubmitting ? 'Procesando...' : 'Aprobar Baja'}
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="secondary" onClick={onClose} disabled={isSubmitting} className="flex-1 font-bold py-6 rounded-xl">
+                <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="min-h-12 flex-1 font-bold rounded-xl border-border bg-background hover:bg-muted">
                   Cancelar
                 </Button>
                 <Button 
                   variant="destructive" 
                   onClick={isRequestMode ? onCreateRequest : onDirectDispose} 
                   disabled={isSubmitting || items.length === 0 || !tipoBajaId}
-                  className="flex-[1.5] font-bold py-6 rounded-xl shadow-md"
+                  className="min-h-12 flex-[1.5] font-bold rounded-xl shadow-md"
                 >
                   {isSubmitting ? 'Procesando...' : isRequestMode ? 'Solicitar Baja' : 'Dar de Baja'}
                 </Button>
               </>
             )}
           </div>
-        </div>
+        </div>}
 
       </div>
     </div>,

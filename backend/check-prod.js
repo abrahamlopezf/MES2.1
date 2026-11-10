@@ -1,7 +1,9 @@
+require('dotenv').config();
+if (!process.env.REMOTE_DATABASE_URL) throw new Error('REMOTE_DATABASE_URL is required for this script.');
 const { Sequelize } = require('sequelize');
 const fs = require('fs');
 
-const sequelize = new Sequelize('postgresql://neondb_owner:npg_ZyON69GToUgJ@ep-icy-shadow-avk05pd7.c-11.us-east-1.aws.neon.tech/neondb?sslmode=require', {
+const sequelize = new Sequelize(process.env.REMOTE_DATABASE_URL, {
   dialect: 'postgres',
   dialectOptions: {
     ssl: { require: true, rejectUnauthorized: false }

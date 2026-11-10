@@ -12,6 +12,7 @@ const notFoundMiddleware = require("./middlewares/notFound.middleware");
 const errorMiddleware = require("./middlewares/error.middleware");
 
 const app = express();
+app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : false);
 
 app.use(helmet());
 
@@ -21,6 +22,16 @@ const allowedOrigins = (
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""));
 
+const isAllowedDevelopmentOrigin = (origin) => {
+  if (process.env.NODE_ENV === 'production') return false;
+  try {
+    const parsed = new URL(origin);
+    return ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -28,20 +39,9 @@ app.use(
 
       const normalizedOrigin = origin.trim().replace(/\/$/, "");
 
-      // 1. Orígenes configurados explícitamente en CLIENT_URL o localhost
-      if (
-        allowedOrigins.includes(normalizedOrigin) ||
-        normalizedOrigin.includes("localhost") ||
-        normalizedOrigin.includes("127.0.0.1")
-      ) {
-        return callback(null, true);
-      }
-
-      // 2. Permitir cualquier despliegue en Vercel (*.vercel.app)
-      if (
-        normalizedOrigin.endsWith(".vercel.app") ||
-        normalizedOrigin.includes("vercel.app")
-      ) {
+      // Solo se permiten orígenes configurados explícitamente. En desarrollo,
+      // localhost se acepta por hostname exacto, nunca por coincidencia parcial.
+      if (allowedOrigins.includes(normalizedOrigin) || isAllowedDevelopmentOrigin(normalizedOrigin)) {
         return callback(null, true);
       }
 

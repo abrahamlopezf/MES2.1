@@ -28,6 +28,20 @@ interface SiloItem {
   is_critical_reorder: boolean;
   status_alert: 'NORMAL' | 'ALERTA_STOCK' | 'CRITICO_REORDEN';
   materialTag?: { id: number; uuid: string; name: string; color?: string } | null;
+  fifo_layers?: Array<{
+    id: number;
+    invoice_folio: string;
+    invoice_date: string;
+    received_at: string;
+    lot_kind: string;
+    material_id: number;
+    quantity_received_kg: number;
+    remaining_quantity_kg: number;
+    invoice_currency?: string | null;
+    invoice_unit_cost?: number | null;
+    unit_cost_mxn?: number;
+    unit_cost_usd?: number | null;
+  }>;
   material?: {
     id: number;
     name: string;
@@ -54,6 +68,8 @@ export const SilosManagementPage: React.FC = () => {
   const allowCosts = canViewCosts(user);
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSiloRuleNotice, setShowSiloRuleNotice] = useState(true);
+  const [showCriticalReorderNotice, setShowCriticalReorderNotice] = useState(true);
 
   // Modales
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -491,8 +507,8 @@ export const SilosManagementPage: React.FC = () => {
       </div>
 
       {/* 2. Banner de Regla de Oro / Excepción de Almacén */}
-      <div className="p-4 rounded-xl border-2 bg-blue-500/10 border-blue-500/30 text-blue-950 dark:text-blue-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3">
+      {showSiloRuleNotice && <div role="note" className="flex flex-col items-start justify-between gap-3 rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-4 text-blue-950 shadow-xs dark:text-blue-100 md:flex-row md:items-center">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="p-2 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0">
             <Icon name="verified_user" size={24} />
           </div>
@@ -507,12 +523,21 @@ export const SilosManagementPage: React.FC = () => {
             </p>
           </div>
         </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => setShowSiloRuleNotice(false)}
+          aria-label="Cerrar aviso sobre la operación de silos"
+          title="Cerrar aviso"
+          className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-lg text-blue-100 transition-colors hover:bg-blue-200/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 md:self-center"
+        >
+          <Icon name="close" size={20} />
+        </button>
+      </div>}
 
       {/* 3. Alerta de Compra Anticipada (Si hay silos en nivel crítico) */}
-      {criticalSilosCount > 0 && (
-        <div className="p-4 rounded-xl border-2 bg-amber-500/15 border-amber-500/50 text-amber-950 dark:text-amber-100 flex items-center justify-between gap-3 shadow-md animate-pulse">
-          <div className="flex items-center gap-3">
+      {criticalSilosCount > 0 && showCriticalReorderNotice && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border-2 border-amber-500/50 bg-amber-500/15 p-4 text-amber-950 shadow-md dark:text-amber-100">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500 text-white shrink-0 shadow-sm">
               <Icon name="warning" size={24} />
             </div>
@@ -525,6 +550,15 @@ export const SilosManagementPage: React.FC = () => {
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowCriticalReorderNotice(false)}
+            aria-label="Cerrar alerta de reorden de silos"
+            title="Cerrar alerta"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-amber-100 transition-colors hover:bg-amber-200/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          >
+            <Icon name="close" size={20} />
+          </button>
         </div>
       )}
 
@@ -680,7 +714,7 @@ export const SilosManagementPage: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {filteredSilos.map((silo) => {
             const currentStock = Number(silo.current_stock_kg) || 0;
             const maxCap = Number(silo.capacity_kg) || 40000;
@@ -702,36 +736,27 @@ export const SilosManagementPage: React.FC = () => {
                 }`}
               >
                 {/* Header Card */}
-                <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex items-start justify-between gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-black px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="inline-flex rounded border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-sm font-black text-primary">
                         {silo.code}
                       </span>
-                      <Badge
-                        variant={isCritical ? 'destructive' : 'outline'}
-                        className={`font-mono text-[10px] font-black uppercase tracking-wider ${isWarning ? 'border-orange-400 text-orange-600' : ''}`}
-                      >
-                        {isCritical ? '⚠️ MÍNIMO CRÍTICO' : isWarning ? '⚠️ ALERTA DE STOCK' : '✅ NIVEL ÓPTIMO'}
-                      </Badge>
-                      {silo.is_extrusion_feed && (
-                        <Badge variant="success" className="text-[9px] font-bold">ALIMENTA MEZCLADORA</Badge>
-                      )}
+                      <h3 className="mt-2 text-lg font-black leading-tight text-foreground">
+                        {silo.name}
+                      </h3>
+                      <p className="mt-1 flex items-start gap-1.5 text-sm font-semibold leading-5 text-muted-foreground">
+                        <Icon name="science" size={16} className="mt-0.5 shrink-0 text-primary" />
+                        <span>Etiqueta: {silo.materialTag?.name || 'Sin etiqueta asignada'}</span>
+                      </p>
                     </div>
-                    <h3 className="font-black text-base text-foreground truncate">
-                      {silo.name}
-                    </h3>
-                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1 truncate">
-                      <Icon name="science" size={14} className="text-primary shrink-0" />
-                      <span>Etiqueta: {silo.materialTag?.name || 'Sin etiqueta asignada'}</span>
-                    </p>
-                  </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleOpenEditSilo(silo)}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      aria-label={`Editar especificaciones de ${silo.name}`}
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title="Editar especificaciones del Silo"
                     >
                       <Icon name="edit" size={18} />
@@ -743,16 +768,30 @@ export const SilosManagementPage: React.FC = () => {
                           deleteSiloMutation.mutate(silo.id);
                         }
                       }}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label={`Desactivar ${silo.name}`}
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title="Desactivar Silo"
                     >
                       <Icon name="delete" size={18} />
                     </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant={isCritical ? 'destructive' : 'outline'}
+                      className={`px-2.5 py-1 text-xs font-bold leading-4 ${isWarning ? 'border-orange-400 text-orange-600 dark:text-orange-300' : ''}`}
+                    >
+                      {isCritical ? '⚠️ Mínimo crítico' : isWarning ? '⚠️ Alerta de stock' : '✅ Nivel óptimo'}
+                    </Badge>
+                    {silo.is_extrusion_feed && (
+                      <Badge variant="success" className="px-2.5 py-1 text-xs font-bold leading-4">Alimenta mezcladora</Badge>
+                    )}
                   </div>
                 </div>
 
                 {/* Body Card: Indicador de Capacidad y Nivel de Stock */}
-                <div className="p-4 sm:p-5 space-y-4">
+                <div className="space-y-5 p-4 sm:p-5">
                   {/* Gauge / Barra de Progreso */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
@@ -777,17 +816,18 @@ export const SilosManagementPage: React.FC = () => {
                         style={{ width: `${fillPct}%` }}
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[11px] font-mono font-bold text-muted-foreground pt-0.5">
-                      <span>0 kg</span>
-                      <span className="text-amber-600 dark:text-amber-400">Mín: {minCap.toLocaleString()} kg · Alerta: {alertStock.toLocaleString()} kg</span>
-                      <span>Máx: {maxCap.toLocaleString()} kg</span>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1 text-xs font-mono font-bold text-muted-foreground">
+                      <span className="leading-5">Nivel mínimo seguro<br /><strong className="text-amber-700 dark:text-amber-300">{minCap.toLocaleString()} kg</strong></span>
+                      <span className="leading-5">Alerta de reorden<br /><strong className="text-amber-700 dark:text-amber-300">{alertStock.toLocaleString()} kg</strong></span>
+                      <span className="leading-5">Inicio<br /><strong className="text-foreground">0 kg</strong></span>
+                      <span className="leading-5">Capacidad máxima<br /><strong className="text-foreground">{maxCap.toLocaleString()} kg</strong></span>
                     </div>
                   </div>
 
                   {/* Datos Clave */}
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 space-y-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="min-w-0 space-y-1 rounded-xl border border-border/70 bg-muted/40 p-3">
+                      <span className="block text-xs font-bold uppercase leading-4 tracking-wide text-muted-foreground">
                         Stock Actual
                       </span>
                       <span className={`font-mono text-base font-black block truncate ${
@@ -797,8 +837,8 @@ export const SilosManagementPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 space-y-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    <div className="min-w-0 space-y-1 rounded-xl border border-border/70 bg-muted/40 p-3">
+                      <span className="block text-xs font-bold uppercase leading-4 tracking-wide text-muted-foreground">
                         Capacidad Disponible
                       </span>
                       <span className="font-mono text-base font-black text-foreground block truncate">
@@ -806,8 +846,8 @@ export const SilosManagementPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 space-y-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    <div className="min-w-0 space-y-1 rounded-xl border border-border/70 bg-muted/40 p-3">
+                      <span className="block text-xs font-bold uppercase leading-4 tracking-wide text-muted-foreground">
                         Lote Actual en Silo
                       </span>
                       <div className="flex items-center gap-1.5 truncate">
@@ -819,8 +859,8 @@ export const SilosManagementPage: React.FC = () => {
 
                     {allowCosts && (
                       <>
-                        <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 space-y-0.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        <div className="min-w-0 space-y-1 rounded-xl border border-border/70 bg-muted/40 p-3">
+                          <span className="block text-xs font-bold uppercase leading-4 tracking-wide text-muted-foreground">
                             Costo Unitario
                           </span>
                           <span className="font-mono text-xs font-black text-primary block truncate">
@@ -828,12 +868,12 @@ export const SilosManagementPage: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-0.5 col-span-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <div className="col-span-2 space-y-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                            <span className="text-xs font-bold uppercase leading-4 tracking-wide text-muted-foreground">
                               Dinero Invertido en Silo
                             </span>
-                            <span className="text-[10px] font-mono text-muted-foreground">
+                            <span className="text-xs font-mono leading-5 text-muted-foreground sm:text-right">
                               ({currentStock.toLocaleString('es-MX', { maximumFractionDigits: 1 })} kg × ${Number(silo.unit_cost || 0).toFixed(2)})
                             </span>
                           </div>
@@ -846,12 +886,35 @@ export const SilosManagementPage: React.FC = () => {
                   </div>
 
                   {/* Destino y Conexión Operativa */}
-                  <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-2 text-xs text-foreground">
-                    <Icon name="hub" size={16} className="text-primary shrink-0" />
-                    <span className="font-semibold text-[11px] leading-tight">
+                  <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm leading-5 text-foreground">
+                    <Icon name="hub" size={18} className="mt-0.5 shrink-0 text-primary" />
+                    <span className="font-semibold">
                       Alimentación directa por tubería a <strong>Mezcladora</strong> (Centro de Mezclado).
                     </span>
                   </div>
+
+                  <details className="rounded-xl border border-border bg-background/40">
+                    <summary className="cursor-pointer select-none px-3 py-2.5 text-xs font-bold text-foreground">
+                      Facturas FIFO ({silo.fifo_layers?.length || 0} capas activas)
+                    </summary>
+                    <div className="space-y-2 border-t border-border p-3">
+                      {(silo.fifo_layers || []).length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No hay capas FIFO con saldo. Si el silo muestra stock, actualiza la información y reporta una diferencia.</p>
+                      ) : (silo.fifo_layers || []).map((layer, index) => (
+                        <div key={layer.id} className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-muted/40 p-2.5 text-xs sm:grid-cols-4">
+                          <span className="font-mono font-bold">{index + 1}. {layer.invoice_folio}</span>
+                          <span>Factura: {String(layer.invoice_date).slice(0, 10)}</span>
+                          <span>Recibido: {new Date(layer.received_at).toLocaleDateString('es-MX')}</span>
+                          <span className="font-mono font-bold text-primary">{Number(layer.remaining_quantity_kg).toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg disponibles</span>
+                          {allowCosts && <span className="col-span-2 text-muted-foreground sm:col-span-4">
+                            {layer.invoice_unit_cost == null
+                              ? `Costo de apertura/conciliación: ${formatCurrency(Number(layer.unit_cost_mxn || 0))} / kg`
+                              : `Precio factura: ${layer.invoice_currency || 'MXN'} ${Number(layer.invoice_unit_cost).toFixed(6)} / kg · ${formatCurrency(Number(layer.unit_cost_mxn || 0))} / kg${layer.unit_cost_usd != null ? ` · USD ${Number(layer.unit_cost_usd).toFixed(6)} / kg` : ''}`}
+                          </span>}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 </div>
 
                 {/* Footer Card con Acciones Directas */}

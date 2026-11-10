@@ -29,6 +29,13 @@ module.exports = (sequelize, DataTypes) => {
       },
       process_preparation_id: { type: DataTypes.INTEGER, allowNull: true },
       shift_session_id: { type: DataTypes.INTEGER, allowNull: true },
+      mixture_balance_initial_kg: { type: DataTypes.DECIMAL(14, 3), allowNull: true },
+      // Persist the exact output PTI/color chosen when the mixture was prepared.
+      // These columns already exist in extruder_queues; defining them on the
+      // model keeps shift handoff, queue transitions, and summaries from
+      // silently dropping the snapshot when Sequelize loads a queue row.
+      output_pti_product_id: { type: DataTypes.INTEGER, allowNull: true },
+      output_pti_color: { type: DataTypes.STRING(80), allowNull: true },
       priority: {
         type: DataTypes.INTEGER,
         allowNull: false,

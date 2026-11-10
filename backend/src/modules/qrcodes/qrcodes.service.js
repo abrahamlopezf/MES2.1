@@ -425,8 +425,8 @@ const getQrCodes = async (query, currentUser) => {
   if (query.area_id) {
     await assertCanUseArea(Number(query.area_id), currentUser);
 
-    where[Op.or] = [
-      { assigned_area_id: Number(query.area_id) },
+    where[Op.and] = [
+      ...(where[Op.and] || []),
       { assigned_area_id: Number(query.area_id) },
     ];
   }
@@ -574,9 +574,9 @@ const getQrCodeByValue = async (qrCodeValue, currentUser) => {
   };
   
   if (isUuid) {
-    where[Op.or] = [
-      { qr_code: qrCodeValue },
-      { uuid: qrCodeValue }
+    where[Op.and] = [
+      ...(where[Op.and] || []),
+      { [Op.or]: [{ qr_code: qrCodeValue }, { uuid: qrCodeValue }] },
     ];
   } else {
     where.qr_code = qrCodeValue;
@@ -596,6 +596,7 @@ const getQrCodeByValue = async (qrCodeValue, currentUser) => {
 
 const getQrCodesByUuids = async (uuids, currentUser) => {
   const where = {
+    ...getQrVisibilityWhere(currentUser),
     uuid: {
       [Op.in]: uuids
     }
@@ -845,72 +846,33 @@ const cancelQrCode = async (qrCodeId, payload, currentUser) => {
   });
 };
 
-const lookup = async (qr_code) => { const { buildFullQrLookup } = require('./qrTraceabilityTree.service'); return buildFullQrLookup(qr_code, { qrInclude, eventInclude, buildQrResponse, buildEventResponse });
-  const { Op } = require('sequelize');
+const lookup = async (qr_code, currentUser) => {
+  const { buildFullQrLookup, normalizeAreaCode } = require('./qrTraceabilityTree.service');
+  const result = await buildFullQrLookup(qr_code, { qrInclude, eventInclude, buildQrResponse, buildEventResponse });
 
-  const whereClause = {
-    [Op.or]: [
-      { qr_code: qr_code },
-      { qr_code: { [Op.like]: `%-${qr_code}` } }
-    ]
+  if (canManageAllAreas(currentUser)) return result;
+
+  const areaCodeById = {
+    1: 'ALMACEN',
+    2: 'EXTRUSION',
+    3: 'TELARES',
+    4: 'LAMINADO',
+    5: 'GLOBO',
+    6: 'CORTE',
   };
+  const userAreaCode = areaCodeById[Number(getUserAreaId(currentUser))];
+  const qrAreaCode = normalizeAreaCode(
+    result?.operational_routing?.current_stage || result?.qr?.assigned_area?.code || result?.qr?.assigned_area?.name
+  );
+  const hasAuthorizedNextAction = Boolean(
+    result?.operational_routing?.actions_by_area?.[userAreaCode]
+  );
 
-  if (!isNaN(qr_code)) {
-    const padded = String(qr_code).padStart(9, '0');
-    whereClause[Op.or].push({ qr_code: { [Op.like]: `%-${padded}` } });
+  if (!userAreaCode || (!hasAuthorizedNextAction && (!qrAreaCode || qrAreaCode !== userAreaCode))) {
+    throwHttpError('El QR pertenece a otra área o no tiene una etapa asignada a tu usuario.', 403);
   }
 
-  let qr = await QrCode.findOne({
-    where: whereClause,
-    include: qrInclude,
-  });
-
-  // Fallback to ID search only if we didn't find it by string/serial
-  if (!qr && !isNaN(qr_code)) {
-    qr = await QrCode.findByPk(parseInt(qr_code, 10), {
-      include: qrInclude,
-    });
-  }
-
-  if (!qr) {
-    throwHttpError('Código QR no encontrado.', 404);
-  }
-
-  const events = await TraceabilityEvent.findAll({
-    where: { qr_code_id: qr.id },
-    include: eventInclude,
-    order: [['created_at', 'ASC']],
-  });
-  
-  // Find associated Lote (Inventory) to show reception details
-  const { Lote, Material, Location } = require('../../database/models');
-  const lote = await Lote.findOne({
-    where: { qr_id: qr.id },
-    include: [
-      { model: Material, as: 'material' },
-      { model: Location, as: 'location' }
-    ],
-    order: [['created_at', 'DESC']]
-  });
-
-  let inventory = null;
-  if (lote) {
-    inventory = {
-      lote_id: lote.id,
-      folio: lote.folio,
-      qr_code_value: qr.qr_code,
-      material: lote.material ? lote.material.get({ plain: true }) : null,
-      quantity: lote.available_amount,
-      location_detail: lote.location ? lote.location.get({ plain: true }) : null,
-      is_active: lote.is_active
-    };
-  }
-
-  return {
-    qr: buildQrResponse(qr),
-    events: events.map(buildEventResponse),
-    inventory
-  };
+  return result;
 };
 
 module.exports = {

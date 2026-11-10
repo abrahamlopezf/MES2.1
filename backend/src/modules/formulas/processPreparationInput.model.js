@@ -55,9 +55,10 @@ module.exports = (sequelize, DataTypes) => {
 
       source_lote_id: { type: DataTypes.INTEGER, allowNull: true },
       source_silo_id: { type: DataTypes.INTEGER, allowNull: true },
+      source_silo_receipt_lot_id: { type: DataTypes.BIGINT, allowNull: true },
       source_lot_number: { type: DataTypes.STRING(120), allowNull: true },
-      unit_cost_snapshot: { type: DataTypes.DECIMAL(12, 4), allowNull: true },
-      extended_cost_snapshot: { type: DataTypes.DECIMAL(14, 4), allowNull: true },
+      unit_cost_snapshot: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+      extended_cost_snapshot: { type: DataTypes.DECIMAL(16, 6), allowNull: true },
     },
     {
       tableName: 'process_preparation_inputs',

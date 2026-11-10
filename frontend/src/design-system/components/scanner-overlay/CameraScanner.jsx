@@ -12,6 +12,8 @@ export const CameraScanner = ({
   onScan,
   onClose,
   inline = false,
+  allowManualInput = true,
+  hideScanShade = false,
 }) => {
   const containerId = useMemo(
     () => 'qr-camera-stream-' + Math.random().toString(36).substring(2, 9),
@@ -203,7 +205,9 @@ export const CameraScanner = ({
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
-    const clean = manualInput.trim().toUpperCase();
+    // QR v2 envelopes contain case-sensitive base64url segments. Preserve the
+    // scanner payload exactly; uppercasing it makes valid signed QRs undecryptable.
+    const clean = manualInput.trim();
     if (!clean) return;
     if (onScanRef.current) {
       onScanRef.current(clean);
@@ -214,7 +218,7 @@ export const CameraScanner = ({
     <div
       className={
         inline
-          ? 'flex flex-col w-full h-full'
+          ? 'flex min-h-0 flex-col w-full h-full'
           : 'fixed inset-0 z-[99999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150'
       }
       style={{ isolation: 'isolate' }}
@@ -222,7 +226,7 @@ export const CameraScanner = ({
       <div
         className={
           inline
-            ? 'flex-1 w-full h-full flex flex-col relative'
+            ? 'flex min-h-0 flex-1 w-full h-full flex-col relative'
             : 'w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden relative'
         }
       >
@@ -230,7 +234,7 @@ export const CameraScanner = ({
           #${containerId} {
             width: 100% !important;
             height: 100% !important;
-            min-height: 280px !important;
+            min-height: ${inline ? '0' : '280px'} !important;
             border: none !important;
             background-color: #000 !important;
             display: flex !important;
@@ -251,6 +255,7 @@ export const CameraScanner = ({
             align-items: center !important;
             justify-content: center !important;
           }
+          ${hideScanShade ? '#qr-shaded-region { display: none !important; }' : ''}
         `}</style>
 
         {/* Cabecera del Escáner */}
@@ -297,7 +302,9 @@ export const CameraScanner = ({
         )}
 
         {/* Contenedor del Visor de Cámara */}
-        <div className="relative w-full aspect-square sm:aspect-4/3 bg-black overflow-hidden flex items-center justify-center">
+        <div className={inline
+          ? 'relative min-h-0 flex-1 w-full bg-black overflow-hidden flex items-center justify-center'
+          : 'relative w-full aspect-square sm:aspect-4/3 bg-black overflow-hidden flex items-center justify-center'}>
           {/* DIV donde se monta el stream de video de Html5Qrcode */}
           <div id={containerId} className="w-full h-full" />
 
@@ -334,39 +341,18 @@ export const CameraScanner = ({
                   <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                   Reintentar Cámara
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowManualInput(true)}
-                  className="font-bold text-xs"
-                >
-                  <Keyboard className="w-3.5 h-3.5 mr-1.5" />
-                  Entrada Manual
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Mira de Escaneo Industrial Superpuesta */}
-          {!isInitializing && !cameraError && (
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
-              {/* Recuadro de Enfoque con Esquinas */}
-              <div className="w-[68%] aspect-square relative border-2 border-primary/40 rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
-                {/* Esquinas Marcadas */}
-                <span className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                <span className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                <span className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                <span className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
-
-                {/* Línea Láser Animada */}
-                <div className="w-full h-0.5 bg-primary shadow-[0_0_8px_#3b82f6] absolute top-1/2 -translate-y-1/2 animate-pulse" />
-              </div>
-
-              <div className="mt-4 px-3 py-1 bg-black/70 backdrop-blur-xs rounded-full border border-white/20">
-                <p className="text-[11px] font-bold text-white tracking-wide uppercase">
-                  Alinea el código QR dentro del recuadro
-                </p>
+                {allowManualInput && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowManualInput(true)}
+                    className="font-bold text-xs"
+                  >
+                    <Keyboard className="w-3.5 h-3.5 mr-1.5" />
+                    Entrada Manual
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -376,16 +362,17 @@ export const CameraScanner = ({
             <button
               type="button"
               onClick={handleSwitchCamera}
-              className="absolute top-3 right-3 z-30 p-2.5 bg-black/60 hover:bg-black/80 text-white rounded-full border border-white/20 shadow-md transition-all active:scale-95"
+              aria-label="Cambiar de cámara"
+              className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-black/60 text-white shadow-md transition-colors hover:bg-black/80 active:scale-[0.96]"
               title="Cambiar de Cámara"
             >
-              <SwitchCamera className="w-4 h-4" />
+              <SwitchCamera className="h-5 w-5" />
             </button>
           )}
         </div>
 
         {/* Barra Inferior: Alternancia de Entrada Manual / Pistola USB */}
-        <div className="p-3.5 bg-card border-t border-border space-y-2.5">
+        {allowManualInput && <div className="shrink-0 space-y-2.5 border-t border-border bg-card p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Keyboard className="w-3.5 h-3.5" />
@@ -420,7 +407,7 @@ export const CameraScanner = ({
               </Button>
             </form>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

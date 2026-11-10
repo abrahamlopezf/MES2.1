@@ -65,7 +65,7 @@ export const BajaBottomSheet: React.FC<BajaBottomSheetContainerProps> = ({
     const invItems = inventoryData?.data?.items || (Array.isArray(inventoryData?.data) ? inventoryData.data : []);
     const uniqueMaterials = new Map();
     invItems.forEach((inv: any) => {
-      if (inv.material && Number(inv.amount) > 0) {
+      if (inv.material && inv.material.id != null && Number(inv.amount) > 0) {
         if (!uniqueMaterials.has(inv.material.id)) {
           uniqueMaterials.set(inv.material.id, inv.material);
         }

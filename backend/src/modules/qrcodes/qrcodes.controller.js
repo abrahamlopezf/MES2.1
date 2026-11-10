@@ -236,7 +236,7 @@ const lookup = async (req, res, next) => {
   try {
     const cleanCode = String(req.params.qrCode || '').trim();
     const decryptedQr = decryptQrData(cleanCode);
-    const result = await qrcodesService.lookup(decryptedQr);
+    const result = await qrcodesService.lookup(decryptedQr, req.user);
     return successResponse(res, 'Información del QR obtenida correctamente.', result);
   } catch (error) {
     return next(error);

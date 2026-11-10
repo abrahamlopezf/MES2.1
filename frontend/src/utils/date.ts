@@ -158,3 +158,19 @@ export const getCdmxShift = (date: Date | string | number = new Date()) => {
     hour,
   };
 };
+
+/**
+ * Turno operativo de Extrusión. Horario provisional 06:00–18:00 y 18:00–06:00,
+ * hasta que la empresa confirme las horas definitivas.
+ */
+export const getExtrusionCdmxShift = (date: Date | string | number = new Date()) => {
+  const parts = getCdmxDateParts(date);
+  const shiftNumber = parts.hour >= 6 && parts.hour < 18 ? 1 : 2;
+  return {
+    shiftNumber,
+    shiftCode: shiftNumber === 1 ? 'TURNO_1' : 'TURNO_2',
+    shiftName: shiftNumber === 1 ? '1° Turno (06:00–18:00 provisional)' : '2° Turno (18:00–06:00 provisional)',
+    calendarDate: getCdmxDateString(date),
+    hour: parts.hour,
+  };
+};

@@ -2,6 +2,7 @@ const express = require('express');
 const extrusionController = require('./extrusion.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
+const roleMiddleware = require('../../middlewares/role.middleware');
 
 const router = express.Router();
 
@@ -12,6 +13,8 @@ const authorizePermission = (...permissions) => (req, res, next) => {
   if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode)) return next();
   return permissionAuthorizer(...permissions)(req, res, next);
 };
+const authorizeSiloAdministration = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN');
+const authorizeSiloRead = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION');
 
 const FINANCIAL_FIELD = /cost|price|currency|financial|valuation|costo|precio|dinero/i;
 const FINANCIAL_VALUE_FIELD = /^(value|total_extrusion_wip_value)$/i;
@@ -61,7 +64,6 @@ const requireFormulaIngredientEditor = (req, res, next) => {
 // Control de acceso: Superadmin, Admin General o roles operativos de extrusión
 const requireExtrusionAccess = (req, res, next) => {
   const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
-  const areaId = req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id;
   const executiveRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'];
   const allowedRoles = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'];
   const telaresCatalogRoles = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'];
@@ -74,8 +76,7 @@ const requireExtrusionAccess = (req, res, next) => {
     'OPERADOR_GLOBO', 'ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO',
   ];
   if (executiveRoles.includes(roleCode)) return next();
-  if (!otherAreaRoles.includes(roleCode)
-    && (allowedRoles.includes(roleCode) || Number(areaId) === 2)) return next();
+  if (!otherAreaRoles.includes(roleCode) && allowedRoles.includes(roleCode)) return next();
   return res.status(403).json({
     success: false,
     message: 'Acceso restringido al personal autorizado de Extrusión.'
@@ -102,7 +103,7 @@ router.use((req, res, next) => {
   next();
 });
 
-const requireActiveShift = async (req, res, next) => {
+const requireActiveShift = ({ allowExpired = false } = {}) => async (req, res, next) => {
   try {
     const { ExtrusionShiftSession } = require('../../database/models');
     const session = await ExtrusionShiftSession.findOne({ where: { status: 'ABIERTO' }, order: [['opened_at', 'DESC']] });
@@ -110,6 +111,13 @@ const requireActiveShift = async (req, res, next) => {
     const roleCode = String(req.user?.role?.code || req.user?.role?.name || req.user?.role || '').toUpperCase();
     if (roleCode === 'SUPERVISOR_EXTRUSION' && Number(session.supervisor_id) !== Number(req.user?.id)) {
       return res.status(403).json({ success: false, code: 'EXTRUSION_SHIFT_OWNER_MISMATCH', message: 'El turno está a cargo de otro supervisor de Extrusión.' });
+    }
+    if (session.handoff_ready_at) {
+      return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_HANDOFF_PENDING', message: 'El turno está listo para relevo. Espera a que el supervisor entrante confirme la recepción antes de registrar nuevas operaciones.' });
+    }
+    const { isExtrusionShiftExpired } = require('./services/shiftPolicy');
+    if (!allowExpired && isExtrusionShiftExpired(session.opened_at)) {
+      return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_EXPIRED', message: 'El turno superó las 12 horas. El supervisor debe completar el cierre; la custodia de racks se mantiene hasta confirmarlo.' });
     }
     req.extrusionShiftSession = session;
     req.body = { ...(req.body || {}), shift_code: session.shift_code, shift_session_id: session.id };
@@ -123,21 +131,21 @@ router.get('/formulas/:id', authorizePermission('extrusion.formulas.view', 'extr
 router.get('/wip-child-qr/:qrCode', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getWipChildQr);
 router.post('/wip/qr-labels/pdf', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.downloadWipQrLabelsPdf);
 
-router.post('/mix', requireActiveShift, authorizePermission('extrusion.formulas.manage'), extrusionController.mixFormula);
+router.post('/mix', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.mixFormula);
 router.get('/mix-history', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getPreparedMixHistory);
 router.get('/mix/containers/:identifier', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getMixContainersByQrOrFolio);
-router.post('/mix-requests', requireActiveShift, authorizePermission('extrusion.formulas.manage'), extrusionController.createMixRequest);
+router.post('/mix-requests', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.createMixRequest);
 router.get('/mix-requests', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getMixRequests);
 
 // ==========================================
 // PISO DE EXTRUSIÓN & CONTROL DE COLAS & SCRAP
 // ==========================================
-router.post('/queue/switch', requireActiveShift, extrusionController.switchQueue);
-router.post('/rack/scan', requireActiveShift, extrusionController.scanRack);
+router.post('/queue/switch', requireActiveShift(), extrusionController.switchQueue);
+router.post('/rack/scan', requireActiveShift(), extrusionController.scanRack);
 router.get('/queue', extrusionController.getQueues);
 router.get('/purge-materials', extrusionController.getPurgeMaterials);
 router.get('/purge-materials/:materialId/lotes', extrusionController.getPurgeMaterialLots);
-router.post('/queue/enqueue', requireActiveShift, extrusionController.enqueueMix);
+router.post('/queue/enqueue', requireActiveShift(), extrusionController.enqueueMix);
 router.get('/racks', extrusionController.getRacks);
 router.post('/racks', extrusionController.createRack);
 // Piso de formulas y edicion de indice de multiplicacion
@@ -150,32 +158,33 @@ router.put('/formulas/:id', requireFormulaIngredientEditor, extrusionController.
 // Catalogo de PTI (Carretes / Bobinas Salientes)
 router.get('/pti-products', extrusionController.getPtiProducts);
 router.get('/pti-products/:id', extrusionController.getPtiProductById);
-router.post('/pti-products', extrusionController.createPtiProduct);
-router.put('/pti-products/:id', extrusionController.updatePtiProduct);
-router.delete('/pti-products/:id', extrusionController.deletePtiProduct);
+router.post('/pti-products', authorizePermission('extrusion.formulas.manage'), extrusionController.createPtiProduct);
+router.put('/pti-products/:id', authorizePermission('extrusion.formulas.manage'), extrusionController.updatePtiProduct);
+router.delete('/pti-products/:id', authorizePermission('extrusion.formulas.manage'), extrusionController.deletePtiProduct);
 
 // Merma / Scrap y Balance de Masa
-router.post('/scrap', requireActiveShift, extrusionController.registerScrap);
+router.post('/scrap', requireActiveShift({ allowExpired: true }), extrusionController.registerScrap);
 router.get('/scrap-logs', extrusionController.getScrapLogs);
 router.get('/dashboard/metrics', extrusionController.getExtrusionDashboardMetrics);
-router.patch('/scrap/:id/weigh', requireActiveShift, extrusionController.adjustScrapWeight);
+router.patch('/scrap/:id/weigh', requireActiveShift({ allowExpired: true }), extrusionController.adjustScrapWeight);
 router.get('/shifts/activity', extrusionController.getExtrusionShiftActivity);
 router.get('/shifts/session/active', extrusionController.getActiveExtrusionShiftSession);
+router.post('/shifts/session/entry', extrusionController.getExtrusionShiftEntryState);
 router.post('/shifts/session/open', extrusionController.openExtrusionShiftSession);
 router.post('/shifts/session/:id/close', extrusionController.closeExtrusionShiftSession);
-router.post('/shifts/close', requireActiveShift, extrusionController.closeExtrusionShift);
-router.patch('/production/:id', requireActiveShift, extrusionController.adjustProductionEntry);
+router.post('/shifts/close', requireActiveShift({ allowExpired: true }), extrusionController.closeExtrusionShift);
+router.patch('/production/:id', requireActiveShift(), extrusionController.adjustProductionEntry);
 router.get('/mass-balance/:mixQr', extrusionController.getMassBalance);
 router.get('/wip/inventory', extrusionController.getExtrusionWip);
-router.post('/wip/mixtures/:id/scrap', requireActiveShift, authorizePermission('scrap.create', 'scrap.manage'), extrusionController.scrapWipMixture);
+router.post('/wip/mixtures/:id/scrap', requireActiveShift({ allowExpired: true }), authorizePermission('scrap.create', 'scrap.manage'), extrusionController.scrapWipMixture);
 
 // Precios de Rack / PTI y Valorización (Puntos 3, 5, 6, 7)
-router.put('/racks/:id/price', extrusionController.updatePtiRackPrice);
+router.put('/racks/:id/price', requireExtrusionFinancialAccess, extrusionController.updatePtiRackPrice);
 router.get('/valuation', requireExtrusionFinancialAccess, extrusionController.getExtrusionValuation);
 
 // División de contenedores y transiciones espontáneas (Puntos 2, 4)
-router.post('/mix/split-containers', requireActiveShift, extrusionController.splitMixtureContainers);
-router.post('/mixture-transition', requireActiveShift, extrusionController.recordMixtureTransition);
+router.post('/mix/split-containers', requireActiveShift(), extrusionController.splitMixtureContainers);
+router.post('/mixture-transition', requireActiveShift(), extrusionController.recordMixtureTransition);
 
 // ==========================================
 // CATÁLOGO DE MÁQUINAS (EXTRUSORAS)
@@ -184,11 +193,11 @@ router.get('/machines', extrusionController.getMachines);
 router.post('/machines', authorizePermission('extrusion.runs.manage'), extrusionController.createMachine);
 router.put('/machines/:id', authorizePermission('extrusion.runs.manage'), extrusionController.updateMachine);
 router.put('/machines/:id/formulas', authorizePermission('extrusion.runs.manage'), extrusionController.updateMachineFormulaCompatibility);
-router.get('/silos', extrusionController.getSilos);
-router.post('/silos', extrusionController.createSilo);
-router.put('/silos/:id', extrusionController.updateSilo);
-router.delete('/silos/:id', extrusionController.deleteSilo);
-router.post('/silos/invoice-entry', extrusionController.receiveSiloInvoiceEntry);
+router.get('/silos', authorizeSiloRead, extrusionController.getSilos);
+router.post('/silos', authorizeSiloAdministration, extrusionController.createSilo);
+router.put('/silos/:id', authorizeSiloAdministration, extrusionController.updateSilo);
+router.delete('/silos/:id', authorizeSiloAdministration, extrusionController.deleteSilo);
+router.post('/silos/invoice-entry', authorizeSiloAdministration, extrusionController.receiveSiloInvoiceEntry);
 
 module.exports = router;
 

@@ -1,0 +1,6 @@
+require('./backend/node_modules/dotenv').config({path:'backend/.env'});const{Client}=require('./backend/node_modules/pg');(async()=>{const c=new Client({host:'127.0.0.1',port:5433,database:'sistema_enterprise_ext_e2e_20261109',user:process.env.DB_USER,password:process.env.DB_PASSWORD,ssl:false});await c.connect();for(const q of [
+`SELECT fi.formula_id,fi.id ingredient_id,fi.material_id,m.internal_code,m.name,fi.quantity,fi.equivalence_tag_id,COALESCE(w.stock,0) wip_kg FROM formula_ingredients fi LEFT JOIN materials m ON m.id=fi.material_id LEFT JOIN (SELECT material_id,area_id,SUM(amount) stock FROM wip_inventories GROUP BY material_id,area_id) w ON w.material_id=fi.material_id AND w.area_id=(SELECT id FROM areas WHERE code='EXTRUSION' LIMIT 1) WHERE fi.formula_id IN (15,16,17) ORDER BY fi.formula_id,fi.id`,
+`SELECT r.id,r.name,r.code FROM roles r JOIN users u ON u.role_id=r.id WHERE u.username='supervisor_extrusion'`,
+`SELECT COUNT(*)::int AS active FROM extruder_queues WHERE extruder_id=5 AND status IN ('ACTIVA','EN_ESPERA','PAUSADA')`,
+`SELECT column_name FROM information_schema.columns WHERE table_name='wip_inventories' ORDER BY ordinal_position`
+]){const x=await c.query(q);console.log(JSON.stringify(x.rows))}await c.end()})().catch(e=>{console.error(e.message);process.exitCode=1});

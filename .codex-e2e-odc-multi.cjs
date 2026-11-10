@@ -1,0 +1,12 @@
+const base='http://127.0.0.1:4001/api';
+async function login(identifier){const r=await fetch(`${base}/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identifier,password:'Admin123!'})});const j=await r.json();if(!r.ok||!j.data?.token)throw Error(`login ${identifier}: ${r.status}`);return {authorization:`Bearer ${j.data.token}`,'content-type':'application/json'};}
+async function main(){const sup=await login('supervisor_extrusion');const alm=await login('admin_alm');async function req(h,m,p,b){const r=await fetch(`${base}${p}`,{method:m,headers:h,...(b?{body:JSON.stringify(b)}:{})});const j=await r.json().catch(()=>({}));console.log(`${m} ${p}: ${r.status} ${JSON.stringify(j).slice(0,650)}`);if(!r.ok)throw Error(`${j.error||j.message||r.status}`);return j;}
+const order=await req(sup,'POST','/warehouse/consumption-orders',{requesting_area_id:2,items:[{material_id:1146,quantity:4.8},{material_id:1223,quantity:4.2}],notes:'E2E Extrusión aislada: segundo surtido FIFO multiinsumo para validar ODC y QR hijo.'});if(!order.uuid)throw Error('sin UUID');
+let details=await req(alm,'GET',`/warehouse/consumption-orders/${order.uuid}`);let items=details.items||[];console.log('FIFO_ASSIGNED',JSON.stringify(items.map(i=>({material_id:i.material_id,qty:i.requested_quantity,lot:i.lote?.folio,qr:i.lote?.qr_code?.qr_code}))));
+await req(alm,'PUT',`/warehouse/consumption-orders/${order.uuid}/status`,{status:'PREPARANDO'});
+details=await req(alm,'GET',`/warehouse/consumption-orders/${order.uuid}`);items=details.items||[];
+for(const item of items){const qr=item.lote?.qr_code?.qr_code||item.lote?.folio;if(!qr)throw Error(`sin QR padre material ${item.material_id}`);details=await req(alm,'POST',`/warehouse/consumption-orders/${order.uuid}/scan-item`,{qr_code:qr});}
+console.log('FINAL_ORDER',JSON.stringify({order_number:details.order_number,status:details.status,items:(details.items||[]).map(i=>({material_id:i.material_id,requested:i.requested_quantity,fulfilled:i.fulfilled_quantity,child_qr:i.child_qr?.qr_code,child_status:i.child_qr?.status}))}));
+const w=await req(sup,'GET','/extrusion/wip/inventory');console.log('WIP_PAYLOAD_KEYS',Object.keys(w.data||w));console.log('WIP_MATCH',JSON.stringify(JSON.stringify(w).match(/MP-MAS-001|MP-CON-009|4\.8|4\.2/g)||[]));
+}
+main().catch(e=>{console.error('E2E-ODC-MULTI-FAIL',e.message);process.exitCode=1;});

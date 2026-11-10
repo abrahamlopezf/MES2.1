@@ -42,11 +42,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       unit_cost: {
-        type: DataTypes.DECIMAL(12, 4),
+        type: DataTypes.DECIMAL(14, 6),
         allowNull: true,
       },
       total_cost: {
-        type: DataTypes.DECIMAL(12, 4),
+        type: DataTypes.DECIMAL(16, 6),
         allowNull: true,
       },
       area_id: {
@@ -68,6 +68,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       silo_id: {
         type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      source_silo_receipt_lot_id: {
+        type: DataTypes.BIGINT,
         allowNull: true,
       },
       source_audit_log_id: {

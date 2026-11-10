@@ -245,7 +245,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                         <span className="font-bold text-lg text-emerald-500">${Number(item.total_value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </td>}
                       <td className="border-b border-border/50 px-4 py-3 align-middle text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className={`flex gap-2 ${item.inventory_source === 'SILO' ? 'flex-col items-center' : 'justify-end'}`}>
                           <Button 
                             variant="secondary" 
                             size="icon" 
@@ -262,7 +262,15 @@ export const WarehouseInventoryPage: React.FC = () => {
                           >
                             <ShieldAlert size={16} className="mr-1" /> {hasPermission('warehouse.dispose') || hasPermission('warehouse.waste') ? 'Dar de baja' : 'Solicitar baja'}
                           </Button>}
-                          {item.inventory_source === 'SILO' && <span className="self-center text-xs font-semibold text-muted-foreground">Consumo directo desde Extrusión</span>}
+                          {item.inventory_source === 'SILO' && (
+                            <span
+                              title="Consumo directo desde Extrusión"
+                              className="inline-flex min-h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold leading-tight text-cyan-700 dark:text-cyan-300"
+                            >
+                              <Layers size={14} aria-hidden="true" />
+                              Consumo directo desde Extrusión
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

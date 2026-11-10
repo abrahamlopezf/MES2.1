@@ -82,11 +82,14 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
       .filter((inv: any) => Number(inv.amount) > 0 && inv.material)
       .map((inv: any) => {
         const mat = inv.material;
+        // Inventory responses can expose the material identifier on the row
+        // instead of the nested association (notably for aggregated stock).
+        const materialId = mat.id ?? mat.material_id ?? inv.material_id;
         const unitCode = mat.base_unit?.code || mat.stock_unit?.code || mat.unit?.code || mat.unit?.abbreviation || '';
         const internalCode = mat.internal_code || mat.material_code || 'S/C';
         const stock = Number(inv.amount);
         return {
-          id: mat.id,
+          id: materialId,
           internal_code: internalCode,
           name: mat.name,
           description: mat.description || '',
@@ -95,6 +98,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
           label: `${internalCode} - ${mat.name} (Disp: ${stock} ${unitCode})`.trim()
         };
       })
+      .filter((material: any) => material.id !== undefined && material.id !== null && String(material.id).length > 0)
       .sort((a: any, b: any) => a.label.localeCompare(b.label));
   }, [rawInventory]);
 
@@ -163,7 +167,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
 
   const handleAddMaterial = () => {
     if (!selectedMaterialId) return;
-    const material = materials.find((m: any) => m.id === Number(selectedMaterialId));
+    const material = materials.find((m: any) => String(m.id) === selectedMaterialId);
     if (!material) return;
 
     if (items.some(i => i.material_id === material.id && !i.lote_id)) {
@@ -177,7 +181,7 @@ export const ConsumoBottomSheet: React.FC<ConsumoBottomSheetContainerProps> = ({
     }
 
     setItems(prev => [...prev, {
-      material_id: material.id,
+      material_id: Number(material.id),
       materialName: material.name,
       materialDescription: material.description,
       internalCode: material.internal_code,

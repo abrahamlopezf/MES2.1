@@ -12,7 +12,7 @@ interface Order {
   status: string;
   created_at: string;
   resolved_at: string | null;
-  requester: { name: string; last_name: string };
+  requester: { first_name?: string; name?: string; last_name?: string };
   requesting_area?: { name: string };
 }
 
@@ -23,6 +23,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>(''); // empty means all
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedOrderUuid, setSelectedOrderUuid] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -123,6 +124,22 @@ export const ConsumptionOrdersPage: React.FC = () => {
     }
   };
 
+  const normalizeSearch = (value: string) =>
+    value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-MX').trim();
+  const normalizedSearchTerm = normalizeSearch(searchTerm);
+  const filteredOrders = orders.filter((order) => {
+    if (!normalizedSearchTerm) return true;
+    const requesterName = `${order.requester?.first_name || order.requester?.name || ''} ${order.requester?.last_name || ''}`;
+    const searchableValues = [
+      order.order_number,
+      requesterName,
+      order.requesting_area?.name || '',
+      getStatusConfig(order.status).label,
+      order.status
+    ];
+    return searchableValues.some((value) => normalizeSearch(String(value)).includes(normalizedSearchTerm));
+  });
+
   return (
     <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
       <div className="p-4 sm:p-6 lg:p-8 pb-32 sm:pb-16 space-y-4 flex flex-col h-full">
@@ -169,38 +186,66 @@ export const ConsumptionOrdersPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Tabs / Filters */}
-        <div className="flex gap-2 shrink-0 overflow-x-auto pb-2">
-        {['', 'PENDIENTE', 'PREPARANDO', 'SURTIDA', 'CANCELADA'].map(status => (
-          <button
-            key={status}
-            onClick={() => setSelectedStatus(status)}
-            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${
-              selectedStatus === status 
-                ? 'bg-card text-foreground border border-border shadow-sm' 
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
-            }`}
-          >
-            {status === '' ? 'Todas' : getStatusConfig(status).label}
-          </button>
-        ))}
-      </div>
+        {/* Filtros por estado */}
+        <section className="shrink-0 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5" aria-labelledby="consumption-order-filters-title">
+          <div className="mb-3">
+            <h2 id="consumption-order-filters-title" className="text-lg font-bold text-foreground">Filtros de Búsqueda</h2>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">Consulta las órdenes según su estado actual.</p>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar órdenes por estado">
+            {['', 'PENDIENTE', 'PREPARANDO', 'SURTIDA', 'CANCELADA'].map(status => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setSelectedStatus(status)}
+                aria-pressed={selectedStatus === status}
+                className={`min-h-12 shrink-0 rounded-lg border px-4 py-2.5 text-sm font-bold transition-colors ${
+                  selectedStatus === status
+                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                    : 'border-border bg-background text-foreground hover:bg-muted/70'
+                }`}
+              >
+                {status === '' ? 'Todas' : getStatusConfig(status).label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full max-w-2xl">
+              <label htmlFor="consumption-orders-search" className="sr-only">Buscar órdenes de consumo</label>
+              <Icon name="search" size={20} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                id="consumption-orders-search"
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar por folio, solicitante, área o estado..."
+                className="h-12 w-full rounded-lg border border-border bg-background pl-14 pr-4 text-base font-medium text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                style={{ paddingLeft: '3.5rem' }}
+              />
+            </div>
+            <p className="shrink-0 text-sm font-semibold text-muted-foreground" aria-live="polite">
+              Mostrando {filteredOrders.length} de {orders.length} órdenes
+            </p>
+          </div>
+        </section>
 
       <div className="bg-card rounded-2xl shadow-sm border border-border flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto">
           {loading ? (
             <div className="p-8 text-center text-muted-foreground">Cargando órdenes...</div>
-          ) : orders.length === 0 ? (
+          ) : filteredOrders.length === 0 ? (
             <div className="p-12 flex flex-col items-center justify-center text-center">
-              <Icon name="inventory_2" size={48} className="text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium text-foreground">No hay órdenes</h3>
-              <p className="text-muted-foreground text-sm max-w-sm mt-2">No se encontraron órdenes de consumo con los filtros seleccionados.</p>
+              <Icon name={searchTerm ? 'search_off' : 'inventory_2'} size={48} className="text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium text-foreground">{searchTerm ? 'No se encontraron coincidencias' : 'No hay órdenes'}</h3>
+              <p className="text-muted-foreground text-sm max-w-sm mt-2">
+                {searchTerm ? 'Prueba con otro folio, solicitante, área o estado.' : 'No se encontraron órdenes de consumo con los filtros seleccionados.'}
+              </p>
             </div>
           ) : (
             <>
               {/* VISTA MOBILE: Tarjetas táctiles legibles */}
               <div className="md:hidden divide-y divide-border">
-                {orders.map(order => {
+                {filteredOrders.map(order => {
                   const conf = getStatusConfig(order.status);
                   return (
                     <div 
@@ -257,7 +302,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {orders.map(order => {
+                    {filteredOrders.map(order => {
                       const conf = getStatusConfig(order.status);
                       return (
                         <tr key={order.uuid} className="hover:bg-muted/20 transition-colors">

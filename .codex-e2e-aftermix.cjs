@@ -1,0 +1,9 @@
+require('./backend/node_modules/dotenv').config({path:'backend/.env'});const{Client}=require('./backend/node_modules/pg');(async()=>{const c=new Client({host:'127.0.0.1',port:5433,database:'sistema_enterprise_ext_e2e_20261109',user:process.env.DB_USER,password:process.env.DB_PASSWORD,ssl:false});await c.connect();for(const q of [
+`SELECT id,folio,formula_id,total_quantity,remaining_quantity_kg,status,shift_session_id,destination_qr_code_id FROM process_preparations WHERE folio='MIX-EXT-1794258338807'`,
+`SELECT id,extruder_id,consumption_order_qr_id,status,formula_id,process_preparation_id,output_pti_product_id,output_pti_color,shift_session_id,mixture_balance_initial_kg FROM extruder_queues WHERE process_preparation_id=(SELECT id FROM process_preparations WHERE folio='MIX-EXT-1794258338807') ORDER BY id`,
+`SELECT material_id,source_silo_id,source_silo_receipt_lot_id,source_lot_number,quantity,unit_cost_snapshot,extended_cost_snapshot FROM process_preparation_inputs WHERE preparation_id=(SELECT id FROM process_preparations WHERE folio='MIX-EXT-1794258338807') ORDER BY id`,
+`SELECT q.qr_code,t.quantity_initial,t.quantity_current,t.status,t.metadata FROM traceable_items t JOIN qr_codes q ON q.id=t.qr_code_id WHERE t.reference_folio='MIX-EXT-1794258338807'`,
+`SELECT COUNT(*)::int n FROM inventory_movements WHERE process_preparation_id=(SELECT id FROM process_preparations WHERE folio='MIX-EXT-1794258338807')`,
+`SELECT id,code,current_stock_kg,unit_cost FROM silos WHERE id IN (1,2) ORDER BY id`,
+`SELECT m.internal_code,w.amount,q.qr_code,q.status FROM wip_inventories w JOIN materials m ON m.id=w.material_id JOIN qr_codes q ON q.id=w.qr_code_id WHERE w.material_id IN (1222,1146,1223) ORDER BY w.material_id,w.id`
+]){const x=await c.query(q);console.log(JSON.stringify(x.rows))}await c.end()})().catch(e=>{console.error(e.message);process.exitCode=1});

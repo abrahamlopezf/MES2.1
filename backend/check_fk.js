@@ -1,8 +1,10 @@
+require('dotenv').config();
+if (!process.env.REMOTE_DATABASE_URL) throw new Error('REMOTE_DATABASE_URL is required for this script.');
 const { Client } = require('pg');
 
 async function getNeonSchema() {
   const neonClient = new Client({
-    connectionString: 'postgresql://neondb_owner:npg_ZyON69GToUgJ@ep-icy-shadow-avk05pd7.c-11.us-east-1.aws.neon.tech/neondb?sslmode=require'
+    connectionString: process.env.REMOTE_DATABASE_URL
   });
 
   try {

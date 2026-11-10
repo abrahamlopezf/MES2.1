@@ -84,6 +84,18 @@ const authMiddleware = async (req, res, next) => {
       );
     }
 
+    const sessionStartedAt = decoded.session_started_at
+      ? Date.parse(decoded.session_started_at)
+      : (user.last_login_at ? new Date(user.last_login_at).getTime() : Number(decoded.iat || 0) * 1000);
+    if (!Number.isFinite(sessionStartedAt) || Date.now() - sessionStartedAt >= 12 * 60 * 60 * 1000) {
+      return errorResponse(
+        res,
+        'Por seguridad, tu sesión ha alcanzado su duración máxima de 12 horas. Inicia sesión nuevamente.',
+        [],
+        401
+      );
+    }
+
     const plainUser = user.get({ plain: true });
 
     req.user = {
@@ -106,6 +118,7 @@ const authMiddleware = async (req, res, next) => {
         roleCode: user.role?.code,
         areaId: user.role?.area?.id || null,
         session_token: user.session_token,
+        session_started_at: new Date(sessionStartedAt).toISOString(),
       },
       env.jwt.secret,
       { expiresIn: env.jwt.expiresIn }

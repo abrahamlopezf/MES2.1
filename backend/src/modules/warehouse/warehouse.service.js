@@ -858,7 +858,7 @@ const manualEntry = async (payload, currentUser) => {
   };
 
   return await sequelize.transaction(async (t) => {
-    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier, Material, Silo } = require('../../database/models');
+    const { InventoryMovement, Lote, Inventory, QrBatch, QrCode, TraceabilityEvent, Area, Supplier, Material, Silo, SiloReceiptLot } = require('../../database/models');
     
     // Validar material
     const material = await Material.findByPk(payload.material_id, { transaction: t });
@@ -1126,9 +1126,9 @@ const manualEntry = async (payload, currentUser) => {
       const existingCost = Number(targetSilo.unit_cost || 0);
       const receivedValue = payload.entries.reduce((sum, entry) => sum + Number(entry.quantity) * mxnUnitCostFor(entry), 0);
       const totalValue = stockBefore * existingCost + receivedValue;
-      targetSilo.current_stock_kg = Number((stockBefore + totalQuantity).toFixed(2));
+      targetSilo.current_stock_kg = Number((stockBefore + totalQuantity).toFixed(3));
       if (totalValue > 0 && stockBefore + totalQuantity > 0) {
-        targetSilo.unit_cost = Number((totalValue / (stockBefore + totalQuantity)).toFixed(4));
+        targetSilo.unit_cost = Number((totalValue / (stockBefore + totalQuantity)).toFixed(6));
       }
       const folios = payload.entries.map((entry) => String(entry.folio || '').trim()).filter(Boolean);
       if (folios.length) targetSilo.current_lot_number = [...new Set(folios)].join(', ').slice(0, 100);
@@ -1158,10 +1158,10 @@ const manualEntry = async (payload, currentUser) => {
         description: `Ingreso manual sin QR de ${totalQuantity} kg de ${material.name} al silo ${targetSilo.code}.`,
         before_data: { current_stock_kg: stockBefore, unit_cost: existingCost },
         after_data: { current_stock_kg: Number(targetSilo.current_stock_kg), unit_cost: Number(targetSilo.unit_cost) },
-        metadata: { material_id: material.id, polypropylene_tagged: hasPolypropyleneTag, entries: payload.entries.map((entry) => {
+        metadata: { material_id: material.id, polypropylene_tagged: hasPolypropyleneTag, entries: payload.entries.map((entry, index) => {
           const exchange = rateForEntry(entry);
           const invoiceCurrency = String(entry.currency || payload.currency || 'MXN').toUpperCase();
-          return { folio: entry.folio, invoice_date: entry.invoice_date || exchange.requestedDate, quantity: Number(entry.quantity), invoice_unit_cost: Number(entry.unit_cost), invoice_unit_cost_mxn: mxnUnitCostFor(entry), invoice_unit_cost_usd: usdUnitCostFor(entry), currency: invoiceCurrency, exchange_rate_mxn_per_usd: exchange.rate, exchange_rate_date: exchange.date, exchange_rate_source: exchange.source, lot_type: entry.lot_type || null };
+          return { folio: entry.folio, supplier_id: loteData[index]?.supplier_id || null, invoice_date: entry.invoice_date || exchange.requestedDate, quantity: Number(entry.quantity), invoice_unit_cost: Number(entry.unit_cost), invoice_unit_cost_mxn: mxnUnitCostFor(entry), invoice_unit_cost_usd: usdUnitCostFor(entry), currency: invoiceCurrency, exchange_rate_mxn_per_usd: exchange.rate, exchange_rate_date: exchange.date, exchange_rate_source: exchange.source, lot_type: entry.lot_type || null };
         }) },
       }, { transaction: t });
 
@@ -1176,10 +1176,50 @@ const manualEntry = async (payload, currentUser) => {
         unitCostFor: mxnUnitCostFor,
       });
       // Persist the relational silo key separately from its human-readable code.
-      await InventoryMovement.bulkCreate(siloMovements.map((movement) => ({
+      const persistedSiloMovements = await InventoryMovement.bulkCreate(siloMovements.map((movement) => ({
         ...movement,
         silo_id: targetSilo.id,
-      })), { transaction: t });
+      })), { transaction: t, returning: true });
+      const receiptMovementByReference = new Map(
+        persistedSiloMovements.map((movement) => [String(movement.source_reference), movement]),
+      );
+      const receiptLots = await SiloReceiptLot.bulkCreate(payload.entries.map((entry, index) => {
+        const sourceReference = `${String(entry.folio || 'S-R').slice(0, 105)}#${index + 1}`;
+        const movement = receiptMovementByReference.get(sourceReference);
+        if (!movement) throwHttpError(`No se pudo vincular la factura ${entry.folio || 'S/R'} con su capa FIFO.`, 409);
+        const exchange = rateForEntry(entry);
+        const invoiceDate = String(entry.invoice_date || exchange.requestedDate);
+        return {
+          silo_id: targetSilo.id,
+          inventory_id: siloInventory.id,
+          material_id: material.id,
+          supplier_id: loteData[index]?.supplier_id || null,
+          source_inventory_movement_id: movement.id,
+          source_audit_log_id: siloReceiptAudit.id,
+          source_reference: sourceReference,
+          invoice_folio: String(entry.folio || 'S/R').slice(0, 120),
+          invoice_date: invoiceDate,
+          received_at: now,
+          lot_kind: 'INVOICE',
+          quantity_received_kg: Number(entry.quantity),
+          remaining_quantity_kg: Number(entry.quantity),
+          invoice_currency: String(entry.currency || payload.currency || 'MXN').toUpperCase(),
+          invoice_unit_cost: Number(entry.unit_cost),
+          unit_cost_mxn: mxnUnitCostFor(entry),
+          unit_cost_usd: usdUnitCostFor(entry),
+          exchange_rate_mxn_per_usd: exchange.rate,
+          exchange_rate_date: exchange.date,
+          exchange_rate_source: exchange.source,
+          notes: entry.lot_type ? `Tipo de lote: ${entry.lot_type}` : null,
+        };
+      }), { transaction: t });
+      const receiptLotByMovementId = new Map(receiptLots.map((lot) => [Number(lot.source_inventory_movement_id), lot]));
+      for (const movement of persistedSiloMovements) {
+        const receiptLot = receiptLotByMovementId.get(Number(movement.id));
+        if (!receiptLot) throwHttpError(`No se pudo confirmar la capa FIFO del movimiento ${movement.id}.`, 409);
+        movement.source_silo_receipt_lot_id = receiptLot.id;
+        await movement.save({ transaction: t });
+      }
     }
 
     // 3. Bulk create movements

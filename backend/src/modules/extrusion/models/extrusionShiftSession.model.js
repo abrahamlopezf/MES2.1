@@ -7,5 +7,7 @@ module.exports = (sequelize, DataTypes) => sequelize.define('ExtrusionShiftSessi
   opened_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   closed_at: { type: DataTypes.DATE, allowNull: true },
   closed_by: { type: DataTypes.INTEGER, allowNull: true },
+  handoff_ready_at: { type: DataTypes.DATE, allowNull: true },
+  handoff_ready_by: { type: DataTypes.INTEGER, allowNull: true },
   closing_snapshot: { type: DataTypes.JSONB, allowNull: true },
 }, { tableName: 'extrusion_shift_sessions', timestamps: true, underscored: true });

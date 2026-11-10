@@ -76,7 +76,10 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[10000] flex flex-col justify-end transition-opacity duration-300 ease-out md:items-center md:justify-center md:p-6 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="inventory-consumption-title"
     >
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
@@ -86,12 +89,12 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative my-0 flex min-h-0 max-h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card transition-transform duration-300 ease-out md:my-auto md:max-h-[calc(100dvh-3rem)] md:rounded-2xl md:border ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
         <div 
-          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          className="flex w-full items-center justify-center bg-card pb-2 pt-3 touch-none md:hidden"
           onTouchStart={handlers.onTouchStart}
           onTouchMove={handlers.onTouchMove}
           onTouchEnd={() => handlers.onTouchEnd(onClose)}
@@ -100,26 +103,27 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
         </div>
 
         {/* Header */}
-        <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-5 py-4">
           <div>
-            <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+            <h3 id="inventory-consumption-title" className="flex items-center gap-2 font-bold text-lg text-foreground">
               <Package size={20} className="text-primary" />
               Consumo de Material (Vale de Almacén)
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="mt-1 text-sm leading-5 text-slate-300">
               Registro para vales físicos o salidas manuales de almacén
             </p>
           </div>
           <button 
             onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
+            aria-label="Cerrar consumo de material"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary/50 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-6 bg-background">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background p-5 flex flex-col gap-6">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -127,7 +131,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                 <label className="text-sm font-bold text-foreground">
                   Número de Vale / Folio <span className="text-destructive">*</span>
                 </label>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            <span className="rounded-full border border-indigo-300/30 bg-indigo-400/15 px-2 py-1 text-xs font-bold uppercase tracking-wide text-indigo-200">
                   Auto-generado
                 </span>
               </div>
@@ -137,13 +141,13 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                 onChange={e => onChangeOrderNumber(e.target.value)}
                 className="h-12 rounded-xl bg-card shadow-sm font-mono font-bold text-primary"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs leading-5 text-slate-300">
                 Folio manual para control y trazabilidad del vale físico.
               </p>
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-bold text-foreground">
-                SE REQUIERE PARA <span className="text-muted-foreground font-normal text-xs">(Opcional)</span>
+                SE REQUIERE PARA <span className="text-slate-300 font-normal text-sm">(Opcional)</span>
               </label>
               <Input 
                 placeholder="Indica para qué proceso, máquina o motivo se requiere..." 
@@ -151,7 +155,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                 onChange={e => onChangeNotes(e.target.value)}
                 className="h-12 rounded-xl bg-card shadow-sm"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs leading-5 text-slate-300">
                 Destino o justificación indicada en el vale de papel.
               </p>
             </div>
@@ -168,15 +172,15 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                     onChange={onChangeSelectedMaterialId}
                     getLabel={(m: any) => m.label || `${m.internal_code} - ${m.name}`}
                     getDescription={(m: any) => m.description || undefined}
-                    getValue={(m: any) => m.id.toString()}
+                    getValue={(m: any) => String(m?.id ?? '')}
                     placeholder="Buscar material con existencia en almacén..."
                     emptyMessage="No hay materiales con existencia en inventario"
                   />
                 </div>
-                <Button variant="secondary" onClick={() => onSetIsScanning(true)} className="shrink-0 group rounded-xl px-4" title="Escanear QR">
-                  <QrCode size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                <Button variant="secondary" onClick={() => onSetIsScanning(true)} className="group shrink-0 rounded-xl px-4" title="Escanear QR" aria-label="Escanear QR de material">
+                  <QrCode size={18} className="text-emerald-950 transition-colors group-hover:text-black" />
                 </Button>
-                <Button variant="default" onClick={onAddMaterial} className="shrink-0 rounded-xl" disabled={!selectedMaterialId}>
+                <Button variant="default" onClick={onAddMaterial} className="shrink-0 rounded-xl disabled:cursor-not-allowed disabled:border disabled:border-slate-500 disabled:bg-slate-700 disabled:text-slate-200 disabled:opacity-100 disabled:shadow-none" disabled={!selectedMaterialId}>
                   <Plus size={18} className="mr-1.5" />
                   <span className="hidden sm:inline">Agregar</span>
                   <span className="sm:hidden">Add</span>
@@ -185,10 +189,10 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
             </div>
 
             {items.length === 0 ? (
-              <div className="bg-secondary/10 border border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center mt-2">
-                <QrCode size={40} className="text-muted-foreground mb-3 opacity-50" />
-                <p className="font-bold text-foreground mb-1">No hay materiales agregados</p>
-                <p className="text-sm text-muted-foreground">Selecciona un material con existencia o escanea un código QR.</p>
+              <div className="mt-2 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-500 bg-slate-800/80 p-8 text-center">
+                <QrCode size={40} className="mb-3 text-slate-300" />
+                <p className="mb-1 font-bold text-slate-100">No hay materiales agregados</p>
+                <p className="text-sm leading-6 text-slate-300">Selecciona un material con existencia o escanea un código QR.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3 mt-2">
@@ -198,14 +202,14 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                       <div className="pr-8">
                         <p className="font-bold text-foreground text-sm">{item.materialName}</p>
                         {item.materialDescription && (
-                          <p className="text-xs text-muted-foreground/85 line-clamp-2 mt-0.5">{item.materialDescription}</p>
+                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-300">{item.materialDescription}</p>
                         )}
-                        <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs leading-5 text-slate-300">
                           {item.internalCode && <span className="font-semibold text-primary">{item.internalCode} •</span>}
                           <span>{item.qrCode ? `QR: ${item.qrCode}` : 'Asignación FIFO'}</span>
                           {item.folio && item.folio !== 'N/A' && <span>• Lote/Fac: {item.folio}</span>}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="mt-1 text-sm text-slate-300">
                           Disp: <span className="font-bold text-foreground">{item.maxQuantity} {item.unitCode}</span>
                         </p>
                       </div>
@@ -234,7 +238,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
                           className="h-10 text-right font-bold text-foreground max-w-[130px]"
                         />
                         {item.unitCode && (
-                          <span className="text-xs font-bold text-muted-foreground uppercase px-2 py-1 rounded bg-muted border border-border/50">
+                          <span className="rounded border border-slate-500 bg-slate-700 px-2 py-1 text-xs font-bold uppercase text-slate-100">
                             {item.unitCode}
                           </span>
                         )}
@@ -249,14 +253,14 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
         </div>
 
         {/* Footer actions fixed at bottom */}
-        <div className="sticky bottom-0 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-4 sm:pb-4">
-          <div className="flex justify-between items-center px-5 py-3 border-b border-border/50 bg-secondary/10">
+        <div className="shrink-0 border-t border-border bg-card pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sm:pb-4">
+          <div className="flex items-center justify-between border-b border-border/50 bg-slate-800 px-5 py-3">
              <div className="flex flex-col">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Items</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-300">Artículos</span>
               <span className="font-bold text-foreground text-base leading-tight">{items.length}</span>
             </div>
             <div className="flex flex-col text-right">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total a consumir</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-300">Total a consumir</span>
               <span className="font-bold text-foreground text-xl leading-tight">{totalQuantity.toFixed(2)}</span>
             </div>
           </div>
@@ -268,7 +272,7 @@ export const ConsumoBottomSheetPresenter: React.FC<ConsumoBottomSheetPresenterPr
               variant="default" 
               onClick={onConsume} 
               disabled={isSubmitting || items.length === 0 || !orderNumber}
-              className="flex-[1.5] font-bold py-6 rounded-xl shadow-md"
+              className="flex-[1.5] rounded-xl py-6 font-bold shadow-md disabled:cursor-not-allowed disabled:border disabled:border-slate-500 disabled:bg-slate-700 disabled:text-slate-200 disabled:opacity-100 disabled:shadow-none"
             >
               {isSubmitting ? <><Plus className="animate-spin mr-2" size={18} /> Procesando...</> : 'Confirmar Consumo'}
             </Button>

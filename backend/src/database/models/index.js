@@ -646,6 +646,7 @@ const initPtiRackModel = require('../../modules/extrusion/models/ptiRack.model')
 const initExtruderQueueModel = require('../../modules/extrusion/models/extruderQueue.model');
 const initExtrusionScrapLogModel = require('../../modules/extrusion/models/extrusionScrapLog.model');
 const initSiloModel = require('../../modules/extrusion/models/silo.model');
+const initSiloReceiptLotModel = require('../../modules/extrusion/models/siloReceiptLot.model');
 const initExtruderModel = require('../../modules/extrusion/models/extruder.model');
 const initExtruderFormulaModel = require('../../modules/extrusion/models/extruderFormula.model');
 
@@ -660,6 +661,7 @@ db.ExtrusionProductionEntry = require('../../modules/extrusion/models/extrusionP
 db.ExtrusionScrapAdjustment = require('../../modules/extrusion/models/extrusionScrapAdjustment.model')(sequelize, DataTypes);
 db.ExtrusionShiftClosure = require('../../modules/extrusion/models/extrusionShiftClosure.model')(sequelize, DataTypes);
 db.ExtrusionShiftSession = require('../../modules/extrusion/models/extrusionShiftSession.model')(sequelize, DataTypes);
+db.ExtrusionShiftMixtureHandoff = require('../../modules/extrusion/models/extrusionShiftMixtureHandoff.model')(sequelize, DataTypes);
 db.ExtrusionProductionAdjustment = sequelize.define('ExtrusionProductionAdjustment', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   production_entry_id: { type: DataTypes.INTEGER, allowNull: false },
@@ -671,6 +673,7 @@ db.ExtrusionProductionAdjustment = sequelize.define('ExtrusionProductionAdjustme
   corrected_by: { type: DataTypes.INTEGER, allowNull: true },
 }, { tableName: 'extrusion_production_adjustments', timestamps: true, createdAt: true, updatedAt: false, underscored: true });
 db.Silo = initSiloModel(sequelize, DataTypes);
+db.SiloReceiptLot = initSiloReceiptLotModel(sequelize, DataTypes);
 db.Extruder = initExtruderModel(sequelize, DataTypes);
 db.ExtruderFormula = initExtruderFormulaModel(sequelize, DataTypes);
 
@@ -684,6 +687,14 @@ db.Silo.belongsTo(db.Tag, {
   foreignKey: 'material_tag_id',
   as: 'materialTag',
 });
+db.Silo.hasMany(db.SiloReceiptLot, { foreignKey: 'silo_id', as: 'receiptLots' });
+db.SiloReceiptLot.belongsTo(db.Silo, { foreignKey: 'silo_id', as: 'silo' });
+db.SiloReceiptLot.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
+db.SiloReceiptLot.belongsTo(db.Inventory, { foreignKey: 'inventory_id', as: 'inventory' });
+db.SiloReceiptLot.belongsTo(db.InventoryMovement, { foreignKey: 'source_inventory_movement_id', as: 'receiptMovement' });
+db.SiloReceiptLot.hasMany(db.ProcessPreparationInput, { foreignKey: 'source_silo_receipt_lot_id', as: 'consumptionInputs' });
+db.ProcessPreparationInput.belongsTo(db.SiloReceiptLot, { foreignKey: 'source_silo_receipt_lot_id', as: 'siloReceiptLot' });
+db.InventoryMovement.belongsTo(db.SiloReceiptLot, { foreignKey: 'source_silo_receipt_lot_id', as: 'siloReceiptLot' });
 
 // Extruder <-> Formula (Compatibility Matrix)
 db.Extruder.belongsToMany(db.Formula, {
@@ -804,6 +815,11 @@ db.ExtrusionShiftClosure.belongsTo(db.Extruder, { foreignKey: 'extruder_id', as:
 db.ExtrusionShiftSession.belongsTo(db.User, { foreignKey: 'supervisor_id', as: 'supervisor' });
 db.ExtrusionShiftSession.belongsTo(db.User, { foreignKey: 'closed_by', as: 'closedBy' });
 db.ExtrusionShiftSession.hasMany(db.PtiRack, { foreignKey: 'custody_shift_session_id', as: 'custodyRacks' });
+db.ExtrusionShiftMixtureHandoff.belongsTo(db.ExtrusionShiftSession, { foreignKey: 'from_shift_session_id', as: 'fromShift' });
+db.ExtrusionShiftMixtureHandoff.belongsTo(db.ExtrusionShiftSession, { foreignKey: 'to_shift_session_id', as: 'toShift' });
+db.ExtrusionShiftMixtureHandoff.belongsTo(db.Extruder, { foreignKey: 'extruder_id', as: 'extruder' });
+db.ExtrusionShiftMixtureHandoff.belongsTo(db.ExtruderQueue, { foreignKey: 'queue_id', as: 'queue' });
+db.ExtrusionShiftMixtureHandoff.belongsTo(db.Formula, { foreignKey: 'formula_id', as: 'formula' });
 db.PtiRack.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
 db.ExtrusionProductionEntry.belongsTo(db.Subarea, { foreignKey: 'destination_subarea_id', as: 'destinationSubarea' });
 db.ExtrusionTransition.hasMany(db.ExtrusionScrapLog, {

@@ -1,7 +1,9 @@
+// Fallback horario provisional para reportes históricos sin sesión operativa.
+// Los turnos actuales miden su ventana real con opened_at / closed_at; se toma
+// 06:00 como ancla provisional hasta que la empresa confirme la hora oficial.
 const SHIFT_BOUNDARIES = {
-  TURNO_1: [6, 14],
-  TURNO_2: [14, 22],
-  TURNO_3: [22, 6],
+  TURNO_1: [6, 18],
+  TURNO_2: [18, 6],
 };
 
 function getExtrusionShiftWindow(shiftDate, shiftCode) {
@@ -36,17 +38,40 @@ function getShiftDateForInstant(date = new Date()) {
   return previous.toISOString().slice(0, 10);
 }
 
-function calculateShiftBalance({ goodOutputKg = 0, mixtureInputKg, mixtureScrapKg = 0, purgeKg = 0, actualScrapKg = 0 }) {
-  const values = [goodOutputKg, mixtureScrapKg, purgeKg, actualScrapKg, mixtureInputKg == null ? Number(goodOutputKg) + Number(mixtureScrapKg) : mixtureInputKg].map(Number);
+function calculateShiftBalance({
+  goodOutputKg = 0,
+  mixtureInputKg,
+  openingMixtureKg = 0,
+  loadedMixtureKg,
+  closingRemnantKg = 0,
+  mixtureScrapKg = 0,
+  purgeKg = 0,
+  actualScrapKg = 0,
+}) {
+  const hasDetailedBalance = loadedMixtureKg != null || openingMixtureKg > 0 || closingRemnantKg > 0;
+  const values = [
+    goodOutputKg, mixtureScrapKg, purgeKg, actualScrapKg,
+    openingMixtureKg,
+    loadedMixtureKg == null ? (mixtureInputKg == null ? Number(goodOutputKg) + Number(mixtureScrapKg) : mixtureInputKg) : loadedMixtureKg,
+    closingRemnantKg,
+  ].map(Number);
   if (values.some((value) => !Number.isFinite(value) || value < 0)) {
     throw new Error('El balance del turno requiere cantidades finitas no negativas.');
   }
-  const [good, mixtureScrap, purge, actual, mixtureInput] = values;
+  const [good, mixtureScrap, purge, actual, opening, loaded, remnant] = values;
+  const mixtureInput = hasDetailedBalance ? opening + loaded : loaded;
   const totalInputKg = mixtureInput + purge;
-  const theoreticalScrapKg = Math.max(0, totalInputKg - good);
+  const consumedInputKg = Math.max(0, totalInputKg - remnant);
+  const theoreticalGoodOutputKg = Math.max(0, consumedInputKg - actual);
+  const theoreticalScrapKg = Math.max(0, consumedInputKg - good);
   return {
     good_output_kg: Number(good.toFixed(3)),
+    theoretical_good_output_kg: Number(theoreticalGoodOutputKg.toFixed(3)),
+    opening_mixture_kg: Number(opening.toFixed(3)),
+    loaded_mixture_kg: Number(loaded.toFixed(3)),
     mixture_input_kg: Number(mixtureInput.toFixed(3)),
+    closing_remnant_kg: Number(remnant.toFixed(3)),
+    consumed_input_kg: Number(consumedInputKg.toFixed(3)),
     mixture_scrap_kg: Number(mixtureScrap.toFixed(3)),
     purge_input_kg: Number(purge.toFixed(3)),
     total_input_kg: Number(totalInputKg.toFixed(3)),

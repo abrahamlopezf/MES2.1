@@ -21,13 +21,29 @@ const loginRateLimit = rateLimit({
   },
 });
 
+const passwordResetRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 5 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Demasiadas solicitudes. Intenta de nuevo más tarde.', errors: [] },
+});
+
+const passwordResetAttemptRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 10 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Demasiados intentos. Intenta de nuevo más tarde.', errors: [] },
+});
+
 router.post('/login', loginRateLimit, validate(loginSchema), authController.login);
 router.get('/me', authMiddleware, authController.me);
 router.post('/logout', authMiddleware, authController.logout);
 
 router.post('/change-password', authMiddleware, validate(changePasswordSchema), authController.changePassword);
-router.post('/forgot-password', validate(requestPasswordResetSchema), authController.requestPasswordReset);
-router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+router.post('/forgot-password', passwordResetRateLimit, validate(requestPasswordResetSchema), authController.requestPasswordReset);
+router.post('/reset-password', passwordResetAttemptRateLimit, validate(resetPasswordSchema), authController.resetPassword);
 
 router.put('/profile', authMiddleware, validate(updateProfileSchema), authController.updateProfile);
 

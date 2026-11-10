@@ -1,3 +1,4 @@
+require('dotenv').config();
 const API_URL = 'http://localhost:4000/api';
 
 async function qaFlow() {
@@ -8,7 +9,7 @@ async function qaFlow() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         identifier: 'nexus',
-        password: 'Admin123!'
+        password: process.env.TEST_ACCOUNT_PASSWORD
       })
     }).then(r => r.json());
     
@@ -32,7 +33,7 @@ async function qaFlow() {
       telefono: '1234567890',
       role_id: adminAlmRole.id,
       is_active: true,
-      password: 'Password123!'
+      password: process.env.TEST_ACCOUNT_PASSWORD
     };
     
     const createUserRes = await fetch(`${API_URL}/users`, {
@@ -54,7 +55,7 @@ async function qaFlow() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         identifier: qaUsername,
-        password: 'Password123!'
+        password: process.env.TEST_ACCOUNT_PASSWORD
       })
     }).then(r => r.json());
     

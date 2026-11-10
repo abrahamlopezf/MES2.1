@@ -224,6 +224,8 @@ export interface SwitchQueuePriorityPayload {
   scanned_qr?: string;
   prioritize_formula_id?: number;
   purge_percentage?: number;
+  purge_weight_kg?: number;
+  remnant_weight_kg?: number;
   remaining_mix_disposition?: 'WIP' | 'SCRAP_ESPECIAL';
   notes?: string;
   scrap_weight_kg?: number;

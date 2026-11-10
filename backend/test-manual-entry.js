@@ -1,3 +1,4 @@
+require('dotenv').config();
 const http = require('http');
 
 const request = (options, data = null) => {
@@ -31,7 +32,7 @@ async function testManualEntry() {
       headers: { 'Content-Type': 'application/json' }
     }, {
       identifier: 'nexus',
-      password: 'QhBv47RkNK$1096'
+      password: process.env.TEST_ACCOUNT_PASSWORD
     });
     
     if (!loginRes.data.success) {

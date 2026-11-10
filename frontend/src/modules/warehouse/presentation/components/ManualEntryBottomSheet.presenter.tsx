@@ -90,22 +90,25 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end overflow-x-hidden max-w-[100vw] transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[200] flex flex-col justify-end overflow-x-hidden max-w-[100vw] transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] sm:items-center sm:justify-center sm:p-6 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
     >
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm" 
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div
         ref={sheetRef}
-        className={`relative w-full max-w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manual-entry-dialog-title"
+        className={`relative z-[201] w-full max-w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] transform sm:max-w-4xl sm:rounded-2xl sm:border sm:max-h-[90dvh] ${animateIn && currentY === 0 ? 'translate-y-0 opacity-100 sm:scale-100' : 'translate-y-full opacity-100 sm:translate-y-2 sm:scale-[0.98]'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
         <div 
-          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+          className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card sm:hidden"
           onTouchStart={handlers.onTouchStart}
           onTouchMove={handlers.onTouchMove}
           onTouchEnd={() => handlers.onTouchEnd(onClose)}
@@ -114,22 +117,25 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
         </div>
 
         {/* Header */}
-        <div className="px-5 pb-4 border-b border-border flex justify-between items-center bg-card">
-          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border flex justify-between items-center gap-4 bg-card">
+          <h3 id="manual-entry-dialog-title" className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2 min-w-0">
             <PackagePlus size={20} className={isPp ? "text-blue-500" : "text-primary"} />
-            {isPp ? 'Ingreso a Silos (PP - Consumo Mezcladora)' : 'Ingreso de Material (Lote Almacén)'}
+            <span>{isPp ? 'Ingreso a Silos (PP - Consumo Mezcladora)' : 'Ingreso de Material (Lote Almacén)'}</span>
           </h3>
           <button 
             onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
+            type="button"
+            aria-label="Cerrar ingreso manual"
+            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl border border-border bg-transparent text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-3.5 sm:p-5 pb-12 overflow-y-auto overflow-x-hidden flex-1 flex flex-col gap-6 bg-background w-full max-w-full">
-          <div className="flex flex-col gap-5">
+        <div className="p-3.5 sm:p-6 pb-6 overflow-y-auto overflow-x-hidden flex-1 flex flex-col gap-6 bg-background w-full max-w-full">
+          <div className="flex flex-col gap-5 sm:gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-foreground ml-1">Material *</label>
@@ -209,16 +215,20 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                 />
               </div>
             )}
+            </div>
 
             <div className="flex flex-col gap-4 border-t border-border/50 pt-5">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-bold text-foreground">Entradas (Folio [Opcional] y Cantidad) *</label>
+                <div>
+                  <h4 className="text-base font-bold text-foreground">Lotes de ingreso</h4>
+                  <p className="text-xs text-muted-foreground">Captura la fecha, cantidad y costo de cada lote.</p>
+                </div>
                 <Button 
                   type="button" 
                   variant="outline" 
                   size="sm" 
                   onClick={onAddEntry}
-                  className="rounded-xl bg-card border-border shadow-sm h-8 px-3"
+                  className="min-h-11 rounded-xl bg-card border-border shadow-sm px-4"
                 >
                   <Plus className="w-4 h-4 mr-1" /> Agregar
                 </Button>
@@ -226,17 +236,18 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
 
               <div className="flex flex-col gap-3">
                 {entries.map((entry, index) => (
-                  <div key={index} className="flex flex-col gap-3 bg-card p-3.5 sm:p-4 rounded-xl border border-border shadow-sm w-full min-w-0 max-w-full overflow-hidden">
+                  <div key={index} className="flex flex-col gap-4 bg-card p-3.5 sm:p-5 rounded-2xl border border-border shadow-sm w-full min-w-0 max-w-full overflow-hidden">
                     {/* Header del lote / entrada */}
                     <div className="flex items-center justify-between pb-1 border-b border-border/40">
-                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Renglón #{index + 1}
+                      <span className="text-sm font-bold text-foreground">
+                        Lote {index + 1}
                       </span>
                       {entries.length > 1 && (
                         <button 
                           type="button"
-                          className="p-1 -mr-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                          className="min-h-10 min-w-10 -mr-1 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                           onClick={() => onRemoveEntry(index)}
+                          aria-label={`Eliminar lote ${index + 1}`}
                           title="Eliminar entrada"
                         >
                           <Trash2 size={16} />
@@ -244,6 +255,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                       )}
                     </div>
 
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="flex flex-col gap-1 min-w-0">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de factura *</label>
                       <input
@@ -255,8 +267,6 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                       />
                     </div>
 
-                    {/* Fila 1: Folio y Cantidad */}
-                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                       <div className="flex flex-col gap-1 min-w-0">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">Folio</label>
                         <input 
@@ -301,7 +311,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                       </div>
                     </div>
                     
-                    {/* Fila 2: Costo Unitario */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
                     <div className="flex flex-col gap-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Costo Unitario *</label>
@@ -309,7 +319,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           aria-label={`Moneda del costo unitario del renglón ${index + 1}`}
                           value={entry.currency}
                           onChange={e => onUpdateEntry(index, 'currency', e.target.value)}
-                          className="h-7 rounded-md border border-input bg-card px-2 text-[10px] font-bold text-foreground"
+                          className="min-h-9 rounded-lg border border-input bg-card px-3 text-xs font-bold text-foreground"
                         >
                           <option value="MXN">MXN</option>
                           <option value="USD">USD</option>
@@ -341,7 +351,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                           }
                         }}
                       />
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs leading-relaxed text-muted-foreground">
                         {exchangeRatesByDate[entry.invoice_date]?.rate && Number(entry.unit_cost) > 0
                           ? (() => {
                               const rate = exchangeRatesByDate[entry.invoice_date];
@@ -358,7 +368,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                       </span>
                     </div>
 
-                    {/* Fila 3: Proveedor (Full width para no truncar la Razón Social) */}
+                    {/* Proveedor */}
                     <div className="flex flex-col gap-1 w-full min-w-0 max-w-full pt-0.5 overflow-hidden">
                       <TFSelect
                         label="Proveedor (Opcional)"
@@ -384,6 +394,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                         </span>
                       )}
                     </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -391,13 +402,13 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
 
             {/* AVISO PREVIO SI HAY PROVEEDORES NUEVOS */}
             {entries.some(e => e.supplier_id?.startsWith('NEW:')) && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2.5">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2.5">
                 <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <span className="font-bold block text-foreground">
                     Se creará un nuevo proveedor automáticamente
                   </span>
-                  <span className="text-[11px] text-muted-foreground block mt-0.5 leading-snug">
+                  <span className="text-xs text-muted-foreground block mt-0.5 leading-relaxed">
                     Al registrar este ingreso, los proveedores marcados como nuevos se crearán en la base de datos. Recuerda ingresar al subcatálogo de Proveedores para completar la información técnica y fiscal.
                   </span>
                 </div>
@@ -417,15 +428,15 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
         </div>
 
         {/* Footer actions fixed at bottom */}
-        <div className="sticky bottom-0 p-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex gap-3 pb-8">
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting} className="flex-1 font-bold py-6 rounded-xl">
+        <div className="sticky bottom-0 p-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="min-h-12 flex-1 font-bold rounded-xl border-border bg-background hover:bg-muted">
             Cancelar
           </Button>
           <Button 
             variant="default" 
             onClick={onConfirmEntry}
             disabled={isSubmitting || isExchangeRateLoading || !materialId || (!isPp && !locationId) || (isPp && !selectedSiloId) || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
-            className={`flex-[1.5] font-bold py-6 rounded-xl shadow-md ${isPp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+            className={`min-h-12 flex-[1.5] font-bold rounded-xl shadow-md ${isPp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
           >
             {isSubmitting ? (
               <><Loader2 className="mr-2 animate-spin" size={18} /> Procesando...</>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../identity/presentation/context/AuthContext';
+import { useAuthStore } from '@/store/authStore';
 import {
   Card,
   CardHeader,
@@ -41,7 +41,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
 
   useLayoutEffect(() => {
     const scrollViewport = pageRootRef.current?.closest('.overflow-y-auto');

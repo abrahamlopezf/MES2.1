@@ -48,6 +48,7 @@ const generateToken = (user) => {
       roleCode: user.role?.code,
       areaId: user.role?.area?.id || null,
       session_token: user.session_token,
+      session_started_at: new Date(user.last_login_at || Date.now()).toISOString(),
     },
     env.jwt.secret,
     {
@@ -171,6 +172,12 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
     throw error;
   }
 
+  if (!currentPassword && !user.must_change_password) {
+    const error = new Error('Debes confirmar tu contraseña actual para continuar.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   if (currentPassword) {
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
     if (!isPasswordValid) {
@@ -194,6 +201,14 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
 };
 
 const requestPasswordReset = async ({ identifier }) => {
+  // El flujo actual solo tiene entrega simulada en desarrollo. No responder
+  // distinto según la cuenta ni aparentar que se envió un código en producción.
+  if (env.isProduction) {
+    const error = new Error('La recuperación de contraseña no está habilitada hasta configurar un canal de entrega seguro.');
+    error.statusCode = 503;
+    throw error;
+  }
+
   const user = await db.User.findOne({
     where: {
       [Op.or]: [
@@ -205,9 +220,7 @@ const requestPasswordReset = async ({ identifier }) => {
   });
 
   if (!user) {
-    const error = new Error('No pudimos encontrar una cuenta con esa información.');
-    error.statusCode = 404;
-    throw error;
+    return { message: 'Si la cuenta puede recuperarse, recibirás instrucciones por un canal autorizado.' };
   }
 
   const startOfMonth = new Date();
@@ -222,27 +235,29 @@ const requestPasswordReset = async ({ identifier }) => {
   });
 
   if (resetCount >= 3) {
-    const error = new Error('Has excedido el límite de 3 solicitudes de recuperación de contraseña este mes.');
-    error.statusCode = 429;
-    throw error;
+    return { message: 'Si la cuenta puede recuperarse, recibirás instrucciones por un canal autorizado.' };
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const code = crypto.randomInt(100000, 1000000).toString();
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+  const codeHash = crypto.createHmac('sha256', env.jwt.secret)
+    .update(`${user.id}:${code}`)
+    .digest('hex');
 
   await db.PasswordReset.create({
     user_id: user.id,
-    code,
+    code: '000000', // Mantiene compatibilidad con filas del esquema legado; el código real no se almacena.
+    code_hash: codeHash,
     expires_at: expiresAt,
     used: false,
   });
 
-  console.log(`\n\n========================================================`);
-  console.log(`[SIMULACIÓN CORREO/SMS] Código de recuperación para ${user.first_name} ${user.last_name} (${user.email})`);
-  console.log(`CÓDIGO: ${code}`);
-  console.log(`========================================================\n\n`);
+  if (env.nodeEnv === 'development') {
+    console.info(`[DEV ONLY] Código de recuperación temporal emitido para usuario ${user.id}.`);
+    console.info(`Código de recuperación: ${code}`);
+  }
 
-  return { message: 'Código de recuperación enviado. Revisa tu correo o teléfono (ver consola del servidor).' };
+  return { message: 'Si la cuenta puede recuperarse, recibirás instrucciones por un canal autorizado.' };
 };
 
 const resetPassword = async ({ identifier, code, newPassword }) => {
@@ -257,15 +272,17 @@ const resetPassword = async ({ identifier, code, newPassword }) => {
   });
 
   if (!user) {
-    const error = new Error('No pudimos encontrar una cuenta con esa información.');
-    error.statusCode = 404;
+    const error = new Error('El código es inválido o ha expirado.');
+    error.statusCode = 400;
     throw error;
   }
 
   const resetRecord = await db.PasswordReset.findOne({
     where: {
       user_id: user.id,
-      code,
+      code_hash: crypto.createHmac('sha256', env.jwt.secret)
+        .update(`${user.id}:${code}`)
+        .digest('hex'),
       used: false,
       expires_at: { [Op.gt]: new Date() }
     }
@@ -315,6 +332,12 @@ const getCurrentUser = async (userId) => {
   return buildUserPayload(user);
 };
 
+const logout = async (userId) => {
+  const user = await db.User.findByPk(userId);
+  if (user) await user.update({ session_token: crypto.randomUUID() });
+  return { message: 'Sesión cerrada correctamente.' };
+};
+
 const updateProfile = async (userId, { email, telefono, first_name, last_name, avatar_url }) => {
   const user = await db.User.findByPk(userId);
   if (!user) {
@@ -346,6 +369,7 @@ const updateProfile = async (userId, { email, telefono, first_name, last_name, a
 module.exports = {
   login,
   getCurrentUser,
+  logout,
   changePassword,
   requestPasswordReset,
   resetPassword,

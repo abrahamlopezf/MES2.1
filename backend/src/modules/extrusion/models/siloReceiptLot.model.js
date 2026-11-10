@@ -1,0 +1,30 @@
+'use strict';
+
+module.exports = (sequelize, DataTypes) => sequelize.define('SiloReceiptLot', {
+  id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
+  silo_id: { type: DataTypes.INTEGER, allowNull: false },
+  inventory_id: { type: DataTypes.INTEGER, allowNull: true },
+  material_id: { type: DataTypes.INTEGER, allowNull: false },
+  supplier_id: { type: DataTypes.INTEGER, allowNull: true },
+  source_inventory_movement_id: { type: DataTypes.INTEGER, allowNull: true, unique: true },
+  source_audit_log_id: { type: DataTypes.BIGINT, allowNull: true },
+  source_reference: { type: DataTypes.STRING(120), allowNull: true },
+  invoice_folio: { type: DataTypes.STRING(120), allowNull: false },
+  invoice_date: { type: DataTypes.DATEONLY, allowNull: false },
+  received_at: { type: DataTypes.DATE, allowNull: false },
+  lot_kind: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'INVOICE' },
+  quantity_received_kg: { type: DataTypes.DECIMAL(14, 3), allowNull: false },
+  remaining_quantity_kg: { type: DataTypes.DECIMAL(14, 3), allowNull: false },
+  invoice_currency: { type: DataTypes.STRING(3), allowNull: true },
+  invoice_unit_cost: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+  unit_cost_mxn: { type: DataTypes.DECIMAL(14, 6), allowNull: false },
+  unit_cost_usd: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
+  exchange_rate_mxn_per_usd: { type: DataTypes.DECIMAL(14, 8), allowNull: true },
+  exchange_rate_date: { type: DataTypes.DATEONLY, allowNull: true },
+  exchange_rate_source: { type: DataTypes.STRING(80), allowNull: true },
+  notes: { type: DataTypes.TEXT, allowNull: true },
+}, {
+  tableName: 'silo_receipt_lots',
+  timestamps: true,
+  underscored: true,
+});

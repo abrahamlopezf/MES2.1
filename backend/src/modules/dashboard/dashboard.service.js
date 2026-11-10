@@ -325,6 +325,92 @@ class DashboardService {
       const totalLostBaja = Number(lossBreakdownResult[0]?.baja_loss || 0);
       const totalLoss = totalLostMerma + totalLostScrap + totalLostBaja;
 
+      // Scrap de producción en kg. Se leen los libros de cada área por separado
+      // para que una tabla aún no desplegada no oculte los datos de las demás.
+      const scrapSources = [
+        {
+          key: 'extrusion', label: 'Extrusión', estimated: true,
+          sql: `SELECT date_trunc('month', created_at)::date AS month,
+              COALESCE(SUM(CASE WHEN actual_weight_kg IS NOT NULL THEN actual_weight_kg ELSE 0 END), 0) AS actual_kg,
+              COALESCE(SUM(CASE WHEN actual_weight_kg IS NULL THEN COALESCE(estimated_weight_kg, scrap_weight_kg, 0) ELSE 0 END), 0) AS estimated_kg
+            FROM extrusion_scrap_logs
+            WHERE UPPER(COALESCE(category, '')) <> 'MATERIAL_PURGA'
+            GROUP BY 1`,
+        },
+        {
+          key: 'telares', label: 'Telares', estimated: false,
+          sql: `SELECT date_trunc('month', COALESCE(logged_date::timestamp, created_at))::date AS month,
+              COALESCE(SUM(scrap_weight_kg), 0) AS actual_kg, 0 AS estimated_kg
+            FROM telares_scrap_logs GROUP BY 1`,
+        },
+        {
+          key: 'globo', label: 'Globo', estimated: false,
+          sql: `SELECT date_trunc('month', s.created_at)::date AS month,
+              COALESCE(SUM(s.scrap_weight_kg), 0) AS actual_kg, 0 AS estimated_kg
+            FROM area_process_scrap_logs s JOIN areas a ON a.id = s.area_id
+            WHERE UPPER(a.code) = 'GLOBO' AND s.scrap_weight_kg IS NOT NULL GROUP BY 1`,
+        },
+        {
+          key: 'laminado', label: 'Laminado', estimated: false,
+          sql: `SELECT date_trunc('month', s.created_at)::date AS month,
+              COALESCE(SUM(s.scrap_weight_kg), 0) AS actual_kg, 0 AS estimated_kg
+            FROM area_process_scrap_logs s JOIN areas a ON a.id = s.area_id
+            WHERE UPPER(a.code) = 'LAMINADO' AND s.scrap_weight_kg IS NOT NULL GROUP BY 1`,
+        },
+      ];
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const recentPeriods = Array.from({ length: 6 }, (_, index) => {
+        const date = new Date(monthStart.getFullYear(), monthStart.getMonth() - (5 - index), 1);
+        return {
+          key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+          label: date.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''),
+          year: date.getFullYear(), month: date.getMonth() + 1,
+        };
+      });
+      const scrapRowsByArea = {};
+      const scrapTotals = { actual_kg: 0, estimated_kg: 0 };
+      const scrapSourcesStatus = {};
+      await Promise.all(scrapSources.map(async (source) => {
+        try {
+          const [rows] = await sequelize.query(source.sql);
+          scrapRowsByArea[source.key] = rows;
+          scrapSourcesStatus[source.key] = true;
+          for (const row of rows) {
+            scrapTotals.actual_kg += Number(row.actual_kg || 0);
+            scrapTotals.estimated_kg += Number(row.estimated_kg || 0);
+          }
+        } catch (sourceError) {
+          scrapRowsByArea[source.key] = [];
+          scrapSourcesStatus[source.key] = false;
+          console.warn(`[DashboardService] No se pudo consultar merma de ${source.label}:`, sourceError.message);
+        }
+      }));
+      const scrapByMonth = recentPeriods.map((period) => {
+        const entry = { month: period.label, actual_kg: 0, estimated_kg: 0 };
+        for (const source of scrapSources) {
+          const row = (scrapRowsByArea[source.key] || []).find((item) => {
+            const date = new Date(item.month);
+            return date.getUTCFullYear() === period.year && date.getUTCMonth() + 1 === period.month;
+          });
+          entry[`${source.key}_kg`] = Number(row?.actual_kg || 0) + Number(row?.estimated_kg || 0);
+          entry.actual_kg += Number(row?.actual_kg || 0);
+          entry.estimated_kg += Number(row?.estimated_kg || 0);
+        }
+        return entry;
+      });
+      const scrapByArea = scrapSources.map((source) => {
+        const rows = scrapRowsByArea[source.key] || [];
+        return {
+          key: source.key,
+          name: source.label,
+          available: scrapSourcesStatus[source.key],
+          actual_kg: Number(rows.reduce((sum, row) => sum + Number(row.actual_kg || 0), 0).toFixed(3)),
+          estimated_kg: Number(rows.reduce((sum, row) => sum + Number(row.estimated_kg || 0), 0).toFixed(3)),
+        };
+      });
+
       // 5. Inventario por Área
       const inventoryByAreaQuery = await Lote.findAll({
         where: { is_active: true },
@@ -383,7 +469,18 @@ class DashboardService {
         warehouseAreaName,
         (inventoryValueByArea.get(warehouseAreaName) || 0) + silosInventoryValue,
       );
-      const inventoryByAreaGraph = [...inventoryValueByArea].map(([name, value]) => ({ name, value }));
+      // Mantener visibles todas las áreas integradas, incluso si hoy no tienen
+      // valor registrado. Las áreas planeadas se presentan aparte como pendientes.
+      for (const areaName of ['Almacén', 'Extrusión', 'Telares', 'Globo', 'Laminado']) {
+        if (![...inventoryValueByArea.keys()].some((name) => normalizeAreaName(name) === normalizeAreaName(areaName))) {
+          inventoryValueByArea.set(areaName, 0);
+        }
+      }
+      const inventoryByAreaGraph = [...inventoryValueByArea].map(([name, value]) => ({
+        name,
+        value,
+        has_value: Number(value) > 0,
+      }));
 
       // Los consumibles se cargan al área al surtirse y no reciben índice de transformación.
       const [directExpensesByAreaRows] = await sequelize.query(`
@@ -481,6 +578,14 @@ class DashboardService {
           },
           charts: {
             inventoryByArea: inventoryByAreaGraph,
+            scrapByMonth,
+            scrapByArea,
+            scrapSummary: {
+              actual_kg: Number(scrapTotals.actual_kg.toFixed(3)),
+              estimated_kg: Number(scrapTotals.estimated_kg.toFixed(3)),
+              total_kg: Number((scrapTotals.actual_kg + scrapTotals.estimated_kg).toFixed(3)),
+              sources: scrapSourcesStatus,
+            },
             directExpensesByArea: directExpensesByAreaGraph,
             investmentVsLoss: investmentVsLossGraph,
             monthlyFinancial: monthlyFinancialTrends,

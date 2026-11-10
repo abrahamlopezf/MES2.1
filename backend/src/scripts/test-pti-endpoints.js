@@ -1,3 +1,4 @@
+require('dotenv').config();
 const API_BASE = 'http://localhost:4000/api';
 
 async function req(method, endpoint, body = null, token = null) {
@@ -24,7 +25,7 @@ async function run() {
   console.log('--- Probando Autenticación ---');
   const loginRes = await req('POST', '/auth/login', {
     identifier: 'nexus',
-    password: 'Admin123!'
+    password: process.env.TEST_ACCOUNT_PASSWORD
   });
   const token = loginRes.data?.token || loginRes.token;
   console.log('✔ Login exitoso.');

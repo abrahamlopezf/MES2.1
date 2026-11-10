@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => sequelize.define(
     estimated_scrap_cost: { type: DataTypes.DECIMAL(14, 4), allowNull: false, defaultValue: 0 },
     actual_scrap_cost: { type: DataTypes.DECIMAL(14, 4), allowNull: false, defaultValue: 0 },
     variance_cost: { type: DataTypes.DECIMAL(14, 4), allowNull: false, defaultValue: 0 },
+    mass_balance_snapshot: { type: DataTypes.JSONB, allowNull: true },
     closed_by: { type: DataTypes.INTEGER, allowNull: true },
     closed_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     notes: { type: DataTypes.TEXT, allowNull: true },

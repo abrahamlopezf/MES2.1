@@ -45,7 +45,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: 'Indica si el silo abastece directamente la mezcladora de Extrusión',
       },
       current_stock_kg: {
-        type: DataTypes.DECIMAL(12, 2),
+        type: DataTypes.DECIMAL(14, 3),
         allowNull: false,
         defaultValue: 0,
       },
@@ -65,7 +65,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: 'Campo legado; la compatibilidad se determina mediante la etiqueta del material',
       },
       unit_cost: {
-        type: DataTypes.DECIMAL(10, 4),
+        type: DataTypes.DECIMAL(14, 6),
         allowNull: false,
         defaultValue: 0,
       },

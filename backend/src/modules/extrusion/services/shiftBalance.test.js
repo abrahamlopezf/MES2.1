@@ -2,13 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { getExtrusionShiftWindow, getShiftDateForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity } = require('./shiftBalance');
 
-test('shift windows follow the plant schedule, including overnight third shift', () => {
+test('shift windows use two twelve-hour shifts, including the overnight second shift', () => {
   const first = getExtrusionShiftWindow('2026-10-30', 'TURNO_1');
   assert.equal(first.start.toISOString(), '2026-10-30T12:00:00.000Z');
-  assert.equal(first.end.toISOString(), '2026-10-30T20:00:00.000Z');
-  const third = getExtrusionShiftWindow('2026-10-30', 'TURNO_3');
-  assert.equal(third.start.toISOString(), '2026-10-31T04:00:00.000Z');
-  assert.equal(third.end.toISOString(), '2026-10-31T12:00:00.000Z');
+  assert.equal(first.end.toISOString(), '2026-10-31T00:00:00.000Z');
+  const second = getExtrusionShiftWindow('2026-10-30', 'TURNO_2');
+  assert.equal(second.start.toISOString(), '2026-10-31T00:00:00.000Z');
+  assert.equal(second.end.toISOString(), '2026-10-31T12:00:00.000Z');
+  assert.throws(() => getExtrusionShiftWindow('2026-10-30', 'TURNO_3'), /Fecha o turno inválido/);
 });
 
 test('overnight shift is attributed to the date it started before 06:00 CDMX', () => {
@@ -22,6 +23,30 @@ test('balance includes purge exactly once and reconciles scale variance', () => 
   assert.equal(result.total_input_kg, 370);
   assert.equal(result.theoretical_scrap_kg, 70);
   assert.equal(result.variance_kg, 3);
+});
+
+test('shift balance subtracts carried opening stock and closing remnant before calculating scrap', () => {
+  const result = calculateShiftBalance({
+    goodOutputKg: 300,
+    openingMixtureKg: 150,
+    loadedMixtureKg: 350,
+    closingRemnantKg: 150,
+    purgeKg: 20,
+    actualScrapKg: 73,
+  });
+  assert.equal(result.mixture_input_kg, 500);
+  assert.equal(result.total_input_kg, 520);
+  assert.equal(result.closing_remnant_kg, 150);
+  assert.equal(result.consumed_input_kg, 370);
+  assert.equal(result.theoretical_scrap_kg, 70);
+  assert.equal(result.theoretical_good_output_kg, 297);
+  assert.equal(result.variance_kg, 3);
+});
+
+test('balance never reports negative consumption when a legacy digital remnant exceeds its recorded input', () => {
+  const result = calculateShiftBalance({ goodOutputKg: 0, openingMixtureKg: 10, loadedMixtureKg: 0, closingRemnantKg: 12, purgeKg: 0, actualScrapKg: 0 });
+  assert.equal(result.consumed_input_kg, 0);
+  assert.equal(result.theoretical_scrap_kg, 0);
 });
 
 test('variance allocation follows mixture input share and preserves rounding residual', () => {

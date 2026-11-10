@@ -2,13 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSmartScanner } from './useSmartScanner';
 import { useAuthStore } from '@/store/authStore';
-import { QrCode, X, Camera, Keyboard } from '@/design-system/components/Icon/googleIconCompat';
+import { QrCode, X } from '@/design-system/components/Icon/googleIconCompat';
 import { CameraScanner } from '../../../../design-system/components/scanner-overlay/CameraScanner';
 
 export const GlobalScannerModal: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [qrCode, setQrCode] = useState('');
-  const [showCamera, setShowCamera] = useState(true);
   const { handleScan } = useSmartScanner();
   const { user } = useAuthStore();
   
@@ -17,10 +14,7 @@ export const GlobalScannerModal: React.FC = () => {
 
   useEffect(() => {
     const handleOpen = () => {
-      setIsOpen(true);
       setIsRendered(true);
-      setShowCamera(true);
-      setQrCode('');
       setTimeout(() => setAnimateIn(true), 50);
     };
     window.addEventListener('open-scanner', handleOpen);
@@ -30,20 +24,8 @@ export const GlobalScannerModal: React.FC = () => {
   const handleClose = () => {
     setAnimateIn(false);
     setTimeout(() => {
-      setIsOpen(false);
       setIsRendered(false);
-      setShowCamera(false);
     }, 180);
-  };
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (qrCode.trim()) {
-      const success = await handleScan(qrCode.trim());
-      if (success) {
-        handleClose();
-      }
-    }
   };
 
   const handleCameraScan = async (code: string) => {
@@ -59,7 +41,7 @@ export const GlobalScannerModal: React.FC = () => {
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-150 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-2 transition-opacity duration-150 sm:p-4 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
       style={{ isolation: 'isolate' }}
     >
       <div 
@@ -69,77 +51,37 @@ export const GlobalScannerModal: React.FC = () => {
       />
 
       <div
-        className={`relative w-full max-w-md bg-card rounded-2xl border-2 border-border shadow-2xl flex flex-col overflow-hidden transition-transform duration-150 ${animateIn ? 'scale-100 translate-y-0' : 'scale-95 translate-y-2'}`}
+        className={`relative my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-2 border-border bg-card shadow-2xl transition-transform duration-150 sm:max-h-[calc(100dvh-2rem)] ${animateIn ? 'scale-100 translate-y-0' : 'scale-95 translate-y-2'}`}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-card z-10">
-          <h2 className="text-xl font-black text-primary flex items-center gap-2 tracking-tight">
-            <QrCode size={24} className="text-primary" /> Escáner Inteligente QR
+        <div className="z-10 flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-5 sm:py-4">
+          <h2 className="flex min-w-0 items-center gap-2 text-lg font-black tracking-tight text-primary sm:text-xl">
+            <QrCode size={24} className="shrink-0 text-primary" /> <span>Escáner Inteligente QR</span>
           </h2>
           <button 
             onClick={handleClose}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
+            aria-label="Cerrar escáner"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary/50 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X size={20} />
           </button>
         </div>
         
         {/* Content */}
-        <div className="p-6 bg-background flex flex-col items-center">
-          <p className="mb-4 text-center text-xs font-semibold text-muted-foreground">
-            Reconoce cualquier QR de planta (Almacén, ODC, Mezcla, Rack PTI, Rollo Viajero). Si perteneces al área operativa del QR te llevará a su acción; de lo contrario mostrará el Árbol de Trazabilidad completo.
-          </p>
-          
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background p-3 sm:p-5">
           {/* Cámara Box */}
-          <div className="w-full aspect-square bg-card border-4 border-dashed border-border rounded-xl overflow-hidden relative shadow-inner mb-6">
-            {showCamera ? (
-              <CameraScanner 
-                inline={true} 
-                onScan={handleCameraScan} 
-                onClose={handleClose} 
-              />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
-                <Camera size={48} className="opacity-20 mb-4" />
-                <p className="font-medium text-sm">Cámara desactivada.</p>
-                <button 
-                  onClick={() => setShowCamera(true)}
-                  className="mt-4 px-4 py-2 bg-primary/10 text-primary font-bold rounded-lg hover:bg-primary/20 transition-colors text-sm"
-                >
-                  Reactivar Cámara
-                </button>
-              </div>
-            )}
-          </div>
-
-          <form onSubmit={onSubmit} className="w-full flex flex-col gap-3">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">Ingreso Manual / Pistola USB</span>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Keyboard size={16} className="text-muted-foreground" />
-                </div>
-                <input
-                  type="text"
-                  value={qrCode}
-                  onChange={e => {
-                    setQrCode(e.target.value);
-                    if (showCamera && e.target.value.length > 0) setShowCamera(false);
-                  }}
-                  placeholder="Ej. ALM-000000151, RACK-PTI-01, VIAJ-..."
-                  className="w-full pl-10 pr-4 py-3 bg-card border-2 border-border rounded-xl font-mono text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-foreground font-bold uppercase shadow-sm"
-                />
-              </div>
-              <button 
-                type="submit"
-                disabled={!qrCode.trim()}
-                className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl disabled:opacity-50 hover:opacity-90 transition-opacity shadow-md disabled:shadow-none"
-              >
-                Buscar
-              </button>
+          <div className="relative min-h-[min(60dvh,18rem)] flex-1 w-full overflow-hidden rounded-xl border border-border bg-black">
+            <CameraScanner
+              inline={true}
+              allowManualInput={false}
+              hideScanShade={true}
+              onScan={handleCameraScan}
+              onClose={handleClose}
+            />
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <div className="aspect-square w-[min(64vw,18rem,46dvh)] rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.16)]" />
             </div>
-          </form>
-
+          </div>
         </div>
       </div>
     </div>,

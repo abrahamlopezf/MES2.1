@@ -10,7 +10,6 @@ router.use(authMiddleware);
 // Area-only authorization: executive roles use the consolidated dashboard, not Telares endpoints.
 router.use((req, res, next) => {
   const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
-  const areaId = Number(req.user?.areaId || req.user?.area_id || req.user?.role?.area_id || req.user?.role?.area?.id);
   const executiveRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'];
   const telaresRoles = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES', 'OPERADOR_TELARES'];
   const otherAreaRoles = [
@@ -19,25 +18,36 @@ router.use((req, res, next) => {
     'OPERADOR_GLOBO', 'ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO',
   ];
   if (executiveRoles.includes(roleCode)) return next();
-  if (!otherAreaRoles.includes(roleCode)
-    && (telaresRoles.includes(roleCode) || areaId === 3)) return next();
+  if (!otherAreaRoles.includes(roleCode) && telaresRoles.includes(roleCode)) return next();
   return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Telares.' });
 });
+
+// Catalog/setup changes are limited to Telares administration and supervisors.
+// Operators retain the production actions below, but cannot alter master data.
+const requireTelaresAdministratorOrSupervisor = (req, res, next) => {
+  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
+  const allowedRoles = [
+    'SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL',
+    'ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES',
+  ];
+  if (allowedRoles.includes(roleCode)) return next();
+  return res.status(403).json({ success: false, message: 'Solo administración o supervisión de Telares puede modificar esta configuración.' });
+};
 
 // Rutas de Telares y Racks
 router.get('/subareas', telaresController.getSubareas);
 router.get('/looms', telaresController.getLooms);
-router.post('/looms', telaresController.createLoom);
-router.put('/looms/:id', telaresController.updateLoom);
-router.delete('/looms/:id', telaresController.deleteLoom);
+router.post('/looms', requireTelaresAdministratorOrSupervisor, telaresController.createLoom);
+router.put('/looms/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateLoom);
+router.delete('/looms/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteLoom);
 router.get('/boms', telaresController.getBoms);
-router.post('/boms', telaresController.createBom);
-router.put('/boms/:id', telaresController.updateBom);
-router.delete('/boms/:id', telaresController.deleteBom);
+router.post('/boms', requireTelaresAdministratorOrSupervisor, telaresController.createBom);
+router.put('/boms/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateBom);
+router.delete('/boms/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteBom);
 router.get('/operators', telaresController.getOperators);
-router.post('/operators', telaresController.createOperator);
-router.put('/operators/:id', telaresController.updateOperator);
-router.delete('/operators/:id', telaresController.deleteOperator);
+router.post('/operators', requireTelaresAdministratorOrSupervisor, telaresController.createOperator);
+router.put('/operators/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateOperator);
+router.delete('/operators/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteOperator);
 router.post('/looms/:id/assign-rack', telaresController.assignRack);
 router.post('/looms/:id/load-creel', telaresController.loadCreel);
 router.post('/transfer-cart', telaresController.transferCart);
@@ -46,7 +56,7 @@ router.get('/pti-racks/lookup/:code', telaresController.lookupPtiRack);
 router.get('/wip-summary', telaresController.getWipSummary);
 router.get('/performance-summary', telaresController.getPerformanceSummary);
 router.get('/pti-transfer-mode', telaresController.getPtiTransferMode);
-router.put('/pti-transfer-mode', telaresController.updatePtiTransferMode);
+router.put('/pti-transfer-mode', requireTelaresAdministratorOrSupervisor, telaresController.updatePtiTransferMode);
 router.post('/runs/start', telaresController.startRun);
 router.post('/runs/finish-roll', telaresController.finishRoll);
 router.post('/runs/:id/finish', telaresController.finishRun);

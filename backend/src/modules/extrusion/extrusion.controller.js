@@ -319,13 +319,18 @@ class ExtrusionController {
     catch (error) { next(error); }
   }
 
+  async getExtrusionShiftEntryState(req, res, next) {
+    try { return res.status(200).json({ success: true, data: await extrusionService.getExtrusionShiftEntryState({ user: req.user }) }); }
+    catch (error) { next(error); }
+  }
+
   async openExtrusionShiftSession(req, res, next) {
     try { return res.status(201).json({ success: true, data: await extrusionService.openExtrusionShiftSession({ ...req.body, user: req.user }) }); }
     catch (error) { next(error); }
   }
 
   async closeExtrusionShiftSession(req, res, next) {
-    try { return res.status(200).json({ success: true, data: await extrusionService.closeExtrusionShiftSession({ sessionId: req.params.id, user: req.user }) }); }
+    try { return res.status(200).json({ success: true, data: await extrusionService.closeExtrusionShiftSession({ sessionId: req.params.id, ...req.body, user: req.user }) }); }
     catch (error) { next(error); }
   }
 

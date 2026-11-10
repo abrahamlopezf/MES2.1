@@ -9,7 +9,7 @@ function buildSiloReceiptMovementRows({ entries, inventoryId, userId, siloId, si
       type: 'SILO_ENTRY',
       quantity_change: quantity,
       unit_cost: unitCost,
-      total_cost: Number((quantity * unitCost).toFixed(4)),
+      total_cost: Number((quantity * unitCost).toFixed(6)),
       performed_by: userId,
       notes: `Recepción de PP en custodia de Almacén; factura ${entry.folio || 'S/R'}; silo ${siloCode || siloId}.`,
       silo_id: siloId,

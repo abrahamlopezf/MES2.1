@@ -41,13 +41,13 @@ const me = async (req, res) => {
   }
 };
 
-const logout = (req, res) => {
-  return successResponse(
-    res,
-    'Sesión cerrada correctamente.',
-    {},
-    200
-  );
+const logout = async (req, res) => {
+  try {
+    const result = await authService.logout(req.user.id);
+    return successResponse(res, result.message, {}, 200);
+  } catch (error) {
+    return errorResponse(res, error.message || 'No pudimos cerrar la sesión.', [], error.statusCode || 500);
+  }
 };
 
 const changePassword = async (req, res) => {

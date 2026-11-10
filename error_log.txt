@@ -1,0 +1,10 @@
+2026-11-09T21:11:28.856Z\nMessage: No se encontró un rack con el QR escaneado 'E2E-EXT-RACK-INCORRECTO'. Escanea el QR físico del rack de destino.\nStack: Error: No se encontró un rack con el QR escaneado 'E2E-EXT-RACK-INCORRECTO'. Escanea el QR físico del rack de destino.
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2326:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async ExtrusionService.scanRackPti (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:2280:12)
+    at async scanRack (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:138:22)\n\n2026-11-09T21:23:28.991Z\nMessage: Falta conciliar merma y scrap de Extrusora 5 antes de cerrar el turno general.\nStack: Error: Falta conciliar merma y scrap de Extrusora 5 antes de cerrar el turno general.
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:4288:43
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async closeExtrusionShiftSession (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:333:62)\n\n

@@ -86,9 +86,9 @@ export const extrusionApi = {
     return response.data.data;
   },
 
-  getActiveShiftSession: async (): Promise<any | null> => (await axiosClient.get('/extrusion/shifts/session/active')).data.data,
-  openShiftSession: async (payload: { shift_date: string; shift_code: string }): Promise<any> => (await axiosClient.post('/extrusion/shifts/session/open', payload)).data.data,
-  closeShiftSession: async (id: number): Promise<any> => (await axiosClient.post(`/extrusion/shifts/session/${id}/close`)).data.data,
+  getActiveShiftSession: async (): Promise<any | null> => (await axiosClient.post('/extrusion/shifts/session/entry', {})).data.data,
+  openShiftSession: async (payload: { shift_date: string; shift_code: string; confirm_carryover?: boolean; confirm_active_mixture?: boolean; confirmed_mixture_qrs?: string[] }): Promise<any> => (await axiosClient.post('/extrusion/shifts/session/open', payload)).data.data,
+  closeShiftSession: async (payload: { id: number }): Promise<any> => (await axiosClient.post(`/extrusion/shifts/session/${payload.id}/close`, {})).data.data,
 
   closeShift: async (payload: {
     extruder_id: number;
@@ -148,6 +148,8 @@ export const extrusionApi = {
     from_mixture_qr?: string;
     to_mixture_qr?: string;
     transition_scrap_kg: number;
+    purge_weight_kg: number;
+    remnant_weight_kg?: number;
     last_pti_quantity?: number;
     first_pti_quantity?: number;
     reason?: string;

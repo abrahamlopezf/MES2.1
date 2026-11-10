@@ -1315,28 +1315,42 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
   });
 
   const primaryLote = directLote || [...collectedLots.values()][0] || null;
+  const inventoryMaterial = primaryLote?.material
+    ? (primaryLote.material.get
+      ? primaryLote.material.get({ plain: true })
+      : primaryLote.material)
+    : null;
+  const inventorySupplier = primaryLote?.supplier
+    ? (primaryLote.supplier.get
+      ? primaryLote.supplier.get({ plain: true })
+      : primaryLote.supplier)
+    : null;
+  const inventoryLocation = primaryLote?.location
+    ? (primaryLote.location.get
+      ? primaryLote.location.get({ plain: true })
+      : primaryLote.location)
+    : null;
   const inventory = primaryLote
     ? {
         lote_id: primaryLote.id,
         folio: primaryLote.folio,
         qr_code_value: primaryLote.qr_code?.qr_code || qrRecord?.qr_code || cleanCode,
-        material: primaryLote.material
-          ? primaryLote.material.get
-            ? primaryLote.material.get({ plain: true })
-            : primaryLote.material
-          : null,
+        // The genealogy lookup is available to operational users. Return only
+        // identification fields here; the full Material model contains costs.
+        material: inventoryMaterial ? {
+          id: inventoryMaterial.id,
+          code: inventoryMaterial.code || inventoryMaterial.material_code || inventoryMaterial.internal_code || null,
+          name: inventoryMaterial.name || null,
+          unit: inventoryMaterial.unit?.abbreviation || inventoryMaterial.unit?.name || null,
+        } : null,
         quantity: primaryLote.available_amount,
         initial_amount: primaryLote.initial_amount,
-        supplier: primaryLote.supplier
-          ? primaryLote.supplier.get
-            ? primaryLote.supplier.get({ plain: true })
-            : primaryLote.supplier
-          : null,
-        location_detail: primaryLote.location
-          ? primaryLote.location.get
-            ? primaryLote.location.get({ plain: true })
-            : primaryLote.location
-          : null,
+        supplier: inventorySupplier ? { name: inventorySupplier.name || null } : null,
+        location_detail: inventoryLocation ? {
+          id: inventoryLocation.id,
+          code: inventoryLocation.code || null,
+          name: inventoryLocation.name || null,
+        } : null,
         is_active: primaryLote.is_active,
       }
     : null;
