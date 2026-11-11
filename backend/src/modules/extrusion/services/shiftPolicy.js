@@ -32,6 +32,15 @@ const getShiftEntrySuggestion = ({ today, sessions = [] } = {}) => {
   }
 
   const latestDate = history[0].date;
+  // A missed/unfinished shift from an earlier day is historical. It must not
+  // block today's automatic Turno 1 or ask the next supervisor to open a stale
+  // Turno 2 (for example, Nov 5 when today is Nov 11).
+  if (latestDate < today) {
+    return isOperatingDate(today)
+      ? { shift_date: today, shift_code: 'TURNO_1', auto_start: true, reason: 'PRIMER_TURNO_DEL_DIA' }
+      : { shift_date: nextOperatingDate(today), shift_code: 'TURNO_1', auto_start: false, reason: 'DIA_NO_OPERATIVO' };
+  }
+
   const shiftsOnLatestDate = new Set(history.filter((session) => session.date === latestDate).map((session) => session.code));
   if (shiftsOnLatestDate.has('TURNO_1') && !shiftsOnLatestDate.has('TURNO_2')) {
     return { shift_date: latestDate, shift_code: 'TURNO_2', auto_start: false, reason: 'RELEVO_DEL_DIA' };

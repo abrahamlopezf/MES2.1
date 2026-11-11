@@ -16,13 +16,13 @@ test('extrusion validates shift date and code', () => {
   assert.match(validateExtrusionShift({ shiftDate: 'not-a-date', shiftCode: 'TURNO_1' }), /fecha válida/);
 });
 
-test('shift suggestion does not skip an unfinished second shift across a non-operating day', () => {
+test('an unfinished historical shift does not create a stale second-shift prompt', () => {
   const suggestion = require('./shiftPolicy').getShiftEntrySuggestion({
-    today: '2026-11-06', // Friday after an unfinished Thursday Turno 1
+    today: '2026-11-06', // Friday after a Thursday Turno 1
     sessions: [{ shift_date: '2026-11-05', shift_code: 'TURNO_1' }],
   });
   assert.deepEqual(suggestion, {
-    shift_date: '2026-11-05', shift_code: 'TURNO_2', auto_start: false, reason: 'RELEVO_DEL_DIA',
+    shift_date: '2026-11-09', shift_code: 'TURNO_1', auto_start: false, reason: 'DIA_NO_OPERATIVO',
   });
 });
 
