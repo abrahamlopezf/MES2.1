@@ -177,7 +177,7 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
   };
 
   return (
-    <main className="extrusion-workspace mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 pb-24 sm:gap-5 sm:p-6 lg:p-8">
+    <main className="extrusion-workspace mx-auto flex w-full max-w-[1500px] flex-col gap-5 p-4 pb-24 sm:p-6 lg:p-8">
       <header className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5">
         <div className="flex items-start justify-between gap-2 sm:justify-start sm:gap-4">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
@@ -202,14 +202,25 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
         </Button>
       </header>
 
-      <section aria-label="Resumen de inventario interno" className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:px-4 sm:py-2.5">
-        <span className="hidden text-sm font-bold text-muted-foreground sm:inline">Resumen</span>
-        <span className="inline-flex min-h-10 items-center rounded-lg bg-muted/60 px-2.5 text-sm font-semibold text-foreground sm:px-3">Partidas: {activeItems.length}</span>
-        <span className="inline-flex min-h-10 items-center rounded-lg bg-muted/60 px-2.5 text-sm font-semibold text-foreground sm:px-3">Materiales: {formatKg(data?.total_kg)}</span>
-        <span className="inline-flex min-h-10 items-center rounded-lg bg-muted/60 px-2.5 text-sm font-semibold text-foreground sm:px-3">Mezclas: {formatKg(data?.mixtures_total_kg)}</span>
-        <span className={`inline-flex min-h-10 items-center rounded-lg border px-2.5 text-sm font-semibold sm:px-3 ${noQrKg > 0 ? 'border-warning/40 bg-warning/10 text-warning' : 'border-success/30 bg-success/10 text-success'}`}>
-          {noQrKg > 0 ? `Sin QR: ${formatKg(noQrKg)}` : 'QR completos'}
-        </span>
+      <section aria-label="Resumen de inventario interno" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-3.5 sm:p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Partidas activas</p>
+          <p className="mt-1.5 text-xl font-black tabular-nums text-foreground">{activeItems.length}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3.5 sm:p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Materiales</p>
+          <p className="mt-1.5 text-lg font-black tabular-nums text-foreground">{formatKg(data?.total_kg)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3.5 sm:p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Mezclas</p>
+          <p className="mt-1.5 text-lg font-black tabular-nums text-foreground">{formatKg(data?.mixtures_total_kg)}</p>
+        </div>
+        <div className={`rounded-xl border p-3.5 sm:p-4 ${noQrKg > 0 ? 'border-warning/40 bg-warning/10' : 'border-success/30 bg-success/10'}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Material sin QR</p>
+          <p className={`mt-1.5 text-lg font-black tabular-nums ${noQrKg > 0 ? 'text-warning' : 'text-success'}`}>
+            {noQrKg > 0 ? formatKg(noQrKg) : 'Todo etiquetado'}
+          </p>
+        </div>
       </section>
 
       <div role="tablist" aria-label="Secciones de WIP de Extrusión" className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-muted/30 p-2">
@@ -264,7 +275,7 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
       </div>
 
       <section role="tabpanel" id="wip-panel-wip" aria-labelledby="wip-tab-wip" tabIndex={0} hidden={activeTab !== 'wip'} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border p-4 sm:p-5 sm:pr-20 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-lg font-bold text-foreground">Materiales y lotes</h2>
             <p className="text-sm text-muted-foreground">Busca por material, código o lote. Solo consulta; no cambia existencias.</p>
@@ -293,7 +304,7 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-b border-border bg-muted/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border bg-muted/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-start sm:gap-6">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm text-muted-foreground" aria-live="polite">
               {qrSelectionMode
@@ -408,7 +419,7 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
             ))}
           </div>
           <div className="hidden overflow-x-auto xl:block">
-            <table aria-label="Existencias WIP de Extrusión" className="w-full min-w-[920px] table-fixed border-separate border-spacing-0 text-left text-sm">
+            <table aria-label="Existencias WIP de Extrusión" className="w-full min-w-[1150px] table-fixed border-separate border-spacing-0 text-left text-sm">
               <thead>
                 <tr>
                   {qrSelectionMode && (
@@ -425,13 +436,13 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
                       </label>
                     </th>
                   )}
-                  <th scope="col" className="w-[150px] border-b border-border bg-secondary px-3 py-3 text-left font-black uppercase tracking-wider text-secondary-foreground">Material</th>
-                  <th scope="col" className="w-[115px] border-b border-border bg-secondary px-3 py-3 text-left font-black uppercase tracking-wider text-secondary-foreground">Lote / referencia</th>
-                  <th scope="col" className="w-[115px] border-b border-border bg-secondary px-3 py-3 text-left font-black uppercase tracking-wider text-secondary-foreground">QR</th>
-                  <th scope="col" className="w-[130px] border-b border-border bg-secondary px-3 py-3 text-right font-black uppercase tracking-wider text-secondary-foreground">Saldo disponible</th>
-                  <th scope="col" className="w-[120px] border-b border-border bg-secondary px-3 py-3 text-left font-black uppercase tracking-wider text-secondary-foreground">Etiqueta QR</th>
-                  <th scope="col" className="w-[130px] border-b border-border bg-secondary px-3 py-3 text-left font-black uppercase tracking-wider text-secondary-foreground">Actualizado</th>
-                  <th scope="col" className="w-[160px] border-b border-border bg-secondary px-2 py-3 text-right font-black uppercase tracking-wider text-secondary-foreground">Acciones</th>
+                  <th scope="col" className="w-[190px] border-b border-border bg-secondary px-4 py-4 text-left font-black uppercase tracking-wider text-secondary-foreground">Material</th>
+                  <th scope="col" className="w-[145px] border-b border-border bg-secondary px-4 py-4 text-left font-black uppercase tracking-wider text-secondary-foreground">Lote / referencia</th>
+                  <th scope="col" className="w-[150px] border-b border-border bg-secondary px-4 py-4 text-left font-black uppercase tracking-wider text-secondary-foreground">QR</th>
+                  <th scope="col" className="w-[135px] border-b border-border bg-secondary px-4 py-4 text-right font-black uppercase tracking-wider text-secondary-foreground">Saldo disponible</th>
+                  <th scope="col" className="w-[140px] border-b border-border bg-secondary px-4 py-4 text-left font-black uppercase tracking-wider text-secondary-foreground">Etiqueta QR</th>
+                  <th scope="col" className="w-[150px] border-b border-border bg-secondary px-4 py-4 text-left font-black uppercase tracking-wider text-secondary-foreground">Actualizado</th>
+                  <th scope="col" className="w-[190px] border-b border-border bg-secondary px-3 py-4 text-right font-black uppercase tracking-wider text-secondary-foreground">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -452,24 +463,24 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
                           </label>
                         </td>
                       )}
-                        <td className="break-words border-b border-border/50 px-3 py-3">
+                        <td className="break-words border-b border-border/50 px-4 py-4">
                         <div className="font-bold text-foreground">{item.material?.name || 'Material sin catálogo'}</div>
                           <div className="mt-0.5 break-all font-mono text-sm text-muted-foreground">{item.material?.internal_code || 'Sin código interno'}</div>
                       </td>
-                        <td className="break-all border-b border-border/50 px-3 py-3 font-mono text-sm text-foreground">{item.lote?.folio || 'Sin folio de lote'}</td>
-                        <td className="break-all border-b border-border/50 px-3 py-3 font-mono text-sm text-muted-foreground">{item.qr_code || 'No asociado'}</td>
-                        <td className="border-b border-border/50 px-3 py-3 text-right font-mono text-lg font-bold tabular-nums text-primary">{formatKg(item.amount_kg)}</td>
-                        <td className="border-b border-border/50 px-3 py-3">
+                        <td className="break-all border-b border-border/50 px-4 py-4 font-mono text-sm text-foreground">{item.lote?.folio || 'Sin folio de lote'}</td>
+                        <td className="break-all border-b border-border/50 px-4 py-4 font-mono text-sm text-muted-foreground">{item.qr_code || 'No asociado'}</td>
+                        <td className="border-b border-border/50 px-4 py-4 text-right font-mono text-lg font-bold tabular-nums text-primary">{formatKg(item.amount_kg)}</td>
+                        <td className="border-b border-border/50 px-4 py-4">
                         {item.has_scannable_qr ? (
                           <Badge variant="success">QR listo</Badge>
                         ) : (
                           <Badge variant="warning">Sin etiqueta QR</Badge>
                         )}
                       </td>
-                        <td className="border-b border-border/50 px-3 py-3 text-sm text-muted-foreground">{formatDateTime(item.updated_at)}</td>
-                        <td className="border-b border-border/50 px-2 py-3">
-                          <div className="flex justify-end gap-1">
-                          <Button type="button" variant="outline" size="sm" className="min-h-11 gap-1 px-2" disabled={!item.has_scannable_qr || !item.qr_code || !item.qr_uuid} onClick={() => handleDownloadQrPdf([item])} title={item.has_scannable_qr ? 'Descargar etiqueta PDF individual' : 'Este material no tiene etiqueta QR disponible'} aria-label={`Descargar etiqueta PDF de ${item.material?.name || 'material WIP'}`}>
+                        <td className="border-b border-border/50 px-4 py-4 text-sm text-muted-foreground">{formatDateTime(item.updated_at)}</td>
+                        <td className="border-b border-border/50 px-3 py-4">
+                          <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" size="sm" className="min-h-11 gap-1 px-3" disabled={!item.has_scannable_qr || !item.qr_code || !item.qr_uuid} onClick={() => handleDownloadQrPdf([item])} title={item.has_scannable_qr ? 'Descargar etiqueta PDF individual' : 'Este material no tiene etiqueta QR disponible'} aria-label={`Descargar etiqueta PDF de ${item.material?.name || 'material WIP'}`}>
                             <Icon name="picture_as_pdf" size={17} />
                             PDF
                           </Button>
@@ -477,7 +488,7 @@ export const ExtrusionWipInventoryPage: React.FC = () => {
                             type="button"
                             variant={expandedWipId === item.id ? 'secondary' : 'outline'}
                             size="sm"
-                            className="min-h-11 gap-1 px-2"
+                            className="min-h-11 gap-1 px-3"
                             aria-expanded={expandedWipId === item.id}
                             aria-controls={`wip-detail-${item.id}`}
                             onClick={() => setExpandedWipId((current) => current === item.id ? null : item.id)}

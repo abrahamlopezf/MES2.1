@@ -165,7 +165,7 @@ const MaterialLotesPageContent = () => {
 
       const uuids = lotsWithQRs.map((lote: any) => lote.qr_code.uuid);
 
-      const response = await axiosClient.post('/qr/print-multiple', { uuids }, { responseType: 'blob' });
+      const response = await axiosClient.post('/qr/print-multiple', { uuids }, { responseType: 'blob', timeout: 180000 });
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -178,11 +178,26 @@ const MaterialLotesPageContent = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       
     } catch (error) {
       console.error('Error al descargar QRs:', error);
-      alert('Ocurrió un error al intentar descargar los códigos QR.');
+      const responseData = (error as any)?.response?.data;
+      let message = (error as any)?.friendlyMessage || (error as any)?.message;
+      if (responseData instanceof Blob) {
+        try {
+          const body = JSON.parse(await responseData.text());
+          message = body.message || body.error || message;
+        } catch {
+          // La respuesta puede ser HTML o texto plano si falló el servidor proxy.
+        }
+      } else if (responseData?.message || responseData?.error) {
+        message = responseData.message || responseData.error;
+      }
+      if ((error as any)?.code === 'ECONNABORTED') {
+        message = 'La generación del PDF tardó más de lo esperado. Intenta descargar los lotes en grupos más pequeños.';
+      }
+      alert(message || 'Ocurrió un error al intentar descargar los códigos QR.');
     } finally {
       setIsDownloadingQRs(false);
     }

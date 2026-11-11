@@ -595,10 +595,47 @@ const getQrCodeByValue = async (qrCodeValue, currentUser) => {
 };
 
 const getQrCodesByUuids = async (uuids, currentUser) => {
+  const requestedUuids = [...new Set((Array.isArray(uuids) ? uuids : [])
+    .filter((uuid) => typeof uuid === 'string' && uuid.trim())
+    .map((uuid) => uuid.trim()))];
+
+  if (!requestedUuids.length) return [];
+
+  const roleCode = String(currentUser?.role?.code || '').toUpperCase();
+  const userAreaId = getUserAreaId(currentUser);
+  const isWarehouseUser = ['ADMIN_ALM', 'WAREHOUSEMAN'].includes(roleCode)
+    || Number(userAreaId) === 1;
+
+  // Warehouse lot QR codes are valid for printing from the lot ledger even when
+  // their QR record has no assigned_area_id (or a stale area assignment).
+  // Scope the exception through Lote.qr_id so it cannot expose arbitrary QRs.
+  if (isWarehouseUser) {
+    const { Lote } = require('../../database/models');
+    const warehouseLots = await Lote.findAll({
+      attributes: ['qr_id'],
+      where: { qr_id: { [Op.not]: null } },
+      include: [{
+        model: QrCode,
+        as: 'qr_code',
+        attributes: [],
+        required: true,
+        where: { uuid: { [Op.in]: requestedUuids } },
+      }],
+      raw: true,
+    });
+    const linkedQrIds = [...new Set(warehouseLots.map((lot) => lot.qr_id).filter(Boolean))];
+    if (!linkedQrIds.length) return [];
+
+    return QrCode.findAll({
+      where: { id: { [Op.in]: linkedQrIds } },
+      include: qrInclude,
+    });
+  }
+
   const where = {
     ...getQrVisibilityWhere(currentUser),
     uuid: {
-      [Op.in]: uuids
+      [Op.in]: requestedUuids
     }
   };
 

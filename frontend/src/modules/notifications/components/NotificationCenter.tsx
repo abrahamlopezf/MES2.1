@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { UserAvatar } from '../../../components/ui/UserAvatar';
 import { BrowserNotificationBanner } from '../../../core/notifications/BrowserNotificationBanner';
 import { sendBrowserNotification } from '../../../core/notifications/browserNotifications';
+import { SystemClock } from '@/shared/components/SystemClock';
 
 export const NotificationCenter = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -126,7 +127,8 @@ export const NotificationCenter = () => {
   return (
     <>
       {/* Top-right pill: avatar (md+) + bell */}
-      <div className="fixed top-2 right-2 z-[50] sm:top-4 sm:right-4">
+      <div className="fixed top-2 right-2 z-[50] flex items-center rounded-full border border-border bg-card p-1 shadow-lg shadow-black/10 sm:top-4 sm:right-4">
+        <SystemClock />
         {/* Profile and notifications share one desktop menu trigger. */}
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -134,7 +136,7 @@ export const NotificationCenter = () => {
           aria-expanded={isDropdownOpen}
           aria-controls="notification-dropdown"
           data-ignore-accessibility-min-height="true"
-          className={`flex h-12 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-lg shadow-black/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDropdownOpen ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/25 hover:bg-secondary/40'}`}
+          className={`flex h-12 items-center gap-1 rounded-full border border-border bg-card p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDropdownOpen ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/25 hover:bg-secondary/40'}`}
           title="Perfil y notificaciones"
         >
           <span className="hidden size-10 shrink-0 items-center justify-center md:flex">

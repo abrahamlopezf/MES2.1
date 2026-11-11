@@ -7,7 +7,6 @@ import {
   useFloorFormulasQuery,
   useSwitchQueueMutation,
   useEnqueueMixMutation,
-  usePtiRacksQuery,
   usePtiProductsQuery,
   useScanRackPtiMutation
 } from '../../hooks/useExtrusionFloorQueries';
@@ -34,7 +33,6 @@ export const ExtrusionBoardContainer: React.FC = () => {
 
   const switchMutation = useSwitchQueueMutation();
   const enqueueMutation = useEnqueueMixMutation();
-  const { data: ptiRacks = [] } = usePtiRacksQuery();
   const { data: ptiProducts = [] } = usePtiProductsQuery({ is_active: true });
   const scanRackPtiMutation = useScanRackPtiMutation();
   const { data: machines = [] } = useQuery({
@@ -65,7 +63,6 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [isPendingPtiPromptOpen, setIsPendingPtiPromptOpen] = useState(false);
   const [pendingPtiStep, setPendingPtiStep] = useState<'QUESTION' | 'QUICK_INGRESS'>('QUESTION');
-  const [quickRackId, setQuickRackId] = useState<number | ''>('');
   const [quickPtiProductId, setQuickPtiProductId] = useState<number | ''>('');
   const [quickPieces, setQuickPieces] = useState('');
   const [targetQueue, setTargetQueue] = useState<ExtruderQueue | null>(null);
@@ -154,32 +151,29 @@ export const ExtrusionBoardContainer: React.FC = () => {
   const handleStartQuickPtiIngress = () => {
     const linkedPtiId = Number(activeQueue?.output_pti_product_id || activeQueue?.formula?.ptiProducts?.[0]?.id || 0);
     setQuickPtiProductId(linkedPtiId || '');
-    setQuickRackId('');
     setQuickPieces('');
     setPendingPtiStep('QUICK_INGRESS');
   };
 
   const handleConfirmQuickPtiIngress = async () => {
     if (!activeQueue || !targetQueue) return;
-    const rack = ptiRacks.find((item) => Number(item.id) === Number(quickRackId));
     const product = ptiProducts.find((item: PtiProduct) => Number(item.id) === Number(quickPtiProductId));
     const pieces = Number(quickPieces);
-    if (!rack || !product || !Number.isInteger(pieces) || pieces <= 0) {
-      toast.error('Selecciona un rack, el PTI de la mezcla activa y una cantidad válida de bobinas.');
+    if (!product || !Number.isInteger(pieces) || pieces <= 0) {
+      toast.error('Selecciona el PTI de la mezcla activa y una cantidad válida de bobinas.');
       return;
     }
     try {
       const result = await scanRackPtiMutation.mutateAsync({
-        rack_qr: rack.qr_code,
         pti_material_id: product.id,
         quantity: pieces,
         mixture_qr: activeQueue.consumption_order_qr_id,
-        unit_price: Number(rack.unit_price || product.unit_price || 0) || undefined,
+        unit_price: Number(product.unit_price || 0) || undefined,
       });
       const rackAssignments = result?.racks || result?.data?.racks;
       const assignmentSummary = Array.isArray(rackAssignments)
         ? rackAssignments.map((assignment: any) => `${assignment.pieces_added} en ${assignment.rack_code}`).join(', ')
-        : rack.rack_code;
+        : 'racks compatibles';
       toast.success(`${pieces} bobina(s) registradas: ${assignmentSummary}.`);
       setIsPendingPtiPromptOpen(false);
       openSwitchModal(targetQueue, activeQueue, prioritizeFormulaId ?? undefined);
@@ -351,10 +345,7 @@ export const ExtrusionBoardContainer: React.FC = () => {
       onRemainingMixDispositionChange={setRemainingMixDisposition}
       estimatedTransitionScrapKg={Number(((Number(targetQueue?.preparation?.remaining_quantity_kg || 0) * (Number(purgePercentage) || 0)) / 100).toFixed(3))}
       pendingPtiStep={pendingPtiStep}
-      quickRacks={ptiRacks}
       quickPtiProducts={ptiProducts.filter((product: PtiProduct) => Number(product.formula_id) === Number(activeQueue?.formula_id))}
-      quickRackId={quickRackId}
-      onQuickRackChange={setQuickRackId}
       quickPtiProductId={quickPtiProductId}
       onQuickPtiProductChange={setQuickPtiProductId}
       quickPieces={quickPieces}

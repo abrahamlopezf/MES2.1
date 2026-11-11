@@ -126,16 +126,21 @@ export const MixingTerminalPage: React.FC = () => {
     setIsPrintModalOpen(true);
   };
 
+  const handleContinuePausedMix = () => {
+    setSelectedTicket(null);
+    setIsCreatingDirectMix(true);
+  };
+
   return (
       <div className="extrusion-workspace min-h-screen p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-5 pb-32">
       {/* Header Banner Estandarizado */}
       <section className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:px-6 sm:py-4 w-full shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3.5">
+          <div className="flex min-w-0 items-center gap-3.5">
             <div className="p-3 rounded-2xl bg-primary/10 text-primary border border-primary/20 shrink-0">
               <Icon name="blender" size={28} />
             </div>
-              <div className="min-w-0">
+              <div className="min-w-0 max-w-2xl">
               <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
                 {showForm 
                   ? (selectedTicket ? `Atender solicitud ${selectedTicket.folio}` : 'Preparar mezcla')
@@ -151,7 +156,7 @@ export const MixingTerminalPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
+          <div className="flex w-full flex-col justify-end gap-2 sm:w-auto min-[520px]:flex-row min-[520px]:items-center">
             {showForm ? (
               <Button
                 variant="outline"
@@ -173,7 +178,7 @@ export const MixingTerminalPage: React.FC = () => {
                     refetchHistory();
                     toast.info('Historial actualizado.');
                   }}
-                  className="gap-2 font-bold h-11 px-4 text-sm border border-border"
+                  className="min-h-12 gap-2 px-4 text-sm font-bold border border-border"
                   title="Refrescar datos"
                 >
                   <Icon name="refresh" size={18} />
@@ -186,7 +191,7 @@ export const MixingTerminalPage: React.FC = () => {
                       setSelectedTicket(null);
                       setIsCreatingDirectMix(true);
                     }}
-                    className="gap-2 font-black h-11 px-5 text-sm shadow bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="min-h-12 gap-2 px-5 text-sm font-black shadow bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     <Icon name="add" size={20} />
                     Preparar Nueva Mezcla
@@ -335,8 +340,8 @@ export const MixingTerminalPage: React.FC = () => {
           {/* VISTA 2: HISTORIAL DE MEZCLAS Y RECUPERACIÓN DE ETIQUETAS QR */}
           {(!SHOW_TICKETS || activeTab === 'history') && (
             <Card className="border-border shadow-sm">
-              <CardHeader className="bg-muted/30 border-b border-border pb-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardHeader className="bg-muted/30 border-b border-border pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary">
                       <Icon name="history" size={20} />
@@ -357,23 +362,34 @@ export const MixingTerminalPage: React.FC = () => {
                       </p>
                     </div>
                   </div>
+                </div>
+              </CardHeader>
 
+              {/* Filtros separados del encabezado para que sean fáciles de localizar */}
+              <div className="border-b border-border bg-background/30 p-4 sm:p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2.5">
+                    <Icon name="filter_list" size={20} className="mt-0.5 shrink-0 text-primary" />
+                    <div>
+                      <p className="text-base font-bold text-foreground">Filtrar historial</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">Filtra por fórmula o periodo y ordena las preparaciones.</p>
+                    </div>
+                  </div>
                   {hasActiveFilters && (
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       onClick={handleResetFilters}
-                      className="gap-1.5 min-h-11 px-3 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted self-start sm:self-auto border border-border rounded-lg"
+                      className="min-h-11 gap-2 px-3 text-sm font-bold sm:self-center"
                     >
-                      <Icon name="filter_alt_off" size={14} />
-                      <span>Limpiar Filtros</span>
+                      <Icon name="filter_alt_off" size={16} />
+                      <span>Limpiar filtros</span>
                     </Button>
                   )}
                 </div>
 
-                {/* Barra de Filtros Operativos: Fórmulas, Orden de Fecha y Rango de Fechas */}
-                <div className="grid grid-cols-1 gap-3 pt-1 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(27rem,1.3fr)]">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {/* 1. Filtro por Fórmula */}
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1.5">
                     <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="science" size={14} className="text-primary" />
                       <span>Filtrar por Fórmula</span>
@@ -382,7 +398,7 @@ export const MixingTerminalPage: React.FC = () => {
                       <select
                         value={historyFormulaFilter}
                         onChange={(e) => setHistoryFormulaFilter(e.target.value)}
-                        className="w-full min-h-12 bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
+                        className="h-14 w-full bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
                       >
                         <option value="ALL">Todas las Fórmulas ({availableFormulasForFilter.length})</option>
                         {availableFormulasForFilter.map((f) => (
@@ -398,7 +414,7 @@ export const MixingTerminalPage: React.FC = () => {
                   </div>
 
                   {/* 2. Orden por Fecha */}
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1.5">
                     <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="sort" size={14} className="text-primary" />
                       <span>Orden por Fecha</span>
@@ -407,7 +423,7 @@ export const MixingTerminalPage: React.FC = () => {
                       <select
                         value={historySortOrder}
                         onChange={(e) => setHistorySortOrder(e.target.value as 'ASC' | 'DESC')}
-                        className="w-full min-h-12 bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
+                        className="h-14 w-full bg-background border border-border rounded-xl pl-3 pr-8 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none appearance-none cursor-pointer"
                       >
                         <option value="DESC">Más recientes primero</option>
                         <option value="ASC">Más antiguas primero (FIFO)</option>
@@ -419,38 +435,37 @@ export const MixingTerminalPage: React.FC = () => {
                   </div>
 
                   {/* 3. Filtro por Rango de Fechas (Desde / Hasta) */}
-                  <div className="space-y-1 md:col-span-2 xl:col-span-1">
+                  <div className="min-w-0 space-y-1.5">
                     <label className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Icon name="calendar_today" size={14} className="text-primary" />
-                      <span>Rango de fechas</span>
+                      <span>Fecha desde</span>
                     </label>
-                    <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
-                      <label className="block min-w-0 space-y-1 text-sm font-semibold text-muted-foreground">
-                        <span>Desde</span>
-                        <Input
-                          type="date"
-                          title="Fecha Desde"
-                          value={historyDateFrom}
-                          onChange={(e) => setHistoryDateFrom(e.target.value)}
-                          aria-label="Fecha desde"
-                          className="min-h-12 w-full min-w-0 text-base font-medium bg-background border border-border px-2 rounded-xl"
-                        />
-                      </label>
-                      <label className="block min-w-0 space-y-1 text-sm font-semibold text-muted-foreground">
-                        <span>Hasta</span>
-                        <Input
-                          type="date"
-                          title="Fecha Hasta"
-                          value={historyDateTo}
-                          onChange={(e) => setHistoryDateTo(e.target.value)}
-                          aria-label="Fecha hasta"
-                          className="min-h-12 w-full min-w-0 text-base font-medium bg-background border border-border px-2 rounded-xl"
-                        />
-                      </label>
-                    </div>
+                    <Input
+                      type="date"
+                      title="Fecha Desde"
+                      value={historyDateFrom}
+                      onChange={(e) => setHistoryDateFrom(e.target.value)}
+                      aria-label="Fecha desde"
+                      className="min-h-12 w-full min-w-0 text-base font-medium bg-background border border-border px-2 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="min-w-0 space-y-1.5">
+                    <label className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <Icon name="event" size={14} className="text-primary" />
+                      <span>Fecha hasta</span>
+                    </label>
+                    <Input
+                      type="date"
+                      title="Fecha Hasta"
+                      value={historyDateTo}
+                      onChange={(e) => setHistoryDateTo(e.target.value)}
+                      aria-label="Fecha hasta"
+                      className="min-h-12 w-full min-w-0 text-base font-medium bg-background border border-border px-2 rounded-xl"
+                    />
                   </div>
                 </div>
-              </CardHeader>
+              </div>
 
               <CardContent className="p-0">
                 {isLoadingHistory ? (
@@ -512,8 +527,8 @@ export const MixingTerminalPage: React.FC = () => {
                               <span className="font-mono font-black text-sm text-foreground bg-muted/60 px-2 py-1 rounded border border-border">
                                 {mix.folio}
                               </span>
-                              <Badge variant="success" className="min-h-8 font-bold text-sm px-2.5 py-1">
-                                PREPARADA
+                              <Badge variant={mix.status === 'BORRADOR_PAUSADO' ? 'warning' : 'success'} className="min-h-8 font-bold text-sm px-2.5 py-1">
+                                {mix.status === 'BORRADOR_PAUSADO' ? 'PAUSADA · PENDIENTE' : 'PREPARADA'}
                               </Badge>
                               <span className="text-sm text-muted-foreground font-medium">
                                 {formattedDate}
@@ -532,13 +547,22 @@ export const MixingTerminalPage: React.FC = () => {
 
                             <details className="rounded-lg border border-border bg-background/40">
                               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 text-base font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                <span>Ver contenedores y notas</span>
+                                <span>{mix.status === 'BORRADOR_PAUSADO' ? 'Ver avance guardado' : 'Ver contenedores y notas'}</span>
                                 <span className="flex shrink-0 items-center gap-2">
-                                  <span className="rounded-md bg-muted px-2 py-1 font-mono text-sm text-foreground">{containers.length}</span>
+                                  <span className="rounded-md bg-muted px-2 py-1 font-mono text-sm text-foreground">{mix.status === 'BORRADOR_PAUSADO' ? `${mix.draft_input_count || 0} insumos` : containers.length}</span>
                                   <Icon name="expand_more" size={20} className="text-muted-foreground" aria-hidden="true" />
                                 </span>
                               </summary>
                               <div className="space-y-3 border-t border-border p-3">
+                                {mix.status === 'BORRADOR_PAUSADO' && (
+                                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                                    <p className="font-bold text-foreground">Preparación detenida antes del registro final</p>
+                                    <p className="mt-1 text-muted-foreground">{mix.draft_input_count || 0} insumos capturados · {Number(mix.draft_consumed_quantity || 0).toFixed(2)} kg consumidos del WIP · {Number(mix.draft_reserved_quantity || 0).toFixed(2)} kg reservados para esta preparación. El PP de silos aún no se ha consumido.</p>
+                                    {(mix.metadata?.mix_draft?.inputs || []).map((input: any) => (
+                                      <p key={input.qr_code} className="mt-1 break-all font-mono text-xs text-foreground">{input.qr_code} · {Number(input.quantity || 0).toFixed(2)} kg</p>
+                                    ))}
+                                  </div>
+                                )}
                                 {cameFromSilo && (
                                   <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                                     <Icon name="hub" size={17} />
@@ -576,21 +600,18 @@ export const MixingTerminalPage: React.FC = () => {
                           <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-3 shrink-0">
                             <div className="text-left md:text-right">
                               <p className="text-2xl font-black text-foreground font-mono tabular-nums">
-                                {Number(mix.total_quantity).toFixed(2)} Kg
+                                {mix.status === 'BORRADOR_PAUSADO' ? 'Pendiente' : `${Number(mix.total_quantity).toFixed(2)} Kg`}
                               </p>
                               <p className="text-sm font-semibold text-muted-foreground">
-                                {containers.length} {containers.length === 1 ? 'contenedor' : 'contenedores'}
+                                {mix.status === 'BORRADOR_PAUSADO' ? `${mix.metadata?.mix_draft?.container_count || 1} contenedor(es) previstos` : `${containers.length} ${containers.length === 1 ? 'contenedor' : 'contenedores'}`}
                               </p>
                             </div>
 
-                            <Button
-                              type="button"
-                              onClick={() => handleOpenMixQrs(mix)}
-                              className="gap-2 font-black shadow bg-primary text-primary-foreground hover:bg-primary/90 min-h-12 px-4 text-base rounded-xl"
-                            >
-                              <Icon name="qr_code" size={18} />
-                              <span>Ver / Reimprimir QR</span>
-                            </Button>
+                            {mix.status === 'BORRADOR_PAUSADO' ? (
+                              <Button type="button" onClick={handleContinuePausedMix} className="gap-2 font-black shadow bg-primary text-primary-foreground hover:bg-primary/90 min-h-12 px-4 text-base rounded-xl"><Icon name="play_arrow" size={18} /><span>Reanudar preparación</span></Button>
+                            ) : (
+                              <Button type="button" onClick={() => handleOpenMixQrs(mix)} className="gap-2 font-black shadow bg-primary text-primary-foreground hover:bg-primary/90 min-h-12 px-4 text-base rounded-xl"><Icon name="qr_code" size={18} /><span>Ver / Reimprimir QR</span></Button>
+                            )}
                           </div>
                         </div>
                       );

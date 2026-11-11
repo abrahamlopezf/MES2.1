@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Badge, Icon } from '@/design-system';
 import { apiClient } from '@/core/api/apiClient';
 import { getClientAllowedExtruders, getClientFormulaKind, isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
@@ -54,6 +54,20 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const { data: queueGroups = [] } = useExtruderQueuesQuery();
   const { data: registeredPtis = [] } = usePtiProductsQuery({ is_active: true });
   const mutation = useMixFormula();
+  const queryClient = useQueryClient();
+  const [pausedPreparationId, setPausedPreparationId] = useState<number | null>(null);
+  const [consumedQrCodes, setConsumedQrCodes] = useState<Set<string>>(new Set());
+  const pauseRequestInFlight = useRef(false);
+  const { data: pausedDrafts = [], refetch: refetchPausedDrafts } = useQuery({
+    queryKey: ['extrusion', 'mix-drafts'],
+    queryFn: async () => {
+      const response: any = await apiClient.get('/extrusion/mix-drafts');
+      const data = response?.data?.data ?? response?.data ?? [];
+      return Array.isArray(data) ? data : [];
+    },
+    refetchInterval: 10000,
+    refetchOnWindowFocus: 'always',
+  });
 
   // Catálogo de extrusoras y fórmulas compatibles; los silos se consultan aparte para el mezclador.
   const { data: machinesData } = useQuery({
@@ -83,6 +97,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const silos: any[] = Array.isArray(silosData) ? silosData : [];
 
   const [formulaId, setFormulaId] = useState('');
+  const [mixingStep, setMixingStep] = useState<1 | 2>(1);
   const [selectedColor, setSelectedColor] = useState('');
   // 1. Selector de QRs para dividir un solo lote total entre N contenedores.
   const [containerCount, setContainerCount] = useState<number>(1);
@@ -520,7 +535,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
     setIsValidatingQr(true);
     try {
-      const childData = await fetchWipChildQr(cleanQr);
+      const childData = await fetchWipChildQr(cleanQr, pausedPreparationId);
 
       // Bloquear escaneo de Polipropileno (PP)
       if (isPpMaterial(childData)) {
@@ -604,8 +619,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     const existingIndex = inputs.findIndex(i => (i.qr_code || '').trim().toUpperCase() === recognizedChildQr.qr_code.trim().toUpperCase());
     const previousQrQuantity = existingIndex >= 0 ? Number(inputs[existingIndex].quantity) || 0 : 0;
     const combinedQrQuantity = Number((previousQrQuantity + qty).toFixed(3));
-    if (combinedQrQuantity > Number(recognizedChildQr.available_amount) + 0.005) {
-      const remainingOnQr = Math.max(0, Number((Number(recognizedChildQr.available_amount) - previousQrQuantity).toFixed(2)));
+    const alreadyConsumedForQr = consumedQrCodes.has(recognizedChildQr.qr_code.trim().toUpperCase()) ? previousQrQuantity : 0;
+    const totalAllowanceForQr = Number(recognizedChildQr.available_amount) + alreadyConsumedForQr;
+    if (combinedQrQuantity > totalAllowanceForQr + 0.005) {
+      const remainingOnQr = Math.max(0, Number((totalAllowanceForQr - previousQrQuantity).toFixed(2)));
       toast.error(`Este QR ya aporta ${previousQrQuantity.toFixed(2)} kg. Solo puedes agregar ${remainingOnQr.toFixed(2)} kg más (disponible total: ${Number(recognizedChildQr.available_amount).toFixed(2)} kg).`);
       return;
     }
@@ -667,11 +684,74 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   };
 
   const removeInput = (index: number) => {
+    if (consumedQrCodes.has((inputs[index]?.qr_code || '').trim().toUpperCase())) {
+      toast.error('Este insumo ya fue confirmado como utilizado; no se puede retirar del borrador.');
+      return;
+    }
     setInputs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const resumeMixDraft = (draft: any) => {
+    const snapshot = draft.metadata?.mix_draft;
+    if (!snapshot) return toast.error('El borrador no contiene una configuración válida.');
+    setPausedPreparationId(Number(draft.id));
+    setFormulaId(String(snapshot.formula_id || draft.formula_id));
+    setSelectedColor(snapshot.output_color || '');
+    setContainerCount(Number(snapshot.container_count || 1));
+    setSelectedExtruderId(snapshot.extruder_id ? Number(snapshot.extruder_id) : 'AUTO');
+    setNotes(snapshot.notes || '');
+    setInputs(Array.isArray(snapshot.inputs) ? snapshot.inputs : []);
+    setConsumedQrCodes(new Set((draft.consumed_inputs || []).map((row: any) => String(row.qr_code || '').trim().toUpperCase()).filter(Boolean)));
+    setMixingStep(2);
+    toast.success(`Se reanudó ${draft.folio}. Los insumos ya confirmados aparecen protegidos contra doble consumo.`);
+  };
+
+  const pauseMixDraft = async (confirmInputsConsumed: boolean) => {
+    if (pauseRequestInFlight.current) return;
+    if (!formulaId) return toast.error('Selecciona una fórmula antes de guardar la pausa.');
+    if (confirmInputsConsumed && !window.confirm('¿Confirmas que todos los aditivos agregados a la lista ya se dosificaron físicamente? Se descontarán ahora del WIP y no se podrán retirar del borrador. El PP de silos se consumirá al registrar la mezcla final.')) return;
+    pauseRequestInFlight.current = true;
+    try {
+      const response: any = await apiClient.post('/extrusion/mix-drafts', {
+        preparation_id: pausedPreparationId || undefined,
+        formula_id: Number(formulaId),
+        output_color: selectedColor || undefined,
+        container_count: containerCount,
+        extruder_id: selectedExtruderId === 'AUTO' ? undefined : Number(selectedExtruderId),
+        inputs: inputs.map((item) => ({ qr_code: item.qr_code, quantity: Number(item.quantity) })),
+        notes: notes.trim() || undefined,
+        confirm_inputs_consumed: confirmInputsConsumed,
+      });
+      const draft = response?.data?.data ?? response?.data;
+      await Promise.all([
+        refetchPausedDrafts(),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'formula-details'] }),
+        queryClient.invalidateQueries({ queryKey: ['extrusion', 'wip-inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] }),
+      ]);
+      toast.success(`Preparación ${draft?.folio || ''} pausada y guardada.`);
+      onCancel?.();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'No se pudo guardar la preparación pausada.');
+    } finally {
+      pauseRequestInFlight.current = false;
+    }
+  };
+
+  const discardMixDraft = async (draft: any) => {
+    if (!window.confirm(`¿Descartar ${draft.folio} y empezar de nuevo? Solo se puede si ningún insumo fue confirmado como consumido.`)) return;
+    try {
+      await apiClient.delete(`/extrusion/mix-drafts/${draft.id}`);
+      await refetchPausedDrafts();
+      toast.success('Borrador descartado; puedes empezar una preparación nueva.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'No se pudo descartar. Si ya se descontó material, debes continuar la preparación.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mixingStep !== 2) return;
     if (!hasLinkedActivePti) {
       toast.error('Registra y enlaza un PTI activo a esta fórmula antes de preparar la mezcla.');
       return;
@@ -706,7 +786,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       output_color: getFormulaColorLabel(selectedFormula) || undefined,
       // El backend distribuye el consumo entre ambos silos por stock disponible.
       silo_inputs: [],
-      preparation_id: ticket?.id,
+      preparation_id: pausedPreparationId || ticket?.id,
       container_count: containerCount,
       extruder_id: selectedExtruderId === 'AUTO' ? undefined : Number(selectedExtruderId),
       inputs: inputs.map(i => ({ qr_code: i.qr_code, quantity: Number(i.quantity) })),
@@ -748,6 +828,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
         // Limpiar formulario operativo
         setInputs([]);
+        setPausedPreparationId(null);
+        setConsumedQrCodes(new Set());
         setNotes('');
         setContainerCount(1);
         // NOTA: No llamamos onSuccess() aquí porque desmontaría MixingTerminalForm
@@ -762,72 +844,71 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   return (
     <div className="space-y-5">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* 1. Alerta de Verificación de Materiales en el Área WIP (Extrusión) */}
-      {formulaDetails && (
-        <div className={`p-4 rounded-xl border-2 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md ${
-          allWipAvailable
-            ? 'bg-emerald-50 border-emerald-400 text-emerald-950 dark:bg-[#072417] dark:border-emerald-500/80 dark:text-emerald-100'
-            : 'bg-amber-50 border-amber-400 text-amber-950 dark:bg-[#281706] dark:border-amber-500/80 dark:text-amber-100'
-        }`}>
-          <div className="flex items-start md:items-center gap-3.5 flex-1 min-w-0">
-            <div className={`p-2.5 rounded-xl shrink-0 border shadow-sm ${
-              allWipAvailable
-                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-700 dark:text-emerald-300'
-                : 'bg-amber-500/25 border-amber-500/60 text-amber-700 dark:text-amber-300'
-            }`}>
-              <Icon name={allWipAvailable ? 'verified' : 'warning'} size={24} />
+      {pausedDrafts.length > 0 && !pausedPreparationId && (
+        <section aria-label="Preparaciones pausadas" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-base font-bold text-foreground">Preparaciones pausadas</h3>
+              <p className="text-sm text-muted-foreground">Retoma el avance guardado para continuar con la misma mezcla.</p>
             </div>
-            <div className="space-y-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h4 className={`font-black text-base leading-snug ${
-                  allWipAvailable
-                    ? 'text-emerald-900 dark:text-emerald-300'
-                    : 'text-amber-900 dark:text-amber-300'
-                }`}>
-                  {allWipAvailable
-                    ? 'Materiales Suficientes en WIP Extrusión'
-                    : 'Atención: Materiales Insuficientes en WIP Extrusión'}
-                </h4>
-                <Badge
-                  variant={allWipAvailable ? 'success' : 'warning'}
-                  className="font-mono text-[11px] font-black uppercase shrink-0 px-2.5 py-0.5 shadow-xs"
-                >
-                  {allWipAvailable ? 'Inventario OK' : 'Faltan Insumos'}
-                </Badge>
-              </div>
-              <p className={`text-base font-semibold leading-relaxed ${
-                allWipAvailable
-                  ? 'text-emerald-800 dark:text-emerald-100'
-                  : 'text-amber-800 dark:text-amber-100'
-              }`}>
-                {allWipAvailable
-                  ? 'El área de Extrusión cuenta con aditivos suficientes en piso para preparar este lote (PP abastecido por Silo).'
-                  : 'Faltan aditivos en piso para preparar la receta en la Mezcladora. Se requiere surtir Orden de Consumo (ODC) desde Almacén (PP abastecido por Silo).'}
-              </p>
-            </div>
+            <Badge variant="warning">{pausedDrafts.length} pendiente{pausedDrafts.length === 1 ? '' : 's'}</Badge>
           </div>
-          {!allWipAvailable && (
-            <div className="shrink-0 w-full sm:w-auto flex sm:justify-end">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => handleOpenOdcModal('missing')}
-                className="w-full min-h-12 sm:w-auto bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-black text-base gap-2 shadow-sm border border-amber-400/50 px-4 whitespace-normal text-center leading-snug transition-colors"
-                title="Crear ODC hacia Almacén con los aditivos faltantes de la fórmula (cantidades editables)"
-              >
-                <Icon name="post_add" size={17} />
-                <span>Crear ODC de Aditivos hacia Almacén</span>
-              </Button>
-            </div>
-          )}
-        </div>
+          <div className="grid gap-2">
+            {pausedDrafts.map((draft: any) => (
+              <article key={draft.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="break-words font-bold text-foreground">{draft.folio} · {draft.formula_name}</p>
+                  <p className="text-sm text-muted-foreground">{draft.metadata?.mix_draft?.inputs?.length || 0} insumo(s) capturados · {Number((draft.consumed_inputs || []).reduce((sum: number, row: any) => sum + Number(row.quantity || 0), 0)).toFixed(2)} kg consumidos · {Number(draft.reserved_quantity || 0).toFixed(2)} kg reservados</p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {(draft.consumed_inputs || []).length === 0 && <Button type="button" variant="outline" onClick={() => discardMixDraft(draft)} className="min-h-12 gap-2 font-bold"><Icon name="restart_alt" size={18} /> Reiniciar</Button>}
+                  <Button type="button" onClick={() => resumeMixDraft(draft)} className="min-h-12 w-full shrink-0 gap-2 font-bold sm:w-auto"><Icon name="play_arrow" size={18} /> Continuar preparación</Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       )}
+      <form onSubmit={handleSubmit} className="space-y-5">
+      <nav aria-label="Pasos para preparar una mezcla" className="rounded-xl border border-border bg-card px-4 py-3 sm:px-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-sm font-bold text-foreground">Paso {mixingStep} de 2</p>
+          <p className="text-sm text-muted-foreground">{mixingStep === 1 ? 'Configura el lote' : 'Revisa los insumos'}</p>
+        </div>
+        <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Avance de preparación" aria-valuemin={1} aria-valuemax={2} aria-valuenow={mixingStep}>
+          <div className="h-full rounded-full bg-primary transition-[width] duration-200" style={{ width: mixingStep === 1 ? '50%' : '100%' }} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => setMixingStep(1)}
+          aria-current={mixingStep === 1 ? 'step' : undefined}
+          className={`flex min-h-12 min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:gap-3 sm:px-3 ${mixingStep === 1 ? 'text-foreground' : 'text-emerald-700 dark:text-emerald-300 hover:bg-muted/50'}`}
+        >
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-black ${mixingStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-emerald-700 text-white dark:bg-emerald-600'}`}>{mixingStep === 1 ? '1' : '✓'}</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold sm:text-base">Configurar lote</span>
+            <span className="hidden text-sm text-muted-foreground sm:block">Fórmula, destino y contenedores</span>
+          </span>
+        </button>
+        <div
+          aria-current={mixingStep === 2 ? 'step' : undefined}
+          className={`flex min-h-12 min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 sm:gap-3 sm:px-3 ${mixingStep === 2 ? 'text-foreground' : 'text-muted-foreground'}`}
+        >
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-black ${mixingStep === 2 ? 'bg-primary text-primary-foreground' : 'border border-border bg-muted text-muted-foreground'}`}>2</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold sm:text-base">Registrar insumos</span>
+            <span className="hidden text-sm text-muted-foreground sm:block">Escanea y registra los materiales</span>
+          </span>
+        </div>
+        </div>
+      </nav>
 
       {/* Grid de 2 Columnas: Receta & Contenedor Destino vs Surtido de Materiales */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Columna Izquierda: Selección de Receta y Contenedor Destino */}
-        <div className="lg:col-span-5 xl:col-span-5 2xl:col-span-4 space-y-4">
+        <div className={`${mixingStep === 1 ? 'lg:col-span-12' : 'hidden'} space-y-4`}>
+          {mixingStep === 1 ? (
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
             {/* Header del Card de Configuración */}
             <div className="px-4 py-3 bg-muted/40 border-b border-border flex items-center justify-between gap-2">
@@ -836,11 +917,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   <Icon name="science" size={18} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-black text-base text-foreground truncate">
-                    1. Fórmula y Destino
+                  <h3 className="font-black text-base leading-tight text-foreground">
+                    Datos del lote
                   </h3>
-                  <p className="text-sm text-muted-foreground font-medium truncate">
-                    Lote y asignación a máquina
+                  <p className="text-sm text-muted-foreground font-medium">
+                    Fórmula, destino y envases
                   </p>
                 </div>
               </div>
@@ -863,7 +944,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-base font-bold text-foreground flex items-center gap-2">
                     <Icon name="menu_book" size={14} className="text-primary" />
-                    <span>Fórmula de Extrusión *</span>
+                    <span>Fórmula *</span>
                   </label>
                   {selectedFormula?.code && (
                     <span className="font-mono text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 shrink-0">
@@ -902,25 +983,31 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   </div>
                 </div>
 
-                <label className="text-base font-bold text-foreground flex items-center gap-2" htmlFor="mix-output-color">
+                <div id="mix-output-color-label" className="text-base font-bold text-foreground flex items-center gap-2">
                   <Icon name="palette" size={14} className="text-primary" />
                   Color de producción {formulaColorOptions.length > 0 ? '*' : ''}
-                </label>
-                <select
-                  id="mix-output-color"
-                  required={formulaColorOptions.length > 0}
-                  value={selectedColor}
-                  disabled={Boolean(ticket) || !selectedFormula || formulaColorOptions.length === 0}
-                  onChange={(event) => setSelectedColor(event.target.value)}
-                  className="w-full !h-12 bg-background border border-border rounded-lg px-3 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-60"
-                >
-                  <option value="">{selectedFormula ? '-- Sin color configurado --' : '-- Seleccione primero una fórmula --'}</option>
-                  {formulaColorOptions.map((color) => <option key={color} value={color}>{color}</option>)}
-                </select>
-                {selectedFormula && formulaColorOptions.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Color disponible para esta fórmula. La receta y su masterbatch se muestran abajo.
-                  </p>
+                </div>
+                {formulaColorOptions.length === 1 ? (
+                  <div id="mix-output-color" className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 text-base font-bold text-foreground" aria-labelledby="mix-output-color-label">
+                    <span>{formulaColorOptions[0]}</span>
+                    <span className="text-sm font-semibold text-muted-foreground">Definido por fórmula</span>
+                  </div>
+                ) : (
+                  <select
+                    id="mix-output-color"
+                    aria-labelledby="mix-output-color-label"
+                    required={formulaColorOptions.length > 0}
+                    value={selectedColor}
+                    disabled={Boolean(ticket) || !selectedFormula || formulaColorOptions.length === 0}
+                    onChange={(event) => setSelectedColor(event.target.value)}
+                    className="w-full !h-12 bg-background border border-border rounded-lg px-3 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-60"
+                  >
+                    <option value="">{selectedFormula ? '-- Sin color configurado --' : '-- Seleccione primero una fórmula --'}</option>
+                    {formulaColorOptions.map((color) => <option key={color} value={color}>{color}</option>)}
+                  </select>
+                )}
+                {selectedFormula && formulaColorOptions.length > 1 && (
+                  <p className="text-sm text-muted-foreground">Selecciona el color de producción para esta fórmula.</p>
                 )}
 
                 {selectedFormula && !hasLinkedActivePti && (
@@ -940,7 +1027,12 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
                 {/* Ficha Resumen de Parámetros de la Fórmula */}
                 {selectedFormula && (
-                  <div className="grid grid-cols-3 gap-2 pt-1">
+                  <details className="group rounded-lg border border-border/70 bg-muted/20">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                      <span>Detalles de fórmula</span>
+                      <Icon name="expand_more" size={20} className="text-muted-foreground transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="grid grid-cols-3 gap-2 border-t border-border/70 p-2">
                     <div className="p-2 rounded-lg bg-muted/40 border border-border/70 text-center">
                       <span className="text-sm font-bold text-muted-foreground block leading-tight">
                         Lote Objetivo
@@ -967,7 +1059,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                         {selectedFormula.expected_yield_pieces || 4900} car.
                       </span>
                     </div>
-                  </div>
+                    </div>
+                  </details>
                 )}
               </div>
 
@@ -976,7 +1069,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-base font-bold text-foreground flex items-center gap-2">
                     <Icon name="inventory_2" size={15} className="text-primary" />
-                    <span>Contenedores Destino *</span>
+                    <span>Contenedores *</span>
                   </label>
                   <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 shrink-0">
                     <Icon name="auto_awesome" size={11} />
@@ -985,11 +1078,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 </div>
 
                 {/* Panel de Distribución de Contenedores */}
-                <div className="p-3 rounded-xl bg-card border border-border/80 shadow-2xs space-y-3">
+                <div className="p-3 rounded-xl bg-card border border-border/80 shadow-2xs space-y-2">
                   {/* Fila 1: Control de Cantidad (Stepper) */}
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-foreground">
-                      Cantidad de Contenedores:
+                      Cantidad:
                     </span>
                     <div className="flex items-center gap-1.5 bg-muted/60 border border-border rounded-lg p-1 shadow-2xs">
                       <button
@@ -1042,44 +1135,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     </div>
                   </div>
 
-                  {/* Fila 3: Botones de acceso rápido (Grid de 3 columnas para ajuste perfecto) */}
-                  <div className="space-y-1.5 pt-1 border-t border-border/50">
-                    <div className="flex items-center justify-between text-sm font-bold text-muted-foreground">
-                      <span>Presets Rápidos:</span>
-                      <span className="font-mono text-primary font-black">
-                        {containerCount} {containerCount === 1 ? 'Contenedor' : 'Contenedores'}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[1, 2, 4].map(num => {
-                        const isSelected = containerCount === num;
-                        return (
-                          <button
-                            key={num}
-                            type="button"
-                            onClick={() => setContainerCount(num)}
-                            className={`min-h-12 flex items-center justify-center gap-1.5 text-base font-mono rounded-lg border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                              isSelected
-                                ? 'bg-primary text-primary-foreground border-primary shadow-xs font-black ring-1 ring-primary/40'
-                                : 'bg-background hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border font-bold'
-                            }`}
-                            title={`Configurar en ${num} ${num === 1 ? 'contenedor' : 'contenedores'}`}
-                          >
-                            <span className="text-sm font-black">{num}</span>
-                            <span className="text-[11px] font-medium opacity-85">
-                              {num === 1 ? 'cont.' : 'conts.'}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
-
-                <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5 px-0.5">
-                  <Icon name="info" size={13} className="text-primary shrink-0" />
-                  <span>Se preparará un solo lote de {totalBatchKg.toFixed(2)} kg, dividido en {containerCount} contenedor(es) con QR propio. El último ajusta cualquier diferencia de redondeo.</span>
-                </p>
               </div>
 
               {/* 3. Extrusora Destino con Sugerencia Inteligente y Restricciones */}
@@ -1087,7 +1143,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-base font-bold text-foreground flex items-center gap-2">
                     <Icon name="precision_manufacturing" size={15} className="text-primary" />
-                    <span>Extrusora Destino (Encolado) *</span>
+                    <span>Extrusora destino *</span>
                   </label>
                   {suggestedExtruder && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 shrink-0">
@@ -1132,7 +1188,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-base font-bold text-foreground flex items-center gap-2">
                     <Icon name="propane_tank" size={15} className="text-primary" />
-                    <span>Silos de Polipropileno (Alimentación a Mezcladora) *</span>
+                    <span>Silos de PP *</span>
                   </label>
                   {selectedSilo && (
                     <Badge
@@ -1152,9 +1208,9 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 ) : (
                   <div className={`p-3 rounded-xl border space-y-3 ${hasSufficientPpInSilo ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/40'}`}>
                     <div className="text-xs text-foreground">
-                      Se requieren <strong>{ppRequiredKg.toFixed(2)} kg</strong> de PP. El sistema los distribuirá automáticamente entre ambos silos activos sin importar el tipo indicado en la receta.
+                      Se requieren <strong>{ppRequiredKg.toFixed(2)} kg</strong> de PP. El sistema distribuye el consumo automáticamente entre los silos.
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {silos.map((silo: any) => (
                         <div key={silo.id} className="rounded-lg bg-background/70 border border-border p-2 text-xs">
                           <strong>{silo.code} · {silo.name}</strong>
@@ -1170,85 +1226,113 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
               </div>
 
               {/* 5. Observaciones del Operador */}
-              <div className="space-y-1.5 pt-3 border-t border-border/60">
-                <label className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Icon name="edit_note" size={15} className="text-muted-foreground" />
-                  <span>Notas / Observaciones del Operador (Opcional)</span>
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="w-full min-h-24 bg-background border border-border rounded-lg p-3 text-base text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-y font-medium placeholder:text-muted-foreground/60 transition-colors"
-                  placeholder="Ej. Mezcla para Extrusora 1, aditivo UV reforzado..."
-                />
+              <div className="pt-3 border-t border-border/60">
+                <details className="group">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-1 text-base font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2"><Icon name="edit_note" size={18} className="text-muted-foreground" />Agregar nota (opcional)</span>
+                    <Icon name="expand_more" size={20} className="text-muted-foreground transition-transform group-open:rotate-180" />
+                  </summary>
+                  <label className="mt-2 block space-y-1.5 text-sm font-semibold text-muted-foreground">
+                    Nota para el registro de mezcla
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={2}
+                      className="w-full min-h-20 bg-background border border-border rounded-lg p-3 text-base text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-y font-medium placeholder:text-muted-foreground/60 transition-colors"
+                      placeholder="Escribe una observación si hace falta"
+                    />
+                  </label>
+                </details>
               </div>
             </div>
           </div>
-
-          {/* Barra de Progreso y Balance de Carga */}
-      <div className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-2.5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-base text-muted-foreground font-bold flex items-center gap-1.5">
-                <Icon name="scale" size={16} className="text-primary" />
-                <span>Balance Mezcla Total (Silo PP + Aditivos)</span>
-              </span>
-              <span className={`w-fit font-mono text-base font-bold px-2.5 py-1 rounded border tabular-nums ${
-                isBatchBalanced
-                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                  : 'bg-primary/10 text-primary border-primary/20'
-              }`}>
-                {(ppRequiredKg + totalScannedNonPpKg).toFixed(2)} / {totalBatchKg.toFixed(2)} Kg ({progressPercent}%)
-              </span>
-            </div>
-            <div className="w-full bg-muted/60 rounded-full h-2.5 overflow-hidden border border-border/40">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  isBatchBalanced
-                    ? 'bg-emerald-500'
-                    : 'bg-primary'
-                }`}
-                style={{ width: `${Math.min(100, progressPercent)}%` }}
-              />
-            </div>
-            <div className="flex flex-col gap-1 text-sm font-medium text-muted-foreground pt-0.5 sm:flex-row sm:items-center sm:justify-between">
-              <span>PP del silo al mezclador: {ppRequiredKg.toFixed(2)} kg</span>
-              <span>Aditivos WIP: {totalScannedNonPpKg.toFixed(2)} / {nonPpRequiredKg.toFixed(2)} kg</span>
-            </div>
-          </div>
+          ) : null}
         </div>
 
         {/* Columna Derecha: Insumos Requeridos y Surtido */}
-        <div className="lg:col-span-7 xl:col-span-7 2xl:col-span-8 space-y-4">
-          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
-            <div className="px-4 py-3 bg-muted/30 border-b border-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-              <div className="flex items-center gap-2 font-bold text-base text-foreground shrink-0">
-                <Icon name="checklist" size={18} className="text-primary shrink-0" />
-                <span>2. Insumos Requeridos</span>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:flex-nowrap shrink-0">
-                {formulaItems.length > 0 && (
+        <div className={`${mixingStep === 1 ? 'hidden' : 'lg:col-span-12'} space-y-4`}>
+          {mixingStep === 1 ? (
+            null
+          ) : (
+          <>
+          <section aria-label="Resumen de la mezcla seleccionada" className="rounded-xl border border-border bg-card p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-muted-foreground">Preparando</p>
+              <h3 className="mt-1 break-words text-lg font-black leading-snug text-foreground">{selectedFormula?.name || 'Fórmula pendiente'}</h3>
+              {selectedFormula?.code && <p className="mt-1 text-sm text-muted-foreground">{selectedFormula.code}</p>}
+              <dl className="mt-3 grid grid-cols-2 gap-2 sm:mt-2 sm:flex sm:flex-wrap sm:gap-2">
+                <div className="rounded-lg bg-muted/50 px-3 py-2 sm:min-w-36"><dt className="text-sm font-semibold text-muted-foreground">Destino</dt><dd className="mt-0.5 text-base font-bold text-foreground">{selectedExtruderId === 'AUTO' ? suggestedExtruder?.name || 'Automática' : machines.find((machine: any) => Number(machine.id) === Number(selectedExtruderId))?.name || 'Por asignar'}</dd></div>
+                <div className="rounded-lg bg-muted/50 px-3 py-2 sm:min-w-36"><dt className="text-sm font-semibold text-muted-foreground">Lote</dt><dd className="mt-0.5 text-base font-bold tabular-nums text-foreground">{containerCount} × {weightPerContainerKg.toFixed(2)} kg</dd></div>
+              </dl>
+            </div>
+            <Button type="button" variant="outline" onClick={() => setMixingStep(1)} className="mt-3 min-h-12 w-full shrink-0 gap-2 font-bold sm:mt-0 sm:w-auto">
+              <Icon name="edit" size={17} /> Cambiar configuración
+            </Button>
+          </section>
+
+          <section aria-label="Balance de la mezcla" className="rounded-xl border border-border bg-card p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <span className="flex items-center gap-1.5 text-base font-bold text-foreground"><Icon name="scale" size={18} className="text-primary" /> Balance del lote</span>
+              <span className={`w-fit rounded border px-2.5 py-1 font-mono text-base font-bold tabular-nums ${isBatchBalanced ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-primary/20 bg-primary/10 text-primary'}`}>
+                {(ppRequiredKg + totalScannedNonPpKg).toFixed(2)} / {totalBatchKg.toFixed(2)} kg ({progressPercent}%)
+              </span>
+            </div>
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full border border-border/40 bg-muted/60">
+              <div className={`h-full transition-all duration-300 ${isBatchBalanced ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(100, progressPercent)}%` }} />
+            </div>
+            <div className="mt-2 flex flex-col gap-1 text-sm font-medium text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span>PP automático desde silos: {ppRequiredKg.toFixed(2)} kg</span>
+              <span>Aditivos escaneados: {totalScannedNonPpKg.toFixed(2)} / {nonPpRequiredKg.toFixed(2)} kg</span>
+            </div>
+          </section>
+
+          {formulaDetails && (
+            <div className={`rounded-xl border p-3.5 sm:p-4 ${allWipAvailable ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/35 bg-amber-500/10'}`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className={`rounded-lg border p-2 ${allWipAvailable ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200' : 'border-amber-500/35 bg-amber-500/15 text-amber-800 dark:text-amber-200'}`}>
+                    <Icon name={allWipAvailable ? 'verified' : 'info'} size={21} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-base font-bold leading-snug text-foreground">{allWipAvailable ? 'Aditivos disponibles en WIP' : 'Faltan algunos aditivos en WIP'}</h4>
+                      <Badge variant={allWipAvailable ? 'success' : 'warning'} className="shrink-0 px-2 py-0.5 text-xs font-bold">{allWipAvailable ? 'Listo para preparar' : 'Requiere surtido'}</Badge>
+                    </div>
+                    <p className="mt-0.5 text-sm leading-relaxed text-foreground/90">
+                      {allWipAvailable ? 'El WIP tiene los aditivos necesarios. El polipropileno se alimenta desde los silos.' : 'Revisa qué aditivos faltan y solicita su surtido a Almacén. El polipropileno se alimenta desde los silos.'}
+                    </p>
+                  </div>
+                </div>
+                {!allWipAvailable && (
                   <Button
                     type="button"
                     size="sm"
-                    disabled={hasSufficientIngredients || loadingDetails}
                     onClick={() => handleOpenOdcModal('missing')}
-                    className="min-h-12 w-full gap-2 font-bold text-base bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white shadow-xs border border-amber-400/50 transition-all px-3 whitespace-normal leading-snug shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-auto lg:w-auto"
-                    title={
-                      hasSufficientIngredients
-                        ? 'La fórmula cuenta con insumos suficientes en piso (WIP) para preparar la mezcla'
-                        : 'Solicitar los aditivos de la fórmula como Orden de Consumo hacia Almacén (el Polipropileno se abastece directo del Silo)'
-                    }
+                    variant="outline"
+                    className="min-h-12 w-full gap-2 border-amber-500/40 px-4 text-sm font-bold text-amber-950 hover:bg-amber-500/10 dark:text-amber-100 sm:w-auto"
+                    title="Crear ODC hacia Almacén con los aditivos faltantes de la fórmula (cantidades editables)"
                   >
-                    <Icon name="local_shipping" size={15} />
-                    <span>Pedir insumos faltantes</span>
+                    <Icon name="post_add" size={17} /> Solicitar faltantes
                   </Button>
                 )}
+              </div>
+            </div>
+          )}
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+            <div className="px-4 py-3 bg-muted/30 border-b border-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2 font-bold text-base text-foreground shrink-0">
+                <Icon name="checklist" size={18} className="text-primary shrink-0" />
+                <div className="min-w-0">
+                  <span className="block">2. Preparar insumos</span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-muted-foreground">{selectedFormula?.name || 'Materiales de la fórmula seleccionada'}</span>
+                </div>
+              </div>
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:flex-nowrap shrink-0">
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => handleOpenScanner()}
-                  className="min-h-12 w-full gap-2 font-bold text-base bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs px-3 whitespace-nowrap shrink-0 lg:w-auto"
+                  className="order-1 min-h-12 w-full gap-2 px-3 text-base font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs sm:order-1 lg:w-auto"
                   title="Abrir cámara para escanear QR Hijo (-SN)"
                 >
                   <Icon name="photo_camera" size={15} />
@@ -1270,7 +1354,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 </div>
               ) : (
                 <>
-                <div className="space-y-3 lg:hidden">
+                <div className="space-y-3 xl:hidden">
                   {formulaItems.map((item: any) => {
                     const allowedIds = new Set((item.allowed_material_ids || [item.material_id]).map(Number));
                     const dosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
@@ -1286,33 +1370,41 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     const { remainingFifoList, nextFifoSack } = getMaterialFifoState(item);
 
                     return (
-                      <article key={item.id || item.material_id} className={`min-w-0 rounded-xl border border-border p-3.5 ${isSiloItem ? 'bg-emerald-500/5' : 'bg-background'}`}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h4 className="break-words text-base font-bold leading-snug text-foreground">{item.material_name}</h4>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <details key={item.id || item.material_id} className={`group min-w-0 rounded-xl border border-border ${isSiloItem ? 'bg-emerald-500/5' : 'bg-background'}`}>
+                        <summary className="cursor-pointer list-none rounded-xl p-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                          <div className="flex min-w-0 items-center justify-between gap-2">
+                            <h4 className="min-w-0 break-words text-base font-bold leading-snug text-foreground">{item.material_name}</h4>
+                            {isSiloItem ? (
+                              <Badge variant={hasSufficientPpInSilo ? 'success' : 'destructive'} className="min-h-8 shrink-0 px-2 text-sm font-bold">
+                                {hasSufficientPpInSilo ? 'Silo listo' : 'Falta PP'}
+                              </Badge>
+                            ) : isExcess ? (
+                              <Badge variant="destructive" className="min-h-8 shrink-0 px-2 text-sm font-bold">Exceso</Badge>
+                            ) : isComplete ? (
+                              <Badge variant="success" className="min-h-8 shrink-0 px-2 text-sm font-bold">Completo</Badge>
+                            ) : dosed > 0.005 ? (
+                              <Badge variant="warning" className="min-h-8 shrink-0 px-2 text-sm font-bold">Faltan {Math.max(0, req - dosed).toFixed(2)} kg</Badge>
+                            ) : wipMissing > 0.005 ? (
+                              <Badge variant="warning" className="min-h-8 shrink-0 px-2 text-sm font-bold">Faltan {wipMissing.toFixed(2)} kg</Badge>
+                            ) : (
+                              <Badge variant="success" className="min-h-8 shrink-0 px-2 text-sm font-bold">Listo</Badge>
+                            )}
+                            <Icon name="expand_more" size={20} className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+                            <span className="text-muted-foreground">Requerido <strong className="font-mono text-foreground">{req.toFixed(2)} kg</strong></span>
+                            <span className="text-muted-foreground">{isSiloItem ? 'Automático' : 'Dosificado'} <strong className="font-mono text-foreground">{isSiloItem ? `${req.toFixed(2)} kg` : `${dosed.toFixed(2)} kg`}</strong></span>
+                          </div>
+                        </summary>
+
+                        <div className="space-y-3 px-3.5 pb-3.5">
+                          {(item.material_code || item.equivalenceTag?.name) && (
+                            <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
                               {item.material_code && <span className="rounded border border-border bg-muted/60 px-2 py-1 font-mono text-sm text-foreground">{item.material_code}</span>}
                               {item.equivalenceTag?.name && <span className="text-sm text-muted-foreground">Equivalentes: {item.equivalenceTag.name}</span>}
                             </div>
-                          </div>
-                          {isSiloItem ? (
-                            <Badge variant={hasSufficientPpInSilo ? 'success' : 'destructive'} className="min-h-8 shrink-0 px-2 text-sm font-bold">
-                              {hasSufficientPpInSilo ? 'Silo listo' : 'Falta PP'}
-                            </Badge>
-                          ) : isExcess ? (
-                            <Badge variant="destructive" className="min-h-8 shrink-0 px-2 text-sm font-bold">Exceso</Badge>
-                          ) : isComplete ? (
-                            <Badge variant="success" className="min-h-8 shrink-0 px-2 text-sm font-bold">Completo</Badge>
-                          ) : dosed > 0.005 ? (
-                            <Badge variant="warning" className="min-h-8 shrink-0 px-2 text-sm font-bold">Faltan {Math.max(0, req - dosed).toFixed(2)} kg</Badge>
-                          ) : wipMissing > 0.005 ? (
-                            <Badge variant="warning" className="min-h-8 shrink-0 px-2 text-sm font-bold">Faltan {wipMissing.toFixed(2)} kg</Badge>
-                          ) : (
-                            <Badge variant="success" className="min-h-8 shrink-0 px-2 text-sm font-bold">Listo</Badge>
                           )}
-                        </div>
-
-                        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-y border-border/70 py-3 text-sm">
+                        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-y border-border/70 py-3 text-sm">
                           <div>
                             <dt className="font-semibold text-muted-foreground">Requerido</dt>
                             <dd className="font-mono text-base font-bold text-foreground">{req.toFixed(2)} kg</dd>
@@ -1370,21 +1462,22 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             Escanear material
                           </Button>
                         )}
-                      </article>
+                        </div>
+                      </details>
                     );
                   })}
                 </div>
 
-                <div className="hidden lg:block border border-border rounded-xl overflow-x-auto bg-card shadow-xs">
-                  <table className="w-full text-xs text-left min-w-[700px]">
+                <div className="hidden xl:block min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+                  <table className="w-full table-fixed text-sm text-left">
                     <thead className="bg-muted/50 text-muted-foreground font-bold border-b border-border uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="px-3.5 py-3 min-w-[260px]">Material</th>
-                        <th className="px-3 py-3 text-right whitespace-nowrap w-24">Requerido</th>
-                        <th className="px-3 py-3 text-right whitespace-nowrap w-28">Stock WIP</th>
-                        <th className="px-3 py-3 text-right whitespace-nowrap w-24">Dosificado</th>
-                        <th className="px-3 py-3 text-center whitespace-nowrap w-28">Estado</th>
-                        <th className="px-3 py-3 text-center whitespace-nowrap w-28">Acción</th>
+                        <th className="w-[27%] px-3 py-3">Material</th>
+                        <th className="w-[10%] px-2 py-3 text-right">Requerido</th>
+                        <th className="w-[16%] px-2 py-3 text-right">Stock WIP</th>
+                        <th className="w-[12%] px-2 py-3 text-right">Dosificado</th>
+                        <th className="w-[19%] px-2 py-3 text-center">Estado</th>
+                        <th className="w-[16%] px-2 py-3 text-center">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -1405,18 +1498,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
                         return (
                           <tr key={item.id || item.material_id} className={`transition-colors ${isSiloItem ? 'bg-emerald-500/5 hover:bg-emerald-500/10' : 'hover:bg-muted/20'}`}>
-                            <td className="px-3.5 py-3">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-foreground text-xs block">{item.material_name}</span>
+                            <td className="min-w-0 px-3 py-3 align-top">
+                              <div className="flex min-w-0 flex-wrap items-start gap-2">
+                                <span className="min-w-0 break-words font-bold text-foreground text-sm">{item.material_name}</span>
                                 {isSiloItem && (
-                                  <Badge variant="outline" className="font-mono text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                                  <Badge variant="outline" className="max-w-full whitespace-normal text-left font-mono text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
                                     ALIMENTACIÓN POR SILO
                                   </Badge>
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5 flex-wrap mt-1">
                                 {item.material_code && (
-                                  <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50 whitespace-nowrap">
+                                  <span className="max-w-full break-all font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
                                     {item.material_code}
                                   </span>
                                 )}
@@ -1430,7 +1523,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                   </span>
                                 ) : nextFifoSack ? (
                                   <span
-                                    className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/30 whitespace-nowrap"
+                                    className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1 break-all font-mono text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/30"
                                     title={`Próximo saco según orden FIFO en piso: ${nextFifoSack.qr_code} (${nextFifoSack.amount || 0} kg). Total disponibles en piso: ${remainingFifoList.length} sacos.`}
                                   >
                                     <Icon name="history" size={12} className="text-blue-500 shrink-0" />
@@ -1445,7 +1538,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                     )}
                                   </span>
                                 ) : (
-                                  <span className={`text-[10px] italic font-medium whitespace-nowrap ${physicalWip > 0.005 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/70'}`}>
+                                  <span className={`text-[10px] italic font-medium break-words ${physicalWip > 0.005 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/70'}`}>
                                     {physicalWip > 0.005
                                       ? `(${unscannableWip.toFixed(2)} kg en WIP sin QR hijo activo)`
                                       : '(Sin sacos con QR en WIP)'}
@@ -1602,7 +1695,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 </span>
               </div>
 
-              <div className="space-y-2 lg:hidden">
+              <div className="space-y-2 xl:hidden">
                 {inputs.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-border p-4 text-center text-base text-muted-foreground">
                     Aún no agregas insumos. Escanea un QR hijo desde la lista de materiales.
@@ -1618,22 +1711,24 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                       type="button"
                       onClick={() => removeInput(idx)}
                       aria-label={`Quitar ${inp.material_name || 'insumo'} ${inp.qr_code}`}
-                      className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      disabled={consumedQrCodes.has((inp.qr_code || '').trim().toUpperCase())}
+                      title={consumedQrCodes.has((inp.qr_code || '').trim().toUpperCase()) ? 'Ya consumido y descontado del WIP' : 'Quitar del borrador'}
+                      className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <Icon name="delete" size={18} />
+                      <Icon name={consumedQrCodes.has((inp.qr_code || '').trim().toUpperCase()) ? 'lock' : 'delete'} size={18} />
                     </button>
                   </article>
                 ))}
               </div>
 
-              <div className="hidden lg:block border border-border rounded-xl bg-background max-h-[220px] overflow-y-auto overflow-x-auto shadow-xs">
-                <table className="w-full text-xs text-left min-w-[520px]">
+              <div className="hidden xl:block min-w-0 rounded-xl border border-border bg-background max-h-[220px] overflow-y-auto overflow-x-hidden shadow-xs">
+                <table className="w-full table-fixed text-sm text-left">
                   <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border sticky top-0 z-10 text-[10px] uppercase">
                     <tr>
-                      <th className="px-3.5 py-2 min-w-[180px]">QR Hijo (-SN)</th>
-                      <th className="px-3.5 py-2 min-w-[150px]">Material</th>
-                      <th className="px-3.5 py-2 text-right whitespace-nowrap w-28">Dosificado</th>
-                      <th className="px-3.5 py-2 text-center w-14">Quitar</th>
+                      <th className="w-[38%] px-3 py-2">QR Hijo (-SN)</th>
+                      <th className="w-[32%] px-3 py-2">Material</th>
+                      <th className="w-[20%] px-3 py-2 text-right">Dosificado</th>
+                      <th className="w-[10%] px-2 py-2 text-center">Quitar</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -1646,10 +1741,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     ) : (
                       inputs.map((inp, idx) => (
                         <tr key={idx} className="hover:bg-muted/20">
-                          <td className="px-3 py-2 font-mono font-bold text-foreground uppercase">
+                          <td className="break-all px-3 py-2 font-mono font-bold text-foreground uppercase">
                             {inp.qr_code}
                           </td>
-                          <td className="px-3 py-2 font-semibold text-foreground">
+                          <td className="break-words px-3 py-2 font-semibold text-foreground">
                             {inp.material_name || 'Insumo'}
                           </td>
                           <td className="px-3 py-2 text-right font-mono font-bold text-foreground">
@@ -1659,10 +1754,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             <button
                               type="button"
                               onClick={() => removeInput(idx)}
-                              className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
-                              title="Eliminar insumo"
+                              disabled={consumedQrCodes.has((inp.qr_code || '').trim().toUpperCase())}
+                              className="text-muted-foreground hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 p-1 rounded transition-colors"
+                              title={consumedQrCodes.has((inp.qr_code || '').trim().toUpperCase()) ? 'Ya consumido y descontado del WIP' : 'Eliminar insumo'}
                             >
-                              <Icon name="delete" size={15} />
+                              <Icon name={consumedQrCodes.has((inp.qr_code || '').trim().toUpperCase()) ? 'lock' : 'delete'} size={15} />
                             </button>
                           </td>
                         </tr>
@@ -1673,62 +1769,134 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
 
+      {mixingStep === 1 && (
+        <section aria-labelledby="mixing-summary-title" className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Icon name="fact_check" size={20} className="text-primary" />
+            <h3 id="mixing-summary-title" className="text-base font-bold text-foreground">Confirma el lote</h3>
+          </div>
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="min-w-0 border-t border-border pt-2 sm:border-l-0 sm:border-t-0 sm:pt-0">
+              <dt className="text-sm font-semibold text-muted-foreground">Fórmula</dt>
+              <dd className="mt-1 break-words text-base font-bold leading-snug text-foreground">{selectedFormula?.name || 'Selecciona una fórmula'}</dd>
+              {selectedFormula?.code && <dd className="mt-0.5 text-sm text-muted-foreground">{selectedFormula.code}</dd>}
+            </div>
+            <div className="border-t border-border pt-2 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
+              <dt className="text-sm font-semibold text-muted-foreground">Extrusora destino</dt>
+              <dd className="mt-1 text-base font-bold text-foreground">{selectedExtruderId === 'AUTO' ? suggestedExtruder?.name || 'Automática' : machines.find((machine: any) => Number(machine.id) === Number(selectedExtruderId))?.name || 'Por asignar'}</dd>
+            </div>
+            <div className="border-t border-border pt-2 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
+              <dt className="text-sm font-semibold text-muted-foreground">Cantidad del lote</dt>
+              <dd className="mt-1 text-base font-bold tabular-nums text-foreground">{containerCount} {containerCount === 1 ? 'contenedor' : 'contenedores'} · {totalBatchKg} kg</dd>
+              <dd className="mt-0.5 text-sm text-muted-foreground">{weightPerContainerKg.toFixed(0)} kg aprox. por contenedor</dd>
+            </div>
+          </dl>
+        </section>
+      )}
+
+      {mixingStep === 2 && (
+        <p className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm leading-relaxed text-muted-foreground">
+          <Icon name="info" size={17} className="mt-0.5 shrink-0 text-primary" />
+          <span><strong className="text-foreground">Pausar</strong> conserva la configuración y los QR capturados sin descontar stock. Si ya dosificaste físicamente los aditivos, usa <strong className="text-foreground">Pausar + descontar</strong>. El PP de silos se descuenta al confirmar la mezcla final.</span>
+        </p>
+      )}
+
       {/* Footer de Acciones y Guardado */}
-      <div className="bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs">
+      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 bg-card/95 backdrop-blur rounded-xl border border-border shadow-[0_-8px_24px_rgba(0,0,0,0.22)] p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 lg:static lg:bg-card lg:shadow-sm">
+        {mixingStep === 2 && <div className="flex min-w-0 items-center gap-2 text-sm sm:text-xs">
           {isBatchBalanced ? (
             <span className="inline-flex items-center gap-1.5 text-emerald-500 font-bold">
               <Icon name="check_circle" size={16} />
-              Mezcla balanceada ({totalBatchKg.toFixed(2)} kg totales: Silo PP + Aditivos) — Dividida en {containerCount} contenedor(es) para {selectedExtruderId === 'AUTO' ? 'asignación automática' : `Extrusora ${selectedExtruderId}`}
+              Balance listo para registrar
             </span>
           ) : !hasSufficientPpInSilo ? (
             <span className="inline-flex items-center gap-1.5 text-amber-500 font-bold">
               <Icon name="warning" size={16} />
               {silos.length !== 2
-                ? `Configuración incompleta: se requieren 2 silos activos y se detectaron ${silos.length}.`
-                : `Stock combinado insuficiente: se requieren ${ppRequiredKg.toFixed(3)} kg entre ambos silos y hay ${ppSiloStockKg.toFixed(3)} kg disponibles.`}
+                ? `Silos incompletos: se requieren 2; hay ${silos.length}.`
+                : `Falta PP: ${ppRequiredKg.toFixed(2)} kg requeridos; ${ppSiloStockKg.toFixed(2)} kg disponibles.`}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium">
               <Icon name="info" size={16} className="text-primary" />
-              Faltan {(nonPpRequiredKg - totalScannedNonPpKg).toFixed(2)} Kg de aditivos escaneados con QR Hijo
+              Faltan {Math.max(0, nonPpRequiredKg - totalScannedNonPpKg).toFixed(2)} kg de aditivos
             </span>
           )}
-        </div>
+        </div>}
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-          {onCancel && (
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+          {mixingStep === 1 && onCancel && (
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
               disabled={mutation.isPending}
-              className="w-full sm:w-auto font-bold h-11 px-5 border-border text-xs sm:text-sm"
+              className="min-h-12 shrink-0 px-4 font-bold text-sm border-border"
             >
               Cancelar
             </Button>
           )}
 
-          <Button
-            type="submit"
-            disabled={mutation.isPending || loadingFormulas || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
-            className="w-full sm:w-auto font-bold text-xs sm:text-sm h-11 px-6 gap-2 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {mutation.isPending ? (
-              <>
-                <Icon name="progress_activity" size={18} className="animate-spin" />
-                Registrando Mezcla...
-              </>
-            ) : (
-              <>
-                <Icon name="blender" size={18} />
-                Registrar y Encolar Mezcla ({containerCount} Cont.)
-              </>
-            )}
-          </Button>
+          {mixingStep === 1 ? (
+            <Button
+              type="button"
+              onClick={() => {
+                if (!formulaId) {
+                  toast.error('Selecciona una fórmula para continuar.');
+                  return;
+                }
+                if (formulaColorOptions.length > 0 && !selectedColor) {
+                  toast.error('Confirma el color de producción para continuar.');
+                  return;
+                }
+                setMixingStep(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              disabled={!formulaId || (formulaColorOptions.length > 0 && !selectedColor)}
+              className="min-h-12 min-w-0 flex-1 gap-2 px-4 text-base font-bold shadow-sm sm:flex-none sm:px-6"
+            >
+              Continuar a insumos <Icon name="arrow_forward" size={19} />
+            </Button>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => pauseMixDraft(false)} className="min-h-12 shrink-0 gap-2 px-3 text-sm font-bold sm:px-4">
+                <Icon name="pause" size={17} /> Pausar
+              </Button>
+              {inputs.length > 0 && (
+                <Button type="button" variant="outline" onClick={() => pauseMixDraft(true)} className="min-h-12 shrink-0 gap-2 border-amber-500/40 px-3 text-sm font-bold text-amber-800 hover:bg-amber-500/10 dark:text-amber-200 sm:px-4">
+                  <Icon name="inventory_2" size={17} /> <span className="hidden xl:inline">Pausar y descontar usados</span><span className="xl:hidden">Pausar + descontar</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                aria-label="Volver a la configuración de mezcla"
+                onClick={() => {
+                  setMixingStep(1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="min-h-12 shrink-0 gap-2 px-3 text-sm font-bold sm:px-4"
+              >
+                <Icon name="arrow_back" size={17} /> <span className="hidden min-[420px]:inline">Configuración</span>
+              </Button>
+              <Button
+                type="submit"
+                disabled={mutation.isPending || loadingFormulas || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
+                className="min-h-12 min-w-0 flex-1 gap-2 px-3 text-sm font-bold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 sm:flex-none sm:px-6 lg:flex-1"
+              >
+                {mutation.isPending ? (
+                  <><Icon name="progress_activity" size={18} className="animate-spin" /> Registrando…</>
+                ) : (
+                  <><Icon name="blender" size={18} /><span className="sm:hidden">Registrar mezcla · {containerCount} cont.</span><span className="hidden sm:inline">Registrar y encolar mezcla ({containerCount} cont.)</span></>
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
       </form>

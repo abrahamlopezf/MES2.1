@@ -95,6 +95,7 @@ export const extrusionApi = {
     shift_date: string;
     shift_code: string;
     actual_scrap_weight_kg?: number;
+    actual_pti_weight_kg?: number;
     grouped_weighings?: Array<{ category: string; color?: string | null; source_lote_id?: number | null; actual_weight_kg: number }>;
     notes?: string;
   }): Promise<any> => {

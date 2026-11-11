@@ -77,6 +77,7 @@ export const MachinesPage = () => {
   });
 
   const machines: any[] = Array.isArray(machinesData) ? machinesData : [];
+  const activeMachinesCount = machines.filter((machine: any) => machine.status === 'ACTIVE').length;
 
   const filteredMachines = machines.filter((m: any) => 
     (m.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -97,49 +98,63 @@ export const MachinesPage = () => {
 
   return (
     <div className="extrusion-workspace mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-4 p-4 pb-32 sm:gap-5 sm:p-6 lg:p-8">
-      {/* Encabezado */}
-      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-center gap-2">
-            <Icon name="precision_manufacturing" size={32} className="text-primary" />
-            Catálogo de Extrusoras
-          </h1>
-          <p className="text-muted-foreground font-medium mt-1">
-            Administración de máquinas y de las fórmulas compatibles definidas por el cliente.
-          </p>
-        </div>
-        
-        <div className="flex w-full flex-wrap items-center justify-between gap-2.5 md:w-auto md:flex-nowrap md:justify-end">
-          <Badge variant="outline" className="min-h-10 shrink-0 whitespace-nowrap border-border bg-card px-3 py-1 text-sm font-bold">
-            <span className="sm:hidden">{machines.length} extrusoras</span>
-            <span className="hidden sm:inline">Total: {machines.length} Extrusoras</span>
-          </Badge>
-          <Button type="button" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} className="hidden min-h-11 gap-2 px-2 text-sm lg:inline-flex">
-            <Icon name="qr_code_scanner" size={18} /> Leer QR
-          </Button>
-          <PermissionGate permission="extrusion.runs.manage">
-            <Button type="button" onClick={() => { setMachineDraft({ code: '', machine_number: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false, telares_subarea_code: 'TELARES_ROLLO' }); setIsCreateMachineOpen(true); }} className="min-h-11 gap-2">
-              <Icon name="add" size={18} /> Nueva extrusora
+      {/* Encabezado: propósito de la pantalla y acciones principales */}
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-14 sm:w-14">
+              <Icon name="precision_manufacturing" size={28} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold uppercase tracking-wide text-primary">Configuración de producción</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-3xl">Extrusoras registradas</h1>
+              <p className="mt-1 max-w-2xl text-base leading-relaxed text-muted-foreground">
+                Consulta las máquinas del área y configura qué recetas heredadas son compatibles con cada una.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto xl:shrink-0">
+            <Button type="button" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} className="min-h-12 w-full gap-2 sm:w-auto">
+              <Icon name="qr_code_scanner" size={19} /> Leer QR
             </Button>
-          </PermissionGate>
+            <PermissionGate permission="extrusion.runs.manage">
+              <Button type="button" onClick={() => { setMachineDraft({ code: '', machine_number: '', name: '', type: 'STANDARD', notes: '', status: 'ACTIVE', is_dynamic_member: false, telares_subarea_code: 'TELARES_ROLLO' }); setIsCreateMachineOpen(true); }} className="min-h-12 w-full gap-2 sm:w-auto">
+                <Icon name="add" size={19} /> Registrar extrusora
+              </Button>
+            </PermissionGate>
+          </div>
         </div>
-      </div>
+
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
+          <Badge variant="outline" className="min-h-9 gap-2 px-3 text-sm">
+            <Icon name="precision_manufacturing" size={17} className="text-primary" />
+            <span>Registradas: <strong className="tabular-nums text-foreground">{machines.length}</strong></span>
+          </Badge>
+          <Badge variant="outline" className="min-h-9 gap-2 px-3 text-sm">
+            <Icon name="check_circle" size={17} className="text-emerald-500" />
+            <span>Operativas: <strong className="tabular-nums text-foreground">{activeMachinesCount}</strong></span>
+          </Badge>
+        </div>
+      </section>
 
       {/* Barra de Búsqueda y Filtros */}
       <Card className="shadow-sm border-border">
-        <CardContent className="flex w-full flex-col items-center justify-between gap-3 p-1.5 sm:p-2 md:flex-row">
+        <CardContent className="flex w-full flex-col items-stretch justify-between gap-3 p-3 sm:flex-row sm:items-center sm:p-4">
           <div className="relative w-full flex-1">
-            <Icon name="search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Icon name="search" size={19} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <label htmlFor="machine-search" className="sr-only">Buscar extrusora por nombre, código o tipo</label>
             <Input 
               id="machine-search"
-              placeholder="Buscar por nombre, código o tipo..." 
+              placeholder="Buscar por nombre, código o tipo de máquina" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="min-h-11 w-full bg-muted/50 pl-9 text-base border-transparent focus:bg-background"
+              className="min-h-12 w-full border-border bg-background pl-11 text-base"
             />
           </div>
-
+          <p className="shrink-0 px-1 text-sm font-semibold text-muted-foreground" aria-live="polite">
+            {filteredMachines.length} de {machines.length} máquinas
+          </p>
         </CardContent>
       </Card>
 
@@ -166,7 +181,7 @@ export const MachinesPage = () => {
           <p className="font-bold text-foreground">No se encontraron extrusoras con los filtros aplicados.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 min-[1800px]:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
           {filteredMachines.map((machine: any) => {
             const hasActiveOrders = Number(machine.active_orders_count || 0) > 0;
             return (
@@ -174,7 +189,7 @@ export const MachinesPage = () => {
                 key={machine.id} 
                 className="overflow-hidden transition-all shadow-sm bg-card border border-border"
               >
-                <CardContent className="flex h-full flex-col gap-3 p-4 sm:p-4">
+                <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
                   {/* Encabezado de la Tarjeta */}
                   <div className="flex min-w-0 items-start gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 font-bold text-blue-600 dark:text-blue-400">
@@ -188,12 +203,13 @@ export const MachinesPage = () => {
                             <Badge variant="outline" className="shrink-0 font-mono text-xs font-bold">{machine.code}</Badge>
                             {machine.machine_number != null && <Badge variant="outline" className="shrink-0 text-xs font-bold">Máquina física {machine.machine_number}</Badge>}
                           </div>
-                          <p className="mt-1 truncate text-sm font-semibold text-muted-foreground">Tipo: {machine.type}</p>
-                          <p className="mt-1 text-xs font-semibold text-muted-foreground">Salida PTI: {machine.telares_subarea_code === 'TELARES_BANDA' ? 'Telares Banda' : machine.telares_subarea_code === 'TELARES_ROLLO' ? 'Telares Rollo' : 'Sin destino a Telares'}</p>
+                          <p className="mt-2 text-sm font-semibold text-muted-foreground">Tipo: {machine.type}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">Destino de PTI: {machine.telares_subarea_code === 'TELARES_BANDA' ? 'Telares Banda' : machine.telares_subarea_code === 'TELARES_ROLLO' ? 'Telares Rollo' : 'Sin destino a Telares'}</p>
                         </div>
                         <PermissionGate permission="extrusion.runs.manage">
-                          <Button type="button" variant="outline" onClick={() => handleEditMachine(machine)} className="min-h-11 min-w-11 shrink-0 px-2" aria-label={`Editar ${machine.name}`} title={`Editar ${machine.name}`}>
+                          <Button type="button" variant="outline" onClick={() => handleEditMachine(machine)} className="min-h-11 shrink-0 gap-1.5 px-2.5 text-sm" aria-label={`Editar configuración de ${machine.name}`} title={`Editar configuración de ${machine.name}`}>
                             <Icon name="edit" size={18} />
+                            <span>Editar</span>
                           </Button>
                         </PermissionGate>
                       </div>
@@ -201,8 +217,8 @@ export const MachinesPage = () => {
                         <Badge variant={machine.status === 'ACTIVE' ? 'success' : 'warning'} className="min-h-8 shrink-0 font-bold text-sm">
                           {machine.status === 'ACTIVE' ? 'Operativa' : 'Mantenimiento'}
                         </Badge>
-                        <Badge variant={machine.is_dynamic_member ? 'success' : 'outline'} className="min-h-8 text-xs">
-                          {machine.is_dynamic_member ? 'Grupo dinámico' : machine.code === 'EXT-01' ? 'Fórmulas exclusivas' : 'Fuera del grupo dinámico'}
+                        <Badge variant={machine.is_dynamic_member ? 'success' : 'outline'} className="min-h-8 text-sm">
+                          {machine.is_dynamic_member ? 'Recibe fórmulas generales' : machine.code === 'EXT-01' ? 'Uso exclusivo' : 'Sin grupo dinámico'}
                         </Badge>
                       </div>
                     </div>
@@ -214,21 +230,39 @@ export const MachinesPage = () => {
                     </Badge>
                   </div>
 
-                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">
-                    <p className="font-bold text-muted-foreground">PTI enlazados a esta extrusora</p>
-                    {machine.ptiProducts?.length ? <p className="mt-1 font-mono text-foreground">{machine.ptiProducts.map((pti: any) => pti.code).join(' · ')}</p> : <p className="mt-1 text-muted-foreground">Sin fichas enlazadas. Asigna la máquina desde el catálogo de PTI.</p>}
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <p className="text-sm font-bold text-foreground">Regla de fórmulas del cliente</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {machine.machine_number === 1 || machine.code === 'EXT-01'
+                        ? 'Esta máquina trabaja con fórmulas exclusivas asignadas por el cliente.'
+                        : machine.is_dynamic_member
+                          ? 'Esta máquina pertenece al grupo dinámico y recibe las fórmulas generales del cliente.'
+                          : 'Esta máquina no recibe fórmulas generales del grupo dinámico.'}
+                    </p>
                   </div>
 
+                  <details className="group rounded-xl border border-border bg-background/40">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                      <span>PTI asignados <span className="text-muted-foreground">({machine.ptiProducts?.length || 0})</span></span>
+                      <Icon name="expand_more" size={21} className="text-muted-foreground transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="border-t border-border px-3 py-3 text-sm">
+                      {machine.ptiProducts?.length ? <p className="break-words font-mono leading-relaxed text-muted-foreground">{machine.ptiProducts.map((pti: any) => pti.code).join(' · ')}</p> : <p className="text-muted-foreground">Sin PTI asignados. La asignación se realiza desde el catálogo de PTI.</p>}
+                    </div>
+                  </details>
+
                   {/* Footer de Tarjeta: Compatibilidad y Acciones */}
-                  <div className="mt-auto flex items-center border-t border-border pt-3">
+                  <div className="mt-auto border-t border-border pt-3">
                     <button
                       type="button"
                       onClick={() => handleOpenFormulasModal(machine)}
-                      className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-sm font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 text-base font-bold text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <Icon name="science" size={17} className="shrink-0" />
-                      <span className="min-w-0">{machine.compatible_formulas?.length || machine.formulas_count || 0} recetas compatibles</span>
+                      <Icon name="science" size={19} className="shrink-0" />
+                      <span>Configurar recetas heredadas</span>
+                      <Badge variant="outline" className="ml-1 min-h-7 px-2 text-sm">{machine.compatible_formulas?.length || machine.formulas_count || 0}</Badge>
                     </button>
+                    <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">La configuración del cliente se define con la regla de fórmulas indicada arriba.</p>
 
                   </div>
                 </CardContent>

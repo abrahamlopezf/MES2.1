@@ -25,7 +25,8 @@ interface FormulaDetailsModalProps {
   formula: Formula | null;
   onEditFormula?: (formula: Formula) => void;
   onRequestMix?: (formula: Formula) => void;
-  onOpenCreatePti?: () => void;
+  onOpenCreatePti?: (formula?: Formula) => void;
+  onManagePtiLink?: (formula: Formula) => void;
 }
 
 interface DraftIngredient {
@@ -60,7 +61,8 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
   formula,
   onEditFormula,
   onRequestMix,
-  onOpenCreatePti
+  onOpenCreatePti,
+  onManagePtiLink
 }) => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
@@ -477,7 +479,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
               <div className="flex items-center gap-2">
                 <h4 className="font-black text-foreground text-xs uppercase tracking-wider flex items-center gap-2">
                   <Icon name="description" size={16} className="text-primary" />
-                  Especificación de Ingredientes (Bache de {batchSizeKg} Kg)
+                  Componentes de la fórmula ({batchSizeKg} kg)
                 </h4>
                 <Badge variant="outline" className="text-xs font-mono">
                   {isEditingIngredients ? draftIngredients.length : ingredients.length} Ingrediente{(isEditingIngredients ? draftIngredients.length : ingredients.length) !== 1 ? 's' : ''}
@@ -499,7 +501,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                     onClick={() => setIsEditingIngredients(true)}
                   >
                     <Icon name="edit" size={14} />
-                    Editar Ingredientes y Composición
+                    Editar componentes
                   </Button>
                 ) : (
                   <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -528,7 +530,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                       ) : (
                         <>
                           <Icon name="save" size={14} />
-                          Guardar Composición
+                          Guardar componentes
                         </>
                       )}
                     </Button>
@@ -829,11 +831,20 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
 
           {/* PRODUCTOS PTI SALIENTES ENLAZADOS */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <h4 className="font-black text-foreground text-xs uppercase tracking-wider flex items-center gap-2">
-                <Icon name="inventory_2" size={16} className="text-primary" />
-                Productos PTI Salientes Enlazados (Carretes / Bobinas)
-              </h4>
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between mb-2.5">
+              <div className="min-w-0">
+                <h4 className="font-black text-foreground text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="inventory_2" size={16} className="text-primary" />
+                  PTI de salida
+                </h4>
+                <p className="mt-1 text-xs text-muted-foreground">Una fórmula se enlaza con un solo PTI. El vínculo se administra desde el catálogo PTI.</p>
+              </div>
+              {onManagePtiLink && (
+                <Button type="button" variant="outline" className="min-h-11 shrink-0 gap-2" onClick={() => onManagePtiLink(formula)}>
+                  <Icon name="link" size={16} />
+                  Abrir catálogo PTI
+                </Button>
+              )}
               <Badge variant="outline" className="text-xs font-mono">
                 {ptiProducts.length} Carretes
               </Badge>
@@ -874,13 +885,13 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
               </div>
             ) : (
               <div className="p-4 rounded-xl bg-card border border-dashed border-border text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
-                <span>Esta fórmula aún no tiene productos terminados intermedios (PTI) enlazados.</span>
+                <span>Esta fórmula todavía no tiene un PTI enlazado. Abre el catálogo PTI y edita la ficha que corresponda.</span>
                 {onOpenCreatePti && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs font-bold gap-1.5 text-primary shrink-0"
-                    onClick={onOpenCreatePti}
+                    onClick={() => onOpenCreatePti(formula)}
                   >
                     <Icon name="add" size={14} />
                     Dar de alta PTI
@@ -924,7 +935,7 @@ export const FormulaDetailsModal: React.FC<FormulaDetailsModalProps> = ({
                   ) : (
                     <>
                       <Icon name="save" size={15} />
-                      Guardar Composición
+                      Guardar componentes
                     </>
                   )}
                 </Button>

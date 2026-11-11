@@ -68,12 +68,13 @@ const getIconPaths = (prefix) => {
 };
 
 const generatePDFForQRs = async (codes) => {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 0 });
       const buffers = [];
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
 
       const cmToPt = 28.3465;
       const cellSize = 5 * cmToPt; // 141.73 pts
@@ -82,16 +83,16 @@ const generatePDFForQRs = async (codes) => {
       const marginX = (595.28 - (cols * cellSize)) / 2;
       const marginY = (841.89 - (rows * cellSize)) / 2;
 
-      for (let i = 0; i < codes.length; i++) {
+      const drawQrLabel = (code, qrPng, i) => {
         if (i > 0 && i % (cols * rows) === 0) {
           doc.addPage();
         }
 
-        const code = codes[i];
-        const qrString = code.industrialCode || code.qr_code;
+        const qrString = String(code?.industrialCode || code?.qr_code || '').trim();
+        if (!qrString) throw new Error(`El registro QR #${i + 1} no tiene un código imprimible.`);
         const prefix = qrString.split('-')[0];
-        const serialNum = parseInt(code.serial || qrString.split('-').pop(), 10).toString();
-        
+        const serialNum = String(code.serial ?? qrString.match(/(\d+)$/)?.[1] ?? i + 1);
+
         const positionOnPage = i % (cols * rows);
         const col = positionOnPage % cols;
         const row = Math.floor(positionOnPage / cols);
@@ -109,16 +110,7 @@ const generatePDFForQRs = async (codes) => {
         const qrX = x + (cellSize - qrSize) / 2;
         const qrY = y + 10; 
 
-        const encryptedQrString = encryptQrData(qrString);
-        
-        const qrDataUrl = await QRCode.toDataURL(encryptedQrString, { 
-          width: 300, 
-          margin: 0, 
-          errorCorrectionLevel: 'H',
-          color: { dark: '#000000', light: '#ffffff' } 
-        });
-        
-        doc.image(qrDataUrl, qrX, qrY, { width: qrSize });
+        doc.image(qrPng, qrX, qrY, { width: qrSize });
 
         // 3. Center Mask (Black rounded square)
         const maskSize = qrSize * 0.28;
@@ -128,7 +120,7 @@ const generatePDFForQRs = async (codes) => {
         doc.roundedRect(maskX, maskY, maskSize, maskSize, 6).fill('black');
 
         // 4. Center Icon (White SVG)
-        const iconScale = (maskSize * 0.6) / 24; 
+        const iconScale = (maskSize * 0.6) / 24;
         const iconX = maskX + (maskSize - (24 * iconScale)) / 2;
         const iconY = maskY + (maskSize - (24 * iconScale)) / 2;
 
@@ -148,7 +140,6 @@ const generatePDFForQRs = async (codes) => {
         const barHeight = 18;
         const barMarginX = 15;
         const barX = x + barMarginX;
-        // Fix: Position the bar BELOW the QR code so it doesn't corrupt the bottom modules
         const barY = qrY + qrSize + 4;
         const barWidth = cellSize - (barMarginX * 2);
         
@@ -158,9 +149,30 @@ const generatePDFForQRs = async (codes) => {
           width: barWidth,
           align: 'center'
         });
-      }
-      
-      doc.end();
+      };
+
+      const qrBatchSize = 32;
+      const renderBatch = async (start) => {
+        const batch = codes.slice(start, start + qrBatchSize);
+        const images = await Promise.all(batch.map((code, offset) => {
+          const qrString = String(code?.industrialCode || code?.qr_code || '').trim();
+          if (!qrString) throw new Error(`El registro QR #${start + offset + 1} no tiene un código imprimible.`);
+          return QRCode.toBuffer(encryptQrData(qrString), {
+          width: 300,
+          margin: 0,
+          errorCorrectionLevel: 'H',
+          color: { dark: '#000000', light: '#ffffff' }
+          });
+        }));
+        batch.forEach((code, offset) => drawQrLabel(code, images[offset], start + offset));
+      };
+
+      (async () => {
+        for (let start = 0; start < codes.length; start += qrBatchSize) {
+          await renderBatch(start);
+        }
+        doc.end();
+      })().catch(reject);
     } catch (err) {
       reject(err);
     }

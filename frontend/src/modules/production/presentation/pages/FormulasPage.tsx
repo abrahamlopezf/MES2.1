@@ -87,6 +87,7 @@ export const FormulasPage: React.FC = () => {
   const [ptiFormulaFilter, setPtiFormulaFilter] = useState<string>('ALL');
   const [ptiStatusFilter, setPtiStatusFilter] = useState<string>('ACTIVE');
   const [editingPti, setEditingPti] = useState<PtiProduct | null>(null);
+  const [ptiLinkFormulaId, setPtiLinkFormulaId] = useState<number | null>(null);
   const [selectedPtiDetails, setSelectedPtiDetails] = useState<PtiProduct | null>(null);
   const [isPtiModalOpen, setIsPtiModalOpen] = useState(false);
   const [deletingPtiId, setDeletingPtiId] = useState<number | null>(null);
@@ -109,10 +110,19 @@ export const FormulasPage: React.FC = () => {
   const catalogFormulas = formulas.filter((formula) => isClientFormula(formula.code));
   const { data: machineData = [] } = useQuery({
     queryKey: ['extrusion', 'machines'],
-    queryFn: async () => (await apiClient.get('/extrusion/machines')).data?.data || [],
+    queryFn: async () => {
+      const response = await apiClient.get<any>('/extrusion/machines');
+      if (Array.isArray(response)) return response;
+      if (Array.isArray(response?.data)) return response.data;
+      if (Array.isArray(response?.data?.data)) return response.data.data;
+      return [];
+    },
   });
-  const dynamicMachines = (Array.isArray(machineData) ? machineData : [])
-    .filter((machine: any) => machine.is_dynamic_member && machine.is_active !== false && machine.status === 'ACTIVE');
+  const activeMachines = (Array.isArray(machineData) ? machineData : [])
+    .filter((machine: any) => machine.is_active !== false
+      && String(machine.status || 'ACTIVE').toUpperCase() === 'ACTIVE'
+      && String(machine.code || '').trim().toUpperCase() !== 'EXT-LIQ');
+  const dynamicMachines = activeMachines.filter((machine: any) => machine.is_dynamic_member);
 
   // Mutations
   const updatePtiMutation = useUpdatePtiProductMutation();
@@ -142,11 +152,21 @@ export const FormulasPage: React.FC = () => {
       f.name.toLowerCase().includes(formulaSearchTerm.toLowerCase()) ||
       f.code.toLowerCase().includes(formulaSearchTerm.toLowerCase());
     const machine = getTargetMachine(f);
-    const matchesMachine = selectedMachine === 'ALL' || machine.includes(selectedMachine);
+    const selectedMachineRecord = activeMachines.find((candidate: any) => candidate.name === selectedMachine);
+    const assignmentMode = String(f.extruder_assignment_mode || '').toUpperCase();
+    const matchesMachine = selectedMachine === 'ALL' || (
+      selectedMachineRecord && assignmentMode === 'DYNAMIC'
+        ? Boolean(selectedMachineRecord.is_dynamic_member)
+        : selectedMachineRecord && assignmentMode === 'EXTRUDER_1'
+          ? Number(selectedMachineRecord.machine_number) === 1
+          : selectedMachineRecord && assignmentMode === 'FIXED'
+            ? (f.allowed_extruders || []).map(Number).includes(Number(selectedMachineRecord.id))
+            : machine.includes(selectedMachine)
+    );
     return matchesSearch && matchesMachine;
   });
 
-  const machines = ['Extrusora 1', ...dynamicMachines.map((machine: any) => machine.name)];
+  const machines = activeMachines.map((machine: any) => machine.name);
 
   // Filtrado de PTIs
   const filteredPtis = ptiProducts.filter((p: PtiProduct) => {
@@ -158,8 +178,8 @@ export const FormulasPage: React.FC = () => {
       (p.color && p.color.toLowerCase().includes(ptiSearchTerm.toLowerCase())) ||
       String(p.denier ?? '').includes(ptiSearchTerm.trim());
 
-    const matchesFormula =
-      ptiFormulaFilter === 'ALL' || String(p.formula_id) === ptiFormulaFilter;
+    const matchesFormula = ptiFormulaFilter === 'ALL'
+      || (ptiFormulaFilter === 'UNLINKED' ? !p.formula_id : String(p.formula_id) === ptiFormulaFilter);
 
     const matchesStatus =
       ptiStatusFilter === 'ALL' ||
@@ -459,7 +479,7 @@ export const FormulasPage: React.FC = () => {
                 const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
                 const transformedVal = formula.transformed_mixture_value == null ? null : Number(formula.transformed_mixture_value);
                 const suggestedPrice = formula.suggested_pti_unit_price == null ? null : Number(formula.suggested_pti_unit_price);
-                const ptiCount = formula.ptiProducts?.length || 0;
+                const linkedPtis = formula.ptiProducts || [];
 
                 return (
                   <Card
@@ -495,6 +515,15 @@ export const FormulasPage: React.FC = () => {
                         <span className="font-mono">
                           {formula.expected_yield_pieces} pzas ({formula.expected_yield_kg || 490} kg)
                         </span>
+                      </div>
+
+                      <div className="rounded-lg border border-border bg-background/60 px-3 py-2.5">
+                        <span className="block text-xs font-bold text-muted-foreground">PTI de salida</span>
+                        {linkedPtis.length > 0 ? linkedPtis.map((pti) => (
+                          <span key={pti.id} className="mt-1 block break-words text-sm font-semibold text-foreground">
+                            {pti.code} · {pti.name}
+                          </span>
+                        )) : <span className="mt-1 block text-sm text-muted-foreground">Sin PTI enlazado</span>}
                       </div>
 
                       {/* BLOQUE ECONÓMICO */}
@@ -538,17 +567,17 @@ export const FormulasPage: React.FC = () => {
                           setSelectedFormulaDetails(formula);
                         }}
                       >
-                        <Icon name="description" size={14} />
-                        Detalles
+                        <Icon name="description" size={16} />
+                        Ingredientes y detalles
                       </Button>
 
                       <PermissionGate permission="extrusion.formulas.manage">
                         <Button
                           variant="outline"
                           size="sm"
-                          aria-label={`Editar factor de ${formula.name}`}
+                          aria-label={`Editar configuración de ${formula.name}`}
                           className="min-h-12 min-w-12 px-3 font-bold text-base text-muted-foreground hover:text-foreground"
-                          title="Editar Factor Índice"
+                          title="Editar asignación y parámetros"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingFormula(formula);
@@ -580,7 +609,7 @@ export const FormulasPage: React.FC = () => {
               <div className="px-4 sm:px-5 pb-5 pt-2">
                 <div className="grid gap-3 2xl:hidden">
                   {filteredFormulas.map((formula: Formula) => {
-                    const ptiCount = formula.ptiProducts?.length || 0;
+                    const linkedPtis = formula.ptiProducts || [];
 
                     return (
                       <article key={formula.id} className="rounded-xl border border-border bg-background p-4">
@@ -603,9 +632,9 @@ export const FormulasPage: React.FC = () => {
                             <dd className="text-sm text-muted-foreground">{formula.expected_yield_kg || 490} kg</dd>
                           </div>
                           <div className="col-span-2">
-                            <dt className="text-sm font-semibold text-muted-foreground">Carretes PTI vinculados</dt>
-                            <dd className="mt-0.5 font-medium text-foreground">
-                              {ptiCount > 0 ? `${ptiCount} PTI enlazado${ptiCount !== 1 ? 's' : ''}` : 'Sin carretes vinculados'}
+                            <dt className="text-sm font-semibold text-muted-foreground">PTI de salida</dt>
+                            <dd className="mt-0.5 break-words font-medium text-foreground">
+                              {linkedPtis.length > 0 ? linkedPtis.map((pti) => `${pti.code} · ${pti.name}`).join(', ') : 'Sin PTI enlazado'}
                             </dd>
                           </div>
                         </dl>
@@ -622,12 +651,12 @@ export const FormulasPage: React.FC = () => {
                           <PermissionGate permission="extrusion.formulas.manage">
                             <Button
                               variant="outline"
-                              aria-label={`Editar factor de ${formula.name}`}
+                              aria-label={`Editar configuración de ${formula.name}`}
                               className="min-h-12 w-full gap-2 text-base font-bold"
                               onClick={() => setEditingFormula(formula)}
                             >
                               <Icon name="edit" size={18} />
-                              Editar factor
+                              Editar configuración
                             </Button>
                           </PermissionGate>
                         </div>
@@ -664,7 +693,7 @@ export const FormulasPage: React.FC = () => {
                     </thead>
                     <tbody className="mt-2">
                       {filteredFormulas.map((formula: Formula) => {
-                        const ptiCount = formula.ptiProducts?.length || 0;
+                        const linkedPtis = formula.ptiProducts || [];
 
                         return (
                           <tr
@@ -709,15 +738,12 @@ export const FormulasPage: React.FC = () => {
 
                             {/* CARRETES PTI ENLAZADOS */}
                             <td className="border-b border-border/50 px-4 py-3.5 align-middle text-center whitespace-nowrap">
-                              {ptiCount > 0 ? (
-                                <Badge variant="outline" className="font-mono text-sm font-bold text-primary border-primary/30 bg-primary/10">
-                                  {ptiCount} PTI enlazado{ptiCount !== 1 ? 's' : ''}
-                                </Badge>
-                              ) : (
-                                <span className="text-sm text-muted-foreground italic">
-                                  Sin carretes
-                                </span>
-                              )}
+                              {linkedPtis.length > 0 ? linkedPtis.map((pti) => (
+                                <div key={pti.id} className="mb-1 text-left last:mb-0">
+                                  <span className="block font-mono text-xs font-bold text-primary">{pti.code}</span>
+                                  <span className="block max-w-52 truncate text-xs text-foreground" title={pti.name}>{pti.name}</span>
+                                </div>
+                              )) : <span className="text-sm text-muted-foreground">Sin PTI enlazado</span>}
                             </td>
 
                             {/* ACCIONES */}
@@ -752,7 +778,7 @@ export const FormulasPage: React.FC = () => {
                                         className="min-h-11 cursor-pointer py-2 text-base"
                                       >
                                         <Icon name="edit" size={16} className="mr-2 text-amber-500" />
-                                        <span>Editar Factor Índice</span>
+                                      <span>Editar configuración</span>
                                       </DropdownMenuItem>
                                     </PermissionGate>
                                   </DropdownMenuContent>
@@ -848,6 +874,7 @@ export const FormulasPage: React.FC = () => {
                     className="min-h-11 w-full min-w-0 truncate rounded-lg border border-border bg-background px-3 text-base font-medium text-foreground outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="ALL">Todas las fórmulas</option>
+                    <option value="UNLINKED">PTI sin fórmula</option>
                     {formulas.map((f) => (
                       <option key={f.id} value={String(f.id)}>{f.code} - {f.name}</option>
                     ))}
@@ -915,7 +942,7 @@ export const FormulasPage: React.FC = () => {
               <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <div>
                   <h3 className="font-bold text-foreground text-lg tracking-tight">Carretes y Bobinas PTI registrados</h3>
-                  <p className="text-base font-medium text-muted-foreground">Carretes listos para extrusión y pesaje.</p>
+                  <p className="text-base font-medium text-muted-foreground">La tabla muestra el enlace actual. Para asignarlo, edita la ficha PTI y elige la fórmula que lo produce.</p>
                 </div>
                 <div className="w-fit rounded-md border border-border bg-secondary/50 px-3 py-1.5 text-sm font-bold text-foreground">
                   {filteredPtis.length} carretes
@@ -956,7 +983,7 @@ export const FormulasPage: React.FC = () => {
                                 className="min-h-12 cursor-pointer py-3"
                               >
                                 <Icon name="edit" size={18} className="mr-2 text-primary" />
-                                <span>Editar Carrete</span>
+                                <span>Editar PTI</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -973,6 +1000,12 @@ export const FormulasPage: React.FC = () => {
                       </div>
 
                       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border py-3 text-base">
+                        <div className="col-span-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                          <dt className="text-sm font-semibold text-muted-foreground">Fórmula enlazada</dt>
+                          <dd className="mt-1 break-words font-semibold text-foreground">
+                            {pti.formula?.code ? `${pti.formula.code} · ${pti.formula.name}` : pti.formula_id ? `Fórmula #${pti.formula_id}` : 'Sin fórmula enlazada'}
+                          </dd>
+                        </div>
                         <div>
                           <dt className="text-sm font-semibold text-muted-foreground">Peso unitario</dt>
                           <dd className="mt-0.5 font-mono font-bold text-foreground">{pti.unit_weight_kg == null ? 'Pendiente de captura' : `${Number(pti.unit_weight_kg).toFixed(3)} kg`}</dd>
@@ -1038,7 +1071,7 @@ export const FormulasPage: React.FC = () => {
                   tabIndex={0}
                   className="hidden w-full overflow-x-auto pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 2xl:block"
                 >
-                  <table className={`w-full ${allowCosts ? 'min-w-[850px]' : 'min-w-[740px]'} table-fixed border-separate border-spacing-0`}>
+                  <table className={`w-full ${allowCosts ? 'min-w-[1020px]' : 'min-w-[900px]'} table-fixed border-separate border-spacing-0`}>
                     <thead>
                       <tr>
                         <th className="w-[120px] rounded-l-xl bg-secondary px-3 py-3 text-left text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
@@ -1046,6 +1079,9 @@ export const FormulasPage: React.FC = () => {
                         </th>
                         <th className="bg-secondary px-3 py-3 text-left text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Carrete / Bobina
+                        </th>
+                        <th className="bg-secondary px-3 py-3 text-left text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
+                          Fórmula enlazada
                         </th>
                         <th className="w-[125px] bg-secondary px-3 py-3 text-center text-sm font-bold leading-tight text-secondary-foreground whitespace-normal break-words">
                           Peso Unit.
@@ -1070,6 +1106,12 @@ export const FormulasPage: React.FC = () => {
                             <strong className="font-black text-sm text-primary truncate block" title={pti.code}>
                               {pti.code}
                             </strong>
+                          </td>
+
+                          <td className="border-b border-border/50 px-3 py-2.5 align-middle">
+                            {pti.formula?.code ? (
+                              <><span className="block truncate font-mono text-sm font-bold text-primary" title={pti.formula.code}>{pti.formula.code}</span><span className="mt-0.5 block line-clamp-2 text-sm text-foreground" title={pti.formula.name}>{pti.formula.name}</span></>
+                            ) : pti.formula_id ? <span className="font-mono text-sm">Fórmula #{pti.formula_id}</span> : <span className="text-sm text-muted-foreground">Sin enlazar</span>}
                           </td>
 
                           <td className="border-b border-border/50 px-2.5 py-2.5 align-middle">
@@ -1136,7 +1178,7 @@ export const FormulasPage: React.FC = () => {
                                     className="min-h-11 cursor-pointer py-2 text-base"
                                   >
                                     <Icon name="edit" size={16} className="mr-2 text-primary" />
-                                    <span>Editar Carrete</span>
+                                    <span>Editar PTI</span>
                                   </DropdownMenuItem>
 
                                   <DropdownMenuSeparator />
@@ -1249,9 +1291,11 @@ export const FormulasPage: React.FC = () => {
         onClose={() => {
           setIsPtiModalOpen(false);
           setEditingPti(null);
+          setPtiLinkFormulaId(null);
         }}
         pti={editingPti}
         formulas={formulas}
+        suggestedFormulaId={ptiLinkFormulaId}
       />
 
       {/* Modal de Detalles Completos de Fórmula */}
@@ -1267,10 +1311,18 @@ export const FormulasPage: React.FC = () => {
           setSelectedFormulaDetails(null);
           setSelectedMixFormula(f);
         }}
-        onOpenCreatePti={() => {
+        onOpenCreatePti={(formula) => {
           setSelectedFormulaDetails(null);
           setActiveTab('PTI_CATALOG');
+          setPtiLinkFormulaId(formula?.id ?? null);
+          setPtiFormulaFilter('UNLINKED');
           setIsPtiModalOpen(true);
+        }}
+        onManagePtiLink={(formula) => {
+          setSelectedFormulaDetails(null);
+          setActiveTab('PTI_CATALOG');
+          setPtiLinkFormulaId(formula.id);
+          setPtiFormulaFilter(formula.ptiProducts?.length ? String(formula.id) : 'UNLINKED');
         }}
       />
     </div>

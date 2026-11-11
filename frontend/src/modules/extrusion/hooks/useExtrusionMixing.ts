@@ -75,12 +75,14 @@ export const useFormulaDetails = (formulaId: string | number | undefined) => {
   });
 };
 
-export const fetchWipChildQr = async (qrCode: string) => {
+export const fetchWipChildQr = async (qrCode: string, preparationId?: number | null) => {
   const scannedValue = (qrCode || '').trim();
   // Encrypted QR payloads are case-sensitive; normalize only the AGY prefix.
   const cleanQr = /^AGY:/i.test(scannedValue) ? `AGY:${scannedValue.slice(4)}` : scannedValue.toUpperCase();
   if (!cleanQr) throw new Error('Código QR requerido.');
-  const res: any = await apiClient.get(`/extrusion/wip-child-qr/${encodeURIComponent(cleanQr)}`);
+  const res: any = await apiClient.get(`/extrusion/wip-child-qr/${encodeURIComponent(cleanQr)}`, {
+    params: preparationId ? { preparation_id: preparationId } : undefined,
+  });
   return res?.data || res;
 };
 

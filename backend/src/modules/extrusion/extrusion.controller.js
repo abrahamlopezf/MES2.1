@@ -24,6 +24,31 @@ class ExtrusionController {
     }
   }
 
+  async saveMixDraft(req, res, next) {
+    try {
+      const result = await extrusionService.saveMixDraft({
+        ...req.body,
+        area_id: req.user.area_id,
+        shift_session_id: req.extrusionShiftSession?.id,
+      }, req.user.id);
+      return res.status(200).json({ success: true, message: 'Avance guardado como preparación pausada.', data: result });
+    } catch (error) { next(error); }
+  }
+
+  async getPausedMixDrafts(req, res, next) {
+    try {
+      const drafts = await extrusionService.getPausedMixDrafts(req.user.area_id);
+      return res.status(200).json({ success: true, data: drafts });
+    } catch (error) { next(error); }
+  }
+
+  async discardMixDraft(req, res, next) {
+    try {
+      const result = await extrusionService.discardMixDraft(req.params.id, req.user.area_id, req.user.id);
+      return res.status(200).json({ success: true, message: 'Preparación reiniciada; no tenía consumos confirmados.', data: result });
+    } catch (error) { next(error); }
+  }
+
   async getFormulas(req, res, next) {
     try {
       const formulas = await extrusionService.getFormulas();
@@ -50,7 +75,7 @@ class ExtrusionController {
 
   async getWipChildQr(req, res, next) {
     try {
-      const result = await extrusionService.getWipChildQr(req.params.qrCode);
+      const result = await extrusionService.getWipChildQr(req.params.qrCode, req.query.preparation_id);
       return res.status(200).json({
         success: true,
         data: result
@@ -192,7 +217,9 @@ class ExtrusionController {
 
   async getRacks(req, res, next) {
     try {
-      const racks = await extrusionService.getPtiRacks();
+      const { ExtrusionShiftSession } = require('../../database/models');
+      const activeShift = await ExtrusionShiftSession.findOne({ where: { status: 'ABIERTO' }, order: [['opened_at', 'DESC']] });
+      const racks = await extrusionService.getPtiRacks(activeShift && !activeShift.handoff_ready_at ? activeShift.id : null);
       return res.status(200).json({
         success: true,
         data: racks

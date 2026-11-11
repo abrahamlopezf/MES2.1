@@ -15,13 +15,15 @@ interface PtiProductModalProps {
   onClose: () => void;
   pti: PtiProduct | null;
   formulas: Formula[];
+  suggestedFormulaId?: number | null;
 }
 
 export const PtiProductModal: React.FC<PtiProductModalProps> = ({
   isOpen,
   onClose,
   pti,
-  formulas
+  formulas,
+  suggestedFormulaId = null
 }) => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
@@ -47,7 +49,13 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
   const updateMutation = useUpdatePtiProductMutation();
   const { data: machines = [], isLoading: machinesLoading, isError: machinesError } = useQuery({
     queryKey: ['extrusion', 'machines'],
-    queryFn: async () => (await apiClient.get('/extrusion/machines')).data?.data || [],
+    queryFn: async () => {
+      const response = await apiClient.get<any>('/extrusion/machines');
+      if (Array.isArray(response)) return response;
+      if (Array.isArray(response?.data)) return response.data;
+      if (Array.isArray(response?.data?.data)) return response.data.data;
+      return [];
+    },
     enabled: isOpen,
   });
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -56,7 +64,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
     if (pti) {
       setName(pti.name || '');
       setCode(pti.code || '');
-      setFormulaId(pti.formula_id || '');
+      setFormulaId(pti.formula_id || suggestedFormulaId || '');
       setExtrusionMachineNumber(pti.extrusion_machine_number == null ? '' : Number(pti.extrusion_machine_number));
       setTapeType(pti.tape_type || '');
       setColor(pti.color || '');
@@ -72,7 +80,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
     } else {
       setName('');
       setCode('');
-      setFormulaId('');
+      setFormulaId(suggestedFormulaId || '');
       setExtrusionMachineNumber('');
       setTapeType('');
       setColor('');
@@ -86,7 +94,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
       setSpecifications('');
       setIsActive(true);
     }
-  }, [pti, formulas, isOpen]);
+  }, [pti, formulas, isOpen, suggestedFormulaId]);
 
   // Encontrar fórmula seleccionada para datos sugeridos
   const selectedFormula = formulas.find((f) => f.id === Number(formulaId));
@@ -244,7 +252,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <Icon name="link" size={14} className="text-primary" />
-                  Fórmula de Extrusión Enlazada (Opcional)
+                  Fórmula que produce este PTI (opcional)
                 </label>
                 <span className="text-[11px] font-semibold text-muted-foreground">
                   Determina la mezcla de 500kg
@@ -256,13 +264,16 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                 onChange={(e) => setFormulaId(e.target.value ? Number(e.target.value) : '')}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary outline-none"
               >
-                <option value="">-- Sin enlazar (puedes hacerlo desde Editar Fórmula) --</option>
+                <option value="">Sin fórmula enlazada</option>
                 {availableFormulas.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.code} - {f.name}{allowCosts ? ` (Índice: ×${Number(f.cost_index || 1.15).toFixed(2)})` : ''}
                   </option>
                 ))}
               </select>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Elige la fórmula que produce esta ficha. Cada fórmula solo puede enlazarse a un PTI; las fórmulas ocupadas por otra ficha no aparecen.
+              </p>
 
               {/* DATOS DE LA FÓRMULA SELECCIONADA */}
               {selectedFormula && (
@@ -342,7 +353,7 @@ export const PtiProductModal: React.FC<PtiProductModalProps> = ({
                   Extrusora de referencia *
                   <select value={extrusionMachineNumber} onChange={(e) => setExtrusionMachineNumber(e.target.value ? Number(e.target.value) : '')} required disabled={machinesLoading || machinesError} className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground">
                     <option value="">{machinesLoading ? 'Cargando máquinas…' : machinesError ? 'No se pudo cargar' : 'Seleccionar extrusora'}</option>
-                    {machines.filter((machine: any) => machine.is_active && Number(machine.machine_number) > 0).map((machine: any) => <option key={machine.id} value={machine.machine_number}>{machine.name} · {machine.code}</option>)}
+                    {machines.filter((machine: any) => machine.is_active && Number(machine.machine_number) > 0 && String(machine.code || '').trim().toUpperCase() !== 'EXT-LIQ').map((machine: any) => <option key={machine.id} value={machine.machine_number}>{machine.name} · {machine.code}</option>)}
                   </select>
                   {machinesError && <span role="alert" className="text-xs font-normal text-destructive">No fue posible consultar el catálogo de extrusoras.</span>}
                 </label>

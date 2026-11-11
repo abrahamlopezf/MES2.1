@@ -10,6 +10,27 @@ const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const { Op } = sequelize.Sequelize;
 
+const getPausedDraftReservations = async ({ qrIds, materialIds, excludePreparationId, areaId = 2, transaction } = {}) => {
+  const drafts = await ProcessPreparation.findAll({
+    where: { status: 'BORRADOR_PAUSADO', from_area_id: Number(areaId) },
+    attributes: ['id', 'metadata'],
+    transaction,
+  });
+  const qrFilter = qrIds ? new Set(qrIds.map(Number)) : null;
+  const materialFilter = materialIds ? new Set(materialIds.map(Number)) : null;
+  return drafts
+    .filter((draft) => Number(draft.id) !== Number(excludePreparationId || 0) && draft.metadata?.kind === 'EXTRUSION_MIX_DRAFT')
+    .flatMap((draft) => (draft.metadata?.mix_draft?.reservations || []).map((reservation) => ({
+      preparation_id: Number(draft.id),
+      source_qr_code_id: Number(reservation.source_qr_code_id),
+      material_id: Number(reservation.material_id),
+      quantity: Number(reservation.quantity || 0),
+    })))
+    .filter((reservation) => reservation.quantity > 0
+      && (!qrFilter || qrFilter.has(reservation.source_qr_code_id))
+      && (!materialFilter || materialFilter.has(reservation.material_id)));
+};
+
 const isPpFormulaIngredient = (ingredient) => {
   const name = String(ingredient?.material?.name || ingredient?.material_name || '').trim().toUpperCase();
   const code = String(ingredient?.material?.internal_code || ingredient?.material_code || '').trim().toUpperCase();
@@ -464,8 +485,10 @@ class ExtrusionService {
       let preparation;
 
       if (preparation_id) {
-        preparation = await ProcessPreparation.findByPk(preparation_id, { transaction });
+        preparation = await ProcessPreparation.findByPk(preparation_id, { transaction, lock: transaction.LOCK.UPDATE });
         if (!preparation) throw new Error('Ticket de preparación no encontrado');
+        if (preparation.status === 'PREPARADA') throw Object.assign(new Error(`La preparación ${preparation.folio} ya fue registrada; evita crear otra mezcla con el mismo avance.`), { statusCode: 409 });
+        if (preparation.status === 'BORRADOR_PAUSADO' && preparation.metadata?.kind !== 'EXTRUSION_MIX_DRAFT') throw Object.assign(new Error('El borrador de mezcla no tiene un estado válido para reanudarse.'), { statusCode: 409 });
         
         preparation.destination_qr_code_id = destQr.id;
         preparation.status = 'PREPARADA';
@@ -492,6 +515,20 @@ class ExtrusionService {
           prepared_by: userId,
           prepared_at: new Date()
         }, { transaction });
+      }
+
+      // A paused preparation may already contain physically dosed WIP inputs.
+      // Include those balances in this run and only debit any additional delta
+      // submitted by the client, so resuming cannot consume the same QR twice.
+      const previouslyConsumedInputs = preparation_id
+        ? await ProcessPreparationInput.findAll({ where: { preparation_id: preparation.id }, transaction, lock: transaction.LOCK.UPDATE })
+        : [];
+      const consumedBySourceQr = new Map();
+      for (const previousInput of previouslyConsumedInputs) {
+        const sourceQrId = Number(previousInput.source_qr_code_id || 0);
+        if (!sourceQrId) continue;
+        consumedBySourceQr.set(sourceQrId, Number(((consumedBySourceQr.get(sourceQrId) || 0) + Number(previousInput.quantity || 0)).toFixed(3)));
+        totalQuantity += Number(previousInput.quantity || 0);
       }
 
       // 5. Repartir el PP entre ambos silos activos y registrar el origen por silo.
@@ -621,6 +658,13 @@ class ExtrusionService {
       const folio = preparation.folio;
       let primaryMaterialId = formula.target_intermediate_material_id || (formula.ingredients && formula.ingredients[0]?.material_id);
       const consumedNonPpByMaterial = new Map();
+      for (const previousInput of previouslyConsumedInputs) {
+        const matchedIngredient = isOfficialExtrusionFormula
+          ? formula.ingredients.find((ingredient) => eligibleMaterialIdsByIngredient.get(Number(ingredient.id))?.has(Number(previousInput.material_id)))
+          : null;
+        const key = matchedIngredient ? Number(matchedIngredient.id) : Number(previousInput.material_id);
+        consumedNonPpByMaterial.set(key, Number(((consumedNonPpByMaterial.get(key) || 0) + Number(previousInput.quantity || 0)).toFixed(3)));
+      }
       for (const input of (inputs || [])) {
         if (isSiloMode && siloMaterialIds.has(Number(input.material_id))) {
           // Si por alguna razón se envió el PP en inputs, ya fue procesado por el Silo
@@ -628,6 +672,14 @@ class ExtrusionService {
         }
         const sourceQr = await QrCode.findOne({ where: { qr_code: input.qr_code }, transaction });
         if (!sourceQr) throw new Error(`QR ${input.qr_code} no encontrado.`);
+
+        const alreadyConsumed = Number(consumedBySourceQr.get(Number(sourceQr.id)) || 0);
+        const requestedQuantity = Number(input.quantity);
+        if (requestedQuantity + 0.001 < alreadyConsumed) {
+          throw Object.assign(new Error(`La preparación ya consumió ${alreadyConsumed.toFixed(3)} kg del QR ${input.qr_code}; no se puede reducir esa cantidad al reanudar.`), { statusCode: 409 });
+        }
+        const quantityToConsume = Number(Math.max(0, requestedQuantity - alreadyConsumed).toFixed(3));
+        if (quantityToConsume <= 0.001) continue;
 
         const wipItem = await WipInventory.findOne({
           where: { qr_code_id: sourceQr.id, area_id: effectiveAreaId },
@@ -659,13 +711,20 @@ class ExtrusionService {
           primaryMaterialId = wipItem.material_id;
         }
 
-        if (Number(wipItem.amount) < Number(input.quantity)) {
-          throw new Error(`Cantidad insuficiente en el QR ${input.qr_code}. Disponible: ${wipItem.amount}.`);
+        if (Number(wipItem.amount) < quantityToConsume) {
+          throw new Error(`Cantidad insuficiente en el QR ${input.qr_code}. Disponible: ${wipItem.amount}; falta consumir ${quantityToConsume.toFixed(3)} kg.`);
+        }
+        const activeReservations = await getPausedDraftReservations({ qrIds: [sourceQr.id], excludePreparationId: preparation_id, areaId: effectiveAreaId, transaction });
+        const reservedByOtherPreparations = Number(activeReservations
+          .filter((reservation) => Number(reservation.preparation_id) !== Number(preparation_id || 0))
+          .reduce((sum, reservation) => sum + Number(reservation.quantity || 0), 0).toFixed(3));
+        if (Number(wipItem.amount) - reservedByOtherPreparations + 0.001 < quantityToConsume) {
+          throw Object.assign(new Error(`El QR ${input.qr_code} tiene ${Math.max(0, Number(wipItem.amount) - reservedByOtherPreparations).toFixed(3)} kg libres; ${reservedByOtherPreparations.toFixed(3)} kg están reservados por otra preparación pausada.`), { statusCode: 409 });
         }
 
         // Descontar
         const balanceBefore = Number(wipItem.amount);
-        const consumedQuantity = Number(input.quantity);
+        const consumedQuantity = quantityToConsume;
         const matchedRecipeIngredient = isOfficialExtrusionFormula
           ? formula.ingredients.find((ingredient) => eligibleMaterialIdsByIngredient.get(Number(ingredient.id))?.has(consumedMaterialId))
           : null;
@@ -678,7 +737,7 @@ class ExtrusionService {
         wipItem.amount = newAmount;
         await wipItem.save({ transaction });
 
-        totalQuantity += Number(input.quantity);
+        totalQuantity += consumedQuantity;
 
         // Asegurar existencia de TraceableItem para el QR origen
         let sourceTraceable = await TraceableItem.findOne({
@@ -1079,7 +1138,7 @@ class ExtrusionService {
   async getFormulaDetails(id) {
     const { Formula, FormulaIngredient, Material, WipInventory, QrCode, Lote, ProcessFormula, ProcessFormulaItem } = require('../../database/models');
     const { Op } = require('sequelize');
-    
+
     // 1. Buscar en el catálogo oficial de Fórmulas de Extrusión (500kg)
     let formula = await Formula.findByPk(id, {
       include: [
@@ -1134,9 +1193,10 @@ class ExtrusionService {
             area_id: 2
           }
         })) || 0;
-
+        const materialReservations = await getPausedDraftReservations({ materialIds: [...eligibleMaterialIds], areaId: 2 });
+        const reservedMaterialSum = Number(materialReservations.reduce((sum, row) => sum + row.quantity, 0).toFixed(3));
         const reqQty = Number(ing.quantity || 0);
-        const physicalWip = Number(Number(physicalWipSum).toFixed(3));
+        const physicalWip = Number(Math.max(0, Number(physicalWipSum) - reservedMaterialSum).toFixed(3));
 
         // Obtener todos los sacos hijos (-SN) activos con existencias en Área 2 ordenados por FIFO
         const fifoWipList = await WipInventory.findAll({
@@ -1162,6 +1222,12 @@ class ExtrusionService {
           }],
           order: [['created_at', 'ASC']]
         });
+        const reservationRows = fifoWipList.length ? await getPausedDraftReservations({ qrIds: fifoWipList.map((row) => Number(row.qr_code_id)), areaId: 2 }) : [];
+        const reservedByQr = new Map();
+        for (const reservation of reservationRows) {
+          const qrId = Number(reservation.source_qr_code_id);
+          reservedByQr.set(qrId, Number(((reservedByQr.get(qrId) || 0) + Number(reservation.quantity || 0)).toFixed(3)));
+        }
 
         const fifoQrs = [];
         let accumulatedKg = 0;
@@ -1169,7 +1235,8 @@ class ExtrusionService {
         let reachedRequirement = false;
 
         for (const itemWip of fifoWipList) {
-          const sackQty = Number(itemWip.amount || 0);
+          const sackQty = Number(Math.max(0, Number(itemWip.amount || 0) - Number(reservedByQr.get(Number(itemWip.qr_code_id)) || 0)).toFixed(3));
+          if (sackQty <= 0.001) continue;
           accumulatedKg = Number((accumulatedKg + sackQty).toFixed(3));
           if (!reachedRequirement) {
             sacksNeededCount++;
@@ -1189,7 +1256,7 @@ class ExtrusionService {
           });
         }
 
-        const nextFifoWip = fifoWipList[0] || null;
+        const nextFifoWip = fifoQrs.length ? fifoWipList.find((row) => row.qr_code?.qr_code === fifoQrs[0].qr_code) : null;
         const scannableWip = Number(Number(accumulatedKg).toFixed(3));
         const unscannableWip = Number(Math.max(0, physicalWip - scannableWip).toFixed(3));
 
@@ -1213,7 +1280,7 @@ class ExtrusionService {
           unscannable_wip_kg: unscannableWip,
           is_sufficient: scannableWip >= reqQty,
           suggested_fifo_qr: nextFifoWip?.qr_code?.qr_code || null,
-          suggested_fifo_amount: nextFifoWip ? Number(nextFifoWip.amount) : null,
+          suggested_fifo_amount: fifoQrs[0]?.amount ?? null,
           fifo_qrs: fifoQrs,
           fifo_sacks_needed: sacksNeededCount || (fifoQrs.length > 0 ? 1 : 0),
           fifo_total_available_kg: accumulatedKg
@@ -1249,7 +1316,9 @@ class ExtrusionService {
       })) || 0;
 
       const reqQty = Number(item.quantity || 0);
-      const physicalWip = Number(Number(physicalWipSum).toFixed(3));
+      const reservationRows = await getPausedDraftReservations({ materialIds: [item.material_id], areaId: 2 });
+      const reservedMaterialSum = Number(reservationRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3));
+      const physicalWip = Number(Math.max(0, Number(physicalWipSum) - reservedMaterialSum).toFixed(3));
 
       const fifoWipList = await WipInventory.findAll({
         where: {
@@ -1272,12 +1341,18 @@ class ExtrusionService {
       });
 
       const fifoQrs = [];
+      const reservedByQr = new Map();
+      for (const row of reservationRows) {
+        const qrId = Number(row.source_qr_code_id);
+        reservedByQr.set(qrId, Number(((reservedByQr.get(qrId) || 0) + Number(row.quantity || 0)).toFixed(3)));
+      }
       let accumulatedKg = 0;
       let sacksNeededCount = 0;
       let reachedRequirement = false;
 
       for (const itemWip of fifoWipList) {
-        const sackQty = Number(itemWip.amount || 0);
+        const sackQty = Number(Math.max(0, Number(itemWip.amount || 0) - Number(reservedByQr.get(Number(itemWip.qr_code_id)) || 0)).toFixed(3));
+        if (sackQty <= 0.001) continue;
         accumulatedKg = Number((accumulatedKg + sackQty).toFixed(3));
         if (!reachedRequirement) {
           sacksNeededCount++;
@@ -1294,7 +1369,7 @@ class ExtrusionService {
         });
       }
 
-      const nextFifoWip = fifoWipList[0] || null;
+      const nextFifoWip = fifoQrs.length ? fifoWipList.find((row) => row.qr_code?.qr_code === fifoQrs[0].qr_code) : null;
       const scannableWip = Number(Number(accumulatedKg).toFixed(3));
       const unscannableWip = Number(Math.max(0, physicalWip - scannableWip).toFixed(3));
 
@@ -1308,7 +1383,7 @@ class ExtrusionService {
         unscannable_wip_kg: unscannableWip,
         is_sufficient: scannableWip >= reqQty,
         suggested_fifo_qr: nextFifoWip?.qr_code?.qr_code || null,
-        suggested_fifo_amount: nextFifoWip ? Number(nextFifoWip.amount) : null,
+        suggested_fifo_amount: fifoQrs[0]?.amount ?? null,
         fifo_qrs: fifoQrs,
         fifo_sacks_needed: sacksNeededCount || (fifoQrs.length > 0 ? 1 : 0),
         fifo_total_available_kg: accumulatedKg
@@ -1324,7 +1399,7 @@ class ExtrusionService {
     };
   }
 
-  async getWipChildQr(qrCode) {
+  async getWipChildQr(qrCode, preparationId = null) {
     const scannedValue = String(qrCode || '').trim();
     let decodedValue = scannedValue;
     if (/^AGY:/i.test(scannedValue)) {
@@ -1384,6 +1459,15 @@ class ExtrusionService {
       throw error;
     }
 
+    const reservations = await getPausedDraftReservations({ qrIds: [qr.id], areaId: 2 });
+    const reservedKg = Number(reservations.filter((row) => Number(row.preparation_id) !== Number(preparationId || 0)).reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3));
+    const ownReservedKg = Number(reservations.filter((row) => Number(preparationId) > 0 && Number(row.preparation_id) === Number(preparationId)).reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3));
+    const freeKg = Number(Math.max(0, Number(wip.amount) - reservedKg).toFixed(3));
+    if (freeKg <= 0.001) {
+      const error = new Error(`El QR Hijo '${cleanQr}' está reservado por una preparación pausada; continúa esa preparación para liberar o consumir el saldo.`);
+      error.statusCode = 409;
+      throw error;
+    }
     const context = (await getWipQrContext([qr.id])).get(Number(qr.id));
     return {
       qr_code: qr.qr_code,
@@ -1391,7 +1475,10 @@ class ExtrusionService {
       material_id: wip.material_id,
       material_name: wip.material ? wip.material.name : 'Material',
       material_code: wip.material ? wip.material.internal_code : '',
-      available_amount: Number(wip.amount),
+      available_amount: freeKg,
+      physical_amount: Number(wip.amount),
+      reserved_amount: Number(reservedKg.toFixed(3)),
+      reserved_for_this_preparation: ownReservedKg,
       unit: 'KG',
       entered_wip_at: context?.receipt?.at || wip.created_at,
       entered_wip_by: context?.receipt?.by || null,
@@ -1408,6 +1495,256 @@ class ExtrusionService {
         parent_qr_code: context?.sourceQrCode || null,
       },
     };
+  }
+
+  async saveMixDraft(payload, userId) {
+    const { formula_id, output_color, container_count = 1, extruder_id, inputs = [], notes, area_id, shift_session_id, preparation_id, confirm_inputs_consumed = false } = payload;
+    return sequelize.transaction(async (transaction) => {
+      const effectiveAreaId = Number(area_id) || Number((await Area.findOne({ where: { code: 'EXTRUSION' }, transaction }))?.id || 2);
+      const { Formula, FormulaIngredient, Extruder } = require('../../database/models');
+      const formula = await Formula.findByPk(formula_id, {
+        include: [{ model: FormulaIngredient, as: 'ingredients', include: [{ model: Material, as: 'material' }, { model: require('../../database/models').Tag, as: 'equivalenceTag' }] }],
+        transaction,
+      });
+      if (!formula || !formula.is_active) throw Object.assign(new Error('Selecciona una fórmula activa para guardar la preparación.'), { statusCode: 400 });
+      validateRequestedOutputColor(formula, output_color);
+      if (!Number.isInteger(Number(container_count)) || Number(container_count) < 1 || Number(container_count) > 10) {
+        throw Object.assign(new Error('La cantidad de contenedores debe ser un entero entre 1 y 10.'), { statusCode: 400 });
+      }
+      if (extruder_id) {
+        const machine = await Extruder.findByPk(Number(extruder_id), { transaction });
+        if (!machine || !machine.is_active || machine.status !== 'ACTIVE') throw Object.assign(new Error('La extrusora seleccionada ya no está activa.'), { statusCode: 409 });
+        await assertFormulaAllowedOnExtruder(formula, Number(extruder_id), require('../../database/models'), transaction);
+      }
+
+      let preparation = null;
+      if (preparation_id) {
+        preparation = await ProcessPreparation.findByPk(Number(preparation_id), { transaction, lock: transaction.LOCK.UPDATE });
+        if (!preparation || preparation.status !== 'BORRADOR_PAUSADO' || Number(preparation.from_area_id) !== effectiveAreaId) {
+          throw Object.assign(new Error('La preparación pausada ya no está disponible para editar.'), { statusCode: 409 });
+        }
+        if (Number(preparation.formula_id) !== Number(formula_id)) throw Object.assign(new Error('La fórmula no coincide con el borrador pausado.'), { statusCode: 409 });
+      } else {
+        const folio = `MIX-DRAFT-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        preparation = await ProcessPreparation.create({
+          folio,
+          shift_session_id: Number(shift_session_id) || null,
+          formula_id: Number(formula_id),
+          from_area_id: effectiveAreaId,
+          to_area_id: effectiveAreaId,
+          destination_qr_code_id: null,
+          total_quantity: 0,
+          unit: 'KG',
+          status: 'BORRADOR_PAUSADO',
+          notes: notes || null,
+          metadata: { kind: 'EXTRUSION_MIX_DRAFT' },
+          prepared_by: userId || null,
+          prepared_at: new Date(),
+        }, { transaction });
+      }
+
+      const eligibleMaterialIdsByIngredient = new Map();
+      for (const ingredient of formula.ingredients || []) {
+        const eligibleIds = new Set([Number(ingredient.material_id)]);
+        if (ingredient.equivalence_tag_id) {
+          if (!ingredient.equivalenceTag?.is_active || !isFormulaEquivalenceTag(ingredient.equivalenceTag)) {
+            throw Object.assign(new Error(`La equivalencia del ingrediente ${ingredient.material?.name || ingredient.id} no está activa o no es válida.`), { statusCode: 409 });
+          }
+          for (const id of await getActiveMaterialIdsForTag(ingredient.equivalence_tag_id, transaction)) eligibleIds.add(Number(id));
+        }
+        eligibleMaterialIdsByIngredient.set(Number(ingredient.id), eligibleIds);
+      }
+
+      const existingInputs = await ProcessPreparationInput.findAll({ where: { preparation_id: preparation.id }, transaction, lock: transaction.LOCK.UPDATE });
+      const existingByQrId = new Map();
+      for (const existing of existingInputs) {
+        if (!existing.source_qr_code_id) continue;
+        existingByQrId.set(Number(existing.source_qr_code_id), Number(((existingByQrId.get(Number(existing.source_qr_code_id)) || 0) + Number(existing.quantity || 0)).toFixed(3)));
+      }
+
+      let draftReservations = Array.isArray(preparation.metadata?.mix_draft?.reservations)
+        ? preparation.metadata.mix_draft.reservations.map((reservation) => ({ ...reservation, source_qr_code_id: Number(reservation.source_qr_code_id), material_id: Number(reservation.material_id), quantity: Number(reservation.quantity || 0) }))
+        : [];
+      const normalizedInputs = [];
+      for (const input of inputs) {
+        const qrCode = String(input.qr_code || '').trim();
+        const requestedQty = Number(input.quantity);
+        if (!qrCode || !Number.isFinite(requestedQty) || requestedQty <= 0) throw Object.assign(new Error('Cada insumo pausado debe tener QR y cantidad mayor a cero.'), { statusCode: 400 });
+        if (normalizedInputs.some((item) => item.qr_code.trim().toUpperCase() === qrCode.toUpperCase())) throw Object.assign(new Error(`El QR ${qrCode} está repetido en el borrador; consolida sus cantidades en una sola línea.`), { statusCode: 400 });
+        const qr = await QrCode.findOne({ where: { qr_code: qrCode }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!qr) throw Object.assign(new Error(`No se encontró el QR ${qrCode}.`), { statusCode: 404 });
+        const priorQty = Number(existingByQrId.get(Number(qr.id)) || 0);
+        if (requestedQty + 0.001 < priorQty) throw Object.assign(new Error(`El QR ${qrCode} ya tiene ${priorQty.toFixed(3)} kg confirmados como usados y no se puede reducir.`), { statusCode: 409 });
+        const wip = await WipInventory.findOne({ where: { qr_code_id: qr.id, area_id: effectiveAreaId }, include: [{ model: Lote, as: 'lote', attributes: ['id', 'folio', 'unit_cost'] }], transaction, lock: { level: transaction.LOCK.UPDATE, of: WipInventory } });
+        if (!wip) throw Object.assign(new Error(`El QR ${qrCode} ya no está en el WIP de Extrusión.`), { statusCode: 409 });
+        const ingredient = (formula.ingredients || []).find((item) => eligibleMaterialIdsByIngredient.get(Number(item.id))?.has(Number(wip.material_id)));
+        if (!ingredient || isPpFormulaIngredient(ingredient)) throw Object.assign(new Error(`El QR ${qrCode} no corresponde a un aditivo WIP permitido de esta fórmula.`), { statusCode: 400 });
+        const desiredForIngredient = normalizedInputs.reduce((sum, row) => {
+          const rowIngredient = (formula.ingredients || []).find((candidate) => eligibleMaterialIdsByIngredient.get(Number(candidate.id))?.has(Number(row.material_id)));
+          return sum + (Number(rowIngredient?.id) === Number(ingredient.id) ? Number(row.quantity) : 0);
+        }, requestedQty);
+        if (desiredForIngredient > Number(ingredient.quantity || 0) + 0.05) {
+          throw Object.assign(new Error(`La cantidad confirmada para ${ingredient.material?.name || 'el ingrediente'} supera lo requerido por la fórmula (${Number(ingredient.quantity || 0).toFixed(2)} kg).`), { statusCode: 409 });
+        }
+        const delta = Number(Math.max(0, requestedQty - priorQty).toFixed(3));
+        const outstandingToReserve = Number(Math.max(0, requestedQty - priorQty).toFixed(3));
+        const reservationsForQr = await getPausedDraftReservations({ qrIds: [qr.id], excludePreparationId: preparation.id, areaId: effectiveAreaId, transaction });
+        const reservedByOtherPreparations = Number(reservationsForQr
+          .filter((reservation) => Number(reservation.preparation_id) !== Number(preparation.id))
+          .reduce((sum, reservation) => sum + Number(reservation.quantity || 0), 0).toFixed(3));
+        const freeWipKg = Math.max(0, Number((Number(wip.amount) - reservedByOtherPreparations).toFixed(3)));
+        const amountNeededNow = confirm_inputs_consumed ? delta : outstandingToReserve;
+        if (freeWipKg + 0.001 < amountNeededNow) {
+          throw Object.assign(new Error(`El QR ${qrCode} tiene ${freeWipKg.toFixed(3)} kg libres; ${reservedByOtherPreparations.toFixed(3)} kg están reservados por otra preparación pausada.`), { statusCode: 409 });
+        }
+        if (confirm_inputs_consumed && delta > 0.001) {
+          if (freeWipKg + 0.001 < delta) throw Object.assign(new Error(`El QR ${qrCode} solo tiene ${freeWipKg.toFixed(3)} kg disponibles fuera de otras reservas; se intentan confirmar ${delta.toFixed(3)} kg.`), { statusCode: 409 });
+          const before = Number(wip.amount);
+          const after = Number((before - delta).toFixed(3));
+          wip.amount = after;
+          await wip.save({ transaction });
+          let traceable = await TraceableItem.findOne({ where: { qr_code_id: qr.id }, transaction, lock: transaction.LOCK.UPDATE });
+          if (!traceable) {
+            traceable = await TraceableItem.create({ qr_code_id: qr.id, item_type: 'RAW_MATERIAL_LOT', material_id: wip.material_id, current_area_id: effectiveAreaId, quantity_initial: before, quantity_current: before, unit: 'KG', status: 'DISPONIBLE' }, { transaction });
+          }
+          let traceBefore = Number(traceable.quantity_current || 0);
+          if (Math.abs(traceBefore - before) > 0.001) {
+            const previousTraceBalance = traceBefore;
+            const difference = Number(Math.abs(previousTraceBalance - before).toFixed(3));
+            traceable.quantity_current = before;
+            traceable.status = before <= 0.001 ? 'CONSUMIDO' : 'DISPONIBLE';
+            traceable.updated_by = userId || null;
+            await traceable.save({ transaction });
+            await TraceabilityMovement.create({
+              traceable_item_id: traceable.id,
+              qr_code_id: qr.id,
+              movement_type: previousTraceBalance > before ? 'AJUSTE_SALIDA' : 'AJUSTE_ENTRADA',
+              quantity: difference,
+              unit: 'KG',
+              balance_after: before,
+              reference_folio: preparation.folio,
+              performed_by: userId || null,
+              notes: `Conciliación de trazabilidad contra WIP al pausar ${preparation.folio}.`,
+              metadata: { paused_draft: true, wip_balance_kg: before, prior_trace_balance_kg: previousTraceBalance },
+            }, { transaction });
+            traceBefore = before;
+          }
+          if (traceBefore + 0.001 < delta) throw Object.assign(new Error(`La trazabilidad del QR ${qrCode} tiene menos saldo que el WIP; no se guardó la pausa.`), { statusCode: 409 });
+          const traceAfter = Number((traceBefore - delta).toFixed(3));
+          traceable.quantity_current = traceAfter;
+          traceable.status = traceAfter <= 0.001 ? 'CONSUMIDO' : 'DISPONIBLE';
+          traceable.updated_by = userId || null;
+          await traceable.save({ transaction });
+          await ProcessPreparationInput.create({
+            preparation_id: preparation.id,
+            source_traceable_item_id: traceable.id,
+            source_qr_code_id: qr.id,
+            material_id: wip.material_id,
+            quantity: delta,
+            unit: 'KG',
+            balance_before: before,
+            balance_after: after,
+            source_lote_id: wip.lote_id || null,
+            source_lot_number: wip.lote?.folio || null,
+            unit_cost_snapshot: wip.lote?.unit_cost == null ? null : Number(wip.lote.unit_cost),
+            extended_cost_snapshot: wip.lote?.unit_cost == null ? null : Number((delta * Number(wip.lote.unit_cost)).toFixed(4)),
+            notes: `Dosificación parcial confirmada al pausar ${preparation.folio}.`,
+          }, { transaction });
+          await TraceabilityEvent.create({ qr_code_id: qr.id, event_type: 'CONSUMO_MEZCLA', entity_type: 'ProcessPreparation', entity_id: String(preparation.id), performed_by: userId || null, notes: `Consumo parcial confirmado para preparación pausada ${preparation.folio}.`, metadata: { preparation_id: preparation.id, consumed_amount: delta, remaining: after, paused_draft: true } }, { transaction });
+          await TraceabilityMovement.create({ traceable_item_id: traceable.id, qr_code_id: qr.id, movement_type: 'CONSUMO_PROCESO', quantity: delta, unit: 'KG', balance_after: traceAfter, reference_folio: preparation.folio, performed_by: userId || null, notes: `Consumo parcial confirmado al pausar la mezcla. WIP restante: ${after} kg.`, metadata: { preparation_id: preparation.id, paused_draft: true } }, { transaction });
+          if (after <= 0.001) await qr.update({ status: 'CONSUMED', is_active: false }, { transaction });
+        }
+        const targetReservationQty = confirm_inputs_consumed ? 0 : outstandingToReserve;
+        const ownReservation = draftReservations.find((reservation) => Number(reservation.source_qr_code_id) === Number(qr.id));
+        if (targetReservationQty > 0.001) {
+          if (ownReservation) ownReservation.quantity = targetReservationQty;
+          else draftReservations.push({ source_qr_code_id: Number(qr.id), material_id: Number(wip.material_id), quantity: targetReservationQty });
+        } else if (ownReservation) {
+          draftReservations = draftReservations.filter((reservation) => Number(reservation.source_qr_code_id) !== Number(qr.id));
+        }
+        normalizedInputs.push({
+          qr_code: qrCode,
+          quantity: requestedQty,
+          material_id: Number(wip.material_id),
+          material_name: input.material_name || ingredient.material?.name || '',
+          material_code: input.material_code || ingredient.material?.internal_code || '',
+        });
+      }
+
+      for (const existing of existingInputs) {
+        const qr = existing.source_qr_code_id ? await QrCode.findByPk(existing.source_qr_code_id, { transaction }) : null;
+        const retainedQty = normalizedInputs.find((item) => item.qr_code.trim().toUpperCase() === String(qr?.qr_code || '').trim().toUpperCase())?.quantity || 0;
+        const consumedQty = Number(existingByQrId.get(Number(existing.source_qr_code_id)) || 0);
+        if (retainedQty + 0.001 < consumedQty) throw Object.assign(new Error(`El borrador debe conservar el QR ${qr?.qr_code || ''} y sus ${consumedQty.toFixed(3)} kg ya consumidos.`), { statusCode: 409 });
+      }
+
+      const retainedQrIds = [];
+      for (const input of normalizedInputs) {
+        const qr = await QrCode.findOne({ where: { qr_code: input.qr_code }, attributes: ['id'], transaction });
+        if (qr) retainedQrIds.push(Number(qr.id));
+      }
+      draftReservations = draftReservations.filter((reservation) => retainedQrIds.includes(Number(reservation.source_qr_code_id)));
+
+      const metadata = preparation.metadata || {};
+      preparation.metadata = {
+        ...metadata,
+        kind: 'EXTRUSION_MIX_DRAFT',
+        mix_draft: {
+          formula_id: Number(formula_id),
+          output_color: output_color || null,
+          container_count: Number(container_count),
+          extruder_id: extruder_id ? Number(extruder_id) : null,
+          inputs: normalizedInputs,
+          reservations: confirm_inputs_consumed ? [] : draftReservations,
+          notes: notes || null,
+          updated_at: new Date().toISOString(),
+          inputs_consumed_through: confirm_inputs_consumed ? new Date().toISOString() : (metadata.mix_draft?.inputs_consumed_through || null),
+        },
+      };
+      preparation.shift_session_id = Number(shift_session_id) || preparation.shift_session_id || null;
+      preparation.notes = notes || preparation.notes;
+      await preparation.save({ transaction });
+      return { id: preparation.id, folio: preparation.folio, status: preparation.status, metadata: preparation.metadata };
+    });
+  }
+
+  async getPausedMixDrafts(areaId) {
+    const where = { status: 'BORRADOR_PAUSADO' };
+    const extrusionArea = areaId ? null : await Area.findOne({ where: { code: 'EXTRUSION' } });
+    where.from_area_id = Number(areaId || extrusionArea?.id || 2);
+    const drafts = await ProcessPreparation.findAll({ where, order: [['updated_at', 'DESC']], limit: 50 });
+    const { Formula } = require('../../database/models');
+    return Promise.all(drafts.filter((draft) => draft.metadata?.kind === 'EXTRUSION_MIX_DRAFT').map(async (draft) => {
+      const formula = await Formula.findByPk(draft.formula_id, { attributes: ['name', 'code'] });
+      const consumedRows = await ProcessPreparationInput.findAll({ where: { preparation_id: draft.id }, include: [{ model: QrCode, as: 'sourceQrCode', attributes: ['qr_code'], required: false }] });
+      const reservationRows = draft.metadata?.mix_draft?.reservations || [];
+      const reservedInputs = await Promise.all(reservationRows.map(async (row) => ({ qr_code: (await QrCode.findByPk(row.source_qr_code_id, { attributes: ['qr_code'] }))?.qr_code, quantity: Number(row.quantity), material_id: Number(row.material_id) })));
+      return {
+        ...draft.toJSON(),
+        formula_name: formula?.name || 'Fórmula',
+        formula_code: formula?.code || '',
+        consumed_inputs: consumedRows.map((row) => ({ qr_code: row.sourceQrCode?.qr_code, quantity: Number(row.quantity), material_id: Number(row.material_id) })),
+        reserved_inputs: reservedInputs,
+        reserved_quantity: Number(reservationRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3)),
+      };
+    }));
+  }
+
+  async discardMixDraft(draftId, areaId, userId) {
+    return sequelize.transaction(async (transaction) => {
+      const extrusionArea = areaId ? null : await Area.findOne({ where: { code: 'EXTRUSION' }, transaction });
+      const expectedAreaId = Number(areaId || extrusionArea?.id || 2);
+      const draft = await ProcessPreparation.findByPk(Number(draftId), { transaction, lock: transaction.LOCK.UPDATE });
+      if (!draft || draft.status !== 'BORRADOR_PAUSADO' || draft.metadata?.kind !== 'EXTRUSION_MIX_DRAFT' || Number(draft.from_area_id) !== expectedAreaId) {
+        throw Object.assign(new Error('La preparación pausada no existe o no pertenece a Extrusión.'), { statusCode: 404 });
+      }
+      const consumedCount = await ProcessPreparationInput.count({ where: { preparation_id: draft.id }, transaction });
+      if (consumedCount > 0) throw Object.assign(new Error('No se puede reiniciar: ya hay insumos confirmados y descontados. Continúa esta preparación para conservar la trazabilidad.'), { statusCode: 409 });
+      draft.status = 'CANCELADA';
+      draft.notes = [draft.notes, `Borrador descartado por usuario ${userId || 'autenticado'}; sin consumos confirmados.`].filter(Boolean).join(' | ');
+      await draft.save({ transaction });
+      return { id: draft.id, folio: draft.folio, status: draft.status };
+    });
   }
 
   async createMixRequest(payload, userId) {
@@ -1495,7 +1832,7 @@ class ExtrusionService {
       limit = params;
     }
 
-    const where = { status: 'PREPARADA' };
+    const where = { status: ['PREPARADA', 'BORRADOR_PAUSADO'] };
 
     if (formulaId && formulaId !== 'ALL') {
       where.formula_id = formulaId;
@@ -1531,11 +1868,9 @@ class ExtrusionService {
       const area = prep.to_area_id ? await Area.findByPk(prep.to_area_id) : null;
 
       // Buscar los TraceableItems asociados a este folio de preparación
-      const traceableItems = await TraceableItem.findAll({
-        where: {
-          item_type: 'PREPARED_MIX',
-          reference_folio: prep.folio
-        },
+      const isPausedDraft = prep.status === 'BORRADOR_PAUSADO' && prep.metadata?.kind === 'EXTRUSION_MIX_DRAFT';
+      const traceableItems = isPausedDraft ? [] : await TraceableItem.findAll({
+        where: { item_type: 'PREPARED_MIX', reference_folio: prep.folio },
         include: [{ model: QrCode, as: 'qr_code' }],
         order: [['id', 'ASC']]
       });
@@ -1552,7 +1887,7 @@ class ExtrusionService {
           folio: prep.folio,
           extruder_id: item.metadata?.extruder_id || (prep.to_area_id === 2 ? null : prep.to_area_id)
         }));
-      } else {
+      } else if (!isPausedDraft) {
         let destQr = null;
         if (prep.destination_qr_code_id) {
           destQr = await QrCode.findByPk(prep.destination_qr_code_id);
@@ -1569,7 +1904,10 @@ class ExtrusionService {
         }];
       }
 
-      const assignedExtruderId = containers[0]?.extruder_id || (prep.to_area_id !== 2 ? prep.to_area_id : null);
+      const assignedExtruderId = containers[0]?.extruder_id || prep.metadata?.mix_draft?.extruder_id || (prep.to_area_id !== 2 ? prep.to_area_id : null);
+      const draftInputs = isPausedDraft ? (prep.metadata?.mix_draft?.inputs || []) : [];
+      const consumedDraftInputs = isPausedDraft ? await ProcessPreparationInput.findAll({ where: { preparation_id: prep.id }, attributes: ['quantity'] }) : [];
+      const reservedDraftInputs = isPausedDraft ? (prep.metadata?.mix_draft?.reservations || []) : [];
 
       result.push({
         id: prep.id,
@@ -1577,14 +1915,18 @@ class ExtrusionService {
         formula_id: prep.formula_id,
         formula_name: formula ? formula.name : 'Fórmula Extrusión',
         formula_code: formula ? (formula.code || '') : '',
-        total_quantity: Number(prep.total_quantity || 500),
+        total_quantity: isPausedDraft ? 0 : Number(prep.total_quantity || 500),
         status: prep.status,
         extruder_id: assignedExtruderId,
         extruder_name: assignedExtruderId ? `Extrusora ${assignedExtruderId}` : (area ? area.name : 'Piso Extrusión'),
         prepared_at: prep.prepared_at || prep.createdAt,
         notes: prep.notes,
-        container_count: containers.length,
-        containers
+        container_count: isPausedDraft ? Number(prep.metadata?.mix_draft?.container_count || 0) : containers.length,
+        containers,
+        metadata: isPausedDraft ? prep.metadata : undefined,
+        draft_input_count: draftInputs.length,
+        draft_consumed_quantity: Number(consumedDraftInputs.reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3)),
+        draft_reserved_quantity: Number(reservedDraftInputs.reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3)),
       });
     }
 
@@ -2315,32 +2657,31 @@ class ExtrusionService {
       const machineCodeNumber = String(extruderMachine?.code || '').match(/(\d+)$/)?.[1];
       const effectiveExtruderNumber = Number(machineCodeNumber || effectiveExtruderId);
 
-      // 1. El ingreso físico debe identificar el rack por su QR, no por su código visible.
-      const rack = await PtiRack.findOne({
-        where: { qr_code: String(rack_qr || '').trim() },
+      // El QR identifica y conserva la trazabilidad del rack, pero el operador
+      // no necesita escanearlo: si no se envía rack_qr, la asignación es automática.
+      let rack = rack_qr ? await PtiRack.findOne({
+        where: { qr_code: String(rack_qr).trim() },
         transaction: t,
         lock: t.LOCK.UPDATE
-      });
-
-      if (!rack) {
-        const error = new Error(`No se encontró un rack con el QR escaneado '${rack_qr}'. Escanea el QR físico del rack de destino.`);
-        error.statusCode = 404;
-        throw error;
+      }) : null;
+      const autoCreatedRacks = [];
+      if (rack_qr && !rack) {
+        throw Object.assign(new Error(`No se encontró el rack indicado '${rack_qr}'. Actualiza la lista de racks e inténtalo de nuevo.`), { statusCode: 404 });
       }
-      if (rack.custody_shift_session_id && Number(rack.custody_shift_session_id) !== Number(shift_session_id)) {
+      if (rack?.custody_shift_session_id && Number(rack.custody_shift_session_id) !== Number(shift_session_id)) {
         throw Object.assign(new Error(`El rack ${rack.rack_code} permanece en custodia hasta cerrar el turno que lo produjo.`), { statusCode: 409, code: 'PTI_RACK_SHIFT_LOCKED' });
       }
 
       // Punto 5: Cálculo automático de piezas por peso en báscula si se ingresó peso
-      let rackUnitWeight = Number(unit_weight_kg) || (Number(rack.current_quantity) > 0 ? Number(rack.unit_weight_kg) : 0);
+      let rackUnitWeight = Number(unit_weight_kg) || (Number(rack?.current_quantity) > 0 ? Number(rack.unit_weight_kg) : 0);
       if (pieces > 0 && !Number.isInteger(pieces)) {
         const error = new Error('La cantidad de bobinas debe ser un número entero.');
         error.statusCode = 400;
         throw error;
       }
 
-      const currentQty = Number(rack.current_quantity || 0);
-      const maxCap = Number(rack.max_capacity || 100);
+      let currentQty = Number(rack?.current_quantity || 0);
+      let maxCap = Number(rack?.max_capacity || 100);
 
       const ptiProduct = await PtiProduct.findByPk(ptiId, {
         include: [{
@@ -2362,6 +2703,37 @@ class ExtrusionService {
         extruderNumber: effectiveExtruderNumber,
         telaresSubareaCode: extruderMachine?.telares_subarea_code,
       });
+      if (!rack) {
+        const candidates = await PtiRack.findAll({
+          where: {
+            custody_shift_session_id: { [sequelize.Sequelize.Op.or]: [null, Number(shift_session_id)] },
+            [sequelize.Sequelize.Op.or]: [
+              { current_quantity: { [sequelize.Sequelize.Op.lte]: 0 } },
+              { current_pti_product_id: ptiProduct.id, destination_subarea_id: null, destination_route: resolvedDestinationRoute },
+            ],
+          },
+          order: [['current_quantity', 'DESC'], ['id', 'ASC']],
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        rack = candidates.find((candidate) => Number(candidate.current_quantity || 0) < Number(candidate.max_capacity || 100)) || null;
+        if (!rack) {
+          const area = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction: t });
+          if (!area) throw Object.assign(new Error('No existe el área EXTRUSION para generar el QR del nuevo rack.'), { statusCode: 409 });
+          let code; let qr;
+          do {
+            code = `AUTO-PTI-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
+            qr = `QR-${code}`;
+          } while (await PtiRack.findOne({ where: { rack_code: code }, transaction: t }) || await QrCode.findOne({ where: { qr_code: qr }, transaction: t }));
+          let batch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t, lock: t.LOCK.UPDATE });
+          if (!batch) batch = await QrBatch.create({ batch_code: `BATCH-PTI-RACK-${Date.now()}`, quantity: 1, assigned_area_id: area.id, status: 'AVAILABLE', created_by: userId || 1 }, { transaction: t });
+          await QrCode.create({ serial: Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 100000), qr_code: qr, batch_id: batch.id, purpose: 'PTI_RACK', assigned_area_id: area.id, status: 'IN_USE', is_active: true, created_by: userId || 1 }, { transaction: t });
+          rack = await PtiRack.create({ rack_code: code, qr_code: qr, max_capacity: 100, current_quantity: 0, unit_price: Number(unit_price) || Number(ptiProduct.unit_price) || 0, unit_weight_kg: Number(ptiProduct.unit_weight_kg) || null, location_name: 'Piso Extrusión', status: 'VACIO' }, { transaction: t });
+          autoCreatedRacks.push(rack);
+        }
+        currentQty = Number(rack.current_quantity || 0);
+        maxCap = Number(rack.max_capacity || 100);
+      }
       const expectedPtiId = Number(queueItem.output_pti_product_id || 0);
       if (expectedPtiId > 0
         ? expectedPtiId !== Number(ptiProduct.id)
@@ -2401,7 +2773,6 @@ class ExtrusionService {
         throw error;
       }
       const rackAllocations = [];
-      const autoCreatedRacks = [];
       let remainingPieces = pieces;
       const allocateRackCapacity = (candidateRack) => {
         if (remainingPieces <= 0) return;
@@ -3140,7 +3511,7 @@ class ExtrusionService {
   /**
    * Obtiene todos los Racks de PTI con sus estados actuales y valorización total.
    */
-  async getPtiRacks() {
+  async getPtiRacks(activeShiftSessionId = null) {
     const { PtiRack, Material, PtiProduct, Formula } = require('../../database/models');
     const racks = await PtiRack.findAll({
       include: [
@@ -3156,6 +3527,10 @@ class ExtrusionService {
 
     return racks.map(r => {
       const plain = r.toJSON();
+      const custodyShiftId = plain.custody_shift_session_id == null ? null : Number(plain.custody_shift_session_id);
+      plain.custody_shift_session_id = custodyShiftId;
+      plain.available_for_active_shift = activeShiftSessionId != null && (custodyShiftId == null || custodyShiftId === Number(activeShiftSessionId));
+      plain.locked_until_shift_close = custodyShiftId != null && custodyShiftId !== Number(activeShiftSessionId || 0);
       const qty = Number(plain.current_quantity || 0);
       const price = Number(plain.unit_price || plain.currentPtiProduct?.unit_price || 0);
       plain.unit_price = price;
@@ -3844,7 +4219,7 @@ class ExtrusionService {
   async getExtrusionShiftActivity({ shift_date, shift_code, extruder_id }, options = {}) {
     const transaction = options.transaction;
     const transactionOptions = transaction ? { transaction } : {};
-    const { Extruder, ExtruderQueue, ExtrusionProductionEntry, ExtrusionTransition, ExtrusionShiftMixtureHandoff, ProcessPreparation, ExtrusionShiftSession } = require('../../database/models');
+    const { Extruder, ExtruderQueue, Formula, ExtrusionProductionEntry, ExtrusionTransition, ExtrusionShiftMixtureHandoff, ProcessPreparation, ExtrusionShiftSession } = require('../../database/models');
     const shiftSession = shift_date && shift_code ? await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code }, ...transactionOptions }) : null;
     const { start, end } = shiftSession
       ? { start: shiftSession.opened_at, end: shiftSession.closed_at || new Date() }
@@ -3872,7 +4247,8 @@ class ExtrusionService {
       });
     const queues = await ExtruderQueue.findAll({
         where: { ...machineFilter, [Op.or]: queueActivityConditions },
-      attributes: ['id', 'extruder_id', 'process_preparation_id', 'consumption_order_qr_id', 'shift_session_id', 'created_at'],
+      attributes: ['id', 'extruder_id', 'formula_id', 'status', 'process_preparation_id', 'consumption_order_qr_id', 'shift_session_id', 'created_at'],
+      include: [{ model: Formula, as: 'formula', attributes: ['id', 'name', 'code'], required: false }],
         ...transactionOptions,
       });
     const transitions = await ExtrusionTransition.findAll({
@@ -3915,6 +4291,15 @@ class ExtrusionService {
         production_entries: productionEntries.length,
         good_pti_kg: Number(productionEntries.reduce((sum, row) => sum + Number(row.net_weight_kg || 0), 0).toFixed(3)),
         prepared_mixes: preparedMixes.length,
+        mixtures: preparedMixes.map((row) => ({
+          queue_id: Number(row.id),
+          mixture_qr: row.consumption_order_qr_id || null,
+          formula_id: row.formula_id || null,
+          formula_name: row.formula?.name || null,
+          formula_code: row.formula?.code || null,
+          status: row.status || null,
+          prepared_at: row.created_at || null,
+        })),
         transitions: machineTransitions.length,
         activity_count: productionEntries.length + preparedMixes.length + machineTransitions.length,
         has_qualifying_activity: hasQualifyingShiftActivity({ productionEntries: productionEntries.length, preparedMixes: preparedMixes.length, transitions: machineTransitions.length }),
@@ -4318,7 +4703,7 @@ class ExtrusionService {
     });
   }
 
-  async closeExtrusionShift({ extruder_id, shift_date, shift_code, shift_session_id, actual_scrap_weight_kg, actual_total_weight_kg, grouped_weighings, weighings, notes, userId }) {
+  async closeExtrusionShift({ extruder_id, shift_date, shift_code, shift_session_id, actual_scrap_weight_kg, actual_total_weight_kg, actual_pti_weight_kg, grouped_weighings, weighings, notes, userId }) {
     const bulkWeightInput = actual_scrap_weight_kg ?? actual_total_weight_kg;
     const bulkMode = bulkWeightInput !== undefined && bulkWeightInput !== null;
     const bulkWeight = bulkMode ? Number(bulkWeightInput) : null;
@@ -4631,6 +5016,22 @@ class ExtrusionService {
         loadedMixtureKg: balanceSession ? loadedMixtureKg : mixtureInputKg,
         closingRemnantKg, mixtureScrapKg, purgeKg, actualScrapKg: actualTotal,
       });
+      const actualPtiWeightProvided = actual_pti_weight_kg !== undefined && actual_pti_weight_kg !== null && String(actual_pti_weight_kg).trim() !== '';
+      const actualPtiWeight = actualPtiWeightProvided ? Number(actual_pti_weight_kg) : null;
+      if (actualPtiWeightProvided && (!Number.isFinite(actualPtiWeight) || actualPtiWeight < 0)) {
+        throw Object.assign(new Error('El peso real de PTI debe ser un valor válido mayor o igual a cero.'), { statusCode: 400 });
+      }
+      if (actualPtiWeightProvided) {
+        massBalance.actual_good_output_kg = Number(actualPtiWeight.toFixed(3));
+        massBalance.pti_weight_variance_kg = Number((actualPtiWeight - massBalance.good_output_kg).toFixed(3));
+        massBalance.pti_weight_source = 'PESAJE_REAL_CIERRE_TURNO';
+        massBalance.theoretical_scrap_kg = Number(Math.max(0, massBalance.consumed_input_kg - actualPtiWeight).toFixed(3));
+        massBalance.variance_kg = Number((massBalance.actual_scrap_kg - massBalance.theoretical_scrap_kg).toFixed(3));
+      } else {
+        massBalance.actual_good_output_kg = null;
+        massBalance.pti_weight_variance_kg = null;
+        massBalance.pti_weight_source = 'ESTIMADO_DESDE_REGISTROS_PTI';
+      }
       // La purga forma parte de Kg_In y de la varianza, pero no es un QR de
       // mezcla. La varianza se prorratea entre mezclas reales por su entrada.
       const varianceInputByQr = new Map(mixtureInputByQr);

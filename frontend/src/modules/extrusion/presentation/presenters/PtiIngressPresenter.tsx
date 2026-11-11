@@ -89,9 +89,6 @@ export interface PtiIngressPresenterProps {
   selectedFormula: Formula | null;
   theoreticalWeightPerPiece: number;
   estimatedRawMaterialConsumedKg: number;
-  willSplitAcrossRacks: boolean;
-  isPtiMismatched: boolean;
-  mismatchErrorMessage: string;
   // Submitting & Results
   onSubmitIngress: () => Promise<ScanRackPtiResponse | undefined>;
   isSubmitting: boolean;
@@ -152,9 +149,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   selectedFormula,
   theoreticalWeightPerPiece,
   estimatedRawMaterialConsumedKg,
-  willSplitAcrossRacks,
-  isPtiMismatched,
-  mismatchErrorMessage,
   onSubmitIngress,
   isSubmitting,
   lastBackflushingResult,
@@ -232,9 +226,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     ? (knownPtiUnitWeight > 0 ? computedPiecesFromScale : (Number(quantityPieces) || 0))
     : (Number(quantityPieces) || 0);
   const selectedRackCapacity = selectedRack ? Number(selectedRack.max_capacity || 100) : 0;
-  const isScannedRackVerified = Boolean(
-    selectedRack && verifiedRackQr && verifiedRackQr === String(selectedRack.qr_code || '').trim().toUpperCase()
-  );
   const selectedRackAvailable = selectedRack
     ? Math.max(0, selectedRackCapacity - Number(selectedRack.current_quantity || 0))
     : 0;
@@ -391,8 +382,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   const filteredRacks = React.useMemo(() => {
     return racks.filter((rack) => {
       // Filtro por estatus
-      if (rackFilter === 'VACIO' && rack.status !== 'VACIO') return false;
-      if (rackFilter === 'DISPONIBLE' && (rack.status !== 'DISPONIBLE' && rack.status !== 'VACIO')) return false;
+      if (rackFilter === 'VACIO' && (rack.status !== 'VACIO' || rack.available_for_active_shift === false)) return false;
+      if (rackFilter === 'DISPONIBLE' && ((rack.status !== 'DISPONIBLE' && rack.status !== 'VACIO') || rack.available_for_active_shift === false)) return false;
       if (rackFilter === 'LLENO' && rack.status !== 'LLENO') return false;
 
       // Filtro por texto
@@ -714,106 +705,23 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             </div>
 
             {/* ---------------------------------------------------- */}
-            {/* PASO 2: RACK FÍSICO DESTINO */}
+            {/* PASO 2: ASIGNACIÓN AUTOMÁTICA A RACKS */}
             {/* ---------------------------------------------------- */}
             <div className="extrusion-ingress-step space-y-3 pb-6 border-b border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">
-                    2
-                  </div>
-                  <div>
-                    <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-foreground">
-                      ¿En qué Rack lo vas a guardar?
-                    </h2>
-                    <p className="text-xs text-muted-foreground font-semibold">
-                      Selecciona un rack libre o que coincida con el mismo tipo de bobina.
-                    </p>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Selector Desplegable de Rack con Letras Grandes y Legibles */}
-              <div className="flex gap-2 pt-1">
-                <QrScannerButton
-                  title="Escanear QR del rack de destino"
-                  onScan={(code) => {
-                    const clean = code.trim().toUpperCase();
-                    confirmScannedRack(clean);
-                  }}
-                />
-                <div className="flex min-h-12 flex-1 items-center rounded-xl border border-border bg-background px-3.5 text-sm font-bold text-foreground" aria-live="polite">
-                  {selectedRack
-                    ? `${selectedRack.rack_code} · ${selectedRack.current_quantity}/${selectedRack.max_capacity} bobinas`
-                    : 'Escanea el QR del rack de destino'}
+              <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">2</div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-foreground">Asignación automática a racks compatibles</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Al registrar la producción, el sistema elige racks con espacio del mismo PTI y destino. Si la cantidad excede la capacidad, distribuye el resto y crea racks con QR cuando haga falta. No es necesario escanear el rack.</p>
                 </div>
               </div>
-              {rackScanError && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{rackScanError}</p>}
-              {selectedRack && !isScannedRackVerified && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-semibold text-amber-700 dark:text-amber-300">Rack identificado por selección. Escanea su etiqueta QR física para autorizar el ingreso.</p>}
-
-              {/* Semáforos y Alertas Visuales Grandes de Validación de Rack */}
-              {isPtiMismatched && (
-                <div className="p-4 bg-destructive/15 border-2 border-destructive/40 rounded-xl space-y-1.5 text-destructive animate-in fade-in">
-                  <div className="flex items-center gap-2 font-black text-sm uppercase">
-                    <ShieldAlert className="h-5 w-5 shrink-0" />
-                    <span>¡Incompatibilidad de Rack Bloqueada!</span>
-                  </div>
-                  <p className="text-xs font-bold leading-relaxed">
-                    {mismatchErrorMessage}
-                  </p>
-                  <p className="text-[11px] opacity-90 font-semibold">
-                    Regla de Calidad: No se permite mezclar diferentes tipos de producto en el mismo rack. Selecciona un rack libre.
-                  </p>
-                </div>
-              )}
-
-              {willSplitAcrossRacks && selectedRack && (
-                <div className="p-4 bg-sky-500/10 border-2 border-sky-500/30 rounded-xl space-y-1.5 text-sky-900 dark:text-sky-200 animate-in fade-in">
-                  <div className="flex items-center gap-2 font-black text-sm uppercase">
-                    <Info className="h-5 w-5 shrink-0" />
-                    <span>El ingreso se distribuirá entre racks</span>
-                  </div>
-                  <p className="text-xs font-bold leading-relaxed">
-                    Se colocarán hasta {selectedRackAvailable} pzas en {selectedRack.rack_code} y las {splitOverflowPieces} restantes en racks compatibles. Si no hay capacidad disponible, se crearán racks con QR automáticamente.
-                  </p>
-                </div>
-              )}
-
-              {selectedRack && !isPtiMismatched && !willSplitAcrossRacks && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>
-                      Rack <strong>{selectedRack.rack_code}</strong> compatible y listo para recibir material.
-                    </span>
-                  </div>
-                  <span className="font-mono">
-                    Quedan {Math.max(0, (selectedRack.max_capacity || 100) - (selectedRack.current_quantity || 0))} pzas de espacio
-                  </span>
-                </div>
-              )}
 
               {/* Selector de Tipo de Producto PTI */}
               <div className="pt-2">
                 <label className="text-xs font-black uppercase text-foreground block mb-1">
                   Tipo de Producto PTI *
                 </label>
-                {selectedRack && Number(selectedRack.current_quantity || 0) > 0 && selectedRack.currentPtiProduct ? (
-                  <div className="p-3 bg-muted/30 border border-border rounded-xl flex items-center justify-between text-xs font-bold">
-                    <span className="text-foreground">
-                      {selectedRack.currentPtiProduct.name} · Color {selectedRack.currentPtiProduct.color || 'por identificar'} (Fijado al rack hasta retirar todo el PTI)
-                    </span>
-                    <Badge variant="outline" className="text-[10px] font-mono">
-                      Bloqueado por Condicionamiento
-                    </Badge>
-                  </div>
-                ) : selectedRack && Number(selectedRack.current_quantity || 0) > 0 ? (
-                  <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-semibold text-destructive">
-                    Este rack tiene {Number(selectedRack.current_quantity).toFixed(0)} bobinas sin PTI exacto identificado. No se puede combinar ni cambiar el PTI; debe consumirse/vaciarse en Telares y conciliarse antes de reutilizarlo.
-                  </div>
-                ) : (
-                  <select
+                <select
                     value={selectedPtiMaterialId}
                     onChange={(e) => onPtiMaterialIdChange(Number(e.target.value) || '')}
                     className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
@@ -829,7 +737,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       <option value="" disabled>La fórmula activa no tiene un PTI enlazado. Completa el enlace desde el catálogo de PTI.</option>
                     )}
                   </select>
-                )}
               </div>
 
               {selectedPtiProduct && <div className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">Este PTI se entrega a {selectedPtiProduct.telares_subarea_code === 'TELARES_BANDA' || (!selectedPtiProduct.telares_subarea_code && Number(selectedPtiProduct.extrusion_machine_number) === 1) ? 'Telares Banda' : selectedPtiProduct.telares_subarea_code === 'NO_APLICA' ? 'un destino fuera de Telares' : 'Telares Rollo'} según su máquina. La ruta posterior del rollo o banda se define en Telares.</div>}
@@ -1068,14 +975,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               }}
               disabled={
                 isSubmitting ||
-                !rackQr ||
-                !isScannedRackVerified ||
                 !selectedPtiMaterialId ||
-                pieces <= 0 ||
-                isPtiMismatched
+                pieces <= 0
               }
               className={`w-full h-14 text-base sm:text-lg font-black uppercase tracking-wider shadow-md transition-all gap-2 ${
-                isSubmitting || !rackQr || !isScannedRackVerified || !selectedPtiMaterialId || pieces <= 0 || isPtiMismatched
+                isSubmitting || !selectedPtiMaterialId || pieces <= 0
                   ? 'bg-muted text-muted-foreground cursor-not-allowed border border-border opacity-70'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }`}
@@ -1118,7 +1022,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 onClick={() => setRackFilter('VACIO')}
                 className="h-11 px-3 text-sm font-bold text-emerald-600 dark:text-emerald-400"
               >
-                Libres ({racks.filter((r) => r.status === 'VACIO').length})
+                Libres ({racks.filter((r) => r.status === 'VACIO' && r.available_for_active_shift !== false).length})
               </Button>
               <Button
                 variant={rackFilter === 'DISPONIBLE' ? 'default' : 'outline'}
@@ -1126,7 +1030,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 onClick={() => setRackFilter('DISPONIBLE')}
                 className="h-11 px-3 text-sm font-bold text-sky-600 dark:text-sky-400"
               >
-                En Uso ({racks.filter((r) => r.status === 'DISPONIBLE').length})
+                En Uso ({racks.filter((r) => r.status === 'DISPONIBLE' && r.available_for_active_shift !== false).length})
               </Button>
               <Button
                 variant={rackFilter === 'LLENO' ? 'default' : 'outline'}
@@ -1178,6 +1082,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 Math.round(((rack.current_quantity || 0) / (rack.max_capacity || 100)) * 100)
               );
               const isSelected = selectedRack?.id === rack.id || rackQr === rack.qr_code;
+              const isLockedForAnotherShift = rack.locked_until_shift_close === true || rack.available_for_active_shift === false;
               const isVacio = Number(rack.current_quantity || 0) <= 0;
               const isLleno = rack.status === 'LLENO' || Number(rack.current_quantity || 0) >= Number(rack.max_capacity || 100);
               const hasUnidentifiedPti = !isVacio && !rack.current_pti_product_id;
@@ -1220,10 +1125,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                         />
                         </label>
                         <Badge
-                          variant={isLleno || hasUnidentifiedPti ? 'destructive' : isVacio ? 'secondary' : 'default'}
+                          variant={isLockedForAnotherShift || isLleno || hasUnidentifiedPti ? 'destructive' : isVacio ? 'secondary' : 'default'}
                           className="min-h-7 px-2 text-xs font-black uppercase"
                         >
-                          {isLleno ? 'Lleno' : hasUnidentifiedPti ? 'Bloqueado · conciliar' : isVacio ? 'Libre' : 'Condicionado'}
+                          {isLockedForAnotherShift ? 'Custodia · bloqueado' : isLleno ? 'Lleno' : hasUnidentifiedPti ? 'Bloqueado · conciliar' : isVacio ? 'Libre' : 'Condicionado'}
                         </Badge>
                       </div>
                     </div>
@@ -1250,6 +1155,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                           Disponibles: {Math.max(0, rack.max_capacity - rack.current_quantity)}
                         </span>
                       </div>
+                      {rack.custody_shift_session_id != null && <p className={`text-xs font-bold ${isLockedForAnotherShift ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'}`}>{isLockedForAnotherShift ? 'Bloqueado hasta cerrar el turno que lo produjo.' : 'Bajo custodia del turno activo; solo Extrusión puede seguir llenándolo.'}</p>}
                     </div>
 
                     {/* Condicionamiento */}

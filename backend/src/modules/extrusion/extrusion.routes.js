@@ -132,6 +132,9 @@ router.get('/wip-child-qr/:qrCode', authorizePermission('extrusion.formulas.view
 router.post('/wip/qr-labels/pdf', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.downloadWipQrLabelsPdf);
 
 router.post('/mix', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.mixFormula);
+router.get('/mix-drafts', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getPausedMixDrafts);
+router.post('/mix-drafts', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.saveMixDraft);
+router.delete('/mix-drafts/:id', authorizePermission('extrusion.formulas.manage'), extrusionController.discardMixDraft);
 router.get('/mix-history', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getPreparedMixHistory);
 router.get('/mix/containers/:identifier', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getMixContainersByQrOrFolio);
 router.post('/mix-requests', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.createMixRequest);

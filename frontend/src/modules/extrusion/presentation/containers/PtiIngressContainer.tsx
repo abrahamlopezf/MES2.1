@@ -236,53 +236,6 @@ export const PtiIngressContainer: React.FC = () => {
     return Number((pieces * theoreticalWeightPerPiece).toFixed(2));
   }, [pieces, theoreticalWeightPerPiece]);
 
-  // El ingreso puede completar el rack seleccionado y continuar en racks
-  // compatibles; esta condición solo informa al operador que habrá reparto.
-  const willSplitAcrossRacks: boolean = useMemo(() => {
-    if (!selectedRack || pieces <= 0) return false;
-    const available = Math.max(0, (Number(selectedRack.max_capacity) || 100) - (Number(selectedRack.current_quantity) || 0));
-    return pieces > available;
-  }, [selectedRack, pieces]);
-
-  // Regla 5: Validar incompatibilidad de condicionamiento del rack
-  const isPtiMismatched: boolean = useMemo(() => {
-    // No se puede afirmar que exista incompatibilidad mientras aún no se
-    // identifican la mezcla y el PTI. La validación de campos requeridos y la
-    // validación definitiva del QR siguen ocurriendo al registrar el ingreso.
-    if (!selectedFormula || !selectedPtiProduct) return false;
-    const linkedToFormula = selectedQueue?.output_pti_product_id
-      ? Number(selectedPtiProduct.id) === Number(selectedQueue.output_pti_product_id)
-      : Number(selectedPtiProduct.formula_id) === Number(selectedFormula.id);
-    if (!linkedToFormula) return true;
-    if (!selectedRack || Number(selectedRack.current_quantity || 0) <= 0) {
-      return false;
-    }
-    // Todo rack ocupado queda condicionado a su PTI exacto. Inventario legado
-    // sin identificador no se puede reutilizar hasta vaciarlo/conciliarlo.
-    if (!selectedRack.current_pti_product_id) return true;
-    if (!selectedPtiMaterialId) return false;
-    return Number(selectedRack.current_pti_product_id) !== Number(selectedPtiProduct.id);
-  }, [selectedRack, selectedPtiMaterialId, selectedPtiProduct, selectedFormula, selectedQueue]);
-
-  const mismatchErrorMessage = useMemo(() => {
-    if (!isPtiMismatched) return '';
-    if (!selectedFormula) return 'Selecciona una mezcla activa para identificar su fórmula y color.';
-    if (!selectedPtiProduct) return 'Selecciona un PTI activo enlazado a la fórmula ' + selectedFormula.name + '.';
-    const isExpectedQueuePti = selectedQueue?.output_pti_product_id
-      && Number(selectedPtiProduct.id) === Number(selectedQueue.output_pti_product_id);
-    if (!isExpectedQueuePti && Number(selectedPtiProduct.formula_id || 0) !== Number(selectedFormula.id)) {
-      return 'El PTI ' + selectedPtiProduct.code + ' (' + (selectedPtiProduct.color || 'color sin definir') + ') no está enlazado a la fórmula ' + selectedFormula.name + '.';
-    }
-    if (!selectedRack) return '';
-    if (Number(selectedRack.current_quantity || 0) > 0 && !selectedRack.current_pti_product_id) {
-      return `El rack conserva ${Number(selectedRack.current_quantity).toFixed(0)} bobinas sin PTI exacto identificado. No recibirá otro PTI hasta que Telares consuma y retire todo el saldo; requiere conciliación para conocer el PTI actual.`;
-    }
-    const name = selectedRack.currentPtiProduct
-      ? selectedRack.currentPtiProduct.name + ' · ' + (selectedRack.currentPtiProduct.color || 'color no definido')
-      : selectedRack.currentPtiType?.name || ('PTI #' + selectedRack.current_pti_type_id);
-    return 'El Rack ' + selectedRack.rack_code + ' está condicionado para ' + name + '. No es posible ingresar el PTI seleccionado (#' + selectedPtiMaterialId + ').';
-  }, [isPtiMismatched, selectedRack, selectedPtiMaterialId, selectedFormula, selectedPtiProduct]);
-
   const handleSelectRackFromGrid = (rack: PtiRack) => {
     setRackQr(rack.qr_code);
     if (Number(rack.current_quantity || 0) > 0) {
@@ -306,11 +259,6 @@ export const PtiIngressContainer: React.FC = () => {
   };
 
   const handleSubmitIngress = async () => {
-    if (!rackQr) {
-      toast.error('Escanee o seleccione un código QR de Rack.');
-      return;
-    }
-
     if (!selectedPtiMaterialId) {
       toast.error('Seleccione el tipo de material PTI a ingresar.');
       return;
@@ -321,11 +269,6 @@ export const PtiIngressContainer: React.FC = () => {
       return;
     }
 
-    if (isPtiMismatched) {
-      toast.error('Incompatibilidad de Rack bloqueada: El rack ya tiene otro tipo de PTI.');
-      return;
-    }
-
     if (ingressMode === 'PIECES' && rackUnitWeight <= 0) {
       toast.error('Este PTI no tiene peso unitario definido. Usa báscula y captura el número de bobinas para calibrar el rack.');
       return;
@@ -333,7 +276,6 @@ export const PtiIngressContainer: React.FC = () => {
 
     try {
       const payload: any = {
-        rack_qr: rackQr.trim(),
         pti_material_id: Number(selectedPtiMaterialId),
         mixture_qr: mixtureQr ? mixtureQr.trim() : undefined,
         estimated_scrap_weight_kg: Number(scrapWeightKg) > 0 ? Number(scrapWeightKg) : undefined,
@@ -355,7 +297,9 @@ export const PtiIngressContainer: React.FC = () => {
 
       const response = await scanMutation.mutateAsync(payload);
 
-      toast.success(response.message || `Ingreso de ${pieces} pzas registrado correctamente.`);
+      const assignedRacks = (response as any)?.racks || (response as any)?.rack_allocations || [];
+      const rackSummary = assignedRacks.map((item: any) => item.rack_code).filter(Boolean).join(', ');
+      toast.success(response.message || `Ingreso de ${pieces} pzas registrado${rackSummary ? ` en: ${rackSummary}` : ''}.`);
 
       if (response.backflushing) {
         setLastBackflushingResult(response.backflushing);
@@ -422,9 +366,6 @@ export const PtiIngressContainer: React.FC = () => {
       selectedFormula={selectedFormula}
       theoreticalWeightPerPiece={theoreticalWeightPerPiece}
       estimatedRawMaterialConsumedKg={estimatedRawMaterialConsumedKg}
-      willSplitAcrossRacks={willSplitAcrossRacks}
-      isPtiMismatched={isPtiMismatched}
-      mismatchErrorMessage={mismatchErrorMessage}
       onSubmitIngress={handleSubmitIngress}
       isSubmitting={scanMutation.isPending}
       lastBackflushingResult={lastBackflushingResult}

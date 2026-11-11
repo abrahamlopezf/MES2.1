@@ -54,7 +54,9 @@ app.use(
 );
 
 app.use(morgan("dev"));
-app.use(express.json());
+// Lists of selected QR UUIDs for bulk label PDFs can exceed the 100 KB
+// Express default when a material has many historical lots.
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

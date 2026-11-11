@@ -139,6 +139,9 @@ export interface PtiRack {
   min_capacity: number;
   max_capacity: number;
   status: RackStatus;
+  custody_shift_session_id?: number | null;
+  available_for_active_shift?: boolean;
+  locked_until_shift_close?: boolean;
   currentPtiType?: MaterialRef | null;
   notes?: string;
   unit_price?: number;

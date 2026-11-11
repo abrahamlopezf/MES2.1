@@ -14,8 +14,7 @@ import {
 import {
   MachineQueueGroup,
   ExtruderQueue,
-  Formula,
-  PtiDestinationRoute
+  Formula
 } from '../../types/extrusion.types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,10 +38,7 @@ export interface ExtrusionBoardPresenterProps {
   onPendingPtiContinue: () => void;
   onPendingPtiCancel: () => void;
   pendingPtiStep: 'QUESTION' | 'QUICK_INGRESS';
-  quickRacks: Array<{ id: number; rack_code: string; qr_code: string; current_quantity: number; max_capacity: number; current_pti_product_id?: number | null; current_pti_type_id?: number | null; destination_route?: PtiDestinationRoute | null }>;
   quickPtiProducts: Array<{ id: number; code: string; name: string; color: string | null; extrusion_machine_number?: number | null; telares_subarea_code?: string | null; material_id?: number | null; unit_price: number }>;
-  quickRackId: number | '';
-  onQuickRackChange: (id: number | '') => void;
   quickPtiProductId: number | '';
   onQuickPtiProductChange: (id: number | '') => void;
   quickPieces: string;
@@ -326,10 +322,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   onPendingPtiContinue,
   onPendingPtiCancel,
   pendingPtiStep,
-  quickRacks,
   quickPtiProducts,
-  quickRackId,
-  onQuickRackChange,
   quickPtiProductId,
   onQuickPtiProductChange,
   quickPieces,
@@ -547,12 +540,7 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 <p id="pending-pti-description" className="text-sm leading-relaxed text-muted-foreground">Registra el PTI terminado de la mezcla activa antes de comenzar la purga.</p>
               </header>
               <div className="grid gap-3">
-                <label className="space-y-1 text-sm font-bold">Rack
-                  <select value={quickRackId} onChange={(event) => onQuickRackChange(Number(event.target.value) || '')} className="h-11 w-full rounded-lg border-2 border-border bg-background px-3">
-                    <option value="">Selecciona un rack compatible</option>
-                    {quickRacks.filter((rack) => !rack.current_pti_product_id || Number(rack.current_pti_product_id) === Number(quickPtiProductId)).map((rack) => <option key={rack.id} value={rack.id}>{rack.rack_code} · {Math.max(0, rack.max_capacity - rack.current_quantity)} espacios</option>)}
-                  </select>
-                </label>
+                <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">El sistema asignará las bobinas automáticamente a racks compatibles y creará otro con QR si hace falta espacio.</p>
                 <label className="space-y-1 text-sm font-bold">PTI de la mezcla activa
                   <select value={quickPtiProductId} onChange={(event) => onQuickPtiProductChange(Number(event.target.value) || '')} className="h-11 w-full rounded-lg border-2 border-border bg-background px-3">
                     <option value="">Selecciona el PTI</option>
@@ -565,10 +553,9 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                 </label>
               </div>
               <p className="text-xs text-muted-foreground">Mezcla: <span className="font-semibold text-foreground">{activeQueue.consumption_order_qr_id}</span>. Al guardar, el PTI quedará trazado a esta mezcla.</p>
-              {quickRacks.filter((rack) => !rack.current_pti_product_id || Number(rack.current_pti_product_id) === Number(quickPtiProductId)).length === 0 && <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs font-semibold">No hay racks compatibles para iniciar el registro. Registra un rack desde Ingreso de PTI y vuelve a este cambio. Si el rack seleccionado se llena, el sistema distribuirá las bobinas restantes en racks compatibles o creará uno automáticamente.</p>}
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button variant="outline" onClick={onPendingPtiCancel}>Cancelar</Button>
-                <Button onClick={onConfirmQuickPtiIngress} disabled={isQuickPtiSubmitting || !quickRackId || !quickPtiProductId || Number(quickPieces) <= 0}>{isQuickPtiSubmitting ? 'Registrando…' : 'Registrar y continuar'}</Button>
+                <Button onClick={onConfirmQuickPtiIngress} disabled={isQuickPtiSubmitting || !quickPtiProductId || Number(quickPieces) <= 0}>{isQuickPtiSubmitting ? 'Registrando…' : 'Registrar y continuar'}</Button>
               </div>
             </>}
             {pendingPtiStep === 'QUESTION' && <div className="flex justify-end border-t border-border pt-3"><Button variant="ghost" onClick={onPendingPtiCancel} className="min-h-11 min-w-28">Cancelar</Button></div>}

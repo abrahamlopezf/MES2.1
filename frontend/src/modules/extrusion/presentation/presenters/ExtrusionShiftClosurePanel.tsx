@@ -23,6 +23,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
   const [shiftDate, setShiftDate] = useState(initialShift.shiftDate);
   const [shiftCode, setShiftCode] = useState(initialShift.shiftCode);
   const [groupedWeights, setGroupedWeights] = useState<Record<string, string>>({});
+  const [actualPtiWeight, setActualPtiWeight] = useState('');
   const [manualColorGroups, setManualColorGroups] = useState<Array<{ key: string; color: string; weight: string }>>([{ key: 'color-1', color: '', weight: '' }]);
   const [additionalScrap, setAdditionalScrap] = useState<'UNCONFIRMED' | 'NO' | 'YES'>('UNCONFIRMED');
   const [lastClosure, setLastClosure] = useState<any>(null);
@@ -57,7 +58,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     );
     return [...new Set(colors)];
   }, [groups]);
-  useEffect(() => { setGroupedWeights({}); setManualColorGroups([{ key: 'color-1', color: '', weight: '' }]); setAdditionalScrap('UNCONFIRMED'); setLastClosure(null); }, [extruderId, shiftDate, shiftCode]);
+  useEffect(() => { setGroupedWeights({}); setActualPtiWeight(''); setManualColorGroups([{ key: 'color-1', color: '', weight: '' }]); setAdditionalScrap('UNCONFIRMED'); setLastClosure(null); }, [extruderId, shiftDate, shiftCode]);
   useEffect(() => {
     if (extruderId && !machines.some((machine: any) => Number(machine.id) === Number(extruderId))) setExtruderId('');
   }, [machines, extruderId]);
@@ -66,6 +67,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     queryFn: () => extrusionApi.getScrapLogs({ extruder_id: extruderId, shift_date: shiftDate, shift_code: shiftCode, limit: 200 }),
     enabled: Boolean(extruderId && shiftDate && shiftCode),
   });
+  const selectedMachine = machines.find((machine: any) => Number(machine.id) === Number(extruderId));
   const closeMutation = useMutation({
     mutationFn: extrusionApi.closeShift,
     onSuccess: (result: any) => {
@@ -103,9 +105,12 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
   }, [scrapGroups]);
   const submit = () => {
     if (activityQuery.isError || scrapQuery.isError || !extruderId) return;
+    if (actualPtiWeight.trim() && (!Number.isFinite(Number(actualPtiWeight)) || Number(actualPtiWeight) < 0)) {
+      return toast.error('El peso real de PTI debe ser mayor o igual a cero.');
+    }
     if (additionalScrap === 'UNCONFIRMED') return toast.error('Confirma si hubo merma adicional antes de cerrar el turno.');
     if (!logs.length && additionalScrap === 'NO') {
-      closeMutation.mutate({ extruder_id: Number(extruderId), shift_date: shiftDate, shift_code: shiftCode, actual_scrap_weight_kg: 0 });
+      closeMutation.mutate({ extruder_id: Number(extruderId), shift_date: shiftDate, shift_code: shiftCode, actual_scrap_weight_kg: 0, actual_pti_weight_kg: actualPtiWeight.trim() ? Number(actualPtiWeight) : undefined });
       return;
     }
     const recordedGroups = scrapGroups.map((group) => ({
@@ -123,7 +128,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     }
     const allGroups = [...recordedGroups, ...colorGroups];
     if (new Set(allGroups.map((item) => JSON.stringify([item.category.toUpperCase(), String(item.color || '').toUpperCase(), Number(item.source_lote_id) || null]))).size !== allGroups.length) return toast.error('Combina los grupos duplicados de la misma categoría y color.');
-    closeMutation.mutate({ extruder_id: Number(extruderId), shift_date: shiftDate, shift_code: shiftCode, grouped_weighings: allGroups });
+    closeMutation.mutate({ extruder_id: Number(extruderId), shift_date: shiftDate, shift_code: shiftCode, grouped_weighings: allGroups, actual_pti_weight_kg: actualPtiWeight.trim() ? Number(actualPtiWeight) : undefined });
   };
 
   const missingTransitionWeight = scrapGroups.some((group: any) => {
@@ -170,6 +175,8 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
           <div><dt className="text-muted-foreground">Remanente al cierre</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.closing_remnant_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Consumo neto del turno</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.consumed_input_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">PTI bueno registrado</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.good_output_kg).toFixed(3)} kg</dd></div>
+          <div><dt className="text-muted-foreground">PTI real pesado</dt><dd className="font-bold tabular-nums">{lastClosure.mass_balance_snapshot.actual_good_output_kg == null ? 'No capturado · se conserva estimado' : `${Number(lastClosure.mass_balance_snapshot.actual_good_output_kg).toFixed(3)} kg`}</dd></div>
+          {lastClosure.mass_balance_snapshot.pti_weight_variance_kg != null && <div><dt className="text-muted-foreground">Diferencia PTI real vs. registro</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.pti_weight_variance_kg).toFixed(3)} kg</dd></div>}
           <div><dt className="text-muted-foreground">Merma teórica</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.theoretical_scrap_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Merma real pesada</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.actual_scrap_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Varianza (real − teórica)</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.variance_kg).toFixed(3)} kg</dd></div>
@@ -205,6 +212,24 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
         {activityQuery.data && machines.length === 0 && <p role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-base text-warning">No hay actividad de Extrusión en esta fecha y turno. Se requiere producción, preparación de mezcla o transición para registrar merma.</p>}
       </section>
       {extruderId && <section aria-labelledby="scrap-shift-weighing" className="space-y-5 border-t border-border pt-5">
+        <section className="space-y-3 rounded-xl border border-border p-4 sm:p-5">
+          <div>
+            <h3 className="text-lg font-bold">Producción y mezclas del turno</h3>
+            <p className="mt-1 text-sm text-muted-foreground">El peso de PTI es opcional. Si no se captura, el cierre usa los registros de producción y sus pesos estándar para estimarlo.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg bg-muted/30 p-3">
+              <span className="block text-sm text-muted-foreground">PTI registrado / estimado</span>
+              <strong className="text-lg tabular-nums">{Number(selectedMachine?.good_pti_kg || 0).toFixed(3)} kg</strong>
+            </div>
+            <label className="space-y-1 text-base font-semibold">Peso real de PTI (opcional)
+              <Input className="min-h-12 text-base" type="number" min="0" step="0.001" value={actualPtiWeight} onChange={(event) => setActualPtiWeight(event.target.value)} placeholder="Dejar vacío para usar estimado" />
+            </label>
+          </div>
+          {selectedMachine?.mixtures?.length > 0
+            ? <div className="space-y-2"><h4 className="font-bold">Mezclas preparadas/cargadas en esta extrusora</h4><ul className="grid gap-2 sm:grid-cols-2">{selectedMachine.mixtures.map((mix: any) => <li key={mix.queue_id} className="rounded-lg border border-border bg-muted/20 p-3"><strong className="block font-mono">{mix.mixture_qr}</strong><span className="block text-sm text-muted-foreground">{mix.formula_code ? `${mix.formula_code} · ` : ''}{mix.formula_name || `Fórmula #${mix.formula_id || '—'}`} · {mix.status || 'registrada'}</span></li>)}</ul></div>
+            : <p className="text-sm text-muted-foreground">La consulta no devolvió mezclas preparadas para esta extrusora.</p>}
+        </section>
         <div>
           <h3 id="scrap-shift-weighing" className="text-lg font-bold">2. Revisa los pesajes de transición</h3>
           <p className="mt-1 text-sm text-muted-foreground">El peso estimado es una referencia. Captura el peso real de cada grupo.</p>

@@ -92961,4 +92961,739 @@ notNull Violation: InventoryMovement.performed_by cannot be null
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:3939:27
     at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
     at async ExtrusionService.getExtrusionShiftEntryState (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:3935:19)
-    at async getExtrusionShiftEntryState (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:323:62)\n\n
+    at async getExtrusionShiftEntryState (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:323:62)\n\n2026-11-11T07:06:30.008Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:31.259Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:32.708Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:33.775Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:35.840Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:38.418Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:39.488Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:41.559Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:44.137Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:45.203Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:47.289Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:49.868Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:50.946Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:53.025Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:55.610Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:56.680Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:06:58.742Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:01.322Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:02.382Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:04.910Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:07.577Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:08.859Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:10.938Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:13.544Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:14.631Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:16.755Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:19.356Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:20.432Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:22.511Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:25.114Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:26.210Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:28.296Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:30.886Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:31.964Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:34.046Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:36.648Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:37.720Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:39.790Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:42.392Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:43.455Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:45.758Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:48.347Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:49.417Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:51.484Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:54.067Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:55.144Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:57.211Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:07:59.787Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:01.015Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:03.092Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:05.676Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:06.930Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:08.985Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:11.569Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:12.638Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:14.734Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:17.365Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:18.434Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:20.501Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:23.088Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:24.151Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:26.231Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:28.825Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:29.890Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:31.954Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:34.546Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:35.776Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:38.029Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:40.629Z\nMessage: no existe la relación «public.extrusion_mix_draft_reservations»\nStack: Error
+    at Query.run (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.rawSelect (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:434:18)
+    at async ProcessPreparationReservation.aggregate (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1277:19)
+    at async ProcessPreparationReservation.sum (C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\model.js:1338:12)
+    at async ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1180:45)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:46.322Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:47.410Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:49.494Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:52.080Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:53.183Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:55.273Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:58.121Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:08:59.390Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:01.479Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:04.083Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:05.148Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:07.222Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:09.814Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:10.884Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:12.943Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:15.531Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:16.596Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:18.666Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:21.472Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:27.157Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:28.236Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:30.311Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:32.905Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:33.972Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:36.057Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:38.642Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:39.725Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:41.923Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:44.518Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:45.588Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:47.822Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:50.399Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:51.471Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:53.536Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:56.125Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:57.210Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:09:59.318Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:01.918Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:02.980Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:05.051Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:07.641Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:08.708Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:10.775Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:13.350Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:14.425Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:16.520Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:19.112Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:20.183Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:22.262Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:24.857Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:25.917Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:27.990Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:30.598Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:31.667Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:33.739Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:36.327Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:37.391Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:39.610Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:42.210Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:43.279Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:45.350Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
+    at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n

@@ -289,6 +289,7 @@ class TelaresService {
     return PtiRack.findAll({
       where: {
         current_quantity: { [Op.gt]: 0 },
+        custody_shift_session_id: null,
         [Op.or]: [{ destination_route: null }, { destination_route: { [Op.in]: ['TELARES_ROLLO', 'TELARES_BANDA'] } }],
       },
       attributes: ['id', 'rack_code', 'qr_code', 'current_quantity', 'current_pti_type_id', 'current_pti_product_id', 'destination_subarea_id', 'destination_route', 'status', 'container_type', 'unit_weight_kg', 'created_at'],
@@ -1174,8 +1175,13 @@ class TelaresService {
       const rack = await PtiRack.findByPk(rack_id, {
         include: [{ model: PtiProduct, as: 'currentPtiProduct' }],
         transaction: t,
+        lock: { level: t.LOCK.UPDATE, of: PtiRack },
       });
       if (!rack) throw new Error(`Rack ID ${rack_id} no encontrado.`);
+
+      if (rack.custody_shift_session_id) {
+        throw Object.assign(new Error(`El rack ${rack.rack_code} sigue en custodia del turno de Extrusión y no está disponible para Telares hasta que se cierre ese turno.`), { statusCode: 409, code: 'PTI_RACK_SHIFT_LOCKED' });
+      }
 
       if (Number(rack.current_quantity) <= 0) {
         throw new Error(`El Rack '${rack.rack_code}' se encuentra vacío (0 bobinas disponibles).`);
@@ -2444,6 +2450,7 @@ class TelaresService {
     const availableCarts = await PtiRack.findAll({
       where: {
         current_quantity: { [Op.gt]: 0 },
+        custody_shift_session_id: null,
       },
       include: [
         {
