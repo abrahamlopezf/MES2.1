@@ -5,6 +5,7 @@ import { Activity, Lock, Play, ShieldCheck } from '@/design-system/components/Ic
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { extrusionApi } from '../../services/extrusionApi';
+import { useExtruderQueuesQuery } from '../../hooks/useExtrusionFloorQueries';
 import { useAuthStore } from '@/store/authStore';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 
@@ -21,16 +22,26 @@ const isAllowedShiftDate = (value: string) => {
 export const ExtrusionShiftSessionPanel: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const role = String(typeof user?.role === 'string' ? user.role : user?.role?.code || '').toUpperCase();
-  const isSupervisor = role === 'SUPERVISOR_EXTRUSION';
+  const role = String(typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
+  const normalizedRole = role.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const isSupervisor = normalizedRole === 'SUPERVISOR_EXTRUSION' || normalizedRole === 'SUPERVISOR_DE_EXTRUSION';
   const isExecutive = ['ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'SUPERADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(role);
+  const { data: extruderGroups = [] } = useExtruderQueuesQuery();
   const [handoffQrDrafts, setHandoffQrDrafts] = useState<Record<number, string>>({});
   const [confirmedHandoffQueueIds, setConfirmedHandoffQueueIds] = useState<number[]>([]);
   const announcedAutoStart = useRef<number | null>(null);
   const activeQuery = useQuery({
     queryKey: ['extrusion', 'active-shift-session'],
-    queryFn: extrusionApi.getActiveShiftSession,
-    refetchInterval: (query) => query.state.data?.session ? 5000 : query.state.data?.suggested_shift?.reason === 'RELEVO_DEL_DIA' ? 15000 : false,
+    queryFn: async () => {
+      const result = await extrusionApi.getActiveShiftSession();
+      // Compatibilidad con respuestas del backend que envuelven la sesión en
+      // { session } y versiones anteriores que devolvían la sesión directa.
+      if (result && Object.prototype.hasOwnProperty.call(result, 'session')) return result;
+      return { session: result?.status === 'ABIERTO' ? result : null, auto_started: false, suggested_shift: null };
+    },
+    // También refrescar cuando no hay sesión: otro supervisor puede iniciar el
+    // relevo en otro dispositivo y el tablero debe reflejarlo sin recargar.
+    refetchInterval: 5000,
     staleTime: 0,
   });
   const refresh = () => {
@@ -88,7 +99,7 @@ export const ExtrusionShiftSessionPanel: React.FC = () => {
         </span>
         <div>
           <h2 id="extrusion-shift-session-title" className="text-lg font-black sm:text-xl">Turno operativo de Extrusión</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Un supervisor queda a cargo. El PTI que se registra en racks permanece bajo custodia hasta el cierre.</p>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">El turno se inicia para toda Extrusión, no para una sola máquina. El supervisor queda a cargo de las cuatro extrusoras y revisa aquí las mezclas activas o en espera que recibe del turno anterior.</p>
         </div>
       </div>
       <span className={`inline-flex min-h-9 items-center gap-2 self-start rounded-full px-3 text-sm font-bold ${session ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
@@ -109,6 +120,16 @@ export const ExtrusionShiftSessionPanel: React.FC = () => {
       <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">Siguiente: {String(suggestedShift?.shift_code || '').replaceAll('_', ' ')} · {suggestedShift?.shift_date || '—'}</p><Button type="button" className="min-h-12" disabled={!suggestedShift || !isAllowedShiftDate(suggestedShift.shift_date) || openMutation.isPending || !allHandoffQrsConfirmed} onClick={() => openMutation.mutate({ shift_date: suggestedShift.shift_date, shift_code: suggestedShift.shift_code, confirm_carryover: true, confirm_active_mixture: hasActiveMixture, confirmed_mixture_qrs: activeMixes.filter((mix: any) => confirmedHandoffQueueIds.includes(Number(mix.queue_id))).map((mix: any) => mix.mixture_qr) })}><Play className="mr-2 h-5 w-5" />{openMutation.isPending ? 'Confirmando…' : 'Confirmar y tomar turno'}</Button></div>
       {suggestedShift && !isAllowedShiftDate(suggestedShift.shift_date) && <p className="text-sm font-semibold text-warning">La fecha del siguiente turno no es operativa (lunes a jueves). Revisa la programación con administración.</p>}
     </div> : <>
+      <section aria-label="Cobertura del turno en extrusoras" className="rounded-xl border border-border bg-background/60 p-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"><div><h3 className="font-black">Cobertura del turno: toda el área</h3><p className="text-sm text-muted-foreground">El inicio y el cierre pertenecen al turno completo; esta lista muestra el estado por máquina.</p></div><span className="text-sm font-bold tabular-nums">{extruderGroups.length} extrusora(s)</span></div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{extruderGroups.map((group: any) => {
+          const machine = group.machine || {};
+          const active = Boolean(group.active);
+          const waiting = (group.waiting || []).length;
+          const paused = (group.paused || []).length;
+          return <div key={machine.id || machine.code} className="rounded-lg border border-border p-3"><p className="font-bold">{machine.name || machine.code || 'Extrusora'}</p><p className="mt-1 text-sm text-muted-foreground">{active ? 'Mezcla activa' : paused ? 'Mezcla pausada' : waiting ? 'Mezcla en espera' : 'Sin mezcla activa'}</p><p className="mt-1 text-xs text-muted-foreground">{waiting} en espera · {paused} pausada(s)</p></div>;
+        })}</div>
+      </section>
       <div className="grid gap-3 rounded-xl border border-border bg-background/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
         <div><p className="text-xs font-bold uppercase text-muted-foreground">Turno / fecha</p><p className="mt-1 font-bold">{String(session.shift_code).replaceAll('_', ' ')} · {session.shift_date}</p></div>
         <div><p className="text-xs font-bold uppercase text-muted-foreground">Duración máxima</p><p className={`mt-1 font-bold ${session.is_expired ? 'text-danger' : ''}`}>{session.is_expired ? 'Turno vencido · requiere cierre' : '12 horas desde el inicio'}</p></div>

@@ -112,7 +112,7 @@ const MaterialForm = ({
   const role = user?.role;
   const roleCode = String(typeof role === 'string' ? role : role?.code || '').trim().toUpperCase();
   const roleName = String(typeof role === 'object' ? role?.name || '' : '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-  const canEditRestrictedFields = ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode)
+  const canEditRestrictedFields = ['SUPERADMIN', 'ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode)
     || roleName === 'ADMINISTRADOR DE ALMACEN';
 
   const { data: familiesData } = useMaterialFamiliesQuery({ pageSize: 10000 });

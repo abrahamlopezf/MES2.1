@@ -59,7 +59,7 @@ export const PtiIngressContainer: React.FC = () => {
   const dispatchWarehouseMutation = useDispatchPtiRackToWarehouseMutation();
   const saleExitMutation = useRegisterPtiSaleExitMutation();
   const roleCode = String(typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name) || '').toUpperCase();
-  const canRegisterSale = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode);
+  const canRegisterSale = ['SUPERADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode);
 
   const handleDispatchToWarehouse = async (rackId: number, payload: { quantity_pieces?: number; weight_kg?: number; notes?: string }) => {
     try {

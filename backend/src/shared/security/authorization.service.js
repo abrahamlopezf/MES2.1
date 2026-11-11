@@ -19,6 +19,9 @@ class AuthorizationService {
   static _hasScopeAccess(actorRole, targetRole, strictLevel = true) {
     if (!actorRole || !targetRole) return false;
 
+    // SUPERADMIN must not be constrained by role hierarchy or area scope.
+    if (String(actorRole.code || '').toUpperCase() === 'SUPERADMIN') return true;
+
     // 1. Verificación de Jerarquía (Level)
     if (strictLevel) {
       if (targetRole.level >= actorRole.level) return false;

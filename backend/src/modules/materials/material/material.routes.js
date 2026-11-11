@@ -13,7 +13,7 @@ const requireWarehouseAdministrator = (req, res, next) => {
   const role = req.user?.role;
   const roleCode = String(typeof role === 'string' ? role : role?.code || '').trim().toUpperCase();
   const roleName = String(typeof role === 'object' ? role?.name || '' : '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-  if (['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode) || roleName === 'ADMINISTRADOR DE ALMACEN') return next();
+  if (['SUPERADMIN', 'ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode) || roleName === 'ADMINISTRADOR DE ALMACEN') return next();
   return res.status(403).json({ success: false, message: 'Solo el Administrador de Almacén puede editar materiales.' });
 };
 

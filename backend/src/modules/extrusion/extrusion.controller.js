@@ -370,6 +370,15 @@ class ExtrusionController {
     }
   }
 
+  async getExtrusionShiftReport(req, res, next) {
+    try {
+      const report = await extrusionService.getExtrusionShiftReport(req.query);
+      return res.status(200).json({ success: true, data: report });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async adjustProductionEntry(req, res, next) {
     try {
       const entry = await extrusionService.adjustProductionEntry({

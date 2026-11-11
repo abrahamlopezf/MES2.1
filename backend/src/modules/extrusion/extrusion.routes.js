@@ -171,6 +171,7 @@ router.get('/scrap-logs', extrusionController.getScrapLogs);
 router.get('/dashboard/metrics', extrusionController.getExtrusionDashboardMetrics);
 router.patch('/scrap/:id/weigh', requireActiveShift({ allowExpired: true }), extrusionController.adjustScrapWeight);
 router.get('/shifts/activity', extrusionController.getExtrusionShiftActivity);
+router.get('/shifts/report', extrusionController.getExtrusionShiftReport);
 router.get('/shifts/session/active', extrusionController.getActiveExtrusionShiftSession);
 router.post('/shifts/session/entry', extrusionController.getExtrusionShiftEntryState);
 router.post('/shifts/session/open', extrusionController.openExtrusionShiftSession);

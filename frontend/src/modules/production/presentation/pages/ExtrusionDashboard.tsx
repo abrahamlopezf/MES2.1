@@ -14,6 +14,7 @@ import {
 
 const currency = (value: unknown) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(value || 0));
 const number = (value: unknown, digits = 1) => new Intl.NumberFormat('es-MX', { maximumFractionDigits: digits }).format(Number(value || 0));
+const handoffStatusLabel = (status: string) => status === 'RECIBIDO' ? 'Recibida y confirmada' : status === 'SIN_REMANENTE' ? 'Sin remanente' : String(status || '').replaceAll('_', ' ').toLowerCase();
 const formatConsultedAt = (timestamp: number) => timestamp > 0
   ? new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(timestamp)
   : 'Consultando…';
@@ -53,7 +54,18 @@ const ExtrusionAdminDashboard = ({ user, canViewFinancials }: { user: any; canVi
   const { data: dashboardMetrics, isLoading: loadingMetrics, isError: metricsError, dataUpdatedAt: metricsUpdatedAt, refetch: refetchMetrics } = useQuery({
     queryKey: ['extrusion', 'admin-dashboard', 'metrics'],
     queryFn: async () => (await axiosClient.get('/extrusion/dashboard/metrics')).data.data,
-    refetchInterval: 60000,
+    refetchInterval: 15000,
+  });
+  const { data: activeShiftSession, refetch: refetchActiveShift } = useQuery({
+    queryKey: ['extrusion', 'dashboard-active-shift'],
+    queryFn: async () => (await axiosClient.get('/extrusion/shifts/session/active')).data.data,
+    refetchInterval: 15000,
+  });
+  const { data: activeShiftActivity, isLoading: loadingShiftActivity, isError: shiftActivityError, refetch: refetchShiftActivity } = useQuery({
+    queryKey: ['extrusion', 'dashboard-shift-activity', activeShiftSession?.shift_date, activeShiftSession?.shift_code],
+    queryFn: async () => (await axiosClient.get('/extrusion/shifts/activity', { params: { shift_date: activeShiftSession.shift_date, shift_code: activeShiftSession.shift_code } })).data.data,
+    enabled: Boolean(activeShiftSession?.shift_date && activeShiftSession?.shift_code),
+    refetchInterval: 10000,
   });
 
   const machines = (queues as any[]).map((group) => ({
@@ -83,6 +95,7 @@ const ExtrusionAdminDashboard = ({ user, canViewFinancials }: { user: any; canVi
     formulasUpdatedAt,
     requestsUpdatedAt,
     metricsUpdatedAt,
+    activeShiftSession?.updatedAt ? new Date(activeShiftSession.updatedAt).getTime() : 0,
     ...(canViewFinancials ? [valuationUpdatedAt] : []),
   ].filter((timestamp) => timestamp > 0);
   const dataAsOf = fetchedTimestamps.length > 0 ? Math.min(...fetchedTimestamps) : 0;
@@ -93,6 +106,8 @@ const ExtrusionAdminDashboard = ({ user, canViewFinancials }: { user: any; canVi
     void refetchFormulas();
     void refetchRequests();
     void refetchMetrics();
+    void refetchActiveShift();
+    void refetchShiftActivity();
   };
 
   const failedConsultations = [
@@ -164,6 +179,19 @@ const ExtrusionAdminDashboard = ({ user, canViewFinancials }: { user: any; canVi
               </CardContent>
             </Card>
           ))}
+        </section>
+
+        <section aria-labelledby="shift-live-title" className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div><h2 id="shift-live-title" className="text-xl font-black">Progreso del turno · todas las extrusoras</h2><p className="mt-1 text-sm text-muted-foreground">Preparaciones, mezclas activas recibidas, carga y PTI por máquina. Actualización cada 10 segundos.</p></div>
+            <Link to="/extrusion/reports" className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 font-bold hover:bg-muted">Abrir reportes</Link>
+          </div>
+          {shiftActivityError ? <div role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-warning">No se pudo consultar el progreso del turno. El resto del tablero sigue disponible.</div>
+            : !activeShiftSession ? <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">No hay turno abierto. Al iniciar, la actividad se mostrará aquí para toda el área.</p>
+              : loadingShiftActivity ? <p role="status" className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">Actualizando actividad por extrusora…</p>
+                : (activeShiftActivity?.used_extruders || []).length === 0 ? <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">Turno {String(activeShiftSession.shift_code).replaceAll('_', ' ')} · {activeShiftSession.shift_date}. Aún no hay actividad nueva registrada.</p>
+                  : <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[820px] text-left text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3">Extrusora</th><th className="p-3">Mezclas preparadas / cargadas</th><th className="p-3">Kg preparados / cargados</th><th className="p-3">PTI generado</th><th className="p-3">Producción por tipo</th></tr></thead><tbody>{activeShiftActivity.used_extruders.map((machine: any) => <tr key={machine.id} className="border-t border-border align-top"><td className="p-3 font-bold">{machine.name}<span className="block text-xs font-normal text-muted-foreground">{machine.code}</span></td><td className="p-3 tabular-nums">{Number(machine.prepared_mixes || 0)} / {Number(machine.loaded_mixes || 0)} lotes<span className="block text-xs text-muted-foreground">{Number(machine.loaded_containers || 0)} contenedores cargados · {Number(machine.queued_mixes || 0)} en espera</span></td><td className="p-3 font-semibold tabular-nums">{number(machine.prepared_mix_kg)} / {number(machine.loaded_mix_kg)} kg</td><td className="p-3 font-semibold tabular-nums">{number(machine.good_pti_pieces, 0)} pz · {number(machine.good_pti_kg)} kg</td><td className="p-3">{(machine.produced_by_pti || []).length ? machine.produced_by_pti.map((pti: any) => <span key={pti.pti_product_id} className="mb-1 block">{pti.code || pti.name || 'PTI'} · {Number(pti.pieces || 0).toLocaleString('es-MX')} pz</span>) : <span className="text-muted-foreground">Sin salida de PTI</span>}</td></tr>)}</tbody></table></div>}
+          {!!activeShiftSession?.summary?.mixture_handoffs_in?.length && <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3"><h3 className="font-bold">Mezclas recibidas del turno anterior</h3><p className="text-sm text-muted-foreground">El QR y el saldo digital del relevo quedan vinculados al reporte del turno; no se cuentan como preparaciones nuevas.</p><div className="grid gap-2 sm:grid-cols-2">{activeShiftSession.summary.mixture_handoffs_in.map((handoff: any) => <div key={handoff.id} className="rounded-md border border-border bg-background p-3"><p className="font-bold">{handoff.extruder_name || `Extrusora ${handoff.extruder_id}`} · {handoff.formula_code || handoff.formula_name || 'Mezcla'}</p><p className="text-sm text-muted-foreground">{handoff.pti_color || 'Color no especificado'} · QR {handoff.mixture_qr} · {handoffStatusLabel(handoff.status)}</p><p className="mt-1 font-semibold tabular-nums">Saldo recibido: {number(handoff.remaining_balance_kg, 3)} kg</p></div>)}</div></div>}
         </section>
 
         {canViewFinancials && !loadingValuation && !valuationError && Number(valuation?.pending_mix_valuations_count || 0) > 0 && (

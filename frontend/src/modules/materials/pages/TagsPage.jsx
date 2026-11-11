@@ -11,7 +11,7 @@ import {
 
 const TagsPage = () => {
   const { user } = useAuthStore();
-  const isWarehouseAdministrator = ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(user?.role?.code);
+  const isWarehouseAdministrator = ['SUPERADMIN', 'ADMIN_ALM', 'ADMIN_ALMACEN'].includes(user?.role?.code);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20,

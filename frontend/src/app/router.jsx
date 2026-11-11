@@ -47,6 +47,7 @@ import PtiIngressContainer from '../modules/extrusion/presentation/containers/Pt
 import { ExtrusionWipInventoryPage } from '../modules/extrusion/presentation/pages/ExtrusionWipInventoryPage';
 import ExtrusionScrapControlPage from '../modules/extrusion/presentation/pages/ExtrusionScrapControlPage';
 import ExtrusionShiftPage from '../modules/extrusion/presentation/pages/ExtrusionShiftPage';
+import ExtrusionReportsPage from '../modules/extrusion/presentation/pages/ExtrusionReportsPage';
 import { SuperAdminRoute, GlobalAdminRoute, UsersManagementRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
 import PermissionRoute from './PermissionRoute';
@@ -249,6 +250,14 @@ export const router = createBrowserRouter([
             element: (
               <ExtrusionRoute>
                 <ExtrusionShiftPage />
+              </ExtrusionRoute>
+            )
+          },
+          {
+            path: '/extrusion/reports',
+            element: (
+              <ExtrusionRoute>
+                <ExtrusionReportsPage />
               </ExtrusionRoute>
             )
           },

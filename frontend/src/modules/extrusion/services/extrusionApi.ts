@@ -86,6 +86,11 @@ export const extrusionApi = {
     return response.data.data;
   },
 
+  getShiftReport: async (params: { from_date: string; to_date: string }): Promise<any> => {
+    const response = await axiosClient.get('/extrusion/shifts/report', { params });
+    return response.data.data;
+  },
+
   getActiveShiftSession: async (): Promise<any | null> => (await axiosClient.post('/extrusion/shifts/session/entry', {})).data.data,
   openShiftSession: async (payload: { shift_date: string; shift_code: string; confirm_carryover?: boolean; confirm_active_mixture?: boolean; confirmed_mixture_qrs?: string[] }): Promise<any> => (await axiosClient.post('/extrusion/shifts/session/open', payload)).data.data,
   closeShiftSession: async (payload: { id: number }): Promise<any> => (await axiosClient.post(`/extrusion/shifts/session/${payload.id}/close`, {})).data.data,

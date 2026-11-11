@@ -7,6 +7,9 @@ const round = (value, digits = 3) => Number(Number(value).toFixed(digits));
 const roleCode = (user) => String(user?.role?.code || user?.role?.name || user?.role || '').toUpperCase();
 
 const assertRole = (user, allowed) => {
+  // SUPERADMIN is the system-wide override, including actions whose operational
+  // roles are intentionally narrower (for example, confirming a sale exit).
+  if (roleCode(user) === 'SUPERADMIN') return;
   if (!allowed.includes(roleCode(user))) throw fail('No tienes permiso para operar esta transferencia.', 403);
 };
 

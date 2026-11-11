@@ -165,7 +165,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     <section className="space-y-5 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
       <header>
         <h2 className="text-xl font-black">Cierre de turno</h2>
-        <p className="mt-1 max-w-3xl text-base text-muted-foreground">Completa los pasos en orden para conciliar los pesos y cerrar la merma.</p>
+        <p className="mt-1 max-w-3xl text-base text-muted-foreground">El turno cubre toda Extrusión. Para el pesaje final, selecciona cada extrusora que tuvo actividad y concíliala por separado; al terminar, el sistema libera el cierre global.</p>
       </header>
       {lastClosure?.mass_balance_snapshot && <section role="status" className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
         <div><h3 className="text-base font-black">Balance conciliado · {lastClosure.mass_balance_snapshot.basis === 'QUEUE_AND_HANDOFF_SNAPSHOTS' ? 'saldos registrados' : 'base parcial/legada'}</h3><p className="text-sm text-muted-foreground">Remanente digital estimado desde el saldo de WIP; el cierre no pesa ni detiene una mezcla activa.</p></div>
@@ -184,8 +184,8 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
       </section>}
       <section aria-labelledby="scrap-shift-selection" className="space-y-3">
         <div>
-          <h3 id="scrap-shift-selection" className="text-lg font-bold">1. Selecciona el turno</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Elige la fecha, el turno y una extrusora con actividad registrada.</p>
+          <h3 id="scrap-shift-selection" className="text-lg font-bold">Turno de toda el área</h3>
+          <p className="mt-1 text-sm text-muted-foreground">La fecha y el número identifican el turno completo. Después elegirás una extrusora con actividad para conciliar sus pesajes.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <label className="space-y-1 text-base font-semibold">Fecha del turno
@@ -197,7 +197,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
               <option value="TURNO_2">Turno 2 · 12 horas</option>
             </select>
           </label>
-          <label className="space-y-1 text-base font-semibold">Extrusora
+          <label className="space-y-1 text-base font-semibold">Extrusora a conciliar
             <select value={extruderId} onChange={(event) => setExtruderId(Number(event.target.value) || '')} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" disabled={activityQuery.isLoading || activityQuery.isError}>
               <option value="">{activityQuery.isLoading ? 'Buscando actividad…' : activityQuery.isError ? 'No se pudo consultar' : 'Selecciona extrusora'}</option>
               {machines.map((machine: any) => <option key={machine.id} value={machine.id}>{machine.name}</option>)}

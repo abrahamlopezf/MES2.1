@@ -230,6 +230,54 @@ body.global-modal-open #root * {
   vertical-align: middle;
 }
 @media print {
+  @page extrusion-report {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  body.extrusion-report-printing * {
+    visibility: hidden !important;
+  }
+
+  body.extrusion-report-printing .extrusion-report-printable,
+  body.extrusion-report-printing .extrusion-report-printable * {
+    visibility: visible !important;
+    color: #111827 !important;
+    border-color: #cbd5e1 !important;
+    background-color: #fff !important;
+    box-shadow: none !important;
+  }
+
+  body.extrusion-report-printing .extrusion-report-printable {
+    page: extrusion-report;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.extrusion-report-printing .extrusion-report-printable table {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-collapse: collapse !important;
+  }
+
+  body.extrusion-report-printing .extrusion-report-printable .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  body.extrusion-report-printing .extrusion-report-printable th,
+  body.extrusion-report-printing .extrusion-report-printable td {
+    padding: 5px !important;
+    font-size: 9pt !important;
+  }
+
+  body.extrusion-report-printing .extrusion-report-printable article {
+    break-inside: avoid-page;
+  }
+
   body.pti-rack-qr-printing * {
     visibility: hidden !important;
   }
