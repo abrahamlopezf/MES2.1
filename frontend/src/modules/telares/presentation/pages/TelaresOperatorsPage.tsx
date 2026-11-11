@@ -423,7 +423,7 @@ export const TelaresOperatorsPage: React.FC = () => {
                       <td className="p-3.5 pl-5">
                         <span className="inline-flex items-center gap-1 font-mono font-black text-sm text-amber-300 bg-amber-950/40 border border-amber-500/40 px-2.5 py-1 rounded-lg">
                           <Hash className="h-3.5 w-3.5 text-amber-400" />
-                          {op.numero_nomina || '1200'}
+                          {op.numero_nomina || 'Sin nómina'}
                         </span>
                       </td>
 

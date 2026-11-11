@@ -59,7 +59,7 @@ export const ViajeroTrackerPage: React.FC = () => {
   const loomNum = roll?.loom_number || roll?.loom?.loom_number || roll?.loom_id;
   const shiftNum = roll?.shift_number || 1;
   const rollSeq = roll?.roll_sequence || 1;
-  const opNomina = roll?.operator_nomina || roll?.operator?.numero_nomina || '1200';
+  const opNomina = roll?.operator_nomina || roll?.operator?.numero_nomina || 'No registrada';
   const costComplete = Boolean(roll?.cost_data_complete && roll?.cost_summary?.complete && roll?.cost_summary?.total_roll_cost != null);
 
   return (
@@ -512,7 +512,7 @@ export const ViajeroTrackerPage: React.FC = () => {
                           Telar #{item.loom_number || item.loom?.loom_number || item.loom_id}
                         </span>
                         <span className="block text-[11px] text-slate-400">
-                          Turno {item.shift_number || 1}° · Nómina {item.operator_nomina || item.operator?.numero_nomina || '1200'}
+                          Turno {item.shift_number || 1}° · Nómina {item.operator_nomina || item.operator?.numero_nomina || 'No registrada'}
                         </span>
                       </td>
                       <td className="p-3">

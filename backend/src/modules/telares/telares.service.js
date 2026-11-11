@@ -439,7 +439,7 @@ class TelaresService {
         username: u.username,
         email: u.email,
         telefono: u.telefono,
-        numero_nomina: u.numero_nomina || '1200',
+        numero_nomina: u.numero_nomina || null,
         role_id: u.role_id,
         role_name: u.role?.name || 'Operador de Telares',
         role_code: u.role?.code || 'OPERADOR_TELARES',
@@ -1526,10 +1526,9 @@ class TelaresService {
       const rollSeq = Math.max(Number(run.loom.total_rolls_produced || 0), previousRollsOnLoom) + 1;
 
       // Número de nómina del operador de turno
-      let opNomina = primaryOperator?.numero_nomina || operator_nomina;
+      const opNomina = String(primaryOperator?.numero_nomina || '').trim();
       if (!opNomina) {
-        const opUser = primaryOperator || await User.findByPk(operator_id || run.operator_id, { transaction: t });
-        opNomina = opUser?.numero_nomina || '1200';
+        throw Object.assign(new Error('El operador principal no tiene número de nómina registrado. Completa su perfil antes de generar el QR viajero.'), { statusCode: 400, code: 'OPERATOR_PAYROLL_REQUIRED' });
       }
 
       // Construcción del código exacto

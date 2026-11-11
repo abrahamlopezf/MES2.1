@@ -151,7 +151,7 @@ export const TelaresTerminalPage: React.FC = () => {
 
   // Selector de Turno y Operador de Tejido (con número de nómina)
   const [shiftSelection, setShiftSelection] = useState<number>(() => getCdmxShift().shiftNumber);
-  const [selectedOperatorNomina, setSelectedOperatorNomina] = useState<string>('1200');
+  const [selectedOperatorNomina, setSelectedOperatorNomina] = useState<string>('');
   const [shiftSupervisorId, setShiftSupervisorId] = useState<number | ''>('');
   const [operatorSegments, setOperatorSegments] = useState<OperatorSegmentInput[]>([{
     operator_id: '', shift_number: getCdmxShift().shiftNumber, meters_start: '0', meters_end: '500', weight_start_kg: '0', weight_end_kg: '35.0',
@@ -449,7 +449,7 @@ export const TelaresTerminalPage: React.FC = () => {
   // Código de Rollo proyectado en tiempo real según PDF Pág 2: [TELAR]-[TURNO]-[NUM_ROLLO]-[NOMINA]
   const previewRollCode = useMemo(() => {
     const loomNum = activeLoom?.loom_number || activeLoom?.id || 10;
-    return `${loomNum}-${shiftSelection}-${nextRollSequence}-${activeOperator?.numero_nomina || selectedOperatorNomina || '1200'}`;
+    return `${loomNum}-${shiftSelection}-${nextRollSequence}-${activeOperator?.numero_nomina || selectedOperatorNomina || 'NOMINA_PENDIENTE'}`;
   }, [activeLoom, shiftSelection, nextRollSequence, selectedOperatorNomina, activeOperator]);
 
   const updateOperatorSegment = (index: number, changes: Partial<OperatorSegmentInput>) => {
@@ -592,6 +592,10 @@ export const TelaresTerminalPage: React.FC = () => {
     }
     if (!shiftSupervisorId || !availableSupervisors.some((candidate) => candidate.id === Number(shiftSupervisorId))) {
       toast.error('Selecciona al supervisor responsable del turno.');
+      return;
+    }
+    if (!activeOperator?.numero_nomina) {
+      toast.error('El operador principal no tiene número de nómina registrado. Actualiza su perfil antes de registrar el rollo.');
       return;
     }
     const segmentsPayload = operatorSegments.map((segment) => ({
@@ -1098,7 +1102,7 @@ export const TelaresTerminalPage: React.FC = () => {
                       <span>Telar: <strong className="text-blue-400 font-mono">#{activeLoom.loom_number || activeLoom.id}</strong></span>
                       <span>Turno: <strong className="text-amber-400 font-mono">{shiftSelection}°</strong></span>
                       <span>Rollo Consecutivo: <strong className="text-emerald-400 font-mono">#{nextRollSequence}</strong></span>
-                      <span>Nómina: <strong className="text-purple-400 font-mono">{selectedOperatorNomina}</strong></span>
+                      <span>Nómina: <strong className="text-purple-400 font-mono">{activeOperator?.numero_nomina || 'Pendiente'}</strong></span>
                     </div>
                   </div>
 
@@ -1134,7 +1138,7 @@ export const TelaresTerminalPage: React.FC = () => {
                     <div className="space-y-2">
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-300 flex items-center justify-between">
                         <span>Operador de Tejido:</span>
-                        <span className="text-blue-400 font-mono text-[11px]">Nómina: {selectedOperatorNomina}</span>
+                        <span className="text-blue-400 font-mono text-[11px]">Nómina: {activeOperator?.numero_nomina || 'Pendiente'}</span>
                       </label>
                       <select
                         value={selectedOperatorNomina}
