@@ -23,6 +23,11 @@ const loginSchema = Joi.object({
     }),
 });
 
+const authorizeExtrusionMixSchema = Joi.object({
+  identifier: Joi.string().trim().min(3).max(150).required(),
+  password: Joi.string().min(8).max(100).required(),
+});
+
 const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().min(8).max(100).optional(),
   newPassword: Joi.string()
@@ -64,6 +69,7 @@ const updateProfileSchema = Joi.object({
 
 module.exports = {
   loginSchema,
+  authorizeExtrusionMixSchema,
   changePasswordSchema,
   requestPasswordResetSchema,
   resetPasswordSchema,

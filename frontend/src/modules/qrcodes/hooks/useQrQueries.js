@@ -54,7 +54,7 @@ export const useAreasQuery = () => {
     queryKey: areasQueryKeys.lists(),
     queryFn: async () => {
       const response = await getAreasRequest();
-      return response.data || [];
+      return response.data?.data || response.data || [];
     },
     staleTime: 1000 * 60 * 5,
   });

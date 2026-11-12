@@ -93696,4 +93696,33 @@ notNull Violation: InventoryMovement.performed_by cannot be null
     at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-11T07:10:45.350Z\nMessage: ProcessPreparationReservation is not defined\nStack: ReferenceError: ProcessPreparationReservation is not defined
     at ExtrusionService.getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:1201:51)
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n
+    at async getFormulaDetails (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:66:23)\n\n2026-11-12T17:28:15.698Z\nMessage: El QR AGY:V2:TYB3NEG6PAUVFMHP:DKD2KFDKTEO0P_YT4HCQKQ:NOM-7FJHXNWYTT1-M0KIA50 no existe, no está activo o ya fue utilizado. Escanea un QR virgen disponible.\nStack: DomainError: El QR AGY:V2:TYB3NEG6PAUVFMHP:DKD2KFDKTEO0P_YT4HCQKQ:NOM-7FJHXNWYTT1-M0KIA50 no existe, no está activo o ya fue utilizado. Escanea un QR virgen disponible.
+    at domainError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:13:81)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:504:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:11:22)\n\n2026-11-12T17:28:48.409Z\nMessage: El QR AGY:V2:TYB3NEG6PAUVFMHP:DKD2KFDKTEO0P_YT4HCQKQ:NOM-7FJHXNWYTT1-M0KIA50 no existe, no está activo o ya fue utilizado. Escanea un QR virgen disponible.\nStack: DomainError: El QR AGY:V2:TYB3NEG6PAUVFMHP:DKD2KFDKTEO0P_YT4HCQKQ:NOM-7FJHXNWYTT1-M0KIA50 no existe, no está activo o ya fue utilizado. Escanea un QR virgen disponible.
+    at domainError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:13:81)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:504:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:11:22)\n\n2026-11-12T17:37:44.632Z\nMessage: No se pudo descifrar uno de los QR de contenedor. Escanea la etiqueta original o captura su código impreso.\nStack: DomainError: No se pudo descifrar uno de los QR de contenedor. Escanea la etiqueta original o captura su código impreso.
+    at domainError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:13:81)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:494:19
+    at Array.map (<anonymous>)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:486:54
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:11:22)\n\n2026-11-12T17:37:59.071Z\nMessage: No se pudo descifrar uno de los QR de contenedor. Escanea la etiqueta original o captura su código impreso.\nStack: DomainError: No se pudo descifrar uno de los QR de contenedor. Escanea la etiqueta original o captura su código impreso.
+    at domainError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:13:81)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:494:19
+    at Array.map (<anonymous>)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:486:54
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:11:22)\n\n2026-11-12T17:50:04.212Z\nMessage: El código NOM-7FJHXNWYTT1-M0KIA50 no existe en los lotes de QR. Verifica que escaneaste la etiqueta de contenedor correcta.\nStack: DomainError: El código NOM-7FJHXNWYTT1-M0KIA50 no existe en los lotes de QR. Verifica que escaneaste la etiqueta de contenedor correcta.
+    at domainError (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:13:81)
+    at C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.service.js:528:24
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C:\Users\maicr\OneDrive\Desktop\Demo\backend\node_modules\sequelize\lib\sequelize.js:507:18
+    at async mixFormula (C:\Users\maicr\OneDrive\Desktop\Demo\backend\src\modules\extrusion\extrusion.controller.js:11:22)\n\n

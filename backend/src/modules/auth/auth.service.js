@@ -143,6 +143,48 @@ const login = async ({ identifier, password }) => {
   };
 };
 
+const authorizeExtrusionMix = async (actorUserId, { identifier, password }) => {
+  if (env.nodeEnv === 'production') {
+    const error = new Error('La autorización temporal de pruebas no está habilitada.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const approver = await findUserWithSecurityData({
+    [Op.or]: [{ username: identifier }, { numero_nomina: identifier }],
+  }, true);
+  const roleCode = String(approver?.role?.code || '').toUpperCase();
+  const authorizedRoles = new Set(['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN']);
+  const validPassword = approver?.password_hash
+    ? await bcrypt.compare(password, approver.password_hash)
+    : false;
+  if (!approver || !approver.is_active || !approver.role?.is_active || !authorizedRoles.has(roleCode) || !validPassword) {
+    const error = new Error('Credenciales inválidas o el usuario no tiene autorización de Admin/Superadmin.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
+  const token = jwt.sign({
+    purpose: 'TEMP_OPERATION_APPROVAL',
+    operation: 'EXTRUSION_MIX_PREPARATION',
+    actorUserId: Number(actorUserId),
+    approverUserId: Number(approver.id),
+    approverUsername: approver.username,
+    approverRoleCode: roleCode,
+    jti: crypto.randomUUID(),
+  }, env.jwt.secret, { expiresIn: '2m' });
+
+  return {
+    token,
+    expires_at: expiresAt.toISOString(),
+    approver: {
+      name: [approver.first_name, approver.last_name].filter(Boolean).join(' '),
+      role: roleCode,
+    },
+  };
+};
+
 const checkPasswordChangeLimit = (user) => {
   const now = new Date();
   let count = user.password_change_count || 0;
@@ -368,6 +410,7 @@ const updateProfile = async (userId, { email, telefono, first_name, last_name, a
 
 module.exports = {
   login,
+  authorizeExtrusionMix,
   getCurrentUser,
   logout,
   changePassword,

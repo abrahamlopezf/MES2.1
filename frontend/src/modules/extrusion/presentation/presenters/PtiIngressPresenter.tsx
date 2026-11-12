@@ -60,7 +60,7 @@ export interface PtiIngressPresenterProps {
   onRefresh: () => void;
   // Form inputs
   mixtureQr: string;
-  onMixtureQrChange: (val: string) => void;
+  selectedExtruderId: number | null;
   rackQr: string;
   onRackQrChange: (val: string) => void;
   selectedPtiMaterialId: number | '';
@@ -122,7 +122,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   isLoading,
   onRefresh,
   mixtureQr,
-  onMixtureQrChange,
+  selectedExtruderId,
   rackQr,
   onRackQrChange,
   selectedPtiMaterialId,
@@ -171,7 +171,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   onRegisterSaleExit,
   isRegisteringSaleExit,
 }) => {
-  const selectedQueue = activeQueues.find((queue) => queue.consumption_order_qr_id === mixtureQr);
+  const selectedQueue = activeQueues.find((queue) => Number(queue.extruder_id) === Number(selectedExtruderId));
   const [showActiveQueues, setShowActiveQueues] = React.useState(!selectedQueue);
   React.useEffect(() => {
     if (selectedQueue) setShowActiveQueues(false);
@@ -329,7 +329,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       setNewRackCode('');
       setIsRackModalOpen(false);
       onSelectRackFromGrid(createdRack);
-      setVerifiedRackQr('');
+      setVerifiedRackQr(String(createdRack.qr_code || '').trim().toUpperCase());
       setActiveTab('INGRESS');
       setRackQrLabels([createdRack]);
     } catch {
@@ -592,10 +592,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </div>
                 <div>
                   <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-foreground">
-                    ¿Qué mezcla estás empacando?
+                    ¿En qué extrusora se produjo el PTI?
                   </h2>
                   <p className="text-xs text-muted-foreground font-semibold">
-                    Selecciona la extrusora que está corriendo o escanea la etiqueta de la mezcla.
+                    Selecciona la extrusora; el sistema identificará su contenedor activo.
                   </p>
                 </div>
               </div>
@@ -612,12 +612,12 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-bold text-foreground">
-                        {selectedQueue ? `Mezcla seleccionada · Extrusora ${selectedQueue.extruder_id}` : 'Seleccionar mezcla activa'}
+                        {selectedQueue ? `Extrusora ${selectedQueue.extruder_id} · mezcla activa` : 'Selecciona una extrusora activa'}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground mt-0.5">
                         {selectedQueue
-                          ? `${selectedQueue.consumption_order_qr_id} · ${selectedQueue.formula?.name || selectedQueue.formula?.code || 'Fórmula'}`
-                          : `${activeQueues.length} ${activeQueues.length === 1 ? 'mezcla disponible' : 'mezclas disponibles'}`}
+                          ? `${selectedQueue.formula?.name || selectedQueue.formula?.code || 'Fórmula'} · contenedor identificado automáticamente`
+                          : `${activeQueues.length} ${activeQueues.length === 1 ? 'extrusora activa' : 'extrusoras activas'}`}
                       </span>
                     </span>
                     <span className="shrink-0 flex items-center gap-2 text-xs font-bold text-primary">
@@ -671,25 +671,9 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </section>
               ) : (
                 <p className="text-xs text-amber-500 font-bold bg-amber-500/10 p-3 rounded-lg border border-amber-500/30">
-                  No hay mezclas activas detectadas en este momento. Introduce el código QR abajo.
+                  No hay extrusoras con una mezcla activa. Registra la producción cuando una mezcla esté activa.
                 </p>
               )}
-
-              {/* Input de respaldo para escanear manualmente */}
-              <div className="pt-1">
-                <label className="text-[11px] font-bold uppercase text-muted-foreground block mb-1">
-                  O escanear código QR de mezcla:
-                </label>
-                <div className="flex gap-2">
-                  <QrScannerButton title="Escanear QR de mezcla" onScan={(code) => onMixtureQrChange(code.trim().toUpperCase())} />
-                  <Input
-                    placeholder="Ej. CONT-MIX-20261023-XXXX-C1"
-                    value={mixtureQr}
-                    onChange={(e) => onMixtureQrChange(e.target.value.toUpperCase())}
-                    className="font-mono font-bold text-sm h-10 border bg-background uppercase"
-                  />
-                </div>
-              </div>
 
               {/* Ficha Resumen de la Fórmula si está identificada */}
               {selectedFormula && (
@@ -1586,23 +1570,24 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
               Registrar Nuevo Rack PTI
             </DialogTitle>
             <DialogDescription className="text-xs font-semibold text-muted-foreground">
-              Define la etiqueta QR, capacidad máxima en bobinas y ubicación inicial para el transporte de cinta.
+              Escanea un QR virgen de Extrusión para identificar el rack y define su capacidad y ubicación inicial.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveRack} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-black uppercase text-foreground">
-                Código de Rack / QR *
-              </label>
-              <Input
-                value={newRackCode}
-                onChange={(e) => setNewRackCode(e.target.value)}
-                placeholder="Ej. RACK-PTI-NEW-01"
-                required
-                className="font-mono uppercase font-bold"
-                data-testid="new-rack-code-input"
-              />
+              <label className="text-xs font-black uppercase text-foreground">QR virgen del rack *</label>
+              <div className="flex items-center gap-2">
+                <QrScannerButton title="Escanear QR virgen para el rack" onScan={(value) => setNewRackCode(value.trim().toUpperCase())} />
+                <Input
+                  value={newRackCode}
+                  readOnly
+                  placeholder="Escanea la etiqueta QR del lote de Extrusión"
+                  required
+                  className="font-mono uppercase font-bold"
+                  data-testid="new-rack-code-input"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1651,7 +1636,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 className="font-bold bg-primary text-primary-foreground"
                 data-testid="submit-create-rack-btn"
               >
-                {isCreatingRack ? 'Registrando...' : 'Registrar Rack'}
+                {isCreatingRack ? 'Registrando...' : 'Vincular QR y registrar Rack'}
               </Button>
             </DialogFooter>
           </form>

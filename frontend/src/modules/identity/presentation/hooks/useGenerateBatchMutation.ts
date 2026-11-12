@@ -31,14 +31,14 @@ export const useGenerateBatchMutation = () => {
     'EMB': 'EMBARQUE',
   };
 
-  return useMutation<GenerateBatchResponseDTO, Error, GenerateBatchRequestDTO & { nomenclature_prefix: string, mainAreaId?: string }>({
+  return useMutation<GenerateBatchResponseDTO, Error, GenerateBatchRequestDTO & { nomenclature_prefix: string, mainAreaId?: string, backendAreaCode?: string }>({
     mutationFn: async (request) => {
       const dbAreaCode = request.mainAreaId ? areaCodeMap[request.mainAreaId] : undefined;
 
       const payload = {
         quantity: request.amount,
         nomenclature_prefix: request.nomenclature_prefix,
-        area_code: dbAreaCode || request.areaId, // Intentamos enviar el mapeado, sino el original
+        area_code: request.backendAreaCode || dbAreaCode || request.areaId,
         // No enviamos assigned_area_id numérico, enviamos el area_code para que el backend lo busque
       };
       const response = await apiClient.post('/qr/batches', payload);

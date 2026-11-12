@@ -3,6 +3,8 @@ const extrusionController = require('./extrusion.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
 const roleMiddleware = require('../../middlewares/role.middleware');
+const requireTemporaryMixApproval = require('./middlewares/temporaryMixApproval.middleware');
+const env = require('../../config/env');
 
 const router = express.Router();
 
@@ -116,7 +118,10 @@ const requireActiveShift = ({ allowExpired = false } = {}) => async (req, res, n
       return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_HANDOFF_PENDING', message: 'El turno está listo para relevo. Espera a que el supervisor entrante confirme la recepción antes de registrar nuevas operaciones.' });
     }
     const { isExtrusionShiftExpired } = require('./services/shiftPolicy');
-    if (!allowExpired && isExtrusionShiftExpired(session.opened_at)) {
+    const approvedTemporaryMixOnExpiredShift = env.nodeEnv !== 'production'
+      && req.mixApproval?.temporary === true
+      && req.mixApproval?.operation === 'EXTRUSION_MIX_PREPARATION';
+    if (!allowExpired && !approvedTemporaryMixOnExpiredShift && isExtrusionShiftExpired(session.opened_at)) {
       return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_EXPIRED', message: 'El turno superó las 12 horas. El supervisor debe completar el cierre; la custodia de racks se mantiene hasta confirmarlo.' });
     }
     req.extrusionShiftSession = session;
@@ -131,7 +136,8 @@ router.get('/formulas/:id', authorizePermission('extrusion.formulas.view', 'extr
 router.get('/wip-child-qr/:qrCode', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getWipChildQr);
 router.post('/wip/qr-labels/pdf', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.downloadWipQrLabelsPdf);
 
-router.post('/mix', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.mixFormula);
+router.post('/mix/container-qr/validate', authorizePermission('extrusion.formulas.manage'), extrusionController.validateMixContainerQrCode);
+router.post('/mix', authorizePermission('extrusion.formulas.manage'), requireTemporaryMixApproval, requireActiveShift(), extrusionController.mixFormula);
 router.get('/mix-drafts', authorizePermission('extrusion.formulas.view', 'extrusion.formulas.read'), extrusionController.getPausedMixDrafts);
 router.post('/mix-drafts', requireActiveShift(), authorizePermission('extrusion.formulas.manage'), extrusionController.saveMixDraft);
 router.delete('/mix-drafts/:id', authorizePermission('extrusion.formulas.manage'), extrusionController.discardMixDraft);

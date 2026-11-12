@@ -10,6 +10,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from '@/design-system/components/Icon/googleIconCompat';
 import nomenclature from '@shared/config/nomenclature.json';
+import { useAreasQuery } from '../../../qrcodes/hooks/useQrQueries';
 import { useAuthStore } from '../../../../store/authStore';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 
@@ -40,10 +41,12 @@ export function GenerateBatchPage() {
   const isWarehouseUser = !isAdmin && !isSupervisor && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(userRoleCode) || 
                           user?.area?.code === 'ALMACEN' || 
                           user?.area?.code === 'ALM');
+  const isWarehouseQrCoordinator = !isAdmin && !isSupervisor && ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(userRoleCode);
   const isExtrusionAdmin = !isAdmin && !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRoleCode) || 
                            user?.area?.code === 'EXTRUSION');
   
   const mutation = useGenerateBatchMutation();
+  const { data: backendAreas = [] } = useAreasQuery();
   const { data: allBatches, isLoading: loadingBatches } = useIdentityBatchesQuery();
   
   // Si es supervisor: REGLA ESTRICTA - Solo puede ver los lotes creados por él
@@ -62,9 +65,13 @@ export function GenerateBatchPage() {
         return bCreatorId && user?.id && Number(bCreatorId) === Number(user.id);
       });
     }
+    if (isWarehouseQrCoordinator) {
+      // La API limita Almacén a lotes creados por este usuario y lotes de su área.
+      return allBatches;
+    }
     if (isWarehouseUser) {
       return allBatches.filter(b => {
-        const bArea = (b.areaId || b.area_code || b.area_id || '').toString().toUpperCase();
+        const bArea = (b.areaId || b.assignedAreaCode || b.area_code || b.area_id || '').toString().toUpperCase();
         return bArea === 'ALM' || bArea === 'ALMACEN' || bArea === '1';
       });
     }
@@ -86,7 +93,7 @@ export function GenerateBatchPage() {
         (bCreatorId && user?.id && Number(bCreatorId) === Number(user.id))
       );
     });
-  }, [allBatches, isAdmin, isSupervisor, isExtrusionSupervisor, isWarehouseUser, isExtrusionAdmin, user]);
+  }, [allBatches, isAdmin, isSupervisor, isExtrusionSupervisor, isWarehouseUser, isWarehouseQrCoordinator, isExtrusionAdmin, user]);
 
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
   const expandedBatch = useMemo(() => {
@@ -104,6 +111,9 @@ export function GenerateBatchPage() {
       'ALMACEN': 'ALM',
       'EXTRUSION': 'EXT',
       'TELARES': 'CON',
+      'GLOBO': 'GLB',
+      'LAMINADO': 'LAM',
+      'CORTE': 'COR',
     };
     return mapping[backendCode] || 'ALM';
   };
@@ -126,6 +136,22 @@ export function GenerateBatchPage() {
   const selectedSubAreaId = watch('subAreaId');
 
   const availableAreas = useMemo(() => {
+    if (isWarehouseQrCoordinator) {
+      const knownPrefixes: Record<string, string> = {
+        ALMACEN: 'ALM', EXTRUSION: 'EXT', TELARES: 'CON', GLOBO: 'GLB',
+        LAMINADO: 'LAM', CORTE: 'COR', CONFECCION: 'CON', IMPRENTA: 'IMP',
+        PEGADO: 'PEG', ENSAMBLADO: 'ENS', ETIQUETADO: 'ETI', DOBLADO: 'DOB',
+        PRENSADO: 'PRE', EMBARQUE: 'EMB',
+      };
+      const activeAreas = backendAreas.filter((area: any) => area.is_active !== false);
+      const options = activeAreas.map((area: any) => {
+        const code = String(area.code || '').toUpperCase();
+        const id = knownPrefixes[code] || code.replace(/[^A-Z0-9]/g, '').slice(0, 3) || String(area.id);
+        const template = nomenclature.areas.find((item: any) => item.id === id);
+        return { id, code, name: area.name, subcategories: template?.subcategories || [] };
+      });
+      return options.filter((option: any, index: number) => options.findIndex((candidate: any) => candidate.id === option.id) === index);
+    }
     if (isWarehouseUser) {
       return nomenclature.areas.filter(a => a.id === 'ALM');
     }
@@ -133,7 +159,7 @@ export function GenerateBatchPage() {
       return nomenclature.areas.filter(a => a.id === 'EXT');
     }
     return nomenclature.areas;
-  }, [isWarehouseUser, isExtrusionAdmin, isExtrusionSupervisor]);
+  }, [backendAreas, isWarehouseUser, isWarehouseQrCoordinator, isExtrusionAdmin, isExtrusionSupervisor]);
   const availableSubcategories = useMemo(() => {
     if (selectedMainAreaId === 'EXT') {
       const extArea = availableAreas.find(a => a.id === 'EXT');
@@ -162,6 +188,7 @@ export function GenerateBatchPage() {
   const onSubmit = (data: GenerateBatchFormValues) => {
     mutation.mutate({
       mainAreaId: data.mainAreaId,
+      backendAreaCode: availableAreas.find((area: any) => area.id === data.mainAreaId)?.code,
       areaId: data.subAreaId || data.mainAreaId,
       nomenclature_prefix: `${data.mainAreaId}${data.subAreaId ? `-${data.subAreaId}` : ''}`,
       amount: data.amount,
@@ -265,7 +292,7 @@ export function GenerateBatchPage() {
         <div className="flex items-center gap-2 mb-2">
           <Package2 size={24} className="text-muted-foreground" />
           <h2 className="text-xl font-black text-foreground tracking-tight">
-            Lotes {isAdmin ? 'Generados' : 'de mi Área'}
+            Lotes {isAdmin ? 'Generados' : isWarehouseQrCoordinator ? 'generados y solicitados' : 'de mi Área'}
           </h2>
         </div>
         
@@ -309,7 +336,7 @@ export function GenerateBatchPage() {
                             {subData && (
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: subData.color }}></span>
                             )}
-                            <span className="truncate">{subData ? `${subData.areaName} - ${subData.name}` : batch.areaId}</span>
+                            <span className="truncate">{subData ? `${subData.areaName} - ${subData.name}` : batch.assignedAreaName || batch.areaId}</span>
                           </span>
                         </div>
                       </div>
@@ -348,7 +375,7 @@ export function GenerateBatchPage() {
                               <div className="flex justify-between items-center border-b border-border/50 pb-2">
                                 <span>Área / Subcategoría:</span>
                                 <strong className="text-foreground text-right ml-4">
-                                  {getSubcategoryData(expandedBatch.areaId) ? `${getSubcategoryData(expandedBatch.areaId)?.areaName} - ${getSubcategoryData(expandedBatch.areaId)?.name}` : expandedBatch.areaId}
+                                  {getSubcategoryData(expandedBatch.areaId) ? `${getSubcategoryData(expandedBatch.areaId)?.areaName} - ${getSubcategoryData(expandedBatch.areaId)?.name}` : expandedBatch.assignedAreaName || expandedBatch.areaId}
                                </strong>
                               </div>
                               <div className="flex justify-between items-center border-b border-border/50 pb-2">
@@ -526,7 +553,7 @@ export function GenerateBatchPage() {
                       <label className="text-sm font-bold text-foreground ml-1">Área Asignada</label>
                       <select 
                         {...register('mainAreaId')} 
-                        disabled={!isAdmin}
+                        disabled={!isAdmin && !isWarehouseQrCoordinator}
                         className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none disabled:opacity-50 shadow-sm"
                       >
                         {availableAreas.map(area => (

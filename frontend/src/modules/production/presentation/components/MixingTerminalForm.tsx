@@ -101,12 +101,21 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const [selectedColor, setSelectedColor] = useState('');
   // 1. Selector de QRs para dividir un solo lote total entre N contenedores.
   const [containerCount, setContainerCount] = useState<number>(1);
+  const [containerQrCodes, setContainerQrCodes] = useState<string[]>(['']);
+  const [containerScanIndex, setContainerScanIndex] = useState<number | null>(null);
+  const [isValidatingContainerQr, setIsValidatingContainerQr] = useState(false);
   // 2. Extrusora seleccionada (sugerida automáticamente según compatibilidad y restricciones)
   const [selectedExtruderId, setSelectedExtruderId] = useState<number | 'AUTO'>('AUTO');
 
   // Modal para imprimir etiquetas QR generadas de los N contenedores
   const [mixResultModalData, setMixResultModalData] = useState<MixResultData | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isAdminApprovalOpen, setIsAdminApprovalOpen] = useState(false);
+  const [approvalIdentifier, setApprovalIdentifier] = useState('');
+  const [approvalPassword, setApprovalPassword] = useState('');
+  const [approvalError, setApprovalError] = useState('');
+  const [isApprovingMix, setIsApprovingMix] = useState(false);
+  const [pendingMixPayload, setPendingMixPayload] = useState<any>(null);
 
   const [isMixingCameraOpen, setIsMixingCameraOpen] = useState(false);
   const [notes, setNotes] = useState('');
@@ -122,6 +131,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     const formulaColor = getFormulaColorLabel(selectedFormula);
     return formulaColor ? [formulaColor] : [];
   }, [selectedFormula]);
+
+  useEffect(() => {
+    setContainerQrCodes((current) => Array.from({ length: containerCount }, (_, index) => current[index] || ''));
+  }, [containerCount]);
 
   // Estado para modal de Orden de Consumo (ODC) hacia Almacén con insumos precargados
   const [isOdcModalOpen, setIsOdcModalOpen] = useState(false);
@@ -698,6 +711,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     setFormulaId(String(snapshot.formula_id || draft.formula_id));
     setSelectedColor(snapshot.output_color || '');
     setContainerCount(Number(snapshot.container_count || 1));
+    setContainerQrCodes(Array.from({ length: Number(snapshot.container_count || 1) }, () => ''));
     setSelectedExtruderId(snapshot.extruder_id ? Number(snapshot.extruder_id) : 'AUTO');
     setNotes(snapshot.notes || '');
     setInputs(Array.isArray(snapshot.inputs) ? snapshot.inputs : []);
@@ -749,6 +763,32 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
   };
 
+  const validateAndSelectContainerQr = async (scannedQr: string, containerIndex: number) => {
+    setIsValidatingContainerQr(true);
+    try {
+      const response: any = await apiClient.post('/extrusion/mix/container-qr/validate', { qr_code: scannedQr });
+      const result = response?.data?.data || response?.data || response;
+      const canonicalQrCode = String(result?.qr_code || '').trim();
+      if (!result?.available || !canonicalQrCode) throw new Error('El servidor no confirmó que el QR esté disponible.');
+
+      if (containerQrCodes.some((value, index) => index !== containerIndex
+        && value.trim().toUpperCase() === canonicalQrCode.toUpperCase())) {
+        toast.error('Ese QR ya está seleccionado en otro contenedor de esta preparación.');
+        return;
+      }
+      setContainerQrCodes((current) => {
+        const updated = [...current];
+        updated[containerIndex] = canonicalQrCode;
+        return updated;
+      });
+      toast.success(`QR ${canonicalQrCode} válido y disponible. Se asignará al registrar la mezcla.`);
+    } catch (error: any) {
+      toast.error(error?.friendlyMessage || error?.response?.data?.message || error?.message || 'No se pudo validar el QR.');
+    } finally {
+      setIsValidatingContainerQr(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mixingStep !== 2) return;
@@ -758,6 +798,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
     if (!formulaId) {
       toast.error('Selecciona una fórmula de extrusión.');
+      return;
+    }
+    if (containerQrCodes.length !== containerCount || containerQrCodes.some((code) => !String(code || '').trim())) {
+      toast.error(`Escanea un QR virgen distinto para cada uno de los ${containerCount} contenedores.`);
       return;
     }
     if (formulaColorOptions.length > 0 && !selectedColor) {
@@ -781,17 +825,48 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       return;
     }
 
-    mutation.mutate({
+    // Revalidate selected labels before asking for Admin approval. This catches
+    // stale/unregistered QRs without consuming the one-time approval token.
+    setIsValidatingContainerQr(true);
+    try {
+      for (const qrCode of containerQrCodes) {
+        const response: any = await apiClient.post('/extrusion/mix/container-qr/validate', { qr_code: qrCode });
+        const result = response?.data?.data || response?.data || response;
+        if (!result?.available) throw new Error(`El QR ${qrCode} no está disponible.`);
+      }
+    } catch (error: any) {
+      toast.error(error?.friendlyMessage || error?.response?.data?.message || error?.message || 'No se pudieron validar los QR de contenedor.');
+      return;
+    } finally {
+      setIsValidatingContainerQr(false);
+    }
+
+    const mixPayload = {
       formula_id: formulaId,
       output_color: getFormulaColorLabel(selectedFormula) || undefined,
       // El backend distribuye el consumo entre ambos silos por stock disponible.
       silo_inputs: [],
       preparation_id: pausedPreparationId || ticket?.id,
       container_count: containerCount,
+      container_qr_codes: containerQrCodes,
       extruder_id: selectedExtruderId === 'AUTO' ? undefined : Number(selectedExtruderId),
       inputs: inputs.map(i => ({ qr_code: i.qr_code, quantity: Number(i.quantity) })),
       notes: notes.trim() || undefined
-    }, {
+    };
+
+    if (import.meta.env.DEV) {
+      setPendingMixPayload(mixPayload);
+      setApprovalIdentifier('');
+      setApprovalPassword('');
+      setApprovalError('');
+      setIsAdminApprovalOpen(true);
+      return;
+    }
+
+    submitMix(mixPayload);
+  };
+
+  const submitMix = (mixPayload: any, approvalToken?: string) => mutation.mutate({ payload: mixPayload, approvalToken }, {
       onSuccess: (res: any) => {
         const data = res?.data || res;
         const createdContainers = data.containers || [];
@@ -811,18 +886,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
           formula_code: selectedFormula?.code || '',
           total_quantity: Number(data.total_quantity || totalBatchKg),
           extruder_id: assignedExtruderId,
-          containers: createdContainers.length > 0 ? createdContainers : [
-            {
-              container_number: 1,
-              total_containers: 1,
-              qr_code: data.destination_qr_code || `CONT-MIX-${Date.now()}`,
-              capacity_kg: Number(data.total_quantity || totalBatchKg),
-              formula_name: selectedFormula?.name || '',
-              formula_code: selectedFormula?.code || '',
-              folio: data.folio || '',
-              extruder_id: assignedExtruderId
-            }
-          ]
+          containers: createdContainers.length > 0 ? createdContainers : containerQrCodes.map((qrCode, index) => ({
+            container_number: index + 1,
+            total_containers: containerCount,
+            qr_code: qrCode,
+            capacity_kg: index === containerCount - 1
+              ? Number((Number(data.total_quantity || totalBatchKg) - weightPerContainerKg * (containerCount - 1)).toFixed(2))
+              : weightPerContainerKg,
+            formula_name: selectedFormula?.name || '',
+            formula_code: selectedFormula?.code || '',
+            folio: data.folio || '',
+            extruder_id: assignedExtruderId
+          }))
         });
         setIsPrintModalOpen(true);
 
@@ -832,14 +907,40 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         setConsumedQrCodes(new Set());
         setNotes('');
         setContainerCount(1);
+        setContainerQrCodes(['']);
         // NOTA: No llamamos onSuccess() aquí porque desmontaría MixingTerminalForm
         // y destruiría el modal de impresión. onSuccess() se llama al cerrar el modal o finalizar.
       },
       onError: (err: any) => {
-        const msg = err.response?.data?.message || err.message || 'Error al registrar la mezcla.';
+        const msg = err.friendlyMessage || err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Error al registrar la mezcla.';
         toast.error(msg);
       }
     });
+
+  const confirmAdminApproval = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!pendingMixPayload || isApprovingMix) return;
+    setIsApprovingMix(true);
+    setApprovalError('');
+    try {
+      const response: any = await apiClient.post('/auth/authorize-extrusion-mix', {
+        identifier: approvalIdentifier.trim(),
+        password: approvalPassword,
+      });
+      const result = response?.data || response;
+      const token = result?.token;
+      if (!token) throw new Error('El servidor no emitió una autorización temporal válida.');
+      const authorizedPayload = pendingMixPayload;
+      setPendingMixPayload(null);
+      setApprovalPassword('');
+      setIsAdminApprovalOpen(false);
+      toast.success(`Autorizado por ${result?.approver?.name || result?.approver?.role || 'Administración'}.`);
+      submitMix(authorizedPayload, token);
+    } catch (error: any) {
+      setApprovalError(error?.response?.data?.message || error?.message || 'No se pudo confirmar la autorización.');
+    } finally {
+      setIsApprovingMix(false);
+    }
   };
 
   return (
@@ -1073,7 +1174,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   </label>
                   <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 shrink-0">
                     <Icon name="auto_awesome" size={11} />
-                    QR SISTEMA
+                    QR VIRGEN
                   </span>
                 </div>
 
@@ -1255,6 +1356,36 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
             null
           ) : (
           <>
+          <section className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4" aria-label="Identificación de contenedores de mezcla">
+            <div>
+              <h3 className="text-base font-bold text-foreground">Identifica los contenedores de esta mezcla</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Escanea un QR virgen por contenedor. El escaneo solo lo deja seleccionado en esta pantalla; su estado e información cambian únicamente cuando se confirma y registra la mezcla.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {Array.from({ length: containerCount }, (_, index) => {
+                const qrCode = containerQrCodes[index] || '';
+                return (
+                  <div key={`container-qr-${index}`} className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-background p-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xs font-bold text-muted-foreground">CONTENEDOR {index + 1}</span>
+                      <span className={`block truncate font-mono text-sm font-semibold ${qrCode ? 'text-foreground' : 'text-amber-700'}`} title={qrCode || undefined}>
+                        {qrCode || 'QR pendiente de escaneo'}
+                      </span>
+                    </div>
+                    <Button type="button" variant={qrCode ? 'outline' : 'default'} disabled={isValidatingContainerQr} onClick={() => { setContainerScanIndex(index); setIsMixingCameraOpen(true); }} className="min-h-11 shrink-0 gap-1.5 px-3 text-sm font-bold">
+                      <Icon name="qr_code_scanner" size={17} /> {isValidatingContainerQr ? 'Validando…' : qrCode ? 'Cambiar' : 'Escanear'}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={`text-sm font-bold ${containerQrCodes.length === containerCount && containerQrCodes.every(Boolean) ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+              {containerQrCodes.length === containerCount && containerQrCodes.every(Boolean)
+                ? `${containerCount} de ${containerCount} QR listos para asignar.`
+                : `${containerQrCodes.filter(Boolean).length} de ${containerCount} QR escaneados.`}
+            </p>
+          </section>
+
           <section aria-label="Resumen de la mezcla seleccionada" className="rounded-xl border border-border bg-card p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-muted-foreground">Preparando</p>
@@ -1894,7 +2025,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={mutation.isPending || loadingFormulas || loadingDetails || formulaDetailsError || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
+                disabled={mutation.isPending || isValidatingContainerQr || loadingFormulas || loadingDetails || formulaDetailsError || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0) || containerQrCodes.length !== containerCount || containerQrCodes.some((code) => !String(code || '').trim())}
                 className="col-span-2 min-h-12 min-w-0 w-full gap-2 px-3 text-sm font-bold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-1 sm:w-auto sm:px-6 lg:flex-1"
               >
                 {mutation.isPending ? (
@@ -2225,16 +2356,39 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       {/* Visor de Cámara Industrial para Escanear QR Hijo */}
       {isMixingCameraOpen && (
         <CameraScanner
-          title={targetMaterialForScan ? `Escanear: ${targetMaterialForScan.name}` : 'Escanear QR Hijo (-SN)'}
-          subtitle={targetMaterialForScan?.suggested_fifo_qr ? `Prioridad FIFO: ${targetMaterialForScan.suggested_fifo_qr}` : undefined}
-          expectedCode={targetMaterialForScan?.suggested_fifo_qr || undefined}
+          title={containerScanIndex !== null ? `QR virgen para contenedor ${containerScanIndex + 1}` : targetMaterialForScan ? `Escanear: ${targetMaterialForScan.name}` : 'Escanear QR Hijo (-SN)'}
+          subtitle={containerScanIndex !== null ? 'Escanea una etiqueta disponible del lote de Extrusión.' : targetMaterialForScan?.suggested_fifo_qr ? `Prioridad FIFO: ${targetMaterialForScan.suggested_fifo_qr}` : undefined}
+          expectedCode={containerScanIndex !== null ? undefined : targetMaterialForScan?.suggested_fifo_qr || undefined}
           onScan={(code: string) => {
-            const clean = (code || '').trim().toUpperCase();
+            const scannedValue = (code || '').trim();
+            // AGY envelope contents are case-sensitive. Only normalize raw
+            // human-readable batch codes to uppercase.
+            const clean = /^AGY:/i.test(scannedValue)
+              ? `AGY:${scannedValue.slice(4)}`
+              : scannedValue.toUpperCase();
             setIsMixingCameraOpen(false);
+            if (containerScanIndex !== null) {
+              const isDuplicate = containerQrCodes.some((qr, index) => {
+                if (index === containerScanIndex) return false;
+                const existing = qr.trim();
+                return /^AGY:/i.test(existing) || /^AGY:/i.test(clean)
+                  ? existing === clean
+                  : existing.toUpperCase() === clean.toUpperCase();
+              });
+              if (isDuplicate) {
+                toast.error('Ese QR ya está asignado a otro contenedor de esta mezcla. Escanea uno distinto.');
+                setContainerScanIndex(null);
+                return;
+              }
+              const targetContainerIndex = containerScanIndex;
+              setContainerScanIndex(null);
+              void validateAndSelectContainerQr(clean, targetContainerIndex);
+              return;
+            }
             setScannedQrInput(clean);
             handleValidateChildQr(clean);
           }}
-          onClose={() => setIsMixingCameraOpen(false)}
+          onClose={() => { setIsMixingCameraOpen(false); setContainerScanIndex(null); }}
         />
       )}
 
@@ -2270,6 +2424,39 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
           navigate('/extrusion/board');
         }}
       />
+
+      {isAdminApprovalOpen && import.meta.env.DEV && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="presentation">
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mix-admin-approval-title"
+            onSubmit={confirmAdminApproval}
+            className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-5 shadow-2xl"
+          >
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">Confirmación temporal de prueba</p>
+              <h2 id="mix-admin-approval-title" className="mt-1 text-xl font-bold text-foreground">Autorizar preparación de mezcla</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Un usuario Admin o Superadmin debe confirmar esta operación con sus propias credenciales. La contraseña no se guarda.</p>
+            </div>
+            <label className="block space-y-1.5 text-sm font-semibold text-foreground">
+              Usuario o número de nómina de Admin/Superadmin
+              <input autoFocus autoComplete="username" required minLength={3} maxLength={150} value={approvalIdentifier} onChange={(event) => setApprovalIdentifier(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base" />
+            </label>
+            <label className="block space-y-1.5 text-sm font-semibold text-foreground">
+              Contraseña
+              <input type="password" autoComplete="current-password" required minLength={8} maxLength={100} value={approvalPassword} onChange={(event) => setApprovalPassword(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base" />
+            </label>
+            {approvalError && <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{approvalError}</p>}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" disabled={isApprovingMix} onClick={() => { setIsAdminApprovalOpen(false); setPendingMixPayload(null); setApprovalPassword(''); setApprovalError(''); }}>Cancelar</Button>
+              <Button type="submit" disabled={isApprovingMix || !approvalIdentifier.trim() || !approvalPassword}>
+                {isApprovingMix ? 'Validando…' : 'Autorizar y preparar mezcla'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

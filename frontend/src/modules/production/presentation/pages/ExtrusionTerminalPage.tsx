@@ -113,10 +113,12 @@ export const ExtrusionTerminalPage: React.FC = () => {
   const [finishMixWeight, setFinishMixWeight] = useState('');
   const [finishMixNotes, setFinishMixNotes] = useState('');
 
-  // Estados de Registro Directo de Carretes en Rack PTI (Sin QR Virgen)
+  // Estados para registrar la producción y vincular QRs vírgenes a racks nuevos.
   const [rackId, setRackId] = useState(qrFromUrl.trim().toUpperCase());
   const [verifiedRackQr, setVerifiedRackQr] = useState(qrFromUrl.trim().toUpperCase());
   const [generatedRackQr, setGeneratedRackQr] = useState<{ rackCode: string; qrCode: string } | null>(null);
+  const [requiredNewRackQrCount, setRequiredNewRackQrCount] = useState(0);
+  const [newRackQrCodes, setNewRackQrCodes] = useState<string[]>([]);
   const [piecesInput, setPiecesInput] = useState<string>('1');
   const [weightInput, setWeightInput] = useState<string>('6.80');
   const [sessionRolls, setSessionRolls] = useState<SessionRoll[]>([]);
@@ -333,14 +335,25 @@ export const ExtrusionTerminalPage: React.FC = () => {
       };
     }
 
-    if (!selectedRack) {
+    if (!selectedRack && rackId.trim()) {
       return {
         isReady: false,
-        status: 'NO_RACK',
-        title: 'Seleccione un Rack',
-        message: 'Selecciona o escanea el Rack destino en el piso de planta.',
-        badgeVariant: 'outline' as const,
-        badgeText: 'Sin Rack',
+        status: 'RACK_NOT_FOUND',
+        title: 'Rack no registrado',
+        message: 'El QR escaneado no corresponde a un rack activo. Limpia la selección para usar la asignación automática o registra el QR virgen cuando el sistema solicite un rack nuevo.',
+        badgeVariant: 'danger' as const,
+        badgeText: 'QR no reconocido',
+      };
+    }
+
+    if (!selectedRack) {
+      return {
+        isReady: true,
+        status: 'AUTO_ASSIGNMENT',
+        title: 'Asignación automática',
+        message: 'El sistema elegirá racks compatibles con el PTI y con espacio disponible. Si necesita crear alguno, pedirá escanear un QR virgen.',
+        badgeVariant: 'success' as const,
+        badgeText: 'Automático',
       };
     }
     if (!verifiedRackQr || verifiedRackQr !== String(selectedRack.qr_code || '').trim().toUpperCase()) {
@@ -429,7 +442,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
         badgeText: 'No Coincide',
       };
     }
-  }, [activeQueue, selectedRack, expectedPti, currentGroup, verifiedRackQr]);
+  }, [activeQueue, selectedRack, expectedPti, currentGroup, verifiedRackQr, rackId]);
 
   // Manejador: Iniciar / Activar Extrusión en Máquina
   const handleStartExtrusion = async (e: React.FormEvent) => {
@@ -511,17 +524,12 @@ export const ExtrusionTerminalPage: React.FC = () => {
     }
   };
 
-  // Manejador: Registrar Bobinas Directamente en Rack (Sin QR Virgen)
+  // Manejador: Registrar bobinas en rack y solicitar QRs vírgenes si se requiere ampliar capacidad.
   const handleRegisterRoll = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!activeQueue) {
       toast.error('La máquina seleccionada no tiene una mezcla activa en tolva.');
-      return;
-    }
-
-    if (!selectedRack) {
-      toast.error('Seleccione un rack destino.');
       return;
     }
 
@@ -543,41 +551,47 @@ export const ExtrusionTerminalPage: React.FC = () => {
       return;
     }
 
-    const effectivePtiId =
-      selectedRack.current_pti_product_id ||
-      selectedRack.currentPtiProduct?.id ||
-      expectedPti?.id ||
-      selectedRack.current_pti_type_id ||
-      1;
+    const effectivePtiId = Number(expectedPti?.id || selectedRack?.current_pti_product_id || selectedRack?.current_pti_type_id || 0);
+    if (!effectivePtiId) {
+      toast.error('No se pudo identificar el PTI esperado de la mezcla activa. Revisa el enlace fórmula–PTI.');
+      return;
+    }
 
     try {
       const response = await scanRackMutation.mutateAsync({
-        rack_qr: selectedRack.qr_code,
+        rack_qr: selectedRack?.qr_code || undefined,
+        new_rack_qr_codes: newRackQrCodes,
         pti_material_id: effectivePtiId,
         quantity: pieces,
         weight_kg: Number(totalWeight.toFixed(2)),
         unit_weight_kg: ptiUnitWeight,
         mixture_qr: activeQueue.consumption_order_qr_id,
-        notes: `Producción directa en ${currentGroup?.machine.name || 'Extrusora'} - Rack ${selectedRack.rack_code}`,
+        notes: `Producción directa en ${currentGroup?.machine.name || 'Extrusora'} - asignación automática de rack${selectedRack ? ` (preferencia ${selectedRack.rack_code})` : ''}`,
       });
 
       toast.success(
-        response.message || `${pieces} bobina(s) (${totalWeight.toFixed(2)} kg) ingresadas al Rack ${selectedRack.rack_code}.`
+        response.message || `${pieces} bobina(s) (${totalWeight.toFixed(2)} kg) distribuidas en racks compatibles.`
       );
+      setRequiredNewRackQrCount(0);
+      setNewRackQrCodes([]);
 
+      const allocationRows = Array.isArray(response.racks) && response.racks.length > 0
+        ? response.racks
+        : [{ rack_code: selectedRack?.rack_code || 'Asignación automática', pieces_added: pieces }];
+      const registeredAt = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
       setSessionRolls((prev) => [
-        {
-          rollIndex: prev.length + 1,
-          rackId: selectedRack.rack_code,
-          ptiName: expectedPti?.name || selectedRack.pti_product_name || 'Bobina PTI',
-          pieces: pieces,
-          quantity: Number(totalWeight.toFixed(2)),
-          time: new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }),
-        },
+        ...allocationRows.map((allocation: any, index: number) => ({
+          rollIndex: prev.length + index + 1,
+          rackId: allocation.rack_code || selectedRack?.rack_code || 'Asignación automática',
+          ptiName: expectedPti?.name || selectedRack?.pti_product_name || 'Bobina PTI',
+          pieces: Number(allocation.pieces_added || 0),
+          quantity: Number((Number(allocation.pieces_added || 0) * ptiUnitWeight).toFixed(2)),
+          time: registeredAt,
+        })),
         ...prev,
       ]);
 
@@ -587,7 +601,15 @@ export const ExtrusionTerminalPage: React.FC = () => {
       refetchRacks();
       refetchQueues();
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Error al registrar carrete en Rack.';
+      const apiError = err.response?.data?.error || err.response?.data;
+      if (apiError?.code === 'PTI_RACK_VIRGIN_QR_REQUIRED') {
+        const required = Number(apiError?.details?.required_count || 1);
+        setRequiredNewRackQrCount(required);
+        setNewRackQrCodes(Array.from({ length: required }, () => ''));
+        toast.info(`La producción necesita ${required} rack(s) adicional(es). Escanea ${required} QR virgen(es) de Extrusión para continuar.`);
+        return;
+      }
+      const msg = apiError?.message || err.friendlyMessage || err.message || 'Error al registrar carrete en Rack.';
       toast.error(msg);
     }
   };
@@ -643,9 +665,9 @@ export const ExtrusionTerminalPage: React.FC = () => {
       });
 
       setGeneratedRackQr({ rackCode: createdRack.rack_code, qrCode: createdRack.qr_code });
-      toast.success(`Rack ${createdRack.rack_code} inicializado. Imprime y coloca su QR fijo.`);
+      toast.success(`Rack ${createdRack.rack_code} inicializado con el QR virgen escaneado. Imprime y coloca la etiqueta.`);
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Error al inicializar Rack.';
+      const msg = err.friendlyMessage || err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Error al inicializar Rack.';
       toast.error(msg);
     }
   };
@@ -709,9 +731,9 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   <Input
                     required
                     value={rackId}
-                    onChange={(e) => setRackId(e.target.value.toUpperCase())}
+                    readOnly
                     className="!h-11 font-mono font-bold uppercase text-sm bg-background border-border"
-                    placeholder="Ej. QR-RACK-005"
+                    placeholder="Escanea la etiqueta QR virgen del lote de Extrusión"
                   />
                 </div>
                 <p className="mt-1 flex items-center gap-1 text-sm font-medium text-muted-foreground">
@@ -1284,31 +1306,64 @@ export const ExtrusionTerminalPage: React.FC = () => {
                   <label className="flex items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Icon name="shelves" size={15} className="text-primary" />
-                      <span>Rack Destino *</span>
+                      <span>Asignación de rack</span>
                     </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => navigate('/production/extrusion/rack/new')}
-                      className="h-5 px-1.5 text-[10px] font-bold text-primary hover:text-primary"
-                    >
-                      + Nuevo Rack
-                    </Button>
+                    {rackId && (
+                      <Button type="button" variant="ghost" onClick={() => { setRackId(''); setVerifiedRackQr(''); }} className="h-8 px-2 text-xs font-bold text-primary">
+                        Limpiar y asignar automáticamente
+                      </Button>
+                    )}
                   </label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_minmax(0,1fr)]">
-                    <QrScannerButton
-                      title="Escanear el QR físico del rack de destino"
-                      disabled={!activeQueue}
-                      onScan={handleRackQrScanned}
-                    />
+                    <QrScannerButton title="Opcional: priorizar un rack existente escaneándolo" disabled={!activeQueue} onScan={handleRackQrScanned} />
                     <div className="flex min-h-11 items-center rounded-xl border border-border bg-background px-3 font-mono text-xs sm:text-sm font-bold text-foreground">
                       {selectedRack
                         ? `${selectedRack.rack_code} · ${selectedRack.current_quantity}/${selectedRack.max_capacity} bobinas`
-                        : 'Escanea el QR del rack para identificarlo'}
+                        : 'Automática · rack compatible con espacio'}
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">El ingreso se habilita solo al leer el QR del rack donde quedó la corrida.</p>
+                  <p className="text-xs text-muted-foreground">El sistema distribuye el PTI entre racks compatibles del turno. Escanear un rack existente es opcional; los QR vírgenes solo se solicitan cuando haga falta crear racks nuevos.</p>
                 </div>
+
+                {requiredNewRackQrCount > 0 && (
+                  <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4" role="group" aria-label="QR para racks adicionales">
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">Se necesitan {requiredNewRackQrCount} rack(s) adicional(es)</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Los racks compatibles existentes no tienen espacio suficiente. Escanea un QR virgen distinto por cada rack nuevo; el sistema lo vinculará automáticamente al PTI de esta producción.</p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {Array.from({ length: requiredNewRackQrCount }, (_, index) => (
+                        <div key={`new-rack-qr-${index}`} className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-background p-2">
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[11px] font-bold text-muted-foreground">RACK NUEVO {index + 1}</span>
+                            <span className={`block truncate font-mono text-sm font-semibold ${newRackQrCodes[index] ? 'text-foreground' : 'text-amber-700'}`} title={newRackQrCodes[index] || undefined}>
+                              {newRackQrCodes[index] || 'QR virgen pendiente'}
+                            </span>
+                          </div>
+                          <QrScannerButton
+                            title={`Escanear QR virgen para rack nuevo ${index + 1}`}
+                            onScan={(code) => {
+                              const clean = String(code || '').trim().toUpperCase();
+                              if (newRackQrCodes.some((existing, existingIndex) => existingIndex !== index && existing === clean)) {
+                                toast.error('Ese QR ya está asignado a otro rack nuevo en este registro.');
+                                return;
+                              }
+                              setNewRackQrCodes((current) => {
+                                const next = [...current];
+                                next[index] = clean;
+                                return next;
+                              });
+                              toast.success(`QR asignado al rack nuevo ${index + 1}.`);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs font-bold text-amber-700">
+                      {newRackQrCodes.filter(Boolean).length} de {requiredNewRackQrCount} QR escaneados. Al confirmar, las etiquetas dejarán de estar vírgenes y quedarán ligadas a sus racks.
+                    </p>
+                  </div>
+                )}
 
                 {/* Callout de Verificación y Compatibilidad de Rack */}
                 {selectedRack && activeQueue && (
@@ -1425,6 +1480,7 @@ export const ExtrusionTerminalPage: React.FC = () => {
                         disabled={
                           !rackVerification.isReady ||
                           scanRackMutation.isPending ||
+                          (requiredNewRackQrCount > 0 && (newRackQrCodes.length !== requiredNewRackQrCount || newRackQrCodes.some((code) => !code))) ||
                           (parseFloat(weightInput) || 0) <= 0 ||
                           (parseInt(piecesInput, 10) || 0) <= 0
                         }

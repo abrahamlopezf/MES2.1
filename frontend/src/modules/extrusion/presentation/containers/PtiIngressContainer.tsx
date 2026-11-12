@@ -119,7 +119,7 @@ export const PtiIngressContainer: React.FC = () => {
   };
 
   // Estados de Formulario de Escaneo con prellenado inteligente
-  const [mixtureQr, setMixtureQr] = useState<string>('');
+  const [selectedExtruderId, setSelectedExtruderId] = useState<number | null>(null);
   const [rackQr, setRackQr] = useState<string>('');
   const [selectedPtiMaterialId, setSelectedPtiMaterialId] = useState<number | ''>('');
   
@@ -136,9 +136,6 @@ export const PtiIngressContainer: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [lastBackflushingResult, setLastBackflushingResult] = useState<BackflushingResult | null>(null);
 
-  // Consulta de Balance de Masa en tiempo real para la mezcla seleccionada
-  const { data: massBalance = null, refetch: refetchMassBalance } = useMassBalanceQuery(mixtureQr);
-
   // Mezclas activas actuales en las 4 extrusoras
   const activeQueues: ExtruderQueue[] = useMemo(() => {
     return queuesGroups
@@ -146,12 +143,21 @@ export const PtiIngressContainer: React.FC = () => {
       .filter((q): q is ExtruderQueue => q !== null && q !== undefined);
   }, [queuesGroups]);
 
-  // Prellenado inteligente: Si hay mezclas activas en piso y no hay seleccionada, preseleccionar la primera
+  // La selección se hace por extrusora; la mezcla activa se resuelve desde su cola.
+  const selectedQueue: ExtruderQueue | null = useMemo(() => {
+    if (selectedExtruderId == null) return null;
+    return activeQueues.find((queue) => Number(queue.extruder_id) === Number(selectedExtruderId)) || null;
+  }, [activeQueues, selectedExtruderId]);
+  const mixtureQr = selectedQueue?.consumption_order_qr_id || '';
+  const { data: massBalance = null, refetch: refetchMassBalance } = useMassBalanceQuery(mixtureQr);
+
   React.useEffect(() => {
-    if (activeQueues.length > 0 && !mixtureQr) {
-      setMixtureQr(activeQueues[0].consumption_order_qr_id);
+    if (activeQueues.length === 0) {
+      setSelectedExtruderId(null);
+    } else if (!activeQueues.some((queue) => Number(queue.extruder_id) === Number(selectedExtruderId))) {
+      setSelectedExtruderId(Number(activeQueues[0].extruder_id));
     }
-  }, [activeQueues, mixtureQr]);
+  }, [activeQueues, selectedExtruderId]);
 
   // Rack seleccionado según lo escaneado o clickeado
   const selectedRack: PtiRack | null = useMemo(() => {
@@ -196,12 +202,7 @@ export const PtiIngressContainer: React.FC = () => {
     }
   }, [selectedPtiProduct, unitPrice]);
 
-  // Fórmula activa según el QR de mezcla
-  const selectedQueue: ExtruderQueue | null = useMemo(() => {
-    if (!mixtureQr) return null;
-    const cleanMix = mixtureQr.trim();
-    return activeQueues.find((q) => q.consumption_order_qr_id === cleanMix) || null;
-  }, [mixtureQr, activeQueues]);
+  // Fórmula activa determinada por la extrusora seleccionada.
   const selectedFormula: Formula | null = selectedQueue?.formula || null;
   const compatiblePtiProducts = useMemo(() => {
     if (!selectedFormula) return [];
@@ -255,7 +256,7 @@ export const PtiIngressContainer: React.FC = () => {
   };
 
   const handleSelectQueueFromList = (queue: ExtruderQueue) => {
-    setMixtureQr(queue.consumption_order_qr_id);
+    setSelectedExtruderId(Number(queue.extruder_id));
   };
 
   const handleSubmitIngress = async () => {
@@ -277,7 +278,7 @@ export const PtiIngressContainer: React.FC = () => {
     try {
       const payload: any = {
         pti_material_id: Number(selectedPtiMaterialId),
-        mixture_qr: mixtureQr ? mixtureQr.trim() : undefined,
+        extruder_id: selectedExtruderId || undefined,
         estimated_scrap_weight_kg: Number(scrapWeightKg) > 0 ? Number(scrapWeightKg) : undefined,
         scrap_reason: Number(scrapWeightKg) > 0 ? scrapReason : undefined,
         scrap_category: 'OPERATIVA',
@@ -338,7 +339,7 @@ export const PtiIngressContainer: React.FC = () => {
       isLoading={isRacksLoading || isFormulasLoading || isQueuesLoading}
       onRefresh={handleRefresh}
       mixtureQr={mixtureQr}
-      onMixtureQrChange={setMixtureQr}
+      selectedExtruderId={selectedExtruderId}
       rackQr={rackQr}
       onRackQrChange={setRackQr}
       selectedPtiMaterialId={selectedPtiMaterialId}

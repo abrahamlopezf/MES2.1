@@ -5,6 +5,15 @@ const { encryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
 
 class ExtrusionController {
+  async validateMixContainerQrCode(req, res, next) {
+    try {
+      const result = await extrusionService.validateMixContainerQrCode(req.body?.qr_code);
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async mixFormula(req, res, next) {
     try {
       // payload needs: formula_id, destination_qr_code, inputs: [{qr_code, quantity}]
@@ -12,6 +21,7 @@ class ExtrusionController {
         ...req.body,
         area_id: req.user.area_id,
         shift_session_id: req.extrusionShiftSession?.id,
+          mix_approval: req.mixApproval || null,
       }, req.user.id);
 
       return res.status(201).json({
@@ -231,7 +241,7 @@ class ExtrusionController {
 
   async createRack(req, res, next) {
     try {
-      const rack = await extrusionService.createPtiRack(req.body);
+      const rack = await extrusionService.createPtiRack({ ...req.body, userId: req.user?.id });
       return res.status(201).json({
         success: true,
         message: `Rack ${rack.rack_code} creado exitosamente.`,

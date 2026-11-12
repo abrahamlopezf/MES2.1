@@ -21,6 +21,15 @@ const login = async (req, res) => {
   }
 };
 
+const authorizeExtrusionMix = async (req, res) => {
+  try {
+    const result = await authService.authorizeExtrusionMix(req.user.id, req.body);
+    return successResponse(res, 'Autorización temporal concedida.', result, 200);
+  } catch (error) {
+    return errorResponse(res, error.message || 'No se pudo autorizar la preparación.', [], error.statusCode || 500);
+  }
+};
+
 const me = async (req, res) => {
   try {
     const user = await authService.getCurrentUser(req.user.id);
@@ -88,6 +97,7 @@ const updateProfile = async (req, res) => {
 
 module.exports = {
   login,
+  authorizeExtrusionMix,
   me,
   logout,
   changePassword,

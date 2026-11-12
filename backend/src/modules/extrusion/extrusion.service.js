@@ -10,6 +10,42 @@ const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const { Op } = sequelize.Sequelize;
 
+const domainError = (message, statusCode = 400, code, details) => Object.assign(new Error(message), {
+  name: 'DomainError',
+  statusCode,
+  ...(code ? { code } : {}),
+  ...(details ? { details } : {}),
+});
+
+const normalizeMixContainerQrCode = (value) => {
+  const scannedValue = String(value || '').trim();
+  if (!scannedValue) throw domainError('Escanea o captura un código QR de contenedor.', 400, 'MIX_CONTAINER_QR_REQUIRED');
+  if (!/^AGY:/i.test(scannedValue)) return scannedValue.toUpperCase();
+
+  try {
+    return decryptQrData(`AGY:${scannedValue.slice(4)}`).trim().toUpperCase();
+  } catch {
+    // Transitional labels from the previous QR issuer use
+    // AGY:V2:<nonce>:<signature>:<printed-code>. The printed code is only a
+    // lookup candidate; it must still resolve to an active, unused DB row.
+    const parts = scannedValue.split(':');
+    const legacyPrintedCode = parts.length === 5
+      && parts[0].toUpperCase() === 'AGY'
+      && parts[1].toUpperCase() === 'V2'
+      && /^[A-Za-z0-9_-]{8,64}$/.test(parts[2])
+      && /^[A-Za-z0-9_-]{8,64}$/.test(parts[3])
+      && /^[A-Za-z0-9][A-Za-z0-9._-]{4,119}$/.test(parts[4])
+      ? parts[4].trim()
+      : null;
+    if (legacyPrintedCode) return legacyPrintedCode.toUpperCase();
+    throw domainError('El QR no corresponde a un formato compatible. Escanea la etiqueta original o captura el código impreso del lote.', 400, 'MIX_CONTAINER_QR_INVALID_ENVELOPE');
+  }
+};
+
+const mixContainerQrLookupWhere = (codes) => ({
+  [Op.or]: codes.map((code) => sequelize.where(sequelize.fn('UPPER', sequelize.col('qr_code')), code.toUpperCase())),
+});
+
 const getPausedDraftReservations = async ({ qrIds, materialIds, excludePreparationId, areaId, transaction } = {}) => {
   if (!Number.isInteger(Number(areaId)) || Number(areaId) <= 0) {
     throw Object.assign(new Error('Se requiere el ID del área para consultar reservas de WIP.'), { statusCode: 409 });
@@ -290,9 +326,36 @@ class ExtrusionService {
     }, { transaction });
   }
 
+  async validateMixContainerQrCode(scannedQrCode) {
+    const code = normalizeMixContainerQrCode(scannedQrCode);
+    const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, attributes: ['id'] });
+    if (!extrusionArea) throw domainError('No existe un área activa de Extrusión para validar el QR.', 409, 'EXTRUSION_AREA_MISSING');
+
+    const matches = await QrCode.findAll({
+      where: mixContainerQrLookupWhere([code]),
+      attributes: ['id', 'qr_code', 'status', 'is_active', 'assigned_area_id'],
+      limit: 2,
+    });
+    if (!matches.length) throw domainError(`El código ${code} no existe en los lotes de QR. Genera y usa un QR del sistema asignado a Extrusión.`, 404, 'MIX_CONTAINER_QR_NOT_FOUND');
+    if (matches.length > 1) throw domainError(`El código ${code} coincide con más de un QR por diferencias de mayúsculas/minúsculas. Solicita corregir el lote.`, 409, 'MIX_CONTAINER_QR_AMBIGUOUS');
+
+    const qr = matches[0];
+    const virginStatuses = new Set(['GENERATED', 'AVAILABLE', 'UNASSIGNED', 'ASSIGNED']);
+    if (!qr.is_active) throw domainError(`El QR ${qr.qr_code} está desactivado y no se puede asignar.`, 409, 'MIX_CONTAINER_QR_INACTIVE');
+    if (!virginStatuses.has(String(qr.status || '').toUpperCase())) {
+      throw domainError(`El QR ${qr.qr_code} ya está en estado ${qr.status || 'desconocido'} y no está disponible.`, 409, 'MIX_CONTAINER_QR_NOT_VIRGIN');
+    }
+    if (qr.assigned_area_id && Number(qr.assigned_area_id) !== Number(extrusionArea.id)) {
+      throw domainError(`El QR ${qr.qr_code} está asignado a otra área y no puede usarse en Extrusión.`, 409, 'MIX_CONTAINER_QR_WRONG_AREA');
+    }
+    const priorTrace = await TraceableItem.findOne({ where: { qr_code_id: qr.id }, attributes: ['id'] });
+    if (priorTrace) throw domainError(`El QR ${qr.qr_code} ya tiene trazabilidad y no se puede reutilizar.`, 409, 'MIX_CONTAINER_QR_ALREADY_TRACED');
+    return { qr_code: qr.qr_code, status: qr.status, is_active: qr.is_active, available: true };
+  }
+
   async mixFormula(payload, userId) {
     return sequelize.transaction(async (transaction) => {
-      const { formula_id, output_color, preparation_id, destination_qr_code, container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes, shift_session_id } = payload;
+      const { formula_id, output_color, preparation_id, container_qr_codes = [], container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes, shift_session_id, mix_approval } = payload;
       const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, transaction });
       if (!extrusionArea) throw Object.assign(new Error('No existe un área activa con código EXTRUSION para preparar la mezcla.'), { statusCode: 409 });
       const effectiveAreaId = Number(extrusionArea.id);
@@ -475,43 +538,43 @@ class ExtrusionService {
       if (!Number.isInteger(count) || count < 1 || count > 10) {
         throw Object.assign(new Error('La cantidad de contenedores debe ser un entero entre 1 y 10.'), { statusCode: 400 });
       }
-      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const defaultPrefix = 'CONT-MIX';
-      const baseContainerCode = destination_qr_code && destination_qr_code.trim()
-        ? destination_qr_code.trim().toUpperCase()
-        : `${defaultPrefix}-${todayStr}-${randomSuffix}`;
-
-      const containerCodes = count === 1
-        ? [baseContainerCode]
-        : Array.from({ length: count }, (_, i) => `${baseContainerCode}-C${i + 1}`);
-
-      const primaryQrCode = containerCodes[0];
-
-      let destQr = await QrCode.findOne({ where: { qr_code: primaryQrCode }, transaction });
-      if (!destQr) {
-        let latestBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction });
-        if (!latestBatch) {
-          latestBatch = await QrBatch.create({
-            batch_code: `BATCH-MIX-${Date.now()}`,
-            quantity: 1,
-            assigned_area_id: effectiveAreaId,
-            status: 'AVAILABLE',
-            created_by: userId || 1
-          }, { transaction });
-        }
-        destQr = await QrCode.create({
-          serial: Date.now() + Math.floor(Math.random() * 1000),
-          qr_code: primaryQrCode,
-          batch_id: latestBatch.id,
-          purpose: 'MIXTURE_CONTAINER',
-          assigned_area_id: effectiveAreaId,
-          status: 'GENERATED',
-          created_by: userId || 1
-        }, { transaction });
-      } else if (destQr.status !== 'GENERATED' && destQr.status !== 'AVAILABLE' && destQr.status !== 'UNASSIGNED') {
-        throw new Error('El código QR de destino ya está en uso en otro proceso.');
+      const requestedContainerCodes = Array.isArray(container_qr_codes) ? container_qr_codes : [];
+      const containerCodes = requestedContainerCodes.map(normalizeMixContainerQrCode);
+      if (containerCodes.length !== count || containerCodes.some((code) => !code)) {
+        throw domainError(`Escanea ${count} QR virgen${count === 1 ? '' : 'es'} de contenedor antes de registrar la mezcla.`, 400, 'MIX_CONTAINER_QR_COUNT_MISMATCH');
       }
+      if (new Set(containerCodes).size !== containerCodes.length) {
+        throw domainError('Cada contenedor debe usar un QR distinto.', 400, 'MIX_CONTAINER_QR_DUPLICATE');
+      }
+      const virginContainerQrs = await QrCode.findAll({
+        where: mixContainerQrLookupWhere(containerCodes),
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      const matchesByNormalizedCode = new Map();
+      for (const qr of virginContainerQrs) {
+        const normalizedCode = String(qr.qr_code).trim().toUpperCase();
+        matchesByNormalizedCode.set(normalizedCode, (matchesByNormalizedCode.get(normalizedCode) || 0) + 1);
+      }
+      for (const [code, matchCount] of matchesByNormalizedCode) {
+        if (matchCount > 1) throw domainError(`El código ${code} coincide con varios QR por diferencias de mayúsculas/minúsculas. Solicita corregir el lote.`, 409, 'MIX_CONTAINER_QR_AMBIGUOUS');
+      }
+      const virginQrByCode = new Map(virginContainerQrs.map((qr) => [String(qr.qr_code).trim().toUpperCase(), qr]));
+      const virginStatuses = new Set(['GENERATED', 'AVAILABLE', 'UNASSIGNED', 'ASSIGNED']);
+      for (const code of containerCodes) {
+        const qr = virginQrByCode.get(code);
+        if (!qr) throw domainError(`El código ${code} no existe en los lotes de QR. Verifica que escaneaste la etiqueta de contenedor correcta.`, 404, 'MIX_CONTAINER_QR_NOT_FOUND');
+        if (!qr.is_active) throw domainError(`El QR ${code} está desactivado y no se puede asignar.`, 409, 'MIX_CONTAINER_QR_INACTIVE');
+        if (!virginStatuses.has(String(qr.status || '').toUpperCase())) {
+          throw domainError(`El QR ${code} ya está en estado ${qr.status || 'desconocido'} y no está disponible. Solo cambia de estado al confirmar una mezcla; utiliza otro QR virgen.`, 409, 'MIX_CONTAINER_QR_NOT_VIRGIN');
+        }
+        if (qr.assigned_area_id && Number(qr.assigned_area_id) !== effectiveAreaId) {
+          throw domainError(`El QR ${code} está asignado a otra área y no puede usarse en Extrusión.`, 409, 'MIX_CONTAINER_QR_WRONG_AREA');
+        }
+        const priorTrace = await TraceableItem.findOne({ where: { qr_code_id: qr.id }, transaction, attributes: ['id'] });
+        if (priorTrace) throw domainError(`El QR ${code} ya tiene trazabilidad y no puede reutilizarse.`, 409, 'MIX_CONTAINER_QR_ALREADY_TRACED');
+      }
+      const destQr = virginQrByCode.get(containerCodes[0]);
 
       // 4. Generar Folio y Preparación
       let totalQuantity = 0;
@@ -530,6 +593,21 @@ class ExtrusionService {
         preparation.shift_session_id = Number(shift_session_id) || preparation.shift_session_id || null;
         if (notes) preparation.notes = notes;
         preparation.is_silo_kit = false;
+        if (mix_approval) {
+          preparation.metadata = {
+            ...(preparation.metadata || {}),
+            temporary_admin_approval: {
+              approver_user_id: mix_approval.approver_user_id,
+              approver_username: mix_approval.approver_username,
+              approver_role_code: mix_approval.approver_role_code,
+              approved_at: mix_approval.approved_at,
+              approval_id: mix_approval.approval_id,
+              actor_user_id: Number(userId),
+              operation: 'EXTRUSION_MIX_PREPARATION',
+              temporary: true,
+            },
+          };
+        }
         await preparation.save({ transaction });
       } else {
         const folio = `MIX-EXT-${Date.now()}`;
@@ -546,7 +624,19 @@ class ExtrusionService {
           is_silo_kit: false,
           notes: isSiloMode ? `${notes || ''} [PP suministrado al mezclador desde silo]`.trim() : notes,
           prepared_by: userId,
-          prepared_at: new Date()
+          prepared_at: new Date(),
+          metadata: mix_approval ? {
+            temporary_admin_approval: {
+              approver_user_id: mix_approval.approver_user_id,
+              approver_username: mix_approval.approver_username,
+              approver_role_code: mix_approval.approver_role_code,
+              approved_at: mix_approval.approved_at,
+              approval_id: mix_approval.approval_id,
+              actor_user_id: Number(userId),
+              operation: 'EXTRUSION_MIX_PREPARATION',
+              temporary: true,
+            },
+          } : undefined,
         }, { transaction });
       }
 
@@ -974,8 +1064,6 @@ class ExtrusionService {
       // 6. Dividir Cantidad Total entre los N Contenedores y Crear TraceableItems + QRs
       const weightPerContainer = Number((totalQuantity / count).toFixed(2));
       const createdContainers = [];
-      let latestBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction });
-
       for (let i = 0; i < containerCodes.length; i++) {
         const cCode = containerCodes[i];
         // En el último contenedor se ajusta la diferencia de redondeo para que la suma exacta sea totalQuantity
@@ -983,32 +1071,13 @@ class ExtrusionService {
           ? Number((totalQuantity - (weightPerContainer * (containerCodes.length - 1))).toFixed(2))
           : weightPerContainer;
 
-        let cQr = await QrCode.findOne({ where: { qr_code: cCode }, transaction });
-        if (!cQr) {
-          if (!latestBatch) {
-            latestBatch = await QrBatch.create({
-              batch_code: `BATCH-MIX-${Date.now()}`,
-              quantity: 1,
-              assigned_area_id: effectiveAreaId,
-              status: 'AVAILABLE',
-              created_by: userId || 1
-            }, { transaction });
-          }
-          cQr = await QrCode.create({
-            serial: Date.now() + Math.floor(Math.random() * 1000) + i,
-            qr_code: cCode,
-            batch_id: latestBatch.id,
-            purpose: 'MIXTURE_CONTAINER',
-            assigned_area_id: effectiveAreaId,
-            status: 'EN_USO',
-            created_by: userId || 1
-          }, { transaction });
-        } else {
-          await cQr.update({
-            status: 'EN_USO',
-            assigned_area_id: preparation.to_area_id
-          }, { transaction });
-        }
+        const cQr = virginQrByCode.get(cCode);
+        const qrPreviousStatus = cQr.status;
+        await cQr.update({
+          purpose: 'MIXTURE_CONTAINER',
+          status: 'EN_USO',
+          assigned_area_id: preparation.to_area_id,
+        }, { transaction });
 
         const cTraceable = await TraceableItem.create({
           qr_code_id: cQr.id,
@@ -1038,7 +1107,7 @@ class ExtrusionService {
           event_type: 'GENERACION_MEZCLA',
           entity_type: 'ProcessPreparation',
           entity_id: preparation.id.toString(),
-          from_status: 'GENERATED',
+          from_status: qrPreviousStatus,
           to_status: 'EN_USO',
           performed_by: userId,
           notes: `Contenedor ${i + 1}/${count} (${cWeight} kg) generado para mezcla ${folio}. Fórmula: ${formula.name}${sourceSilos.length ? `; PP abastecido desde ${sourceSilos.map((silo) => `${silo.code} (${silo.current_lot_number || 'sin referencia'})`).join(', ')}` : ''}`,
@@ -2672,6 +2741,7 @@ class ExtrusionService {
 
   async scanRackPti({
     rack_qr,
+    extruder_id,
     pti_material_id,
     quantity,
     weight_kg,
@@ -2684,6 +2754,7 @@ class ExtrusionService {
     scrap_category = 'OPERATIVA',
     scrap_color,
     shift_code,
+    new_rack_qr_codes = [],
     notes,
     userId,
     shift_session_id
@@ -2698,12 +2769,29 @@ class ExtrusionService {
       throw error;
     }
 
-    const { PtiRack, QrCode, QrBatch, Material, Formula, FormulaIngredient, ExtruderQueue, Extruder, Lote, ProcessPreparation, ExtrusionProductionEntry, ExtrusionScrapLog, Area, PtiProduct } = require('../../database/models');
+    const { PtiRack, QrCode, Material, Formula, FormulaIngredient, ExtruderQueue, Extruder, Lote, ProcessPreparation, ExtrusionProductionEntry, ExtrusionScrapLog, Area, PtiProduct } = require('../../database/models');
     const consumptionService = require('./services/consumption.service');
 
     return await sequelize.transaction(async (t) => {
+      // El operador selecciona la extrusora, no necesita volver a escanear el
+      // QR del contenedor. La cola activa en BD es la fuente de verdad.
+      if (extruder_id != null && Number.isInteger(Number(extruder_id)) && Number(extruder_id) > 0) {
+        const activeForExtruder = await ExtruderQueue.findAll({
+          where: { extruder_id: Number(extruder_id), status: 'ACTIVA' },
+          order: [['id', 'ASC']],
+          transaction: t,
+          lock: { level: t.LOCK.UPDATE, of: ExtruderQueue },
+        });
+        if (activeForExtruder.length === 0) {
+          throw Object.assign(new Error(`La Extrusora ${extruder_id} no tiene un contenedor activo. Selecciona una extrusora en producción.`), { statusCode: 409 });
+        }
+        if (activeForExtruder.length > 1) {
+          throw Object.assign(new Error(`La Extrusora ${extruder_id} tiene más de un contenedor marcado como activo. Corrige la cola antes de registrar PTI.`), { statusCode: 409 });
+        }
+        mixture_qr = activeForExtruder[0].consumption_order_qr_id;
+      }
       if (!mixture_qr) {
-        const error = new Error('Selecciona el QR de la mezcla activa para atribuir la producción.');
+        const error = new Error('Selecciona la extrusora con una mezcla activa para atribuir la producción.');
         error.statusCode = 400;
         throw error;
       }
@@ -2719,6 +2807,9 @@ class ExtrusionService {
         const error = new Error(`El QR de mezcla ${mixture_qr} no está asociado a una corrida de Extrusión.`);
         error.statusCode = 404;
         throw error;
+      }
+      if (extruder_id != null && Number(queueItem.extruder_id) !== Number(extruder_id)) {
+        throw Object.assign(new Error('El contenedor activo no corresponde a la extrusora seleccionada.'), { statusCode: 409 });
       }
       if (!shift_session_id || (queueItem.shift_session_id && Number(queueItem.shift_session_id) !== Number(shift_session_id))) {
         throw Object.assign(new Error('La mezcla no pertenece al turno operativo activo.'), { statusCode: 409 });
@@ -2747,6 +2838,57 @@ class ExtrusionService {
         lock: t.LOCK.UPDATE
       }) : null;
       const autoCreatedRacks = [];
+      const extrusionAreaForRack = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, transaction: t });
+      if (!extrusionAreaForRack) throw domainError('No existe el área EXTRUSION para asignar QR a los racks nuevos.', 409);
+      const suppliedRackQrCodes = Array.isArray(new_rack_qr_codes)
+        ? new_rack_qr_codes.map((code) => String(code || '').trim().toUpperCase()).filter(Boolean)
+        : [];
+      if (new Set(suppliedRackQrCodes).size !== suppliedRackQrCodes.length) {
+        throw domainError('Cada rack nuevo debe identificarse con un QR virgen diferente.', 400, 'PTI_RACK_QR_DUPLICATE');
+      }
+      const virginRackQrRows = suppliedRackQrCodes.length
+        ? await QrCode.findAll({ where: { qr_code: { [sequelize.Sequelize.Op.in]: suppliedRackQrCodes } }, transaction: t, lock: t.LOCK.UPDATE })
+        : [];
+      const virginRackQrByCode = new Map(virginRackQrRows.map((qr) => [String(qr.qr_code).trim().toUpperCase(), qr]));
+      const claimedRackQrCodes = new Set();
+      const claimVirginRackQr = async (qrCode, rackCode) => {
+        const qr = virginRackQrByCode.get(qrCode);
+        const virginStatuses = new Set(['GENERATED', 'AVAILABLE', 'UNASSIGNED', 'ASSIGNED']);
+        if (!qr || !qr.is_active || !virginStatuses.has(String(qr.status || '').toUpperCase())) {
+          throw domainError(`El QR ${qrCode} no está disponible como QR virgen. No se creó el rack.`, 409, 'PTI_RACK_QR_NOT_VIRGIN');
+        }
+        if (qr.assigned_area_id && Number(qr.assigned_area_id) !== Number(extrusionAreaForRack.id)) {
+          throw domainError(`El QR ${qrCode} está asignado a otra área y no puede identificar un rack de Extrusión.`, 409, 'PTI_RACK_QR_WRONG_AREA');
+        }
+        const [existingRack, existingTrace] = await Promise.all([
+          PtiRack.findOne({ where: { qr_code: qrCode }, transaction: t, attributes: ['id'] }),
+          TraceableItem.findOne({ where: { qr_code_id: qr.id }, transaction: t, attributes: ['id'] }),
+        ]);
+        if (existingRack || existingTrace) throw domainError(`El QR ${qrCode} ya tiene rack o historial asociado y no puede reutilizarse.`, 409, 'PTI_RACK_QR_ALREADY_BOUND');
+        if (await PtiRack.findOne({ where: { rack_code: rackCode }, transaction: t, attributes: ['id'] })) {
+          throw domainError(`El identificador ${rackCode} ya existe. Escanea otro QR virgen.`, 409, 'PTI_RACK_CODE_COLLISION');
+        }
+        const previousStatus = qr.status;
+        const previousAreaId = qr.assigned_area_id || null;
+        await qr.update({ purpose: 'PTI_RACK', assigned_area_id: Number(extrusionAreaForRack.id), status: 'IN_USE' }, { transaction: t });
+        claimedRackQrCodes.add(qrCode);
+        return { qr, previousStatus, previousAreaId };
+      };
+      const recordRackQrClaim = async ({ qr, previousStatus, previousAreaId }, rackRecord, qrCode) => {
+        await TraceabilityEvent.create({
+          qr_code_id: qr.id,
+          event_type: 'ASIGNACION_QR_RACK_PTI',
+          entity_type: 'PtiRack',
+          entity_id: String(rackRecord.id),
+          from_status: previousStatus,
+          to_status: 'IN_USE',
+          from_area_id: previousAreaId,
+          to_area_id: Number(extrusionAreaForRack.id),
+          performed_by: userId || null,
+          notes: `QR virgen asignado al rack ${rackRecord.rack_code} durante el ingreso de producción.`,
+          metadata: { rack_code: rackRecord.rack_code, qr_code: qrCode, auto_created_for_pti_ingress: true },
+        }, { transaction: t });
+      };
       if (rack_qr && !rack) {
         throw Object.assign(new Error(`No se encontró el rack indicado '${rack_qr}'. Actualiza la lista de racks e inténtalo de nuevo.`), { statusCode: 404 });
       }
@@ -2800,17 +2942,17 @@ class ExtrusionService {
         });
         rack = candidates.find((candidate) => Number(candidate.current_quantity || 0) < Number(candidate.max_capacity || 100)) || null;
         if (!rack) {
-          const area = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction: t });
-          if (!area) throw Object.assign(new Error('No existe el área EXTRUSION para generar el QR del nuevo rack.'), { statusCode: 409 });
-          let code; let qr;
-          do {
-            code = `AUTO-PTI-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
-            qr = `QR-${code}`;
-          } while (await PtiRack.findOne({ where: { rack_code: code }, transaction: t }) || await QrCode.findOne({ where: { qr_code: qr }, transaction: t }));
-          let batch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t, lock: t.LOCK.UPDATE });
-          if (!batch) batch = await QrBatch.create({ batch_code: `BATCH-PTI-RACK-${Date.now()}`, quantity: 1, assigned_area_id: area.id, status: 'AVAILABLE', created_by: userId || 1 }, { transaction: t });
-          await QrCode.create({ serial: Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 100000), qr_code: qr, batch_id: batch.id, purpose: 'PTI_RACK', assigned_area_id: area.id, status: 'IN_USE', is_active: true, created_by: userId || 1 }, { transaction: t });
-          rack = await PtiRack.create({ rack_code: code, qr_code: qr, max_capacity: 100, current_quantity: 0, unit_price: Number(unit_price) || Number(ptiProduct.unit_price) || 0, unit_weight_kg: Number(ptiProduct.unit_weight_kg) || null, location_name: 'Piso Extrusión', status: 'VACIO' }, { transaction: t });
+          const newRackCapacity = 100;
+          const initialNewRackCount = Math.ceil(pieces / newRackCapacity);
+          if (suppliedRackQrCodes.length < initialNewRackCount) {
+            throw domainError(`No hay racks compatibles disponibles. Escanea ${initialNewRackCount} QR virgen(es) para crear los racks que reciban esta producción.`, 409, 'PTI_RACK_VIRGIN_QR_REQUIRED', { required_count: initialNewRackCount });
+          }
+          const qrCode = suppliedRackQrCodes[0];
+          const virginQr = virginRackQrByCode.get(qrCode);
+          const code = `RACK-EXT-${String(virginQr?.serial || '').slice(-12)}`.toUpperCase();
+          const claim = await claimVirginRackQr(qrCode, code);
+          rack = await PtiRack.create({ rack_code: code, qr_code: qrCode, max_capacity: newRackCapacity, current_quantity: 0, unit_price: Number(unit_price) || Number(ptiProduct.unit_price) || 0, unit_weight_kg: Number(ptiProduct.unit_weight_kg) || null, location_name: 'Piso Extrusión', status: 'VACIO' }, { transaction: t });
+          await recordRackQrClaim(claim, rack, qrCode);
           autoCreatedRacks.push(rack);
         }
         currentQty = Number(rack.current_quantity || 0);
@@ -2887,44 +3029,19 @@ class ExtrusionService {
       });
       for (const compatibleRack of compatibleRacks) allocateRackCapacity(compatibleRack);
 
-      const extrusionAreaForRack = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction: t });
-      if (!extrusionAreaForRack) {
-        throw Object.assign(new Error('No existe el área EXTRUSION para generar el QR del nuevo rack.'), { statusCode: 409 });
+      const autoCapacity = maxCap > 0 ? maxCap : 100;
+      const requiredNewRackCount = Math.ceil(remainingPieces / autoCapacity);
+      const additionalRackQrCodes = suppliedRackQrCodes.filter((code) => !claimedRackQrCodes.has(code));
+      if (additionalRackQrCodes.length < requiredNewRackCount) {
+        const totalRequired = claimedRackQrCodes.size + requiredNewRackCount;
+        throw domainError(`La producción necesita ${totalRequired} QR virgen(es) para los racks nuevos. Escanea los faltantes antes de confirmar.`, 409, 'PTI_RACK_VIRGIN_QR_REQUIRED', { required_count: totalRequired });
       }
-      let autoRackIndex = 1;
+      let autoRackIndex = 0;
       while (remainingPieces > 0) {
-        const autoCapacity = maxCap > 0 ? maxCap : 100;
-        const allocatedPieces = Math.min(remainingPieces, autoCapacity);
-        let rackCode;
-        let qrCode;
-        do {
-          rackCode = `AUTO-PTI-${Date.now()}-${autoRackIndex++}-${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
-          qrCode = `QR-${rackCode}`;
-        } while (
-          await PtiRack.findOne({ where: { rack_code: rackCode }, transaction: t })
-          || await QrCode.findOne({ where: { qr_code: qrCode }, transaction: t })
-        );
-
-        let qrBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t, lock: t.LOCK.UPDATE });
-        if (!qrBatch) {
-          qrBatch = await QrBatch.create({
-            batch_code: `BATCH-PTI-RACK-${Date.now()}-${autoRackIndex}`,
-            quantity: 1,
-            assigned_area_id: extrusionAreaForRack.id,
-            status: 'AVAILABLE',
-            created_by: userId || 1,
-          }, { transaction: t });
-        }
-        const rackQrRecord = await QrCode.create({
-          serial: Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 100000),
-          qr_code: qrCode,
-          batch_id: qrBatch.id,
-          purpose: 'PTI_RACK',
-          assigned_area_id: extrusionAreaForRack.id,
-          status: 'IN_USE',
-          is_active: true,
-          created_by: userId || 1,
-        }, { transaction: t });
+        const qrCode = additionalRackQrCodes[autoRackIndex++];
+        const virginQr = virginRackQrByCode.get(qrCode);
+        const rackCode = `RACK-EXT-${String(virginQr.serial).slice(-12)}`.toUpperCase();
+        const claim = await claimVirginRackQr(qrCode, rackCode);
         const createdRack = await PtiRack.create({
           rack_code: rackCode,
           qr_code: qrCode,
@@ -2935,6 +3052,7 @@ class ExtrusionService {
           location_name: rack.location_name || 'Piso Extrusión',
           status: 'VACIO',
         }, { transaction: t });
+        await recordRackQrClaim(claim, createdRack, qrCode);
         autoCreatedRacks.push(createdRack);
         allocateRackCapacity(createdRack);
       }
@@ -3100,26 +3218,7 @@ class ExtrusionService {
 
         let rackQr = await QrCode.findOne({ where: { qr_code: allocationRack.qr_code }, transaction: t, lock: t.LOCK.UPDATE });
         if (!rackQr) {
-          let qrBatch = await QrBatch.findOne({ order: [['id', 'DESC']], transaction: t, lock: t.LOCK.UPDATE });
-          if (!qrBatch) {
-            qrBatch = await QrBatch.create({
-              batch_code: `BATCH-PTI-RACK-${Date.now()}-${index}`,
-              quantity: 1,
-              assigned_area_id: extrusionArea.id,
-              status: 'AVAILABLE',
-              created_by: userId || 1,
-            }, { transaction: t });
-          }
-          rackQr = await QrCode.create({
-            serial: Date.now() + Math.floor(Math.random() * 1000) + index,
-            qr_code: allocationRack.qr_code,
-            batch_id: qrBatch.id,
-            purpose: 'PTI_RACK',
-            assigned_area_id: extrusionArea.id,
-            status: 'IN_USE',
-            is_active: true,
-            created_by: userId || 1,
-          }, { transaction: t });
+          throw Object.assign(new Error(`El Rack ${allocationRack.rack_code} no tiene un QR virgen asignado. Corrige su identificación antes de registrar PTI.`), { statusCode: 409, code: 'PTI_RACK_QR_MISSING' });
         }
         const rackTraceable = await TraceableItem.findOne({ where: { qr_code_id: rackQr.id }, transaction: t, lock: t.LOCK.UPDATE });
         const previousRackKg = rackTraceable ? Number(rackTraceable.quantity_current) : 0;
@@ -3513,57 +3612,62 @@ class ExtrusionService {
   }
 
   /**
-   * Crea un nuevo Rack de PTI en piso de extrusión.
-   * Punto 5: Autogenera un QR fijo e inserta el registro en QrCodes.
+   * Registra un rack de PTI vinculando un QR virgen ya generado para Extrusión.
    * Puntos 6 y 7: Soporta precio unitario y peso unitario por pieza.
    */
-  async createPtiRack({ rack_code, max_capacity = 100, location_name, unit_price = 0, unit_weight_kg = null }) {
-    const { PtiRack, QrCode, QrBatch } = require('../../database/models');
-    const existing = await PtiRack.findOne({ where: { rack_code } });
-    if (existing) {
-      const error = new Error(`El Rack '${rack_code}' ya existe en el sistema.`);
-      error.statusCode = 400;
-      throw error;
-    }
-    const cleanCode = rack_code.trim().toUpperCase();
-    const qr_code = cleanCode.startsWith('QR-') ? cleanCode : `QR-${cleanCode}`;
+  async createPtiRack({ rack_code, max_capacity = 100, location_name, unit_price = 0, unit_weight_kg = null, userId }) {
+    const { PtiRack, QrCode, Area, TraceableItem, TraceabilityEvent } = require('../../database/models');
+    const qrCode = String(rack_code || '').trim().toUpperCase();
+    if (!qrCode) throw domainError('Escanea el QR virgen que identificará al rack.', 400, 'PTI_RACK_VIRGIN_QR_REQUIRED');
 
-    let qrBatch = await QrBatch.findOne();
-    if (!qrBatch) {
-      qrBatch = await QrBatch.create({
-        code: `BATCH-${Date.now()}`,
-        batch_type: 'PROCESS',
-        prefix: 'PRC',
-        start_serial: 1,
-        end_serial: 10000,
-        quantity: 10000,
-        status: 'ACTIVE',
-        created_by: 1
-      });
-    }
-
-    // Punto 5: Autogenerar QR fijo en el catálogo para escaneo unificado
-    await QrCode.findOrCreate({
-      where: { qr_code },
-      defaults: {
-        serial: Math.floor(Date.now() / 1000),
-        batch_id: qrBatch.id,
-        created_by: 1,
-        status: 'IN_USE',
-        purpose: 'PTI_RACK',
-        is_active: true
+    return sequelize.transaction(async (transaction) => {
+      const area = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, transaction });
+      if (!area) throw domainError('No existe el área activa EXTRUSION.', 409);
+      const qr = await QrCode.findOne({ where: { qr_code: qrCode }, transaction, lock: transaction.LOCK.UPDATE });
+      const virginStatuses = new Set(['GENERATED', 'AVAILABLE', 'UNASSIGNED', 'ASSIGNED']);
+      if (!qr || !qr.is_active || !virginStatuses.has(String(qr.status || '').toUpperCase())) {
+        throw domainError('El QR escaneado no es virgen o ya está en uso. Escanea uno disponible del lote de Extrusión.', 409, 'PTI_RACK_QR_NOT_VIRGIN');
       }
-    });
+      if (qr.assigned_area_id && Number(qr.assigned_area_id) !== Number(area.id)) {
+        throw domainError('El QR pertenece a otra área; no se asignó al rack.', 409, 'PTI_RACK_QR_WRONG_AREA');
+      }
+      const [existingRack, trace] = await Promise.all([
+        PtiRack.findOne({ where: { qr_code: qrCode }, transaction }),
+        TraceableItem.findOne({ where: { qr_code_id: qr.id }, transaction, attributes: ['id'] }),
+      ]);
+      if (existingRack || trace) throw domainError('Este QR ya tiene un rack o historial asociado y no puede reutilizarse.', 409, 'PTI_RACK_QR_ALREADY_BOUND');
 
-    return await PtiRack.create({
-      rack_code: cleanCode,
-      qr_code,
-      max_capacity: Number(max_capacity) || 100,
-      current_quantity: 0,
-      unit_price: Number(unit_price) || 0.00,
-      unit_weight_kg: unit_weight_kg == null || unit_weight_kg === '' ? null : Number(unit_weight_kg),
-      status: 'VACIO',
-      location_name: location_name || 'Piso Extrusión'
+      const previousStatus = qr.status;
+      const previousAreaId = qr.assigned_area_id || null;
+      const rackCode = `RACK-EXT-${String(qr.serial).slice(-12)}`.toUpperCase();
+      if (await PtiRack.findOne({ where: { rack_code: rackCode }, transaction })) {
+        throw domainError(`El identificador ${rackCode} ya existe. Escanea otro QR virgen.`, 409, 'PTI_RACK_CODE_COLLISION');
+      }
+      await qr.update({ purpose: 'PTI_RACK', assigned_area_id: Number(area.id), status: 'IN_USE' }, { transaction });
+      const rack = await PtiRack.create({
+        rack_code: rackCode,
+        qr_code: qrCode,
+        max_capacity: Number(max_capacity) || 100,
+        current_quantity: 0,
+        unit_price: Number(unit_price) || 0,
+        unit_weight_kg: unit_weight_kg == null || unit_weight_kg === '' ? null : Number(unit_weight_kg),
+        status: 'VACIO',
+        location_name: location_name || 'Piso Extrusión',
+      }, { transaction });
+      await TraceabilityEvent.create({
+        qr_code_id: qr.id,
+        event_type: 'ASIGNACION_QR_RACK_PTI',
+        entity_type: 'PtiRack',
+        entity_id: String(rack.id),
+        from_status: previousStatus,
+        to_status: 'IN_USE',
+        from_area_id: previousAreaId,
+        to_area_id: Number(area.id),
+        performed_by: userId || null,
+        notes: `QR virgen asignado al rack ${rack.rack_code}.`,
+        metadata: { rack_code: rack.rack_code, qr_code: qrCode },
+      }, { transaction });
+      return rack;
     });
   }
 

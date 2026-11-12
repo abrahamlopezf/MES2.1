@@ -21,7 +21,7 @@ import {
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
-import { isAdminUser } from '../../../utils/authHelpers';
+import { getUserAreaCode, isAdminUser } from '../../../utils/authHelpers';
 
 export const AreasPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,6 +30,18 @@ export const AreasPage: React.FC = () => {
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
   const isGlobalAdmin = isAdminUser(user);
+  const userAreaCode = getUserAreaCode(user);
+  const areaRoleAccess: Record<string, string[]> = {
+    almacen: ['ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN', 'SUPERVISOR_ALMACEN'],
+    extrusion: ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'],
+    telares: ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES', 'OPERADOR_TELARES'],
+    laminado: ['ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'],
+    globo: ['ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO'],
+  };
+  const areaCodeById: Record<string, string> = {
+    almacen: 'ALMACEN', extrusion: 'EXTRUSION', telares: 'TELARES',
+    laminado: 'LAMINADO', globo: 'GLOBO',
+  };
 
   const allAreas = [
     { 
@@ -69,10 +81,10 @@ export const AreasPage: React.FC = () => {
       description: 'Líneas, Racks y Mezclado', 
       icon: Factory,
       gradient: 'from-amber-500/20 to-orange-500/20 text-amber-500',
-      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'],
       children: [
-        { id: 'tablero_colas', title: 'Tablero de Colas', description: 'Monitoreo de producción', icon: MonitorPlay, path: '/extrusion/board', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'], permission: 'extrusion.view' },
-        { id: 'rack_ingress', title: 'Ingreso PTI a Racks', description: 'Asignación de racks en piso', icon: Boxes, path: '/extrusion/rack-ingress', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'], permission: 'extrusion.view' },
+        { id: 'tablero_colas', title: 'Tablero de Colas', description: 'Monitoreo de producción', icon: MonitorPlay, path: '/extrusion/board', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'], permission: 'extrusion.view' },
+        { id: 'rack_ingress', title: 'Ingreso PTI a Racks', description: 'Asignación de racks en piso', icon: Boxes, path: '/extrusion/rack-ingress', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'], permission: 'extrusion.view' },
         { id: 'formulas', title: 'Fórmulas y Recetas', description: 'Catálogo y especificaciones', icon: ClipboardList, path: '/production/formulas', permission: 'extrusion.formulas.view' },
         { id: 'maquinas', title: 'Máquinas Extrusoras', description: 'Monitoreo de líneas', icon: Factory, path: '/production/machines', permission: 'extrusion.view' },
         { id: 'mezclado', title: 'Centro de Mezclado', description: 'Tinas y preparación WIP', icon: Beaker, path: '/production/mixing', permission: 'extrusion.wip.manage' },
@@ -85,7 +97,7 @@ export const AreasPage: React.FC = () => {
       description: 'Telares, operadores y ruteo de producción',
       icon: Factory,
       gradient: 'from-cyan-500/20 to-sky-500/20 text-cyan-600',
-      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES', 'OPERADOR_TELARES'],
       children: [
         { id: 'telares_terminal', title: 'Terminal de Telares', description: 'Operación de producción', icon: Factory, path: '/production/telares', permission: '' },
         { id: 'telares_dashboard', title: 'Tablero de Telares', description: 'Estado de producción', icon: MonitorPlay, path: '/telares/dashboard', permission: '' },
@@ -100,7 +112,7 @@ export const AreasPage: React.FC = () => {
       description: 'Estación, catálogo y trabajo en proceso',
       icon: Layers,
       gradient: 'from-violet-500/20 to-purple-500/20 text-violet-600',
-      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'],
       children: [
         { id: 'laminado_station', title: 'Estación de Laminado', description: 'Operación de producción', icon: Layers, path: '/production/laminado', permission: '' },
         { id: 'laminado_wip', title: 'Trabajo en Proceso', description: 'Tablero operativo de Laminado', icon: MonitorPlay, path: '/laminado/wip', permission: '' },
@@ -113,7 +125,7 @@ export const AreasPage: React.FC = () => {
       description: 'Estación, catálogo y trabajo en proceso',
       icon: Wind,
       gradient: 'from-amber-500/20 to-orange-500/20 text-amber-600',
-      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'],
+      allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO'],
       children: [
         { id: 'globo_station', title: 'Estación de Globo', description: 'Operación de producción', icon: Wind, path: '/production/globo', permission: '' },
         { id: 'globo_wip', title: 'Trabajo en Proceso', description: 'Tablero operativo de Globo', icon: MonitorPlay, path: '/globo/wip', permission: '' },
@@ -149,6 +161,10 @@ export const AreasPage: React.FC = () => {
   // Helper de comprobación de permisos y roles
   const checkAccess = (item: any) => {
     if (isGlobalAdmin) return true;
+    if (areaCodeById[item.id]) {
+      const allowedRoles = areaRoleAccess[item.id] || [];
+      if (!allowedRoles.includes(userRole) && userAreaCode !== areaCodeById[item.id]) return false;
+    }
     if (item.hiddenRoles && item.hiddenRoles.includes(userRole)) return false;
     if (item.allowedRoles && !item.allowedRoles.includes(userRole)) return false;
     if (!item.permission || item.permission === '') return true;

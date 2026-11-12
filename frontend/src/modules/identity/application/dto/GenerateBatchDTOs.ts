@@ -25,6 +25,8 @@ export interface BatchSnapshotDTO {
   batchNumber: string;
   plantId: string;
   areaId: string;
+  assignedAreaCode?: string;
+  assignedAreaName?: string;
   tokenType: string;
   generatedAmount: number;
   generatedAt: string;

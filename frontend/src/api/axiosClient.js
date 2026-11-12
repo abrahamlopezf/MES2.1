@@ -33,6 +33,7 @@ axiosClient.interceptors.response.use(
   (error) => {
     const message =
       error.response?.data?.message ||
+      error.response?.data?.error?.message ||
       'No pudimos conectar con el servidor. Intenta nuevamente.';
 
     // Solo redirigir si no estamos intentando iniciar sesión

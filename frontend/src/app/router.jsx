@@ -149,19 +149,11 @@ export const router = createBrowserRouter([
           },
           {
             path: '/areas',
-            element: (
-              <SuperAdminRoute>
-                <AreasPage />
-              </SuperAdminRoute>
-            ),
+            element: <AreasPage />,
           },
           {
             path: '/areas/:group',
-            element: (
-              <SuperAdminRoute>
-                <AreasPage />
-              </SuperAdminRoute>
-            ),
+            element: <AreasPage />,
           },
           {
             path: '/profile',

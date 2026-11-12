@@ -28,6 +28,11 @@ const canManageAllAreas = (currentUser) => {
   return isSuperadmin(currentUser) || isAdmin(currentUser);
 };
 
+const isWarehouseQrCoordinator = (currentUser) => {
+  const roleCode = String(currentUser?.role?.code || '').toUpperCase();
+  return ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(roleCode);
+};
+
 const getUserAreaId = (currentUser) => {
   const roleCode = String(currentUser?.role?.code || '').toUpperCase();
   return (
@@ -284,7 +289,8 @@ const generateQrBatch = async (payload, currentUser) => {
       if (area) assignedAreaId = area.id;
     }
 
-    if (!canManageAllAreas(currentUser) || isSupervisor(currentUser)) {
+    const warehouseQrCoordinator = isWarehouseQrCoordinator(currentUser) && !isSupervisor(currentUser);
+    if ((!canManageAllAreas(currentUser) && !warehouseQrCoordinator) || isSupervisor(currentUser)) {
       assignedAreaId = getUserAreaId(currentUser);
 
       if (!assignedAreaId) {
@@ -297,7 +303,14 @@ const generateQrBatch = async (payload, currentUser) => {
       throwHttpError('Debes seleccionar un área para generar los códigos QR.', 400);
     }
 
-    await assertCanUseArea(assignedAreaId, currentUser, transaction);
+    if (warehouseQrCoordinator) {
+      const targetArea = await Area.findByPk(assignedAreaId, { transaction });
+      if (!targetArea || !targetArea.is_active) {
+        throwHttpError('El área destino no existe o está inactiva.', 400);
+      }
+    } else {
+      await assertCanUseArea(assignedAreaId, currentUser, transaction);
+    }
 
     const batchCode = generateBatchCode();
 
@@ -457,9 +470,9 @@ const getQrCodes = async (query, currentUser) => {
 };
 
 const getQrBatches = async (query, currentUser) => {
-  const where = {
-    ...getQrVisibilityWhere(currentUser),
-  };
+  const where = isWarehouseQrCoordinator(currentUser)
+    ? { [Op.or]: [{ created_by: currentUser.id }, { assigned_area_id: getUserAreaId(currentUser) || 1 }] }
+    : { ...getQrVisibilityWhere(currentUser) };
   if (query.status) where.status = query.status;
   
   const limit = Math.min(Number(query.limit) || 100, 500);
@@ -540,6 +553,13 @@ const getQrBatchById = async (batchId, currentUser) => {
   const plainBatch = batch.get({ plain: true });
 
   const roleCode = String(currentUser?.role?.code || '').toUpperCase();
+  if (isWarehouseQrCoordinator(currentUser)) {
+    const isOwnBatch = Number(plainBatch.created_by?.id || plainBatch.created_by) === Number(currentUser.id);
+    const isWarehouseBatch = Number(plainBatch.assigned_area_id) === Number(getUserAreaId(currentUser) || 1);
+    if (!isOwnBatch && !isWarehouseBatch) {
+      throwHttpError('Almacén solo puede consultar los lotes propios y los asignados a su área.', 403);
+    }
+  }
   if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode)
     && Number(plainBatch.assigned_area_id) !== Number(getUserAreaId(currentUser) || 2)) {
     throwHttpError('Solo puedes consultar lotes de QR asignados a Extrusión.', 403);

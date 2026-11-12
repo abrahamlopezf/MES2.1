@@ -39,7 +39,8 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'DomainError' || err.name === 'BusinessRuleError') {
     return sendError(res, {
       code: err.code || err.name,
-      message: err.message
+      message: err.message,
+      ...(err.details ? { details: err.details } : {})
     }, err.statusCode || 400);
   }
 

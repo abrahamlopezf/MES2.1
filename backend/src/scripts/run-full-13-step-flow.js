@@ -366,20 +366,31 @@ async function run13StepFlow() {
   // --------------------------------------------------------------------------------
   console.log('\n--- [PASO 10] Registrando Racks Dinámicos para Salida de PTI ---');
   const tsSuffix = Date.now().toString().slice(-4);
-  const rackCode1 = `RACK-PTI-${tsSuffix}-01`;
-  const rackCode2 = `RACK-PTI-${tsSuffix}-02`;
+  const rackQrBatch = await qrcodesService.generateQrBatch({
+    quantity: 2,
+    assigned_area_id: areaExtrusion.id,
+    nomenclature_prefix: `E2E-EXT-RACK-${tsSuffix}`,
+    notes: 'QR vírgenes de prueba para racks de Extrusión',
+  }, user);
+  const rackVirginQrs = await QrCode.findAll({
+    where: { batch_id: rackQrBatch.batch.id, status: 'UNASSIGNED' },
+    order: [['serial', 'ASC']],
+  });
+  if (rackVirginQrs.length < 2) throw new Error('No se generaron los QR vírgenes de Extrusión para la prueba de racks.');
 
   const rack1 = await extrusionService.createPtiRack({
-    rack_code: rackCode1,
+    rack_code: rackVirginQrs[0].qr_code,
     max_capacity: 100,
-    location_name: 'EXT-PTI-BAY-1'
+    location_name: 'EXT-PTI-BAY-1',
+    userId: user.id,
   });
   console.log(`   + Rack Registrado: ${rack1.rack_code} (Capacidad: ${rack1.max_capacity}, Estado: ${rack1.status})`);
 
   const rack2 = await extrusionService.createPtiRack({
-    rack_code: rackCode2,
+    rack_code: rackVirginQrs[1].qr_code,
     max_capacity: 100,
-    location_name: 'EXT-PTI-BAY-2'
+    location_name: 'EXT-PTI-BAY-2',
+    userId: user.id,
   });
   console.log(`   + Rack Registrado: ${rack2.rack_code} (Capacidad: ${rack2.max_capacity}, Estado: ${rack2.status})`);
   results.step10 = { racks: [rack1.rack_code, rack2.rack_code] };

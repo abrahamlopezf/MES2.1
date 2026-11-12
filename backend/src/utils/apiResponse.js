@@ -16,7 +16,8 @@ const sendError = (res, error, statusCode = 500) => {
     success: false,
     error: {
       code: error.code || 'INTERNAL_SERVER_ERROR',
-      message: error.message || 'Error interno del servidor.'
+      message: error.message || 'Error interno del servidor.',
+      ...(error.details ? { details: error.details } : {})
     }
   });
 };

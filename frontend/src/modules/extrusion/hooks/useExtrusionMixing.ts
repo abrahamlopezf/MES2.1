@@ -37,8 +37,10 @@ export const useFormulas = () => {
 export const useMixFormula = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: MixPayload) => {
-      const res = await apiClient.post<{ success: boolean; data: any; message: string }>('/extrusion/mix', payload);
+    mutationFn: async ({ payload, approvalToken }: { payload: MixPayload; approvalToken?: string }) => {
+      const res = await apiClient.post<{ success: boolean; data: any; message: string }>('/extrusion/mix', payload, {
+        headers: approvalToken ? { 'x-extrusion-mix-approval': approvalToken } : undefined,
+      });
       return res;
     },
     onSuccess: async () => {

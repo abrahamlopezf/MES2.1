@@ -58,7 +58,7 @@ const decryptQrData = (encryptedText) => {
 
   const parts = encryptedText.slice(LEGACY_PREFIX.length).split(':');
   try {
-    if (parts.length === 4 && parts[0] === V2_MARKER) {
+    if (parts.length === 4 && String(parts[0]).toLowerCase() === V2_MARKER) {
       const [, ivText, tagText, encryptedValue] = parts;
       const iv = decode(ivText);
       const tag = decode(tagText);

@@ -245,7 +245,9 @@ export interface EnqueueMixPayload {
 }
 
 export interface ScanRackPtiPayload {
+  extruder_id?: number;
   rack_qr: string;
+  new_rack_qr_codes?: string[];
   pti_material_id: number;
   destination_route?: PtiDestinationRoute;
   quantity?: number;
