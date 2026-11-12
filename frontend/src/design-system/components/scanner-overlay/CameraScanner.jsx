@@ -13,6 +13,8 @@ export const CameraScanner = ({
   onClose,
   inline = false,
   allowManualInput = true,
+  allowImageInput = false,
+  onScanFailure,
   hideScanShade = false,
 }) => {
   const containerId = useMemo(
@@ -28,8 +30,11 @@ export const CameraScanner = ({
   const [showManualInput, setShowManualInput] = useState(false);
 
   const scannerRef = useRef(null);
+  const imageInputRef = useRef(null);
   const hasScannedRef = useRef(false);
   const onScanRef = useRef(onScan);
+  const [isReadingImage, setIsReadingImage] = useState(false);
+  const [imageScanError, setImageScanError] = useState('');
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -49,7 +54,7 @@ export const CameraScanner = ({
     }
   };
 
-  const startCamera = async (cameraIdOverride) => {
+  const startCamera = async (cameraIdOverride, fallbackCameraId) => {
     try {
       setIsInitializing(true);
       setCameraError(null);
@@ -66,12 +71,14 @@ export const CameraScanner = ({
       }
 
       // Descubrir dispositivos de cámara disponibles
-      let availableCameras = [];
-      try {
-        availableCameras = await Html5Qrcode.getCameras();
-        setCameras(availableCameras || []);
-      } catch (err) {
-        console.warn('No se pudo enumerar cámaras previas:', err);
+      let availableCameras = cameraIdOverride ? cameras : [];
+      if (!cameraIdOverride || availableCameras.length === 0) {
+        try {
+          availableCameras = await Html5Qrcode.getCameras();
+          setCameras(availableCameras || []);
+        } catch (err) {
+          console.warn('No se pudo enumerar cámaras previas:', err);
+        }
       }
 
       // Limitar el decodificador a QR evita perder tiempo intentando formatos
@@ -115,48 +122,53 @@ export const CameraScanner = ({
           return { width: size, height: size };
         },
         aspectRatio: 1.0,
-        videoConstraints: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
       };
 
       // Determinar qué cámara usar
       let chosenCameraConfig = null;
+      const rearCamera = availableCameras.find((camera) =>
+        /back|rear|trasera|posterior|environment|world/i.test(camera.label || '')
+      );
 
       if (cameraIdOverride) {
         chosenCameraConfig = { deviceId: { exact: cameraIdOverride } };
-        setActiveCameraId(cameraIdOverride);
-      } else if (availableCameras && availableCameras.length > 0) {
-        // En móviles/tablets priorizar cámara trasera
-        const rearCamera = availableCameras.find((c) =>
-          /back|rear|trasera|environment/i.test(c.label)
-        );
-        const selected = rearCamera || availableCameras[0];
-        chosenCameraConfig = { deviceId: { exact: selected.id } };
-        setActiveCameraId(selected.id);
+      } else if (rearCamera) {
+        chosenCameraConfig = { deviceId: { exact: rearCamera.id } };
+      } else if (availableCameras.length === 1) {
+        // Una sola cámara suele ser la webcam integrada de un equipo de escritorio.
+        chosenCameraConfig = { deviceId: { exact: availableCameras[0].id } };
       } else {
-        // Si no hay lista previa, pedir cámara por facingMode
+        // Si los nombres no están disponibles, el navegador elige la trasera cuando existe.
         chosenCameraConfig = { facingMode: 'environment' };
       }
 
+      const updateActiveCamera = (cameraConfig) => {
+        const actualDeviceId = instance.getRunningTrackSettings?.()?.deviceId;
+        const requestedDeviceId = cameraConfig?.deviceId?.exact || cameraConfig?.deviceId;
+        if (actualDeviceId || requestedDeviceId) {
+          setActiveCameraId(actualDeviceId || requestedDeviceId);
+        }
+      };
+
       try {
         await instance.start(chosenCameraConfig, qrConfig, successCallback, () => {});
+        updateActiveCamera(chosenCameraConfig);
         setIsInitializing(false);
       } catch (firstErr) {
         console.warn('Primer intento de inicio de cámara falló, probando fallback:', firstErr);
-        // Fallback para laptops/webcams sin soporte exacto de environment
+        // En un cambio fallido, conserva la cámara que ya funcionaba. Al iniciar,
+        // vuelve a preferir la trasera y solo usa la única cámara disponible como último recurso.
         try {
-          const fallbackConfig =
-            availableCameras && availableCameras.length > 0
-              ? { deviceId: { exact: availableCameras[0].id } }
-              : { facingMode: 'user' };
-
-          if (availableCameras && availableCameras.length > 0) {
-            setActiveCameraId(availableCameras[0].id);
-          }
+          const fallbackCamera =
+            (cameraIdOverride && fallbackCameraId && availableCameras.find((camera) => camera.id === fallbackCameraId)) ||
+            rearCamera ||
+            (availableCameras.length === 1 ? availableCameras[0] : null);
+          const fallbackConfig = fallbackCamera
+            ? { deviceId: { exact: fallbackCamera.id } }
+            : { facingMode: 'environment' };
 
           await instance.start(fallbackConfig, qrConfig, successCallback, () => {});
+          updateActiveCamera(fallbackConfig);
           setIsInitializing(false);
         } catch (secondErr) {
           console.error('Fallo definitivo al iniciar cámara:', secondErr);
@@ -198,8 +210,39 @@ export const CameraScanner = ({
     const nextIndex = (currentIndex + 1) % cameras.length;
     const nextCamera = cameras[nextIndex];
     if (nextCamera) {
-      setActiveCameraId(nextCamera.id);
-      startCamera(nextCamera.id);
+      startCamera(nextCamera.id, activeCameraId);
+    }
+  };
+
+  const handleImageScan = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const imageContainerId = `${containerId}-image-scan`;
+    const imageContainer = document.createElement('div');
+    imageContainer.id = imageContainerId;
+    imageContainer.hidden = true;
+    document.body.appendChild(imageContainer);
+
+    const imageScanner = new Html5Qrcode(imageContainerId, {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      verbose: false,
+    });
+
+    setIsReadingImage(true);
+    setImageScanError('');
+    try {
+      const result = await imageScanner.scanFileV2(file, false);
+      const decodedText = result?.decodedText?.trim();
+      if (decodedText) onScanRef.current?.(decodedText);
+    } catch (error) {
+      setImageScanError('No se encontró un código QR legible en la imagen.');
+      onScanFailure?.(error);
+    } finally {
+      imageScanner.clear();
+      imageContainer.remove();
+      event.target.value = '';
+      setIsReadingImage(false);
     }
   };
 
@@ -372,7 +415,32 @@ export const CameraScanner = ({
         </div>
 
         {/* Barra Inferior: Alternancia de Entrada Manual / Pistola USB */}
-        {allowManualInput && <div className="shrink-0 space-y-2.5 border-t border-border bg-card p-3.5">
+        {(allowManualInput || allowImageInput) && <div className="shrink-0 space-y-2.5 border-t border-border bg-card p-3.5">
+          {allowImageInput && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleImageScan}
+                aria-label="Seleccionar una imagen con código QR"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isReadingImage}
+                onClick={() => imageInputRef.current?.click()}
+                className="min-h-11 font-bold"
+              >
+                <Camera className="mr-2 h-4 w-4" />
+                {isReadingImage ? 'Leyendo imagen…' : 'Leer QR desde imagen'}
+              </Button>
+              {imageScanError && <p role="status" className="m-0 text-sm font-medium text-destructive">{imageScanError}</p>}
+            </div>
+          )}
+
+          {allowManualInput && <>
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Keyboard className="w-3.5 h-3.5" />
@@ -407,6 +475,7 @@ export const CameraScanner = ({
               </Button>
             </form>
           )}
+          </>}
         </div>}
       </div>
     </div>

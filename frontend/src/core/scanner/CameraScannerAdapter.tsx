@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import React from 'react';
 import { useScanner } from './ScannerProvider';
+import { CameraScanner } from '@/design-system/components/scanner-overlay/CameraScanner';
 
 interface CameraScannerAdapterProps {
   onScanSuccess?: (code: string) => void;
@@ -8,42 +8,24 @@ interface CameraScannerAdapterProps {
 }
 
 export function CameraScannerAdapter({ onScanSuccess, onScanFailure }: CameraScannerAdapterProps) {
-  const { setScannedCode, isScanning } = useScanner();
-
-  useEffect(() => {
-    if (!isScanning) return;
-
-    // Configuración industrial para la cámara (más rápida, menor latencia)
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 15, qrbox: { width: 250, height: 250 }, disableFlip: false },
-      /* verbose= */ false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        setScannedCode(decodedText);
-        if (onScanSuccess) onScanSuccess(decodedText);
-        
-        // Auto-pause tras lectura para evitar múltiples disparos rápidos
-        scanner.pause(true);
-        setTimeout(() => scanner.resume(), 2000);
-      },
-      (error) => {
-        if (onScanFailure) onScanFailure(error);
-      }
-    );
-
-    return () => {
-      scanner.clear().catch(error => console.error("Fallo al limpiar el scanner de cámara", error));
-    };
-  }, [isScanning, setScannedCode, onScanSuccess, onScanFailure]);
+  const { setScannedCode, isScanning, stopScanning } = useScanner();
 
   if (!isScanning) return null;
 
   return (
-    <div className="w-full max-w-sm mx-auto overflow-hidden rounded-xl border border-border shadow-lg">
-      <div id="qr-reader" />
+    <div className="mx-auto h-[min(70dvh,34rem)] min-h-[22rem] w-full max-w-sm overflow-hidden rounded-xl border border-border shadow-lg">
+      <CameraScanner
+        title="Preparación de fórmulas"
+        inline
+        allowManualInput={false}
+        allowImageInput
+        onScanFailure={onScanFailure}
+        onScan={(code) => {
+          setScannedCode(code);
+          onScanSuccess?.(code);
+        }}
+        onClose={stopScanning}
+      />
     </div>
   );
 }
