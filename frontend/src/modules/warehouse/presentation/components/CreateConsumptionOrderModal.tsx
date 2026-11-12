@@ -65,6 +65,9 @@ interface DirectMixConsumptionViewProps {
   onClose: () => void;
   submitting: boolean;
   totalRequestedKg: number;
+  inventoryLoading: boolean;
+  inventoryLoadError: string | null;
+  onRetryInventory: () => void;
 }
 
 const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
@@ -78,7 +81,10 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
   addItem,
   onClose,
   submitting,
-  totalRequestedKg
+  totalRequestedKg,
+  inventoryLoading,
+  inventoryLoadError,
+  onRetryInventory
 }) => {
   const [showExtraSearch, setShowExtraSearch] = useState(false);
   const [search, setSearch] = useState('');
@@ -102,6 +108,17 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
   return (
     <>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+        {inventoryLoadError && (
+          <div role="alert" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <div className="flex items-start gap-2.5">
+              <Icon name="warning" size={18} className="mt-0.5 shrink-0" />
+              <span>{inventoryLoadError}</span>
+            </div>
+            <button type="button" onClick={onRetryInventory} className="min-h-10 shrink-0 rounded-lg border border-amber-500/40 px-3 font-bold hover:bg-amber-500/10">
+              Reintentar consulta
+            </button>
+          </div>
+        )}
         {/* Context banner de fórmula */}
         <div className="p-3 sm:p-3.5 rounded-xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -289,23 +306,29 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
 
                     <div className="mt-1 flex items-center gap-2 text-xs flex-wrap">
                       <span className="text-muted-foreground">Almacén Central:</span>
-                      <span className={`font-bold px-2 py-0.2 rounded text-[11px] ${
-                        isZeroStock 
-                          ? 'bg-destructive/15 text-destructive border border-destructive/20 font-black' 
-                          : hasInsufficientStock
-                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                            : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {availableWarehouse} {unitCode}
-                      </span>
-                      {hasInsufficientStock && (
-                        <span className="text-[11px] font-semibold text-destructive flex items-center gap-1">
-                          <Icon name="warning" size={13} />
-                          {isZeroStock ? 'Sin existencias en almacén' : 'Stock en almacén menor a lo requerido'}
-                        </span>
+                      {inventoryLoading ? (
+                        <span role="status" className="font-semibold text-muted-foreground">Verificando saldo FIFO…</span>
+                      ) : (
+                        <>
+                          <span className={`font-bold px-2 py-0.2 rounded text-[11px] ${
+                            isZeroStock
+                              ? 'bg-destructive/15 text-destructive border border-destructive/20 font-black'
+                              : hasInsufficientStock
+                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          }`}>
+                            {availableWarehouse} {unitCode}
+                          </span>
+                          {hasInsufficientStock && (
+                            <span className="text-[11px] font-semibold text-destructive flex items-center gap-1">
+                              <Icon name="warning" size={13} />
+                              {isZeroStock ? 'Sin existencias en almacén' : 'Stock en almacén menor a lo requerido'}
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
-                    {isZeroStock && sameNameOtherCodes.length > 0 && (
+                    {!inventoryLoading && isZeroStock && sameNameOtherCodes.length > 0 && (
                       <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
                         Hay material con el mismo nombre en almacén, pero con otro código ({sameNameOtherCodes
                           .map((inv: any) => inv.material?.internal_code || inv.material?.material_code || `MAT-${inv.material_id}`)
@@ -401,7 +424,7 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
           </button>
           <button 
             type="submit"
-            disabled={submitting || items.length === 0 || items.some(i => !i.req_quantity || i.req_quantity <= 0)}
+            disabled={submitting || inventoryLoading || Boolean(inventoryLoadError) || items.length === 0 || items.some(i => !i.req_quantity || i.req_quantity <= 0)}
             className="h-10 px-5 sm:px-6 bg-primary text-primary-foreground rounded-xl font-bold text-xs sm:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2 cursor-pointer"
           >
             <Icon name="check_circle" size={17} />
@@ -427,6 +450,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
 }) => {
   const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [inventoryLoadError, setInventoryLoadError] = useState<string | null>(null);
   
   const [items, setItems] = useState<any[]>([]);
   const [notes, setNotes] = useState('');
@@ -621,6 +645,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const fetchInventory = async () => {
     try {
       setLoading(true);
+      setInventoryLoadError(null);
       const res = await axiosClient.get('/warehouse/inventory');
       const data = res.data.data || res.data;
       const invList = data.items || data || [];
@@ -637,7 +662,12 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
               const inventoryItem: any = inventoryById.get(Number(candidate.material_id));
               return {
                 material_id: Number(candidate.material_id),
-                amount: Number(candidate.warehouse_available_kg || 0),
+                // The inventory endpoint is backed by the same FIFO lots used
+                // to fulfill ODCs; use it when present, retaining formula detail
+                // stock only as a fallback if the list omits a zero-stock row.
+                amount: inventoryItem
+                  ? Number(inventoryItem.amount || 0)
+                  : Number(candidate.warehouse_available_kg || 0),
                 material: inventoryItem?.material || {
                   id: Number(candidate.material_id),
                   name: candidate.name,
@@ -678,6 +708,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
       }));
     } catch (err) {
       console.error(err);
+      setInventoryLoadError('No se pudo consultar el inventario de almacén. El saldo mostrado proviene del detalle de la fórmula; vuelve a consultar antes de generar la orden.');
     } finally {
       setLoading(false);
     }
@@ -844,6 +875,9 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                 onClose={onClose}
                 submitting={submitting}
                 totalRequestedKg={totalRequestedKg}
+                inventoryLoading={loading}
+                inventoryLoadError={inventoryLoadError}
+                onRetryInventory={fetchInventory}
               />
             ) : (
               <>

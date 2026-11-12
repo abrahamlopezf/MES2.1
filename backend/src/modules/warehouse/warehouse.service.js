@@ -53,7 +53,10 @@ const getInventory = async (query = {}, currentUser) => {
   const allowCosts = canViewCosts(currentUser);
   const limit = Math.min(Number(query.limit) || 100, 1000);
   const offset = Math.max(0, Number(query.offset) || 0);
-  const conditions = ["m.is_active = true", "m.deleted_at IS NULL", "COALESCE(i.amount, 0) > 0"];
+  // Lot balances are the stock that FIFO can actually fulfill. Reading the
+  // aggregate Inventory snapshot here can show stock that the ODC service
+  // cannot pick (or hide stock while its asynchronous reconciliation catches up).
+  const conditions = ["m.is_active = true", "m.deleted_at IS NULL", "COALESCE(l.amount, 0) > 0"];
   const replacements = {};
 
   if (material_id) {
@@ -92,20 +95,25 @@ const getInventory = async (query = {}, currentUser) => {
 
   const fromAndWhere = `
     FROM materials m
-    LEFT JOIN (SELECT material_id, SUM(amount) AS amount, MAX(updated_at) AS updated_at FROM inventories GROUP BY material_id) i ON i.material_id = m.id
+    LEFT JOIN (
+      SELECT material_id, SUM(available_amount) AS amount, MAX(updated_at) AS updated_at
+      FROM lotes
+      WHERE is_active = true AND available_amount > 0
+      GROUP BY material_id
+    ) l ON l.material_id = m.id
     WHERE ${conditions.join(' AND ')}
   `;
   const [rows] = await sequelize.query(`
     SELECT m.id AS material_id,
-      COALESCE(i.amount, 0) AS warehouse_amount,
+      COALESCE(l.amount, 0) AS warehouse_amount,
       0::numeric AS silo_stock_kg,
-      COALESCE(i.amount, 0) AS amount,
+      COALESCE(l.amount, 0) AS amount,
       COALESCE((SELECT SUM(l.available_amount * l.unit_cost) FROM lotes l WHERE l.material_id = m.id AND l.is_active = true), 0) AS warehouse_value,
       0::numeric AS silo_value,
       COALESCE((SELECT SUM(l.available_amount * l.unit_cost) FROM lotes l WHERE l.material_id = m.id AND l.is_active = true), 0) AS total_value,
-      i.updated_at AS updated_at
+      l.updated_at AS updated_at
     ${fromAndWhere}
-    ORDER BY i.updated_at DESC NULLS LAST, m.id
+    ORDER BY l.updated_at DESC NULLS LAST, m.id
   `, { replacements });
 
   const materialIds = rows.map((row) => Number(row.material_id));
