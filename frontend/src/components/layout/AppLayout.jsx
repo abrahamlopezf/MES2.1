@@ -34,6 +34,19 @@ const AppLayout = () => {
           ancestor = ancestor.parentElement;
         }
       });
+
+      // Algunas vistas antiguas usan una capa fija sin atributos ARIA. Los
+      // overlays z-50 del sistema son modales; se marcan para recibir la misma
+      // prioridad visual y adaptación al teclado que los diálogos semánticos.
+      document.querySelectorAll('.fixed.inset-0[class~="z-50"]').forEach((overlay) => {
+        overlay.setAttribute('data-keyboard-aware-overlay', '');
+        const panel = Array.from(overlay.children).find((child) => (
+          child instanceof HTMLElement &&
+          getComputedStyle(child).position !== 'absolute' &&
+          child.getAttribute('aria-hidden') !== 'true'
+        ));
+        if (panel instanceof HTMLElement) panel.setAttribute('data-keyboard-aware-panel', '');
+      });
     };
 
     const dialogObserver = new MutationObserver(markDialogPanels);
@@ -51,15 +64,28 @@ const AppLayout = () => {
       root.classList.toggle('mobile-keyboard-open', keyboardIsOpen);
     };
 
+    const keepFocusedFieldVisible = (event) => {
+      if (!root.classList.contains('mobile-keyboard-open')) return;
+      const field = event.target;
+      if (!(field instanceof HTMLElement) || !field.matches('input, select, textarea')) return;
+      if (!field.closest('[data-keyboard-aware-panel]')) return;
+
+      window.requestAnimationFrame(() => {
+        field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      });
+    };
+
     syncVisualViewport();
     viewport?.addEventListener('resize', syncVisualViewport);
     viewport?.addEventListener('scroll', syncVisualViewport);
     window.addEventListener('resize', syncVisualViewport);
+    document.addEventListener('focusin', keepFocusedFieldVisible);
 
     return () => {
       viewport?.removeEventListener('resize', syncVisualViewport);
       viewport?.removeEventListener('scroll', syncVisualViewport);
       window.removeEventListener('resize', syncVisualViewport);
+      document.removeEventListener('focusin', keepFocusedFieldVisible);
       dialogObserver.disconnect();
       root.classList.remove('mobile-keyboard-open');
       root.style.removeProperty('--mobile-visual-viewport-height');

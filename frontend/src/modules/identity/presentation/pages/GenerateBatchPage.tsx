@@ -473,7 +473,8 @@ export function GenerateBatchPage() {
       {/* GENERATE / REQUEST BATCH BOTTOM SHEET */}
       {isRendered && createPortal(
         <div 
-          className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+          data-keyboard-aware-overlay=""
+          className={`fixed inset-0 z-[10000] flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] sm:items-center sm:justify-center sm:p-4 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
           style={{ isolation: 'isolate' }}
         >
           <div 
@@ -483,12 +484,16 @@ export function GenerateBatchPage() {
           />
           <div 
             ref={sheetRef}
-            className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="generate-batch-title"
+            data-keyboard-aware-panel=""
+            className={`relative z-[10001] w-full sm:max-w-3xl bg-card rounded-t-3xl border-t border-border flex min-h-0 flex-col overflow-hidden max-h-[calc(100dvh-0.25rem)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] transform sm:rounded-2xl sm:border sm:max-h-[calc(100dvh-2rem)] ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full sm:translate-y-4'}`}
             style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
           >
             {/* Drag Handle */}
             <div 
-              className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card"
+              className="w-full pt-3 pb-2 flex justify-center items-center touch-none bg-card sm:hidden"
               onTouchStart={handlers.onTouchStart}
               onTouchMove={handlers.onTouchMove}
               onTouchEnd={() => handlers.onTouchEnd(handleCloseModal)}
@@ -496,25 +501,27 @@ export function GenerateBatchPage() {
               <div className="w-12 h-1.5 bg-muted rounded-full" />
             </div>
 
-            <div className="flex justify-between items-center px-5 pb-4 border-b border-border bg-card">
-              <h3 className="font-bold text-lg text-primary flex items-center gap-2">
+            <div className="flex shrink-0 justify-between items-center gap-3 px-4 pb-4 sm:px-6 border-b border-border bg-card">
+              <h3 id="generate-batch-title" className="font-bold text-lg text-primary flex min-w-0 items-center gap-2">
                 <Plus size={20} className="text-primary" />
                 Generar Nuevo Lote
               </h3>
               <button 
+                type="button"
+                aria-label="Cerrar generación de lote"
                 onClick={handleCloseModal}
-                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors bg-secondary/50"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto flex-1 flex flex-col bg-background">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-background">
               <form id="generateBatchForm" onSubmit={handleSubmit(onSubmit, onErrorForm)} className="flex flex-col gap-6">
                 
-                <div className="flex gap-6">
+                <div className="grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-[minmax(0,1fr)_8rem]">
                   {/* Campos del Formulario */}
-                  <div className="flex-1 space-y-4">
+                  <div className="min-w-0 space-y-4">
                     <div className="space-y-1">
                       <label className="text-sm font-bold text-foreground ml-1">Área Asignada</label>
                       <select 
@@ -569,7 +576,7 @@ export function GenerateBatchPage() {
                   </div>
 
                   {/* Previsualizador */}
-                  <div className="w-32 flex flex-col items-center justify-start pt-6 shrink-0">
+                  <div className="flex flex-row items-center justify-center gap-4 sm:w-32 sm:flex-col sm:justify-start sm:pt-6">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">Preview<br/>QR Virgen</span>
                     <div className="bg-white p-2 rounded-xl border border-slate-200 relative overflow-hidden flex flex-col items-center shadow-md">
                       <div className="relative">
@@ -595,7 +602,7 @@ export function GenerateBatchPage() {
             </div>
 
             {/* Footer actions fixed at bottom */}
-            <div className="sticky bottom-0 p-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex gap-3 pb-8">
+            <div className="sticky bottom-0 z-10 flex shrink-0 gap-3 border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sm:p-4">
               <button 
                 type="button"
                 onClick={handleCloseModal}

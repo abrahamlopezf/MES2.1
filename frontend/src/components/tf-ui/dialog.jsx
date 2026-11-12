@@ -16,6 +16,7 @@ const TFDialogOverlay = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <DialogPrimitive.Overlay
       ref={ref}
+      data-keyboard-aware-overlay=""
       className={cn(
         [
           'fixed inset-0 z-[9998] bg-slate-950/60 backdrop-blur-sm',
@@ -39,6 +40,7 @@ const TFDialogContent = React.forwardRef(
 
         <DialogPrimitive.Content
           ref={ref}
+          data-keyboard-aware-panel=""
           className={cn(
             [
               'fixed left-1/2 top-1/2 z-[9999] grid w-[calc(100vw-2rem)]',

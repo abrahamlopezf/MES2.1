@@ -59,8 +59,8 @@ const SheetContent = React.forwardRef<
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
-      ref={ref}
       data-keyboard-aware-panel=""
+      ref={ref}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >

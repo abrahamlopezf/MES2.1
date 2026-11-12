@@ -204,12 +204,29 @@ html.mobile-keyboard-open [data-keyboard-aware-overlay] {
   height: var(--mobile-visual-viewport-height, 100dvh);
 }
 
+/* Todos los diálogos quedan por encima del shell (sidebar y navegación),
+   aunque una vista antigua conserve un z-index local más bajo. */
+[data-keyboard-aware-overlay] {
+  z-index: 10000 !important;
+}
+
+[data-keyboard-aware-panel] {
+  z-index: 10001 !important;
+}
+
+/* Formularios heredados que aún usan z-50 también deben cubrir el sidebar.
+   Los paneles semánticos se elevan por la regla anterior. */
+.fixed.inset-0[class~="z-50"] {
+  z-index: 10000 !important;
+}
+
 html.mobile-keyboard-open [data-keyboard-aware-panel] {
   max-height: calc(var(--mobile-visual-viewport-height, 100dvh) - 0.5rem);
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding-block: 1rem;
+  scroll-padding-bottom: 1.5rem;
 }
 
 html.mobile-keyboard-open [data-keyboard-aware-panel] .overflow-y-auto {

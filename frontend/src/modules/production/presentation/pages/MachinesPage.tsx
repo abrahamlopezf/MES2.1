@@ -278,8 +278,12 @@ export const MachinesPage = () => {
       )}
 
       {editingMachine && (
-        createPortal(<div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        createPortal(<div data-keyboard-aware-overlay="" className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-extruder-title"
+            data-keyboard-aware-panel=""
             className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5"
             onSubmit={(event) => {
               event.preventDefault();
@@ -287,7 +291,7 @@ export const MachinesPage = () => {
             }}
           >
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-black text-lg">Editar {editingMachine.code}</h3>
+              <h3 id="edit-extruder-title" className="font-black text-lg">Editar {editingMachine.code}</h3>
               <button type="button" onClick={() => setEditingMachine(null)} aria-label="Cerrar edición de extrusora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">✕</button>
             </div>
             <label className="block space-y-2 text-sm font-bold text-foreground">Destino de sus PTI a Telares
@@ -321,10 +325,10 @@ export const MachinesPage = () => {
       )}
 
       {isCreateMachineOpen && (
-        createPortal(<div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <form className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5" onSubmit={(event) => { event.preventDefault(); createMachineMutation.mutate(machineDraft); }}>
+        createPortal(<div data-keyboard-aware-overlay="" className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form role="dialog" aria-modal="true" aria-labelledby="create-extruder-title" data-keyboard-aware-panel="" className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5" onSubmit={(event) => { event.preventDefault(); createMachineMutation.mutate(machineDraft); }}>
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-black text-lg">Nueva extrusora</h3>
+              <h3 id="create-extruder-title" className="font-black text-lg">Nueva extrusora</h3>
               <button type="button" onClick={() => setIsCreateMachineOpen(false)} aria-label="Cerrar formulario de extrusora" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">✕</button>
             </div>
             <label className="block space-y-2 text-base font-bold text-foreground">Código <Input value={machineDraft.code} onChange={(e) => setMachineDraft({ ...machineDraft, code: e.target.value.toUpperCase() })} placeholder="Ej. EXT-06" required maxLength={50} /></label>
