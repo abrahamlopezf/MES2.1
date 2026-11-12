@@ -19,6 +19,12 @@ const timeFormatter = new Intl.DateTimeFormat('es-MX', {
   second: '2-digit',
   hourCycle: 'h23',
 });
+const compactTimeFormatter = new Intl.DateTimeFormat('es-MX', {
+  timeZone: TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 async function getServerClock(): Promise<ClockSync> {
   const requestStartedAt = Date.now();
@@ -81,16 +87,19 @@ export const SystemClock: React.FC = () => {
   const iso = new Date(serverNow).toISOString();
   const date = dateFormatter.format(serverNow).replace('.', '');
   const time = timeFormatter.format(serverNow);
+  const compactTime = compactTimeFormatter.format(serverNow);
 
   return (
     <div
+      role="group"
       title={`Hora del servidor · ${new Intl.DateTimeFormat('es-MX', { timeZone: TIME_ZONE, dateStyle: 'full', timeStyle: 'long' }).format(serverNow)}`}
       aria-label={`Hora del servidor: ${date} ${time}, Ciudad de México`}
       className="flex min-h-10 items-center gap-2 rounded-full px-2 text-foreground sm:gap-2.5 sm:px-3"
     >
       <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-success" />
-      <time dateTime={iso} className="text-xs font-semibold capitalize text-muted-foreground sm:text-sm">{date}</time>
-      <time dateTime={iso} className="font-mono text-sm font-bold tabular-nums tracking-tight sm:text-base">{time}</time>
+      <time dateTime={iso} className="hidden text-xs font-semibold capitalize text-muted-foreground sm:inline">{date}</time>
+      <time dateTime={iso} className="font-mono text-sm font-bold tabular-nums tracking-tight sm:hidden">{compactTime}</time>
+      <time dateTime={iso} className="hidden font-mono text-sm font-bold tabular-nums tracking-tight sm:inline sm:text-base">{time}</time>
       <span className="hidden text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:inline">CDMX</span>
     </div>
   );

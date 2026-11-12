@@ -10,6 +10,7 @@ import { useAuthStore } from '../../../../store/authStore';
 import { useThemeStore } from '../../../../store/themeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../design-system';
 import { TFSelect } from '../../../../components/tf-ui';
+import { CollapsibleFilterPanel } from '../../../../components/shared/CollapsibleFilterPanel';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../../core/api/apiClient';
 import { LowStockReportModal } from '../components/LowStockReportModal';
@@ -270,16 +271,14 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
       </div>
 
       {/* FILTER BAR SECTION */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-primary/10 p-4 rounded-xl border border-primary/20 items-end">
-        <div className="col-span-2 md:col-span-1">
-          <h2 className="text-lg font-black tracking-tight text-primary flex items-center gap-2">
-            <Boxes className="h-5 w-5" />
-            Filtros Operativos
-          </h2>
-          <p className="text-xs font-semibold text-muted-foreground mt-0.5">Vista de Almacén</p>
-        </div>
-        
-        <div className="col-span-1 flex flex-col gap-1.5">
+      <CollapsibleFilterPanel
+        title="Filtros operativos"
+        description="Ajusta la perspectiva del dashboard de Almacén."
+        summary="Vista de Almacén · Datos actuales"
+        className="border-primary/20"
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider opacity-70">Año</label>
           <TFSelect 
             value="2026"
@@ -289,7 +288,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
           />
         </div>
         
-        <div className="col-span-1 flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider opacity-70">Periodo</label>
           <TFSelect 
             value="current"
@@ -299,7 +298,7 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
           />
         </div>
 
-        <div className="col-span-2 md:col-span-1 flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold uppercase tracking-wider opacity-70">Familia</label>
           <TFSelect 
             value="all"
@@ -308,7 +307,8 @@ export const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ activeTa
             className="h-10"
           />
         </div>
-      </div>
+        </div>
+      </CollapsibleFilterPanel>
 
       {/* EXECUTIVE SUMMARY KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">

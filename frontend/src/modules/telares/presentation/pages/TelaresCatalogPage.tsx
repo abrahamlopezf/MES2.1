@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Badge } from '@/design-system';
@@ -552,6 +553,7 @@ export const TelaresCatalogPage: React.FC = () => {
             </div>
 
             {/* Filtros de Telas */}
+            <CollapsibleFilterPanel title="Buscar y filtrar productos" summary={`${filteredBoms.length} de ${boms.length} productos${bomSearch ? ` · ${bomSearch}` : ''}`} variant="plain" className="border-t border-slate-700/80 pt-3" contentClassName="mt-0 border-0 pt-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12 xl:items-end">
               <label className="flex min-w-0 flex-col gap-1.5 text-sm font-semibold text-slate-200 sm:col-span-2 xl:col-span-3">
                 <span>Buscar producto</span>
@@ -647,6 +649,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 </Button>
               )}
             </div>
+            </CollapsibleFilterPanel>
           </div>
 
           {/* Tabla de Fichas Técnicas (Full Width) */}
@@ -845,6 +848,7 @@ export const TelaresCatalogPage: React.FC = () => {
             </div>
 
             {/* Barra de Filtros Industriales */}
+            <CollapsibleFilterPanel title="Buscar y filtrar telares" summary={`${filteredLooms.length} de ${looms.length} telares${loomSearch ? ` · ${loomSearch}` : ''}`} variant="plain" contentClassName="mt-0 border-0 pt-3">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1 border-t border-slate-700/60">
               {/* Buscador */}
               <div className="relative flex-1">
@@ -952,6 +956,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 </button>
               </div>
             </div>
+            </CollapsibleFilterPanel>
           </div>
 
           {/* Renderizado de Telares: Modo Tarjetas o Modo Tabla */}

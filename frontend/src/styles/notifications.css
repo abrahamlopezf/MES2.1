@@ -199,3 +199,31 @@
 [data-sonner-toast] [data-cancel]:hover {
   color: var(--foreground) !important;
 }
+
+@media (max-width: 767px) {
+  [data-sonner-toaster] [data-close-button],
+  [data-close-button],
+  .sonner-close-button {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+    top: 8px !important;
+    right: 8px !important;
+    border-radius: 10px !important;
+  }
+
+  [data-sonner-toaster] [data-close-button] svg,
+  [data-close-button] svg,
+  .sonner-close-button svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  [data-sonner-toast] {
+    max-width: calc(100vw - 1.5rem) !important;
+    padding-right: 60px !important;
+  }
+}

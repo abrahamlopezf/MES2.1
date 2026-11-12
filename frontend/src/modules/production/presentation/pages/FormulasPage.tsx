@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Input, Icon, renderAnyIcon } from '@/design-system';
@@ -77,6 +78,7 @@ export const FormulasPage: React.FC = () => {
   const [formulaSearchTerm, setFormulaSearchTerm] = useState('');
   const [selectedMachine, setSelectedMachine] = useState('ALL');
   const [formulaViewMode, setFormulaViewMode] = useState<'cards' | 'list'>('cards');
+  const [expandedMobileFormulaId, setExpandedMobileFormulaId] = useState<Formula['id'] | 'COLLAPSED' | null>(null);
   const [selectedFormulaDetails, setSelectedFormulaDetails] = useState<Formula | null>(null);
   const [selectedMixFormula, setSelectedMixFormula] = useState<Formula | null>(null);
   const [editingFormula, setEditingFormula] = useState<Formula | null>(null);
@@ -165,6 +167,11 @@ export const FormulasPage: React.FC = () => {
     );
     return matchesSearch && matchesMachine;
   });
+  const mobileExpandedFormulaId = expandedMobileFormulaId === 'COLLAPSED'
+    ? null
+    : filteredFormulas.some((formula) => formula.id === expandedMobileFormulaId)
+      ? expandedMobileFormulaId
+      : filteredFormulas[0]?.id ?? null;
 
   const machines = activeMachines.map((machine: any) => machine.name);
 
@@ -389,8 +396,8 @@ export const FormulasPage: React.FC = () => {
           </div>
 
           {/* BARRA DE FILTROS & CONMUTADOR DE VISTA */}
-          <Card className="border-border bg-card shadow-sm">
-            <CardContent className="flex flex-col gap-3 p-3 sm:p-4 xl:flex-row xl:items-center">
+          <CollapsibleFilterPanel title="Buscar y filtrar fórmulas" summary={`${filteredFormulas.length} de ${formulas.length} fórmulas${formulaSearchTerm ? ` · ${formulaSearchTerm}` : ''}`}>
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,16rem)]">
                 <div className="relative min-w-0 w-full">
                   <Icon name="search" size={18} className="absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -454,8 +461,8 @@ export const FormulasPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CollapsibleFilterPanel>
 
           {/* LISTA DE FÓRMULAS */}
           {isFormulasLoading ? (
@@ -473,7 +480,107 @@ export const FormulasPage: React.FC = () => {
             /* ========================================================= */
             /* VISTA DE TARJETAS (GRID RESPONSIVO)                       */
             /* ========================================================= */
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            <>
+            <div className="grid gap-2 md:hidden">
+              {filteredFormulas.map((formula: Formula) => {
+                const isExpanded = mobileExpandedFormulaId === formula.id;
+                const linkedPtis = formula.ptiProducts || [];
+                const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
+                const transformedVal = formula.transformed_mixture_value == null ? null : Number(formula.transformed_mixture_value);
+                const suggestedPrice = formula.suggested_pti_unit_price == null ? null : Number(formula.suggested_pti_unit_price);
+                const costIndex = Number(formula.cost_index) || 1.1500;
+                const detailsId = `mobile-formula-details-${formula.id}`;
+
+                return (
+                  <article
+                    key={`mobile-${formula.id}`}
+                    className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card ${isExpanded ? 'min-h-[60dvh] shadow-sm' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      aria-controls={detailsId}
+                      onClick={() => setExpandedMobileFormulaId(isExpanded ? 'COLLAPSED' : formula.id)}
+                      className="flex min-h-20 w-full items-center gap-3 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="max-w-full break-all font-mono text-xs font-bold">{formula.code}</Badge>
+                          <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-xs font-bold">{formula.is_active === false ? 'Inactiva' : 'Activa'}</Badge>
+                          <span className="text-xs font-semibold text-muted-foreground">{formula.batch_size_kg || 500} kg</span>
+                        </span>
+                        <span className="block line-clamp-2 break-words text-base font-bold leading-snug text-foreground">{formula.name}</span>
+                        <span className="mt-1 block truncate text-sm text-muted-foreground">{getTargetMachine(formula)} · {formula.expected_yield_pieces} pzas</span>
+                      </span>
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-foreground" aria-hidden="true">
+                        <Icon name={isExpanded ? 'expand_less' : 'expand_more'} size={22} />
+                      </span>
+                    </button>
+
+                    <div id={detailsId} hidden={!isExpanded} className="flex flex-1 flex-col gap-4 border-t border-border p-4">
+                      <dl className="grid gap-3">
+                        <div>
+                          <dt className="text-sm font-semibold text-muted-foreground">Máquina asignada</dt>
+                          <dd className="mt-0.5 break-words text-base font-semibold text-foreground">{getTargetMachine(formula)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-semibold text-muted-foreground">Rendimiento esperado</dt>
+                          <dd className="mt-0.5 break-words font-mono text-base font-bold tabular-nums text-foreground">{formula.expected_yield_pieces} pzas · {formula.expected_yield_kg || 490} kg</dd>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                          <dt className="text-sm font-bold text-muted-foreground">PTI de salida</dt>
+                          <dd className="mt-1 break-words text-base font-semibold leading-snug text-foreground">
+                            {linkedPtis.length > 0 ? linkedPtis.map((pti) => `${pti.code} · ${pti.name}`).join(', ') : 'Sin PTI enlazado'}
+                          </dd>
+                        </div>
+                      </dl>
+
+                      {allowCosts && (
+                        <dl className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-muted/40 p-2.5">
+                          <div className="min-w-0 rounded-lg bg-background/45 p-2">
+                            <dt className="text-xs font-bold uppercase leading-snug text-muted-foreground">Insumos base</dt>
+                            <dd className="mt-1 break-words text-sm font-bold tabular-nums text-foreground">{rawCost == null ? 'Pendiente de costeo' : `$${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}</dd>
+                          </div>
+                          <div className="min-w-0 rounded-lg bg-background/45 p-2 text-center">
+                            <dt className="text-xs font-bold uppercase text-primary">Factor</dt>
+                            <dd className="mt-1 font-mono text-sm font-black text-primary">×{costIndex.toFixed(4)}</dd>
+                          </div>
+                          <div className="col-span-2 min-w-0 border-t border-border px-2 pt-2">
+                            <dt className="text-xs font-bold uppercase text-emerald-700 dark:text-emerald-400">Transformada</dt>
+                            <dd className="mt-1 break-words text-lg font-black tabular-nums text-emerald-700 dark:text-emerald-400">{transformedVal == null ? 'Pendiente' : `$${transformedVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}</dd>
+                            <dd className="mt-0.5 break-words text-sm text-muted-foreground">{suggestedPrice == null ? 'Precio sugerido pendiente' : `Precio sugerido: ~$${suggestedPrice.toFixed(2)}/pza`}</dd>
+                          </div>
+                        </dl>
+                      )}
+
+                      <div className="mt-auto grid gap-2 border-t border-border pt-3">
+                        <Button
+                          variant="secondary"
+                          className="min-h-12 w-full gap-2 whitespace-normal text-base font-bold leading-tight"
+                          onClick={() => setSelectedFormulaDetails(formula)}
+                        >
+                          <Icon name="description" size={18} />
+                          Ingredientes y detalles
+                        </Button>
+                        <PermissionGate permission="extrusion.formulas.manage">
+                          <Button
+                            variant="outline"
+                            aria-label={`Editar configuración de ${formula.name}`}
+                            className="min-h-12 w-full gap-2 text-base font-bold"
+                            onClick={() => setEditingFormula(formula)}
+                          >
+                            <Icon name="edit" size={18} />
+                            Editar configuración
+                          </Button>
+                        </PermissionGate>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="hidden gap-4 md:grid md:grid-cols-2 2xl:grid-cols-3">
               {filteredFormulas.map((formula: Formula) => {
                 const costIndex = Number(formula.cost_index) || 1.1500;
                 const rawCost = formula.raw_materials_cost == null ? null : Number(formula.raw_materials_cost);
@@ -484,71 +591,70 @@ export const FormulasPage: React.FC = () => {
                 return (
                   <Card
                     key={formula.id}
-                    className="flex flex-col justify-between overflow-hidden border border-border bg-card shadow-sm"
+                    className="flex min-w-0 flex-col justify-between overflow-hidden border border-border bg-card shadow-sm"
                   >
-                    <div className="p-5 flex flex-col gap-3.5 flex-1">
+                    <div className="flex min-w-0 flex-1 flex-col gap-3 p-4 sm:gap-3.5 sm:p-5">
                       {/* HEADER DE TARJETA */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors mt-0.5">
-                            <Icon name="science" size={22} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                              <Badge variant="outline" className="font-mono text-sm font-bold">{formula.code}</Badge>
-                              <Badge variant="secondary" className="text-sm font-semibold">{formula.batch_size_kg || 500} Kg</Badge>
-                              <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-xs font-bold">{formula.is_active === false ? 'INACTIVA' : 'ACTIVA'}</Badge>
-                            </div>
-                            <h3 className="font-black text-lg text-foreground leading-snug line-clamp-2">
-                              {formula.name}
-                            </h3>
-                          </div>
+                      <div className="min-w-0">
+                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="max-w-full break-all font-mono text-xs font-bold sm:text-sm">{formula.code}</Badge>
+                          <Badge variant="secondary" className="text-sm font-semibold">Lote: {formula.batch_size_kg || 500} kg</Badge>
+                          <Badge variant={formula.is_active === false ? 'secondary' : 'success'} className="text-xs font-bold">{formula.is_active === false ? 'Inactiva' : 'Activa'}</Badge>
                         </div>
+                        <h3 className="break-words text-lg font-black leading-snug text-foreground sm:text-xl">
+                          {formula.name}
+                        </h3>
                       </div>
 
                       {/* METADATA RÁPIDA */}
-                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-muted-foreground font-medium pt-2 border-t border-border/50">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
-                          <span className="break-words">{getTargetMachine(formula)}</span>
-                        </span>
-                        <span className="font-mono">
-                          {formula.expected_yield_pieces} pzas ({formula.expected_yield_kg || 490} kg)
-                        </span>
+                      <div className="grid grid-cols-1 gap-2 border-t border-border/70 pt-3 sm:grid-cols-2">
+                        <div className="min-w-0">
+                          <span className="block text-xs font-bold text-muted-foreground">Máquina asignada</span>
+                          <span className="mt-0.5 flex min-w-0 items-start gap-2 text-sm font-semibold text-foreground">
+                            <span className="mt-1.5 size-2 shrink-0 rounded-full bg-purple-500" aria-hidden="true" />
+                            <span className="break-words">{getTargetMachine(formula)}</span>
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-xs font-bold text-muted-foreground">Rendimiento esperado</span>
+                          <span className="mt-0.5 block break-words font-mono text-sm font-semibold tabular-nums text-foreground">
+                            {formula.expected_yield_pieces} pzas · {formula.expected_yield_kg || 490} kg
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="rounded-lg border border-border bg-background/60 px-3 py-2.5">
-                        <span className="block text-xs font-bold text-muted-foreground">PTI de salida</span>
+                      <div className="min-w-0 rounded-lg border border-border bg-background/60 px-3 py-2.5">
+                        <span className="block text-sm font-bold text-muted-foreground">PTI de salida</span>
                         {linkedPtis.length > 0 ? linkedPtis.map((pti) => (
-                          <span key={pti.id} className="mt-1 block break-words text-sm font-semibold text-foreground">
+                          <span key={pti.id} className="mt-1 block break-words text-sm font-semibold leading-snug text-foreground">
                             {pti.code} · {pti.name}
                           </span>
-                        )) : <span className="mt-1 block text-sm text-muted-foreground">Sin PTI enlazado</span>}
+                        )) : <span className="mt-1 block text-sm font-medium text-muted-foreground">Sin PTI enlazado</span>}
                       </div>
 
                       {/* BLOQUE ECONÓMICO */}
                       {allowCosts && (
-                        <div className="p-3 rounded-xl bg-muted/40 border border-border grid grid-cols-3 gap-2 mt-auto">
-                          <div className="text-left">
-                            <span className="text-sm font-bold text-muted-foreground uppercase block leading-snug">Insumos Base</span>
-                            <span className="text-sm font-mono font-bold text-foreground block break-words">
+                        <div className="mt-auto grid min-w-0 grid-cols-2 gap-2 rounded-xl border border-border bg-muted/40 p-2.5 sm:grid-cols-3 sm:p-3">
+                          <div className="min-w-0 rounded-lg bg-background/45 p-2 text-left sm:bg-transparent sm:p-0">
+                            <span className="block text-xs font-bold uppercase leading-snug text-muted-foreground sm:text-sm">Insumos base</span>
+                            <span className="mt-1 block break-words text-sm font-bold tabular-nums text-foreground sm:font-mono">
                               {rawCost == null ? 'Pendiente de costeo' : `$${rawCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
                             </span>
                           </div>
 
-                          <div className="text-center px-1 border-x border-border">
-                            <span className="text-sm font-bold text-primary uppercase block">Factor</span>
-                            <Badge variant="default" className="bg-primary/15 text-primary border-primary/30 font-mono font-black text-sm px-1.5 py-0">
+                          <div className="min-w-0 rounded-lg bg-background/45 p-2 text-center sm:border-x sm:border-border sm:bg-transparent sm:px-1 sm:py-0">
+                            <span className="block text-xs font-bold uppercase text-primary sm:text-sm">Factor</span>
+                            <Badge variant="default" className="mt-1 max-w-full border-primary/30 bg-primary/15 px-1.5 py-0 font-mono text-sm font-black text-primary">
                               ×{costIndex.toFixed(4)}
                             </Badge>
                           </div>
 
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 uppercase block leading-snug">Transformada</span>
-                            <span className="text-sm font-mono font-black text-emerald-600 dark:text-emerald-400 block break-words">
+                          <div className="col-span-2 min-w-0 rounded-lg border-t border-border px-2 pt-2 text-left sm:col-span-1 sm:border-0 sm:px-0 sm:pt-0 sm:text-right">
+                            <span className="block text-xs font-bold uppercase leading-snug text-emerald-700 dark:text-emerald-400 sm:text-sm">Transformada</span>
+                            <span className="mt-1 block break-words text-base font-black tabular-nums text-emerald-700 dark:text-emerald-400 sm:font-mono sm:text-sm">
                               {transformedVal == null ? 'Pendiente' : `$${transformedVal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
                             </span>
-                            <span className="text-sm text-muted-foreground font-mono block break-words">
+                            <span className="mt-0.5 block break-words text-sm text-muted-foreground">
                               {suggestedPrice == null ? 'Precio sugerido pendiente' : `~$${suggestedPrice.toFixed(2)}/pza`}
                             </span>
                           </div>
@@ -557,18 +663,18 @@ export const FormulasPage: React.FC = () => {
                     </div>
 
                     {/* FOOTER CON BOTONES DE ACCIÓN */}
-                    <div className="p-3 px-4 border-t border-border bg-muted/20 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 border-t border-border bg-muted/20 p-3 sm:px-4">
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="min-h-12 flex-1 gap-1.5 text-base font-bold"
+                        className="min-h-12 min-w-0 flex-1 gap-1.5 whitespace-normal text-sm font-bold leading-tight sm:text-base"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedFormulaDetails(formula);
                         }}
                       >
                         <Icon name="description" size={16} />
-                        Ingredientes y detalles
+                        <span className="text-left">Ingredientes y detalles</span>
                       </Button>
 
                       <PermissionGate permission="extrusion.formulas.manage">
@@ -576,7 +682,7 @@ export const FormulasPage: React.FC = () => {
                           variant="outline"
                           size="sm"
                           aria-label={`Editar configuración de ${formula.name}`}
-                          className="min-h-12 min-w-12 px-3 font-bold text-base text-muted-foreground hover:text-foreground"
+                          className="min-h-12 min-w-[5.5rem] gap-2 px-3 font-bold text-base text-muted-foreground hover:text-foreground sm:min-w-12"
                           title="Editar asignación y parámetros"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -584,6 +690,7 @@ export const FormulasPage: React.FC = () => {
                           }}
                         >
                           <Icon name="edit" size={14} />
+                          <span className="sm:hidden">Editar</span>
                         </Button>
                       </PermissionGate>
                     </div>
@@ -591,6 +698,7 @@ export const FormulasPage: React.FC = () => {
                 );
               })}
             </div>
+            </>
           ) : (
             /* ========================================================= */
             /* VISTA DE LISTA (ESTILO ALMACÉN > CATÁLOGO)               */
@@ -849,8 +957,8 @@ export const FormulasPage: React.FC = () => {
           </div>
 
           {/* BARRA DE FILTROS & BOTÓN NUEVO PTI */}
-          <Card className="shadow-sm border-border bg-card">
-            <CardContent className="flex flex-col items-stretch justify-between gap-3 p-3 sm:p-4 xl:flex-row xl:items-center">
+          <CollapsibleFilterPanel title="Buscar y filtrar PTI" summary={`${filteredPtis.length} de ${ptiProducts.length} fichas · ${ptiStatusFilter === 'ACTIVE' ? 'Activos' : ptiStatusFilter === 'INACTIVE' ? 'Inactivos' : 'Todos los estados'}${ptiSearchTerm ? ` · ${ptiSearchTerm}` : ''}`}>
+            <div className="flex flex-col items-stretch justify-between gap-3 xl:flex-row xl:items-center">
               <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,16rem)] xl:grid-cols-[minmax(16rem,20rem)_minmax(14rem,16rem)_minmax(10rem,12rem)]">
                 <div className="relative min-w-0 w-full">
                   <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10 shrink-0" />
@@ -909,8 +1017,8 @@ export const FormulasPage: React.FC = () => {
                   Nuevo PTI (Carrete)
                 </Button>
               </PermissionGate>
-            </CardContent>
-          </Card>
+            </div>
+          </CollapsibleFilterPanel>
 
           {/* TABLA INDUSTRIAL DE PRODUCTOS PTI */}
           {isPtiLoading ? (

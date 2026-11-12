@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { Printer, RefreshCw } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +61,8 @@ export const ExtrusionReportsPage: React.FC = () => {
       </div>
     </header>
 
-    <section aria-label="Filtros del reporte" className="grid gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_auto] sm:items-end print:hidden">
+    <CollapsibleFilterPanel title="Filtros del reporte" summary={`Periodo ${period} · ${formatDate(range.from_date)} — ${formatDate(range.to_date)}`} className="print:hidden">
+      <div className="grid gap-4 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_auto] sm:items-end">
       <label className="space-y-1 text-sm font-bold">Periodo
         <select value={period} onChange={(event) => setPeriod(event.target.value as Period)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base">
           <option value="day">Diario</option><option value="week">Semanal</option><option value="month">Mensual</option><option value="year">Anual</option>
@@ -70,7 +72,8 @@ export const ExtrusionReportsPage: React.FC = () => {
         <Input type="date" value={referenceDate} onChange={(event) => setReferenceDate(event.target.value)} className="min-h-12 text-base" />
       </label>
       <p className="pb-3 text-sm font-semibold text-muted-foreground">Periodo consultado: {range.from_date} — {range.to_date}</p>
-    </section>
+      </div>
+    </CollapsibleFilterPanel>
 
     <div className="hidden print:block"><h2 className="text-xl font-black">Reporte {period === 'day' ? 'diario' : period === 'week' ? 'semanal' : period === 'month' ? 'mensual' : 'anual'} de Extrusión</h2><p>{formatDate(range.from_date)} — {formatDate(range.to_date)}</p><p>Generado: {report?.generated_at ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(report.generated_at)) : '—'}</p></div>
 

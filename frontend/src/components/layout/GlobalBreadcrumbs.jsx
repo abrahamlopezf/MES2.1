@@ -31,6 +31,8 @@ const ROUTE_DICTIONARY = {
   materials: 'Materiales',
   mixing: 'Mezclado',
   'merma-scrap': 'Merma y scrap',
+  'scrap-control': 'Control de merma y scrap',
+  lotes: 'Lotes',
   new: 'Nuevo',
   orders: 'Órdenes',
   operators: 'Operadores',
@@ -77,8 +79,27 @@ const getBreadcrumbPath = (segments, index) => {
   if (segments[0] === 'warehouse' && ['materials', 'lotes'].includes(segments[1]) && index === 1) {
     return '/warehouse/inventory';
   }
+  if (segments[0] === 'warehouse' && segments[1] === 'materials' && index === 2) {
+    return '/warehouse/inventory';
+  }
 
   if (segments[0] === 'identity' && index === 0) return '/identity/generate';
+  if (segments[0] === 'production' && index === 0) return '/dashboard';
+  if (segments[0] === 'extrusion' && index === 0) {
+    return segments[1] === 'dashboard' ? '/dashboard' : '/extrusion/dashboard';
+  }
+  if (segments[0] === 'production' && segments[1] === 'extrusion' && segments[2] === 'rack' && index === 2) {
+    return '/production/extrusion';
+  }
+  if (segments[0] === 'telares' && index === 0) {
+    return segments[1] === 'dashboard' ? '/production/telares' : '/telares/dashboard';
+  }
+  if (segments[0] === 'globo' && index === 0) {
+    return segments[1] === 'catalogos' ? '/globo/wip' : '/production/globo';
+  }
+  if (segments[0] === 'laminado' && index === 0) {
+    return segments[1] === 'catalogos' ? '/laminado/wip' : '/production/laminado';
+  }
   return `/${segments.slice(0, index + 1).join('/')}`;
 };
 

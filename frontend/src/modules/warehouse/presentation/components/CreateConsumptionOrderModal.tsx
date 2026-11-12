@@ -24,6 +24,7 @@ export interface CreateConsumptionOrderModalProps {
   onClose: () => void;
   initialItems?: PreloadedOdcItem[];
   initialAreaId?: string | number;
+  initialAreaCode?: string;
   initialNotes?: string;
   initialOrderMode?: 'SUELTO' | 'FORMULA';
   initialFormulaId?: string | number;
@@ -417,6 +418,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   onClose,
   initialItems,
   initialAreaId,
+  initialAreaCode,
   initialNotes,
   initialOrderMode,
   initialFormulaId,
@@ -466,7 +468,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const { user } = useAuthStore() as any;
   const [areas, setAreas] = useState<any[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>(
-    initialAreaId ? String(initialAreaId) : (user?.area?.id?.toString() || '')
+    initialAreaId ? String(initialAreaId) : (initialAreaCode ? '' : (user?.area?.id?.toString() || ''))
   );
 
   // Reglas de acceso: Solo SUPERADMIN, ADMIN_GRAL o usuarios con área Extrusión pueden solicitar Por Fórmula
@@ -483,16 +485,12 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const userAreaCode = (user?.area?.code || '').toUpperCase();
 
   const hasExtrusionAreaAssigned =
-    user?.area_id === 2 ||
-    user?.area?.id === 2 ||
     userAreaCode === 'EXTRUSION' ||
     userAreaName.includes('EXTRUSI');
 
   const selectedAreaObj = areas.find((a: any) => a.id.toString() === selectedAreaId);
   const isSelectedAreaExtrusion = Boolean(
-    selectedAreaId === '2' ||
     (selectedAreaObj && (
-      selectedAreaObj.id === 2 ||
       selectedAreaObj.code?.toUpperCase() === 'EXTRUSION' ||
       selectedAreaObj.name?.toUpperCase().includes('EXTRUSI')
     ))
@@ -507,7 +505,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
 
       if (initialAreaId) {
         setSelectedAreaId(String(initialAreaId));
-      } else if (user?.area?.id) {
+      } else if (!initialAreaCode && user?.area?.id) {
         setSelectedAreaId(user.area.id.toString());
       }
 
@@ -556,7 +554,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
       setShowDropdown(false);
       setSelectedFormulaId('');
     }
-  }, [isOpen, initialItems, initialAreaId, initialNotes, initialOrderMode, initialFormulaId]);
+  }, [isOpen, initialItems, initialAreaId, initialAreaCode, initialNotes, initialOrderMode, initialFormulaId]);
 
   useEffect(() => {
     if (isOpen && canUseFormulaMode) {
@@ -609,7 +607,12 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
     try {
       const res = await axiosClient.get('/areas');
       const allAreas = res.data.data || res.data;
-      setAreas(allAreas.filter((a: any) => a.is_active !== false));
+      const activeAreas = allAreas.filter((a: any) => a.is_active !== false);
+      setAreas(activeAreas);
+      if (initialAreaCode) {
+        const matchedArea = activeAreas.find((area: any) => String(area.code || '').toUpperCase() === initialAreaCode.toUpperCase());
+        setSelectedAreaId(matchedArea ? String(matchedArea.id) : '');
+      }
     } catch (err) {
       console.error('Error fetching areas:', err);
     }
@@ -652,7 +655,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
           .sort((a: any, b: any) => Number(b.amount || 0) - Number(a.amount || 0));
         const exactStockSource = stockSources.find((candidate: any) => sameMaterialId(candidate.material_id, item.material_id));
         const selectedSource = stockedCandidates.find((candidate: any) => sameMaterialId(candidate.material_id, item.material_id))
-          || (item.equivalence_tag_id ? stockedCandidates[0] : null);
+          || ((item.equivalence_tag_id || eligibleIds.size > 1) ? stockedCandidates[0] : null);
         const match = selectedSource
           ? { ...selectedSource, material: { ...(inventoryById.get(Number(selectedSource.material_id)) as any)?.material, ...selectedSource.material } }
           : (item.eligible_materials?.length ? exactStockSource : exactMatch);
@@ -734,9 +737,14 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
 
     try {
       setSubmitting(true);
-      const areaIdToSubmit = selectedAreaId 
-        ? parseInt(selectedAreaId) 
-        : (initialAreaId ? parseInt(String(initialAreaId)) : (user?.area?.id || 2));
+      const areaFromCode = initialAreaCode
+        ? areas.find((area: any) => String(area.code || '').toUpperCase() === initialAreaCode.toUpperCase())?.id
+        : undefined;
+      const areaIdToSubmit = areaFromCode
+        ? Number(areaFromCode)
+        : selectedAreaId
+          ? parseInt(selectedAreaId)
+          : (initialAreaId ? parseInt(String(initialAreaId)) : user?.area?.id);
       
       if (!areaIdToSubmit) {
         setSubmitting(false);

@@ -1,14 +1,7 @@
 import { Filter, RotateCcw, Search } from '@/design-system/components/Icon/googleIconCompat';
 
-import {
-  TFButton,
-  TFCard,
-  TFCardContent,
-  TFCardHeader,
-  TFCardTitleGroup,
-  TFInput,
-  TFSelect,
-} from '../../../components/tf-ui';
+import { TFButton, TFInput, TFSelect } from '../../../components/tf-ui';
+import { CollapsibleFilterPanel } from '../../../components/shared/CollapsibleFilterPanel';
 
 import { QR_STATUS_OPTIONS } from '../constants/qrUi';
 
@@ -31,24 +24,12 @@ const QrFiltersPanel = ({
   ];
 
   return (
-    <TFCard>
-      <TFCardHeader>
-        <TFCardTitleGroup
-          eyebrow="Filtros"
-          title="Buscar códigos QR"
-          description="Filtra por código, estado o área asignada."
-        />
-
-        <TFButton
-          variant="secondary"
-          icon={RotateCcw}
-          onClick={onClearFilters}
-        >
-          Limpiar
-        </TFButton>
-      </TFCardHeader>
-
-      <TFCardContent>
+    <CollapsibleFilterPanel
+      title="Buscar códigos QR"
+      description="Filtra por código, estado o área asignada."
+      summary={`${statusFilter || 'Todos los estados'} · ${areaFilter || 'Todas las áreas'}${searchTerm ? ` · ${searchTerm}` : ''}`}
+      actions={<TFButton variant="secondary" icon={RotateCcw} onClick={onClearFilters}>Limpiar</TFButton>}
+    >
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
           <TFInput
             label="Buscar"
@@ -84,8 +65,7 @@ const QrFiltersPanel = ({
             Los filtros ayudan a encontrar códigos rápidamente en operación móvil.
           </span>
         </div>
-      </TFCardContent>
-    </TFCard>
+    </CollapsibleFilterPanel>
   );
 };
 

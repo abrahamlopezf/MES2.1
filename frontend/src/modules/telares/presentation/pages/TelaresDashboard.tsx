@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
@@ -471,7 +472,8 @@ export const TelaresDashboard: React.FC = () => {
       </section>
 
       {/* BARRA DE FILTROS Y BÚSQUEDA */}
-      <div className="flex flex-col items-stretch gap-3 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
+      <CollapsibleFilterPanel title="Buscar y filtrar telares" summary={`${filteredLooms.length} de ${looms.length} telares · ${filterType === 'ALL' ? 'Todos' : filterType === 'CIRCULAR' ? 'Rollo' : filterType === 'BANDA' ? 'Banda' : 'Con WIP'}${searchTerm ? ` · ${searchTerm}` : ''}`}>
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* TABS DE FILTRO */}
         <div role="group" aria-label="Filtrar telares" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Button
@@ -524,6 +526,7 @@ export const TelaresDashboard: React.FC = () => {
           />
         </label>
       </div>
+      </CollapsibleFilterPanel>
 
       {/* GRID INTERACTIVO DE LOS 21 TELARES */}
       {isLoading ? (

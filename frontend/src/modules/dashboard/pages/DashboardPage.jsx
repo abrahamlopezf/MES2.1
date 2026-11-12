@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { Link } from 'react-router-dom';
 import { 
   BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
@@ -296,32 +297,30 @@ const DashboardPage = () => {
 
       </div>
 
-      <section aria-labelledby="dashboard-area-filter-title" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 id="dashboard-area-filter-title" className="text-lg font-black text-foreground">Filtros del tablero</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Selecciona un área o consulta la visión general consolidada.</p>
-          </div>
-          <span className="w-fit rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-muted-foreground">Datos actuales · MXN</span>
-        </div>
-        <div role="group" aria-label="Filtrar dashboard por área" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          {dashboardAreas.map(({ key, title, icon: AreaIcon }) => {
-            const isSelected = selectedArea === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => setSelectedArea(key)}
-                className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-base font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isSelected ? 'border-primary bg-primary text-primary-foreground shadow-sm' : 'border-border bg-background text-foreground hover:bg-muted'}`}
-              >
-                <AreaIcon size={19} aria-hidden="true" />
-                {title}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <CollapsibleFilterPanel
+        title="Filtros del tablero"
+        description="Selecciona un área o consulta la visión general consolidada."
+        summary={`Área actual: ${dashboardAreas.find(({ key }) => key === selectedArea)?.title || 'General'} · Datos actuales en MXN`}
+      >
+            <p className="mb-3 text-sm text-muted-foreground">Selecciona un área o consulta la visión general consolidada.</p>
+            <div role="group" aria-label="Filtrar dashboard por área" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              {dashboardAreas.map(({ key, title, icon: AreaIcon }) => {
+                const isSelected = selectedArea === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedArea(key)}
+                    className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-base font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isSelected ? 'border-primary bg-primary text-primary-foreground shadow-sm' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                  >
+                    <AreaIcon size={19} aria-hidden="true" />
+                    {title}
+                  </button>
+                );
+              })}
+            </div>
+      </CollapsibleFilterPanel>
 
       {selectedArea !== 'GENERAL' && (
         <section aria-labelledby="focused-area-title" aria-live="polite" className="space-y-5">

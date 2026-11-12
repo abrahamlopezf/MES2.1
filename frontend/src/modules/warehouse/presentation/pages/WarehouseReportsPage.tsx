@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { useQuery } from '@tanstack/react-query';
 import axiosClient from '../../../../api/axiosClient';
 import { useAuthStore } from '../../../../store/authStore';
@@ -846,11 +847,7 @@ export const WarehouseReportsPage: React.FC = () => {
         {activeTab === 'MERMA_SCRAP' && (
           <div className="space-y-6">
             {/* Filtros de Tipo de Baja */}
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-card p-4 rounded-2xl border border-border shadow-sm">
-              <div className="flex items-center gap-2">
-                <Filter size={16} className="text-primary" />
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">Filtrar por Clasificación:</span>
-              </div>
+            <CollapsibleFilterPanel title="Filtrar bajas por clasificación" summary={`Clasificación: ${selectedBajaType === 'ALL' ? 'Todos los tipos' : selectedBajaType}`}>
               <div className="flex flex-wrap gap-2">
                 {[
                   { id: 'ALL', label: 'Todos los Tipos' },
@@ -872,7 +869,7 @@ export const WarehouseReportsPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-            </div>
+            </CollapsibleFilterPanel>
 
             {/* KPI Cards de Bajas y Devoluciones */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

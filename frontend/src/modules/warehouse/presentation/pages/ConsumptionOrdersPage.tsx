@@ -5,6 +5,7 @@ import axiosClient from '../../../../api/axiosClient';
 import { useAuthStore } from '../../../../store/authStore';
 import { ConsumptionOrderDetailsModal } from '../components/ConsumptionOrderDetailsModal';
 import { CreateConsumptionOrderModal } from '../components/CreateConsumptionOrderModal';
+import { CollapsibleFilterPanel } from '../../../../components/shared/CollapsibleFilterPanel';
 
 interface Order {
   uuid: string;
@@ -187,11 +188,12 @@ export const ConsumptionOrdersPage: React.FC = () => {
         </section>
 
         {/* Filtros por estado */}
-        <section className="shrink-0 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5" aria-labelledby="consumption-order-filters-title">
-          <div className="mb-3">
-            <h2 id="consumption-order-filters-title" className="text-lg font-bold text-foreground">Filtros de Búsqueda</h2>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">Consulta las órdenes según su estado actual.</p>
-          </div>
+        <CollapsibleFilterPanel
+          title="Filtros de Búsqueda"
+          description="Consulta las órdenes según su estado actual."
+          summary={`${selectedStatus ? `Estado: ${getStatusConfig(selectedStatus).label}` : 'Todos los estados'}${searchTerm ? ` · Búsqueda: ${searchTerm}` : ''}`}
+          className="shrink-0"
+        >
           <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar órdenes por estado">
             {['', 'PENDIENTE', 'PREPARANDO', 'SURTIDA', 'CANCELADA'].map(status => (
               <button
@@ -227,7 +229,7 @@ export const ConsumptionOrdersPage: React.FC = () => {
               Mostrando {filteredOrders.length} de {orders.length} órdenes
             </p>
           </div>
-        </section>
+        </CollapsibleFilterPanel>
 
       <div className="bg-card rounded-2xl shadow-sm border border-border flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto">

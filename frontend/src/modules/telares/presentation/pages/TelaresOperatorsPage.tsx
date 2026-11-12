@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Badge } from '@/design-system';
@@ -260,7 +261,8 @@ export const TelaresOperatorsPage: React.FC = () => {
       </div>
 
       {/* Encabezado de Filtros */}
-      <section className="rounded-2xl border-2 border-slate-700 bg-slate-800 p-4 shadow-lg space-y-3">
+      <CollapsibleFilterPanel title="Buscar y filtrar operadores" summary={`${filteredOperators.length} de ${operators.length} operadores · ${roleFilter === 'ALL' ? 'Todos los roles' : roleFilter === 'SUPERVISOR' ? 'Supervisores' : 'Operadores'} · ${statusFilter === 'ALL' ? 'Todos los estados' : statusFilter === 'ACTIVE' ? 'Activos' : 'Inactivos'}${searchTerm ? ` · ${searchTerm}` : ''}`} className="border-2 border-slate-700 bg-slate-800 shadow-lg">
+        <div className="space-y-3">
           <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_auto]">
           {/* Barra de Búsqueda */}
           <div className="relative flex-1">
@@ -350,7 +352,8 @@ export const TelaresOperatorsPage: React.FC = () => {
             </div>
           </fieldset>
         </div>
-      </section>
+        </div>
+      </CollapsibleFilterPanel>
 
       {/* Tabla de Operadores */}
       <section className="rounded-2xl border-2 border-slate-700 bg-slate-800 shadow-xl overflow-hidden">

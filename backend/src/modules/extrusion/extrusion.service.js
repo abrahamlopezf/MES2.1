@@ -10,7 +10,10 @@ const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const { Op } = sequelize.Sequelize;
 
-const getPausedDraftReservations = async ({ qrIds, materialIds, excludePreparationId, areaId = 2, transaction } = {}) => {
+const getPausedDraftReservations = async ({ qrIds, materialIds, excludePreparationId, areaId, transaction } = {}) => {
+  if (!Number.isInteger(Number(areaId)) || Number(areaId) <= 0) {
+    throw Object.assign(new Error('Se requiere el ID del área para consultar reservas de WIP.'), { statusCode: 409 });
+  }
   const drafts = await ProcessPreparation.findAll({
     where: { status: 'BORRADOR_PAUSADO', from_area_id: Number(areaId) },
     attributes: ['id', 'metadata'],
@@ -94,6 +97,35 @@ const getActiveMaterialIdsForTag = async (tagId, transaction = null) => {
     transaction,
   });
   return activeMaterials.map((material) => Number(material.id));
+};
+
+const normalizeMaterialIdentityName = (name) => String(name || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLocaleUpperCase('es-MX');
+
+// Legacy catalog duplicates can differ by internal consecutive/location while
+// representing the same exact named material. Match conservatively within the
+// same family and base unit; never use fuzzy or partial-name matching.
+const getActiveEquivalentMaterialIdsByName = async (material, transaction = null) => {
+  if (!material?.id || !material?.family_id || !normalizeMaterialIdentityName(material.name)) return material?.id ? [Number(material.id)] : [];
+  const { Material } = require('../../database/models');
+  const candidates = await Material.findAll({
+    where: {
+      family_id: Number(material.family_id),
+      base_unit_id: material.base_unit_id == null ? null : Number(material.base_unit_id),
+      is_active: true,
+    },
+    attributes: ['id', 'name'],
+    transaction,
+  });
+  const identity = normalizeMaterialIdentityName(material.name);
+  return [...new Set(candidates
+    .filter((candidate) => normalizeMaterialIdentityName(candidate.name) === identity)
+    .map((candidate) => Number(candidate.id))
+    .concat(Number(material.id)))];
 };
 
 const getWipQrContext = async (qrIds = []) => {
@@ -261,11 +293,9 @@ class ExtrusionService {
   async mixFormula(payload, userId) {
     return sequelize.transaction(async (transaction) => {
       const { formula_id, output_color, preparation_id, destination_qr_code, container_count = 1, extruder_id, silo_id, silo_inputs = [], inputs, area_id, notes, shift_session_id } = payload;
-      let effectiveAreaId = area_id;
-      if (!effectiveAreaId) {
-        const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION' }, transaction });
-        effectiveAreaId = extrusionArea ? extrusionArea.id : 2;
-      }
+      const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, transaction });
+      if (!extrusionArea) throw Object.assign(new Error('No existe un área activa con código EXTRUSION para preparar la mezcla.'), { statusCode: 409 });
+      const effectiveAreaId = Number(extrusionArea.id);
 
       // 1. Validar Fórmula (soporta tanto Formula oficial como ProcessFormula)
       const { Formula, FormulaIngredient } = require('../../database/models');
@@ -302,7 +332,10 @@ class ExtrusionService {
       const eligibleMaterialIdsByIngredient = new Map();
       if (isOfficialExtrusionFormula) {
         for (const ingredient of formula.ingredients || []) {
-          const materialIds = new Set([Number(ingredient.material_id)]);
+          const materialIds = new Set(isPpFormulaIngredient(ingredient)
+            ? [Number(ingredient.material_id)]
+            : await getActiveEquivalentMaterialIdsByName(ingredient.material, transaction));
+          materialIds.add(Number(ingredient.material_id));
           if (ingredient.equivalence_tag_id) {
             if (!ingredient.equivalenceTag || !ingredient.equivalenceTag.is_active) {
               throw Object.assign(new Error(`La etiqueta de equivalencia del ingrediente ${ingredient.material?.name || ingredient.material_id} está inactiva o ya no existe. Actualiza la fórmula antes de preparar mezclas.`), { statusCode: 409 });
@@ -1136,8 +1169,11 @@ class ExtrusionService {
   }
 
   async getFormulaDetails(id) {
-    const { Formula, FormulaIngredient, Material, WipInventory, QrCode, Lote, ProcessFormula, ProcessFormulaItem } = require('../../database/models');
+    const { Area, Formula, FormulaIngredient, Material, WipInventory, QrCode, Lote, ProcessFormula, ProcessFormulaItem } = require('../../database/models');
     const { Op } = require('sequelize');
+    const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, attributes: ['id'] });
+    if (!extrusionArea) throw Object.assign(new Error('No existe un área activa con código EXTRUSION para consultar su WIP.'), { statusCode: 409 });
+    const extrusionAreaId = Number(extrusionArea.id);
 
     // 1. Buscar en el catálogo oficial de Fórmulas de Extrusión (500kg)
     let formula = await Formula.findByPk(id, {
@@ -1170,7 +1206,8 @@ class ExtrusionService {
 
       for (const ing of ingredients) {
         const mat = ing.material;
-        const eligibleMaterialIds = new Set([Number(ing.material_id)]);
+        const eligibleMaterialIds = new Set(isPpFormulaIngredient(ing) ? [] : await getActiveEquivalentMaterialIdsByName(mat));
+        eligibleMaterialIds.add(Number(ing.material_id));
         if (ing.equivalence_tag_id && ing.equivalenceTag?.is_active) {
           const activeTaggedMaterialIds = await getActiveMaterialIdsForTag(ing.equivalence_tag_id);
           activeTaggedMaterialIds.forEach((materialId) => eligibleMaterialIds.add(materialId));
@@ -1190,10 +1227,10 @@ class ExtrusionService {
         const physicalWipSum = (await WipInventory.sum('amount', {
           where: {
             material_id: { [Op.in]: [...eligibleMaterialIds] },
-            area_id: 2
+            area_id: extrusionAreaId
           }
         })) || 0;
-        const materialReservations = await getPausedDraftReservations({ materialIds: [...eligibleMaterialIds], areaId: 2 });
+        const materialReservations = await getPausedDraftReservations({ materialIds: [...eligibleMaterialIds], areaId: extrusionAreaId });
         const reservedMaterialSum = Number(materialReservations.reduce((sum, row) => sum + row.quantity, 0).toFixed(3));
         const reqQty = Number(ing.quantity || 0);
         const physicalWip = Number(Math.max(0, Number(physicalWipSum) - reservedMaterialSum).toFixed(3));
@@ -1202,7 +1239,7 @@ class ExtrusionService {
         const fifoWipList = await WipInventory.findAll({
           where: {
             material_id: { [Op.in]: [...eligibleMaterialIds] },
-            area_id: 2,
+            area_id: extrusionAreaId,
             amount: { [Op.gt]: 0 }
           },
           include: [{
@@ -1222,7 +1259,7 @@ class ExtrusionService {
           }],
           order: [['created_at', 'ASC']]
         });
-        const reservationRows = fifoWipList.length ? await getPausedDraftReservations({ qrIds: fifoWipList.map((row) => Number(row.qr_code_id)), areaId: 2 }) : [];
+        const reservationRows = fifoWipList.length ? await getPausedDraftReservations({ qrIds: fifoWipList.map((row) => Number(row.qr_code_id)), areaId: extrusionAreaId }) : [];
         const reservedByQr = new Map();
         for (const reservation of reservationRows) {
           const qrId = Number(reservation.source_qr_code_id);
@@ -1308,22 +1345,24 @@ class ExtrusionService {
     const detailedItems = [];
     for (const item of items) {
       const mat = await Material.findByPk(item.material_id);
+      const eligibleMaterialIds = new Set(await getActiveEquivalentMaterialIdsByName(mat));
+      eligibleMaterialIds.add(Number(item.material_id));
       const physicalWipSum = (await WipInventory.sum('amount', {
         where: {
-          material_id: item.material_id,
-          area_id: 2
+          material_id: { [Op.in]: [...eligibleMaterialIds] },
+          area_id: extrusionAreaId
         }
       })) || 0;
 
       const reqQty = Number(item.quantity || 0);
-      const reservationRows = await getPausedDraftReservations({ materialIds: [item.material_id], areaId: 2 });
+      const reservationRows = await getPausedDraftReservations({ materialIds: [...eligibleMaterialIds], areaId: extrusionAreaId });
       const reservedMaterialSum = Number(reservationRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3));
       const physicalWip = Number(Math.max(0, Number(physicalWipSum) - reservedMaterialSum).toFixed(3));
 
       const fifoWipList = await WipInventory.findAll({
         where: {
-          material_id: item.material_id,
-          area_id: 2,
+          material_id: { [Op.in]: [...eligibleMaterialIds] },
+          area_id: extrusionAreaId,
           amount: { [Op.gt]: 0 }
         },
         include: [{
@@ -1377,6 +1416,7 @@ class ExtrusionService {
         ...item.toJSON(),
         material_name: mat ? mat.name : 'Desconocido',
         material_code: mat ? mat.internal_code : '',
+        allowed_material_ids: [...eligibleMaterialIds],
         required_quantity: reqQty,
         available_wip_kg: scannableWip,
         physical_wip_kg: physicalWip,
@@ -1420,7 +1460,10 @@ class ExtrusionService {
       throw error;
     }
 
-    const { QrCode, WipInventory, Material, Lote, Location } = require('../../database/models');
+    const { Area, QrCode, WipInventory, Material, Lote, Location } = require('../../database/models');
+    const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, attributes: ['id'] });
+    if (!extrusionArea) throw Object.assign(new Error('No existe un área activa con código EXTRUSION para validar el WIP.'), { statusCode: 409 });
+    const extrusionAreaId = Number(extrusionArea.id);
     const qr = await QrCode.findOne({ where: { qr_code: cleanQr } });
     if (!qr) {
       const error = new Error(`El código QR '${cleanQr}' no existe en el sistema.`);
@@ -1435,7 +1478,7 @@ class ExtrusionService {
     }
 
     const wip = await WipInventory.findOne({
-      where: { qr_code_id: qr.id, area_id: 2 },
+      where: { qr_code_id: qr.id, area_id: extrusionAreaId },
       include: [
         { model: Material, as: 'material' },
         {
@@ -1449,7 +1492,7 @@ class ExtrusionService {
 
     if (!wip || Number(wip.amount) <= 0) {
       const wipOtherArea = await WipInventory.findOne({ where: { qr_code_id: qr.id } });
-      if (wipOtherArea && wipOtherArea.area_id !== 2) {
+      if (wipOtherArea && Number(wipOtherArea.area_id) !== extrusionAreaId) {
         const error = new Error(`El QR Hijo '${cleanQr}' no ha sido surtido al WIP de Extrusión (se encuentra registrado en otra área).`);
         error.statusCode = 400;
         throw error;
@@ -1459,7 +1502,7 @@ class ExtrusionService {
       throw error;
     }
 
-    const reservations = await getPausedDraftReservations({ qrIds: [qr.id], areaId: 2 });
+    const reservations = await getPausedDraftReservations({ qrIds: [qr.id], areaId: extrusionAreaId });
     const reservedKg = Number(reservations.filter((row) => Number(row.preparation_id) !== Number(preparationId || 0)).reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3));
     const ownReservedKg = Number(reservations.filter((row) => Number(preparationId) > 0 && Number(row.preparation_id) === Number(preparationId)).reduce((sum, row) => sum + Number(row.quantity || 0), 0).toFixed(3));
     const freeKg = Number(Math.max(0, Number(wip.amount) - reservedKg).toFixed(3));
@@ -1500,7 +1543,9 @@ class ExtrusionService {
   async saveMixDraft(payload, userId) {
     const { formula_id, output_color, container_count = 1, extruder_id, inputs = [], notes, area_id, shift_session_id, preparation_id, confirm_inputs_consumed = false } = payload;
     return sequelize.transaction(async (transaction) => {
-      const effectiveAreaId = Number(area_id) || Number((await Area.findOne({ where: { code: 'EXTRUSION' }, transaction }))?.id || 2);
+      const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, transaction });
+      if (!extrusionArea) throw Object.assign(new Error('No existe un área activa con código EXTRUSION para guardar la preparación.'), { statusCode: 409 });
+      const effectiveAreaId = Number(extrusionArea.id);
       const { Formula, FormulaIngredient, Extruder } = require('../../database/models');
       const formula = await Formula.findByPk(formula_id, {
         include: [{ model: FormulaIngredient, as: 'ingredients', include: [{ model: Material, as: 'material' }, { model: require('../../database/models').Tag, as: 'equivalenceTag' }] }],
@@ -1545,7 +1590,8 @@ class ExtrusionService {
 
       const eligibleMaterialIdsByIngredient = new Map();
       for (const ingredient of formula.ingredients || []) {
-        const eligibleIds = new Set([Number(ingredient.material_id)]);
+        const eligibleIds = new Set(await getActiveEquivalentMaterialIdsByName(ingredient.material, transaction));
+        eligibleIds.add(Number(ingredient.material_id));
         if (ingredient.equivalence_tag_id) {
           if (!ingredient.equivalenceTag?.is_active || !isFormulaEquivalenceTag(ingredient.equivalenceTag)) {
             throw Object.assign(new Error(`La equivalencia del ingrediente ${ingredient.material?.name || ingredient.id} no está activa o no es válida.`), { statusCode: 409 });
@@ -1711,7 +1757,9 @@ class ExtrusionService {
   async getPausedMixDrafts(areaId) {
     const where = { status: 'BORRADOR_PAUSADO' };
     const extrusionArea = areaId ? null : await Area.findOne({ where: { code: 'EXTRUSION' } });
-    where.from_area_id = Number(areaId || extrusionArea?.id || 2);
+    const expectedAreaId = Number(areaId || extrusionArea?.id);
+    if (!Number.isInteger(expectedAreaId) || expectedAreaId <= 0) throw Object.assign(new Error('No existe el área Extrusión para consultar preparaciones pausadas.'), { statusCode: 409 });
+    where.from_area_id = expectedAreaId;
     const drafts = await ProcessPreparation.findAll({ where, order: [['updated_at', 'DESC']], limit: 50 });
     const { Formula } = require('../../database/models');
     return Promise.all(drafts.filter((draft) => draft.metadata?.kind === 'EXTRUSION_MIX_DRAFT').map(async (draft) => {
@@ -1733,7 +1781,8 @@ class ExtrusionService {
   async discardMixDraft(draftId, areaId, userId) {
     return sequelize.transaction(async (transaction) => {
       const extrusionArea = areaId ? null : await Area.findOne({ where: { code: 'EXTRUSION' }, transaction });
-      const expectedAreaId = Number(areaId || extrusionArea?.id || 2);
+      const expectedAreaId = Number(areaId || extrusionArea?.id);
+      if (!Number.isInteger(expectedAreaId) || expectedAreaId <= 0) throw Object.assign(new Error('No existe el área Extrusión para descartar la preparación pausada.'), { statusCode: 409 });
       const draft = await ProcessPreparation.findByPk(Number(draftId), { transaction, lock: transaction.LOCK.UPDATE });
       if (!draft || draft.status !== 'BORRADOR_PAUSADO' || draft.metadata?.kind !== 'EXTRUSION_MIX_DRAFT' || Number(draft.from_area_id) !== expectedAreaId) {
         throw Object.assign(new Error('La preparación pausada no existe o no pertenece a Extrusión.'), { statusCode: 404 });
@@ -5719,7 +5768,9 @@ class ExtrusionService {
   }
 
   async getWipQrLabelsForPdf(uuids = []) {
-    const { WipInventory, Material, QrCode } = require('../../database/models');
+    const { Area, WipInventory, Material, QrCode } = require('../../database/models');
+    const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, attributes: ['id'] });
+    if (!extrusionArea) throw Object.assign(new Error('No existe un área activa con código EXTRUSION para descargar sus QR WIP.'), { statusCode: 409 });
     if (!Array.isArray(uuids)) {
       throw Object.assign(new Error('La selección de QR debe enviarse como una lista.'), { statusCode: 400 });
     }
@@ -5729,7 +5780,7 @@ class ExtrusionService {
     }
     const { Op } = sequelize.Sequelize;
     const rows = await WipInventory.findAll({
-      where: { area_id: 2, amount: { [Op.gt]: 0 } },
+      where: { area_id: Number(extrusionArea.id), amount: { [Op.gt]: 0 } },
       include: [
         { model: Material, as: 'material', attributes: ['id', 'name', 'internal_code'], required: true },
         {

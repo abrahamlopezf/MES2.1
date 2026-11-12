@@ -9,6 +9,7 @@ import ErrorState from '../../../components/feedback/ErrorState';
 import Input from '../../../components/ui/Input';
 import LoadingState from '../../../components/feedback/LoadingState';
 import Select from '../../../components/ui/Select';
+import { CollapsibleFilterPanel } from '../../../components/shared/CollapsibleFilterPanel';
 
 import { includesNormalized } from '../../../utils/filters';
 import { getAreasRequest } from '../services/areasApi';
@@ -133,16 +134,12 @@ const AreasPage = () => {
             />
           )}
 
-          <section className="filter-panel">
-            <div className="filter-panel-header">
-              <div>
-                <h3>Buscar y filtrar áreas</h3>
-                <p>
-                  Puedes buscar por nombre, código o descripción.
-                </p>
-              </div>
-
-              {hasActiveFilters && (
+          <CollapsibleFilterPanel
+            title="Buscar y filtrar áreas"
+            description="Puedes buscar por nombre, código o descripción."
+            summary={hasActiveFilters ? 'Hay filtros aplicados' : 'Sin filtros adicionales'}
+            className="filter-panel"
+            actions={hasActiveFilters && (
                 <Button
                   variant="secondary"
                   icon={FilterX}
@@ -151,7 +148,7 @@ const AreasPage = () => {
                   Limpiar filtros
                 </Button>
               )}
-            </div>
+          >
 
             <div className="filter-grid filter-grid-2">
               <Input
@@ -180,7 +177,7 @@ const AreasPage = () => {
               Mostrando <strong>{filteredAreas.length}</strong> de{' '}
               <strong>{areas.length}</strong> áreas.
             </div>
-          </section>
+          </CollapsibleFilterPanel>
 
           {!filteredAreas.length ? (
             <EmptyState

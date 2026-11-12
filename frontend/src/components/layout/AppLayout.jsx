@@ -20,6 +20,26 @@ const AppLayout = () => {
     const viewport = window.visualViewport;
     const root = document.documentElement;
 
+    const markDialogPanels = () => {
+      document.querySelectorAll('[role="dialog"], [aria-modal="true"]').forEach((panel) => {
+        panel.setAttribute('data-keyboard-aware-panel', '');
+
+        let ancestor = panel.parentElement;
+        while (ancestor && ancestor !== document.body) {
+          const classes = ancestor.classList;
+          if (classes?.contains('fixed') && (classes.contains('inset-0') || classes.contains('inset-x-0'))) {
+            ancestor.setAttribute('data-keyboard-aware-overlay', '');
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
+      });
+    };
+
+    const dialogObserver = new MutationObserver(markDialogPanels);
+    dialogObserver.observe(document.body, { childList: true, subtree: true });
+    markDialogPanels();
+
     const syncVisualViewport = () => {
       const visibleHeight = viewport?.height ?? window.innerHeight;
       const visibleTop = viewport?.offsetTop ?? 0;
@@ -40,6 +60,7 @@ const AppLayout = () => {
       viewport?.removeEventListener('resize', syncVisualViewport);
       viewport?.removeEventListener('scroll', syncVisualViewport);
       window.removeEventListener('resize', syncVisualViewport);
+      dialogObserver.disconnect();
       root.classList.remove('mobile-keyboard-open');
       root.style.removeProperty('--mobile-visual-viewport-height');
       root.style.removeProperty('--mobile-visual-viewport-top');

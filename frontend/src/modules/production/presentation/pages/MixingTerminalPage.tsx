@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/core/api/apiClient';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Icon, Input } from '@/design-system';
@@ -366,16 +367,14 @@ export const MixingTerminalPage: React.FC = () => {
               </CardHeader>
 
               {/* Filtros separados del encabezado para que sean fáciles de localizar */}
-              <div className="border-b border-border bg-background/30 p-4 sm:p-5">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-2.5">
-                    <Icon name="filter_list" size={20} className="mt-0.5 shrink-0 text-primary" />
-                    <div>
-                      <p className="text-base font-bold text-foreground">Filtrar historial</p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">Filtra por fórmula o periodo y ordena las preparaciones.</p>
-                    </div>
-                  </div>
-                  {hasActiveFilters && (
+              <CollapsibleFilterPanel
+                variant="plain"
+                title="Filtrar historial"
+                description="Filtra por fórmula o periodo y ordena las preparaciones."
+                summary={`${historyFormulaFilter === 'ALL' ? 'Todas las fórmulas' : 'Fórmula seleccionada'} · ${historySortOrder === 'DESC' ? 'Más recientes' : 'Más antiguas'}${historyDateFrom || historyDateTo ? ' · Rango de fechas' : ''}`}
+                className="border-b border-border bg-background/30 p-4 sm:p-5"
+                contentClassName="mt-0 border-0 pt-4"
+                actions={hasActiveFilters && (
                     <Button
                       variant="outline"
                       onClick={handleResetFilters}
@@ -384,8 +383,8 @@ export const MixingTerminalPage: React.FC = () => {
                       <Icon name="filter_alt_off" size={16} />
                       <span>Limpiar filtros</span>
                     </Button>
-                  )}
-                </div>
+                )}
+              >
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {/* 1. Filtro por Fórmula */}
@@ -465,7 +464,7 @@ export const MixingTerminalPage: React.FC = () => {
                     />
                   </div>
                 </div>
-              </div>
+              </CollapsibleFilterPanel>
 
               <CardContent className="p-0">
                 {isLoadingHistory ? (

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { FilterX, Search, Filter, ChevronDown, ChevronUp, LayoutGrid, List } from '@/design-system/components/Icon/googleIconCompat';
+import { useState, useEffect } from 'react';
+import { FilterX, Search, Filter, LayoutGrid, List } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
 import { TFSelect } from '../../../components/tf-ui';
+import { CollapsibleFilterPanel } from '../../../components/shared/CollapsibleFilterPanel';
 
 import {
     MATERIAL_STATUS_OPTIONS,
-    MATERIAL_TYPE_OPTIONS,
     MATERIAL_UNIT_OPTIONS,
 } from '../constants/materialsUi';
 
@@ -28,8 +28,6 @@ const MaterialFiltersPanel = ({
     }));
 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
-
-    const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
         setSearchTerm(filters.search || '');
@@ -56,48 +54,30 @@ const MaterialFiltersPanel = ({
         (filters.status && filters.status !== 'active')
     );
 
-    return (
-        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-border pb-3">
-                <div>
-                    <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
-                    <p className="text-sm text-muted-foreground font-semibold">Encuentra materiales por código o ranking.</p>
-                </div>
-                <div className="flex w-full md:w-auto gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="font-bold flex-1 sm:flex-none justify-center md:hidden">
-                        {isExpanded ? <ChevronUp className="w-4 h-4 mr-2 shrink-0" /> : <ChevronDown className="w-4 h-4 mr-2 shrink-0" />}
-                        <span>{isExpanded ? 'Ocultar Filtros' : 'Filtros Avanzados'}</span>
-                    </Button>
-                    {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold flex-1 sm:flex-none justify-center">
-                            <FilterX className="w-4 h-4 mr-2 shrink-0" />
-                            <span>Limpiar Filtros</span>
-                        </Button>
-                    )}
-                    {setViewMode && (
-                        <div className="hidden md:flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0 ml-auto md:ml-2">
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                                title="Vista de lista"
-                            >
-                                <List size={18} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                                title="Vista de tarjetas"
-                            >
-                                <LayoutGrid size={18} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
+    const filterSummary = [
+        filters.search ? `Búsqueda: “${filters.search}”` : null,
+        filters.family_uuid ? 'Familia seleccionada' : null,
+        filters.material_type ? 'Tipo seleccionado' : null,
+        filters.default_unit ? 'Unidad seleccionada' : null,
+        filters.tag ? 'Etiquetas seleccionadas' : null,
+        filters.status === 'all' ? 'Todos los estados' : filters.status === 'inactive' ? 'Solo inactivos' : null,
+    ].filter(Boolean).join(' · ') || 'Sin filtros adicionales';
 
-            <div className="flex flex-col gap-4">
+    return (
+        <CollapsibleFilterPanel
+            title="Filtros de Búsqueda"
+            description="Encuentra materiales por código o ranking."
+            summary={filterSummary}
+            className="mb-4"
+            actions={<>
+                {hasActiveFilters && <Button variant="ghost" size="sm" onClick={onClearFilters} className="min-h-11 text-muted-foreground hover:text-foreground font-bold"><FilterX className="mr-2 size-4 shrink-0" />Limpiar filtros</Button>}
+                {setViewMode && <div className="hidden items-center gap-1 rounded-md bg-secondary/50 p-1 md:flex">
+                    <button type="button" onClick={() => setViewMode('list')} aria-pressed={viewMode === 'list'} aria-label="Vista de lista" className={`flex min-h-10 min-w-10 items-center justify-center rounded-sm text-sm transition-colors ${viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><List size={18} /></button>
+                    <button type="button" onClick={() => setViewMode('grid')} aria-pressed={viewMode === 'grid'} aria-label="Vista de tarjetas" className={`flex min-h-10 min-w-10 items-center justify-center rounded-sm text-sm transition-colors ${viewMode === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><LayoutGrid size={18} /></button>
+                </div>}
+            </>}
+        >
+            <div className="space-y-4">
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
@@ -108,10 +88,10 @@ const MaterialFiltersPanel = ({
                     />
                 </div>
 
-                <div className={`${isExpanded ? 'grid' : 'hidden'} md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`}>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
                     {setViewMode && (
-                        <div className="md:hidden col-span-1 sm:col-span-2 flex items-center justify-between bg-secondary/30 p-2 rounded-xl border border-input">
+                        <div className="col-span-1 flex items-center justify-between rounded-xl border border-input bg-secondary/30 p-2 sm:col-span-2 md:hidden">
                             <span className="text-sm font-bold text-muted-foreground ml-2">Vista de resultados:</span>
                             <div className="flex items-center gap-1 bg-background p-1 rounded-lg border border-border shadow-sm">
                                 <button
@@ -183,9 +163,8 @@ const MaterialFiltersPanel = ({
                     </select>
                 )}
                 </div>
-            </div>
 
-            <div className={`${isExpanded ? 'flex' : 'hidden'} md:flex mt-2 items-start sm:items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-sm font-bold text-foreground border border-border shadow-sm`}>
+            <div className="mt-2 flex items-start gap-3 rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-bold text-foreground shadow-sm sm:items-center">
                 <div className="p-1.5 bg-primary/20 rounded-lg shrink-0 text-primary">
                     <Filter className="w-4 h-4" />
                 </div>
@@ -193,7 +172,8 @@ const MaterialFiltersPanel = ({
                     El catálogo maestro previene capturas libres y estandariza el flujo para la recepción en almacén.
                 </span>
             </div>
-        </section>
+            </div>
+        </CollapsibleFilterPanel>
     );
 };
 

@@ -111,8 +111,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const [isMixingCameraOpen, setIsMixingCameraOpen] = useState(false);
   const [notes, setNotes] = useState('');
 
-  // Consulta de detalles de fórmula con verificación de inventario WIP en Extrusión (Área 2)
-  const { data: formulaDetails, isLoading: loadingDetails, refetch: refetchFormulaDetails } = useFormulaDetails(formulaId);
+  // WIP y disponibilidad se consultan por el área Extrusión resuelta en backend.
+  const { data: formulaDetails, isLoading: loadingDetails, isError: formulaDetailsError, refetch: refetchFormulaDetails } = useFormulaDetails(formulaId);
 
   const formulaItems: any[] = formulaDetails?.items || [];
 
@@ -1343,6 +1343,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
             {/* Tabla de Insumos Requeridos por Fórmula */}
             <div className="p-4 space-y-3">
+              {formulaDetailsError && (
+                <div role="alert" className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+                  <span>No se pudo actualizar el WIP de esta fórmula. Las existencias podrían estar desactualizadas; vuelve a consultar antes de preparar la mezcla.</span>
+                  <Button type="button" variant="outline" onClick={() => refetchFormulaDetails()} className="min-h-11 shrink-0 border-destructive/40 text-destructive">
+                    Reintentar consulta
+                  </Button>
+                </div>
+              )}
               {loadingDetails ? (
                 <div className="py-8 text-center text-muted-foreground flex flex-col items-center gap-2">
                   <Icon name="progress_activity" size={24} className="animate-spin text-primary" />
@@ -1807,8 +1815,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       )}
 
       {/* Footer de Acciones y Guardado */}
-      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 bg-card/95 backdrop-blur rounded-xl border border-border shadow-[0_-8px_24px_rgba(0,0,0,0.22)] p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 lg:static lg:bg-card lg:shadow-sm">
-        {mixingStep === 2 && <div className="flex min-w-0 items-center gap-2 text-sm sm:text-xs">
+      <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex min-w-0 flex-col items-stretch justify-between gap-2.5 rounded-xl border border-border bg-card/95 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.22)] backdrop-blur sm:flex-row sm:items-center sm:p-4 lg:static lg:bg-card lg:shadow-sm">
+        {mixingStep === 2 && <div className="flex min-w-0 items-start gap-2 text-sm sm:items-center sm:text-xs">
           {isBatchBalanced ? (
             <span className="inline-flex items-center gap-1.5 text-emerald-500 font-bold">
               <Icon name="check_circle" size={16} />
@@ -1829,14 +1837,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
           )}
         </div>}
 
-        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+        <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
           {mixingStep === 1 && onCancel && (
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
               disabled={mutation.isPending}
-              className="min-h-12 shrink-0 px-4 font-bold text-sm border-border"
+              className="min-h-12 min-w-0 w-full px-2 text-sm font-bold border-border sm:w-auto sm:px-4"
             >
               Cancelar
             </Button>
@@ -1858,18 +1866,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               disabled={!formulaId || (formulaColorOptions.length > 0 && !selectedColor)}
-              className="min-h-12 min-w-0 flex-1 gap-2 px-4 text-base font-bold shadow-sm sm:flex-none sm:px-6"
+              className="col-span-2 min-h-12 min-w-0 w-full gap-2 px-3 text-base font-bold shadow-sm sm:col-span-1 sm:w-auto sm:px-6"
             >
               Continuar a insumos <Icon name="arrow_forward" size={19} />
             </Button>
           ) : (
             <>
-              <Button type="button" variant="outline" onClick={() => pauseMixDraft(false)} className="min-h-12 shrink-0 gap-2 px-3 text-sm font-bold sm:px-4">
-                <Icon name="pause" size={17} /> Pausar
+              <Button type="button" variant="outline" onClick={() => pauseMixDraft(false)} className="min-h-12 min-w-0 w-full gap-1.5 whitespace-normal px-2 text-sm font-bold leading-tight sm:w-auto sm:gap-2 sm:px-4">
+                <Icon name="pause" size={17} /> <span>Pausar</span>
               </Button>
               {inputs.length > 0 && (
-                <Button type="button" variant="outline" onClick={() => pauseMixDraft(true)} className="min-h-12 shrink-0 gap-2 border-amber-500/40 px-3 text-sm font-bold text-amber-800 hover:bg-amber-500/10 dark:text-amber-200 sm:px-4">
-                  <Icon name="inventory_2" size={17} /> <span className="hidden xl:inline">Pausar y descontar usados</span><span className="xl:hidden">Pausar + descontar</span>
+                <Button type="button" variant="outline" onClick={() => pauseMixDraft(true)} className="min-h-12 min-w-0 w-full gap-1.5 whitespace-normal border-amber-500/40 px-2 text-sm font-bold leading-tight text-amber-800 hover:bg-amber-500/10 dark:text-amber-200 sm:w-auto sm:gap-2 sm:px-4">
+                  <Icon name="inventory_2" size={17} /> <span className="break-words">Pausar + descontar</span>
                 </Button>
               )}
               <Button
@@ -1880,14 +1888,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   setMixingStep(1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="min-h-12 shrink-0 gap-2 px-3 text-sm font-bold sm:px-4"
+                className="min-h-12 min-w-0 w-full gap-1.5 whitespace-normal px-2 text-sm font-bold sm:w-auto sm:gap-2 sm:px-4"
               >
-                <Icon name="arrow_back" size={17} /> <span className="hidden min-[420px]:inline">Configuración</span>
+                <Icon name="arrow_back" size={17} /> <span className="min-[420px]:hidden">Volver</span><span className="hidden min-[420px]:inline">Configuración</span>
               </Button>
               <Button
                 type="submit"
-                disabled={mutation.isPending || loadingFormulas || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
-                className="min-h-12 min-w-0 flex-1 gap-2 px-3 text-sm font-bold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 sm:flex-none sm:px-6 lg:flex-1"
+                disabled={mutation.isPending || loadingFormulas || loadingDetails || formulaDetailsError || !formulaId || (formulaColorOptions.length > 0 && !selectedColor) || !selectedExtruderId || availableExtruders.length === 0 || !hasLinkedActivePti || !isBatchBalanced || (nonPpRequiredKg > 0 && inputs.length === 0)}
+                className="col-span-2 min-h-12 min-w-0 w-full gap-2 px-3 text-sm font-bold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 sm:col-span-1 sm:w-auto sm:px-6 lg:flex-1"
               >
                 {mutation.isPending ? (
                   <><Icon name="progress_activity" size={18} className="animate-spin" /> Registrando…</>
@@ -2235,7 +2243,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         isOpen={isOdcModalOpen}
         onClose={() => setIsOdcModalOpen(false)}
         initialItems={odcInitialItems}
-        initialAreaId={2}
+        initialAreaCode="EXTRUSION"
         initialNotes={odcInitialNotes}
         initialOrderMode="SUELTO"
         formulaName={selectedFormula?.name ? `${selectedFormula.name}${selectedFormula.code ? ` (${selectedFormula.code})` : ''}` : undefined}

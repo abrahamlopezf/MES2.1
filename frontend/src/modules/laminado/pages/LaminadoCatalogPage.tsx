@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -331,7 +332,8 @@ export const LaminadoCatalogPage: React.FC = () => {
       </div>
 
       {/* Filters & Search */}
-      <div className={`p-4 rounded-xl border mb-6 flex flex-col md:flex-row gap-4 justify-between items-center ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+      <CollapsibleFilterPanel title="Buscar y filtrar especificaciones" summary={`${filteredSpecs.length} resultados${filterType !== 'ALL' ? ` · ${filterType}` : ''}${searchTerm ? ` · ${searchTerm}` : ''}`} className={`mb-6 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
@@ -360,6 +362,7 @@ export const LaminadoCatalogPage: React.FC = () => {
           ))}
         </div>
       </div>
+      </CollapsibleFilterPanel>
 
       {/* Grid of Specifications */}
       {specsError ? (

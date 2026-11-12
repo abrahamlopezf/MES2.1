@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FilterX, Search, LayoutGrid, List } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '../../../design-system';
 import { Input } from '../../../design-system/components/Input/Input';
+import { CollapsibleFilterPanel } from '../../../components/shared/CollapsibleFilterPanel';
 
 const SubcatalogFiltersPanel = ({
     filters,
@@ -34,44 +35,44 @@ const SubcatalogFiltersPanel = ({
         (filters?.status && filters?.status !== 'all')
     );
 
+    const filterSummary = [
+        filters?.search ? `Búsqueda: “${filters.search}”` : null,
+        filters?.status === 'active' ? 'Solo activos' : filters?.status === 'inactive' ? 'Solo inactivos' : 'Activos e inactivos',
+    ].filter(Boolean).join(' · ');
+
     return (
-        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
-                <div>
-                    <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
-                    <p className="text-sm text-muted-foreground font-semibold">Encuentra {entityName} por código o nombre.</p>
-                </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-foreground font-bold flex-1 sm:flex-none justify-center">
-                            <FilterX className="w-4 h-4 mr-2 shrink-0" />
-                            <span>Limpiar Filtros</span>
-                        </Button>
-                    )}
-                    {setViewMode && (
-                        <div className="hidden md:flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0 ml-auto">
+        <CollapsibleFilterPanel
+            title="Filtros de Búsqueda"
+            description={`Encuentra ${entityName} por código o nombre.`}
+            summary={filterSummary}
+            className="mb-4"
+            actions={<>
+                {hasActiveFilters && <Button variant="ghost" size="sm" onClick={onClearFilters} className="min-h-11 text-muted-foreground hover:text-foreground font-bold"><FilterX className="mr-2 size-4 shrink-0" />Limpiar filtros</Button>}
+                {setViewMode && <div className="hidden items-center gap-1 rounded-md bg-secondary/50 p-1 md:flex">
                             <button
                                 type="button"
+                                aria-label="Vista de lista"
+                                aria-pressed={viewMode === 'list'}
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                                title="Vista de lista"
+                                className={`flex min-h-10 min-w-10 items-center justify-center rounded-sm text-sm transition-colors ${viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 <List size={18} />
                             </button>
                             <button
                                 type="button"
+                                aria-label="Vista de tarjetas"
+                                aria-pressed={viewMode === 'grid'}
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-sm text-sm flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                                title="Vista de tarjetas"
+                                className={`flex min-h-10 min-w-10 items-center justify-center rounded-sm text-sm transition-colors ${viewMode === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 <LayoutGrid size={18} />
                             </button>
                         </div>
-                    )}
-                </div>
-            </div>
+                }
+            </>}
+        >
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
 
                 {setViewMode && (
                     <div className="md:hidden col-span-1 sm:col-span-2 flex items-center justify-between bg-secondary/30 p-2 rounded-xl border border-input">
@@ -117,7 +118,7 @@ const SubcatalogFiltersPanel = ({
                     <option value="inactive">Solo Inactivos</option>
                 </select>
             </div>
-        </section>
+        </CollapsibleFilterPanel>
     );
 };
 

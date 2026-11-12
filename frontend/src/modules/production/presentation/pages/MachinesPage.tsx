@@ -6,6 +6,7 @@ import { Card, CardContent, Badge, Button, Input, Icon } from '../../../../desig
 import { apiClient } from '../../../../core/api/apiClient';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { isClientFormula } from '@/modules/extrusion/domain/clientFormulaRules';
+import { CollapsibleFilterPanel } from '@/components/shared/CollapsibleFilterPanel';
 
 export const MachinesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -139,8 +140,12 @@ export const MachinesPage = () => {
       </section>
 
       {/* Barra de Búsqueda y Filtros */}
-      <Card className="shadow-sm border-border">
-        <CardContent className="flex w-full flex-col items-stretch justify-between gap-3 p-3 sm:flex-row sm:items-center sm:p-4">
+      <CollapsibleFilterPanel
+        title="Buscar extrusoras"
+        description="Busca por nombre, código o tipo de máquina."
+        summary={`${filteredMachines.length} de ${machines.length} máquinas${searchTerm ? ` · ${searchTerm}` : ''}`}
+      >
+        <div className="flex w-full flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <div className="relative w-full flex-1">
             <Icon name="search" size={19} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <label htmlFor="machine-search" className="sr-only">Buscar extrusora por nombre, código o tipo</label>
@@ -155,8 +160,8 @@ export const MachinesPage = () => {
           <p className="shrink-0 px-1 text-sm font-semibold text-muted-foreground" aria-live="polite">
             {filteredMachines.length} de {machines.length} máquinas
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleFilterPanel>
 
       {/* Grid de Máquinas */}
       {loadingMachines ? (

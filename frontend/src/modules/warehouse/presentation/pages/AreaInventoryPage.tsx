@@ -13,6 +13,7 @@ import axiosClient from '../../../../api/axiosClient';
 import { useAuthStore } from '../../../../store/authStore';
 import { useActiveTagsQuery, useMaterialFamiliesQuery, useRankingsQuery } from '../../../materials/hooks/useMaterialsQueries';
 import { TFSelect } from '../../../../components/tf-ui';
+import { CollapsibleFilterPanel } from '../../../../components/shared/CollapsibleFilterPanel';
 
 export function AreaInventoryPage() {
   const navigate = useNavigate();
@@ -122,20 +123,12 @@ export function AreaInventoryPage() {
         </div>
 
         {/* Filters Panel */}
-        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
-            <div>
-              <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
-              <p className="text-sm text-muted-foreground font-semibold">Encuentra {activeTab === 'existencias' ? 'materiales por código, lote, familia, ranking o etiquetas' : 'órdenes por folio o estado'}.</p>
-            </div>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
-                <FilterX className="w-4 h-4 mr-2 shrink-0" />
-                <span>Limpiar Búsqueda</span>
-              </Button>
-            )}
-          </div>
-
+        <CollapsibleFilterPanel
+          title="Filtros de Búsqueda"
+          description={`Encuentra ${activeTab === 'existencias' ? 'materiales por código, lote, familia, ranking o etiquetas' : 'órdenes por folio o estado'}.`}
+          summary={hasFilters ? 'Hay filtros de área aplicados' : 'Sin filtros adicionales'}
+          actions={hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="min-h-11 text-muted-foreground hover:text-foreground font-bold"><FilterX className="mr-2 size-4 shrink-0" />Limpiar búsqueda</Button>}
+        >
           <div className={`grid gap-4 ${activeTab === 'existencias' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1'}`}>
             <div className="relative w-full">
               {activeTab === 'existencias' ? <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /> : <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
@@ -181,7 +174,7 @@ export function AreaInventoryPage() {
               </>
             )}
           </div>
-        </section>
+        </CollapsibleFilterPanel>
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto">

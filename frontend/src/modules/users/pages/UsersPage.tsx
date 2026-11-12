@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { FilterX, Plus, RefreshCw, Search, ChevronDown, ChevronUp, LayoutGrid, List } from '@/design-system/components/Icon/googleIconCompat';
+import { FilterX, Plus, RefreshCw, Search, LayoutGrid, List } from '@/design-system/components/Icon/googleIconCompat';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 
@@ -30,7 +31,6 @@ const UsersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   // Queries
@@ -253,24 +253,11 @@ const UsersPage: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-          <section className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-sm space-y-0 md:space-y-4">
-            <div 
-              className={`flex justify-between items-center cursor-pointer md:cursor-default ${showFilters ? 'border-b border-border pb-3 mb-4 md:mb-0' : ''} md:border-b md:border-border md:pb-3`}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
-                <div className="md:hidden text-muted-foreground">
-                  {showFilters ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </div>
-              </div>
-              <div className="flex items-center gap-3 ml-auto" onClick={(e) => e.stopPropagation()}>
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={() => clearFilters()} className="text-muted-foreground hover:text-foreground h-8 px-2">
-                    <FilterX className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Limpiar Filtros</span>
-                  </Button>
-                )}
+          <CollapsibleFilterPanel
+            title="Filtros de búsqueda"
+            summary={`${filteredUsers.length} de ${users.length} usuarios${roleFilter ? ' · Rol aplicado' : ''}${statusFilter ? ' · Estado aplicado' : ''}${searchTerm ? ` · ${searchTerm}` : ''}`}
+            actions={<div className="flex items-center gap-2">
+              {hasActiveFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="min-h-11 text-muted-foreground hover:text-foreground"><FilterX className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Limpiar filtros</span></Button>}
                 <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md shrink-0">
                   <button
                       type="button"
@@ -289,10 +276,10 @@ const UsersPage: React.FC = () => {
                       <LayoutGrid size={18} />
                   </button>
                 </div>
-              </div>
-            </div>
+            </div>}
+          >
 
-            <div className={`${showFilters ? 'grid' : 'hidden'} md:grid grid-cols-1 md:grid-cols-12 gap-4 animate-in fade-in slide-in-from-top-2 duration-200`}>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
               <div className="relative md:col-span-12 lg:col-span-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -338,10 +325,10 @@ const UsersPage: React.FC = () => {
               </div>
             </div>
             
-            <div className={`${showFilters ? 'block' : 'hidden'} md:block text-xs text-muted-foreground text-right mt-3 md:mt-0`}>
+            <div className="mt-3 text-right text-xs text-muted-foreground">
               Mostrando <strong>{filteredUsers.length}</strong> de <strong>{users.length}</strong> usuarios.
             </div>
-          </section>
+          </CollapsibleFilterPanel>
 
           {isFormOpen && (
             <UserForm user={selectedUser} roles={roles} onClose={closeForm} />

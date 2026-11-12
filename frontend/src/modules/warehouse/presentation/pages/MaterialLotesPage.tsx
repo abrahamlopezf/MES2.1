@@ -9,6 +9,7 @@ import { ChangeLocationBottomSheet } from '../components/ChangeLocationBottomShe
 import { LoteTraceabilityBottomSheet } from '../components/LoteTraceabilityBottomSheet.container';
 import { useAuthStore } from '../../../../store/authStore';
 import { canViewCosts } from '../../../../utils/authHelpers';
+import { CollapsibleFilterPanel } from '../../../../components/shared/CollapsibleFilterPanel';
 
 const MaterialLotesPageContent = () => {
   const { user } = useAuthStore();
@@ -282,20 +283,13 @@ const MaterialLotesPageContent = () => {
       )}
 
         {/* Filters Panel */}
-        <section className="bg-card p-5 rounded-xl border border-border shadow-sm space-y-4 mb-5">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-3">
-            <div>
-              <h3 className="font-bold text-foreground text-lg">Filtros y Búsqueda</h3>
-              <p className="text-sm text-muted-foreground font-semibold">Encuentra lotes específicos de este material.</p>
-            </div>
-            {(searchQuery || statusFilter !== 'active') && (
-              <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStatusFilter('active'); }} className="text-muted-foreground hover:text-foreground font-bold w-full sm:w-auto justify-center sm:justify-start">
-                <X className="w-4 h-4 mr-2 shrink-0" />
-                <span>Limpiar Filtros</span>
-              </Button>
-            )}
-          </div>
-
+        <CollapsibleFilterPanel
+          title="Filtros y Búsqueda"
+          description="Encuentra lotes específicos de este material."
+          summary={`${statusFilter === 'active' ? 'Solo activos' : statusFilter === 'inactive' ? 'Solo bajas' : 'Todos los estados'}${searchQuery ? ` · Búsqueda: ${searchQuery}` : ''}`}
+          className="mb-5"
+          actions={(searchQuery || statusFilter !== 'active') && <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStatusFilter('active'); }} className="min-h-11 text-muted-foreground hover:text-foreground font-bold"><X className="mr-2 size-4 shrink-0" />Limpiar filtros</Button>}
+        >
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -320,7 +314,7 @@ const MaterialLotesPageContent = () => {
               </select>
             </div>
           </div>
-        </section>
+        </CollapsibleFilterPanel>
 
         {/* === VISTA MOBILE: Cards (oculta en md+) === */}
         <div className="md:hidden flex flex-col gap-3">

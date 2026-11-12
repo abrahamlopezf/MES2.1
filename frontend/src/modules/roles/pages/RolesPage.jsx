@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FilterX, Plus, RefreshCw, Search, ShieldCheck, ChevronDown, ChevronUp } from '@/design-system/components/Icon/googleIconCompat';
+import { FilterX, Plus, RefreshCw, Search, ShieldCheck } from '@/design-system/components/Icon/googleIconCompat';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 
@@ -54,7 +55,6 @@ const RolesPage = () => {
 
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
-  const [showFilters, setShowFilters] = useState(false);
 
   const [selectedRole, setSelectedRole] = useState(null);
   const [roleToDelete, setRoleToDelete] = useState(null);
@@ -224,26 +224,9 @@ const RolesPage = () => {
         {successMessage && <Alert variant="success" title="Operación correcta" message={successMessage} />}
         {error && <Alert variant="danger" title="Revisa la operación" message={error} />}
 
-        <section className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-sm space-y-0 md:space-y-4">
-          <div 
-            className={`flex justify-between items-center cursor-pointer md:cursor-default ${showFilters ? 'border-b border-border pb-3 mb-4 md:mb-0' : ''} md:border-b md:border-border md:pb-3`}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-foreground text-lg">Filtros de Búsqueda</h3>
-              <div className="md:hidden text-muted-foreground">
-                {showFilters ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </div>
-            </div>
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); clearFilters(); }} className="text-muted-foreground hover:text-foreground h-8 px-2">
-                <FilterX className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Limpiar Filtros</span>
-              </Button>
-            )}
-          </div>
+        <CollapsibleFilterPanel title="Filtros de búsqueda" summary={`${filteredRoles.length} de ${roles.length} roles${typeFilter ? ' · Tipo aplicado' : ''}${statusFilter ? ' · Estado aplicado' : ''}${searchTerm ? ` · ${searchTerm}` : ''}`} actions={hasActiveFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="min-h-11 text-muted-foreground hover:text-foreground"><FilterX className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Limpiar filtros</span></Button>}>
 
-          <div className={`${showFilters ? 'grid' : 'hidden'} md:grid grid-cols-1 md:grid-cols-12 gap-4 animate-in fade-in slide-in-from-top-2 duration-200`}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
               <div className="relative md:col-span-12 lg:col-span-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -279,10 +262,10 @@ const RolesPage = () => {
             </div>
           </div>
           
-          <div className={`${showFilters ? 'block' : 'hidden'} md:block text-xs text-muted-foreground text-right font-medium mt-3 md:mt-0`}>
+          <div className="mt-3 text-right text-xs font-medium text-muted-foreground">
             Mostrando <strong>{filteredRoles.length}</strong> de <strong>{roles.length}</strong> roles.
           </div>
-        </section>
+        </CollapsibleFilterPanel>
 
         {isFormOpen && (
           <RoleForm

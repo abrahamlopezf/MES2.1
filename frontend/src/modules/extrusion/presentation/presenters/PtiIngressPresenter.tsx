@@ -1,4 +1,5 @@
 import React from 'react';
+import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import {
   Boxes,
   QrCode,
@@ -1006,7 +1007,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {activeTab === 'RACKS' && (
         <div id="pti-panel-racks" role="tabpanel" aria-labelledby="pti-tab-racks" tabIndex={0} className="space-y-5 animate-in fade-in duration-150 focus-visible:outline-none lg:pr-16">
           {/* Barra de Filtros y Búsqueda */}
-          <div className="bg-card border border-border p-4 rounded-2xl flex flex-col gap-3 shadow-sm 2xl:flex-row 2xl:items-center 2xl:justify-between">
+          <CollapsibleFilterPanel title="Buscar y filtrar racks" summary={`${filteredRacks.length} racks · ${rackFilter === 'ALL' ? 'Todos' : rackFilter === 'VACIO' ? 'Libres' : rackFilter === 'DISPONIBLE' ? 'En uso' : 'Llenos'}${rackSearch ? ` · ${rackSearch}` : ''}`}>
+            <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <Button
                 variant={rackFilter === 'ALL' ? 'default' : 'outline'}
@@ -1072,7 +1074,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 <Download className="h-3.5 w-3.5" /> Descargar QRs ({selectedRackIds.length})
               </Button>
             </div>
-          </div>
+            </div>
+          </CollapsibleFilterPanel>
 
           {/* Grid de Racks */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">

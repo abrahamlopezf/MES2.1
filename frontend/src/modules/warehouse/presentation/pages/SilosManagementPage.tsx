@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '../../../../core/api/apiClient';
 import { Badge, Button, Input, Icon } from '../../../../design-system';
+import { CollapsibleFilterPanel } from '../../../../components/shared/CollapsibleFilterPanel';
 import { useAuthStore } from '../../../../store/authStore';
 import { canViewCosts } from '../../../../utils/authHelpers';
 import { useActiveTagsQuery } from '../../../materials/hooks/useMaterialsQueries';
@@ -677,7 +678,13 @@ export const SilosManagementPage: React.FC = () => {
       </div>
 
       {/* 5. Buscador y Filtros */}
-      <div className="flex items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border shadow-xs">
+      <CollapsibleFilterPanel
+        title="Buscar silos"
+        description="Busca por código, nombre o material."
+        summary={`${filteredSilos.length} de ${silos.length} silos${searchTerm ? ` · ${searchTerm}` : ''}`}
+        className="p-3 sm:p-4"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
           <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -687,10 +694,11 @@ export const SilosManagementPage: React.FC = () => {
             className="pl-10 !h-10 text-xs sm:text-sm font-semibold bg-background"
           />
         </div>
-        <div className="text-xs font-bold text-muted-foreground">
+        <div className="mt-3 text-sm font-semibold text-muted-foreground sm:mt-0">
           Mostrando {filteredSilos.length} de {silos.length} silos
         </div>
-      </div>
+        </div>
+      </CollapsibleFilterPanel>
 
       {/* 6. Listado de Silos (Tarjetas Industriales de Alto Impacto) */}
       {loadingSilos ? (

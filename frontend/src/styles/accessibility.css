@@ -16,7 +16,6 @@ textarea {
 
 button:not([data-close-button]):not([data-sonner-toast] button):not(.sonner-close-button):not([data-ignore-accessibility-min-height]) {
   min-height: 52px;
-  padding: 12px 22px;
   border-radius: var(--radius-md);
   cursor: pointer;
 }
@@ -25,7 +24,6 @@ input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
   min-height: 52px;
-  padding: 12px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
 }
@@ -62,6 +60,21 @@ a:focus {
 }
 
 @media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  [data-keyboard-aware-panel] {
+    box-sizing: border-box;
+  }
+
   .extrusion-workspace[class~="gap-6"] {
     gap: 1rem;
   }
