@@ -195,6 +195,35 @@ body.global-modal-open #root * {
   transition: none !important;
 }
 
+/* Mantiene las hojas de formulario dentro del viewport visible cuando aparece
+   el teclado virtual en teléfonos. El área de captura se puede desplazar y el
+   teclado no tapa el campo activo ni las acciones fijas. */
+html.mobile-keyboard-open [data-keyboard-aware-overlay] {
+  top: var(--mobile-visual-viewport-top, 0px);
+  bottom: auto;
+  height: var(--mobile-visual-viewport-height, 100dvh);
+}
+
+html.mobile-keyboard-open [data-keyboard-aware-panel] {
+  max-height: calc(var(--mobile-visual-viewport-height, 100dvh) - 0.5rem);
+}
+
+html.mobile-keyboard-open [data-keyboard-aware-panel] .overflow-y-auto {
+  min-height: 0;
+  overscroll-behavior: contain;
+  scroll-padding-block: 1rem;
+}
+
+html.mobile-keyboard-open [data-keyboard-aware-panel] input:focus,
+html.mobile-keyboard-open [data-keyboard-aware-panel] select:focus,
+html.mobile-keyboard-open [data-keyboard-aware-panel] textarea:focus {
+  scroll-margin-block: 1rem;
+}
+
+html.mobile-keyboard-open [data-keyboard-aware-panel] .sticky.bottom-0 {
+  display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto;

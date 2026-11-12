@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { GlobalScannerModal } from '../../modules/identity/presentation/context/GlobalScannerModal';
 import { ForceChangePasswordModal } from '../../modules/auth/components/ForceChangePasswordModal';
@@ -16,6 +16,36 @@ const AppLayout = () => {
   const { user } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = document.documentElement;
+
+    const syncVisualViewport = () => {
+      const visibleHeight = viewport?.height ?? window.innerHeight;
+      const visibleTop = viewport?.offsetTop ?? 0;
+      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      const keyboardIsOpen = isMobile && Boolean(viewport) && window.innerHeight - visibleHeight > 120;
+
+      root.style.setProperty('--mobile-visual-viewport-height', `${visibleHeight}px`);
+      root.style.setProperty('--mobile-visual-viewport-top', `${visibleTop}px`);
+      root.classList.toggle('mobile-keyboard-open', keyboardIsOpen);
+    };
+
+    syncVisualViewport();
+    viewport?.addEventListener('resize', syncVisualViewport);
+    viewport?.addEventListener('scroll', syncVisualViewport);
+    window.addEventListener('resize', syncVisualViewport);
+
+    return () => {
+      viewport?.removeEventListener('resize', syncVisualViewport);
+      viewport?.removeEventListener('scroll', syncVisualViewport);
+      window.removeEventListener('resize', syncVisualViewport);
+      root.classList.remove('mobile-keyboard-open');
+      root.style.removeProperty('--mobile-visual-viewport-height');
+      root.style.removeProperty('--mobile-visual-viewport-top');
+    };
+  }, []);
+
   const handleNav = (path) => {
     navigate(path);
   };
@@ -31,8 +61,8 @@ const AppLayout = () => {
     {
       icon: <Icon name="grid_view" size={24} />,
       label: 'Áreas',
-      onClick: () => setIsSidebarOpen(true),
-      isActive: false,
+      onClick: () => handleNav('/areas'),
+      isActive: location.pathname === '/areas' || location.pathname.startsWith('/areas/'),
       show: true,
     },
     {

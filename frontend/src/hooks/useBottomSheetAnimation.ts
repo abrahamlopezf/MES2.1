@@ -24,6 +24,20 @@ export const useBottomSheetAnimation = (isOpen: boolean, duration: number = 700)
     }
   }, [isOpen, duration]);
 
+  useEffect(() => {
+    if (!isRendered || !sheetRef.current) return;
+
+    const sheet = sheetRef.current;
+    const overlay = sheet.parentElement;
+    sheet.setAttribute('data-keyboard-aware-panel', '');
+    overlay?.setAttribute('data-keyboard-aware-overlay', '');
+
+    return () => {
+      sheet.removeAttribute('data-keyboard-aware-panel');
+      overlay?.removeAttribute('data-keyboard-aware-overlay');
+    };
+  }, [isRendered]);
+
   const handleTouchStart = (e: any) => {
     setStartY(e.touches[0].clientY);
   };

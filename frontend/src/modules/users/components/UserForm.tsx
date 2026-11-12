@@ -165,7 +165,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
 
   return createPortal(
     <div 
-      className={`fixed inset-0 z-50 flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed inset-0 z-[9999] flex flex-col justify-end transition-opacity duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] sm:items-center sm:justify-center sm:p-6 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
       style={{ isolation: 'isolate' }}
     >
       <div 
@@ -176,7 +176,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
 
       <div
         ref={sheetRef}
-        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`relative w-full bg-card rounded-t-3xl border-t border-border flex flex-col overflow-hidden max-h-[95dvh] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] transform sm:max-w-5xl sm:rounded-2xl sm:border sm:shadow-2xl sm:max-h-[min(92dvh,56rem)] ${animateIn && currentY === 0 ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ transform: currentY > 0 ? `translateY(${currentY}px)` : undefined }}
       >
         {/* Drag Handle */}
@@ -199,8 +199,10 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles = [], onClose }) => {
             </p>
           </div>
           <button 
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors bg-secondary/50 self-start"
+            aria-label="Cerrar formulario de usuario"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors bg-secondary/50 self-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X size={18} />
           </button>
