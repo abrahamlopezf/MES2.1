@@ -50,10 +50,10 @@ test('a stale open shift is reconciled, then hands off to the current operating 
 
 test('a stale open shift on Thursday hands off to the next operating day without reopening a stale slot', () => {
   assert.deepEqual(getShiftHandoffSuggestion({
-    today: '2026-11-13',
+    today: '2026-11-20',
     session: { shift_date: '2026-11-12', shift_code: 'TURNO_2' },
   }), {
-    shift_date: '2026-11-16', shift_code: 'TURNO_1', auto_start: false, reason: 'DIA_NO_OPERATIVO',
+    shift_date: '2026-11-23', shift_code: 'TURNO_1', auto_start: false, reason: 'DIA_NO_OPERATIVO',
   });
 });
 

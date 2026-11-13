@@ -16,7 +16,14 @@ const isAllowedShiftDate = (value: string) => {
   // A date input is a calendar date, not a local timestamp. Evaluate it in UTC
   // to avoid timezone/DST shifts changing the weekday used by the shift rule.
   const day = new Date(Date.UTC(year, month - 1, date)).getUTCDay();
-  return day >= 1 && day <= 4;
+  if (day >= 1 && day <= 4) return true;
+  // Local test exception mirrors the backend: allow only today's date while
+  // running the Vite development server. Production keeps Monday–Thursday.
+  if (!import.meta.env.DEV) return false;
+  const todayParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date()).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {} as Record<string, string>);
+  return value === `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
 };
 
 export const ExtrusionShiftSessionPanel: React.FC = () => {

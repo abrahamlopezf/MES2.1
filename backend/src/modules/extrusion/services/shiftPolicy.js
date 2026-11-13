@@ -3,11 +3,22 @@
 const SHIFT_CODES = Object.freeze(['TURNO_1', 'TURNO_2']);
 const SHIFT_MAX_DURATION_MS = 12 * 60 * 60 * 1000;
 
+const getMexicoCityDate = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
 const isOperatingDate = (value) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
   const weekday = date.getUTCDay();
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value && weekday >= 1 && weekday <= 4;
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return false;
+  if (weekday >= 1 && weekday <= 4) return true;
+  // Allow a same-day non-operating date only in local development so today's
+  // workflow can be exercised without changing the production calendar.
+  return process.env.NODE_ENV !== 'production' && value === getMexicoCityDate();
 };
 
 const nextOperatingDate = (value) => {
@@ -83,8 +94,7 @@ const validateExtrusionShift = ({ shiftDate, shiftCode }) => {
   }
   const date = new Date(`${shiftDate}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== shiftDate) return 'La fecha del turno no es válida.';
-  const weekday = date.getUTCDay();
-  if (weekday < 1 || weekday > 4) return 'Extrusión opera de lunes a jueves; selecciona una fecha dentro de esos días.';
+  if (!isOperatingDate(shiftDate)) return 'Extrusión opera de lunes a jueves; selecciona una fecha dentro de esos días.';
   return null;
 };
 
