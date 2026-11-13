@@ -995,6 +995,7 @@ db.GloboSpecificationMaterial.belongsTo(db.GloboSpecification, { foreignKey: 'gl
 db.GloboSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
 
 db.LaminadoSpecification.hasMany(db.LaminadoSpecificationMaterial, { foreignKey: 'laminado_spec_id', as: 'materials' });
+db.CorteLaminadoOrder.belongsTo(db.LaminadoSpecification, { foreignKey: 'target_specification_id', as: 'targetSpecification' });
 db.LaminadoSpecificationMaterial.belongsTo(db.LaminadoSpecification, { foreignKey: 'laminado_spec_id', as: 'specification' });
 db.LaminadoSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
 db.AreaProcessScrapLog.belongsTo(db.Area, { foreignKey: 'area_id', as: 'area' });

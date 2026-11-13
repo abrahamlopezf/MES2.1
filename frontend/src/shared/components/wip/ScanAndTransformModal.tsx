@@ -35,6 +35,7 @@ interface ScanAndTransformModalProps {
       scrap_meters?: number;
       scrap_weight_kg?: number;
       scrap_reason?: string;
+      virgin_qr_code?: string;
       notes?: string;
     }) => Promise<any>;
   };
@@ -67,6 +68,7 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
   const [scrapWeight, setScrapWeight] = useState<string>('');
   const [scrapReason, setScrapReason] = useState('');
   const [notes, setNotes] = useState<string>('');
+  const [outputVirginQr, setOutputVirginQr] = useState('');
 
   // Estado final de éxito
   const [transformedData, setTransformedData] = useState<any>(null);
@@ -79,6 +81,7 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
       setScrapMeters('0');
       setScrapWeight('');
       setScrapReason('');
+      setOutputVirginQr('');
       if (initialQr) {
         handleVerify(initialQr);
       }
@@ -124,6 +127,10 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
       toast.error('Selecciona una especificación válida');
       return;
     }
+    if (area === 'LAMINADO' && !outputVirginQr.trim()) {
+      toast.error('Escanea un QR virgen del lote de Laminado para registrar la salida.');
+      return;
+    }
     const sourceMeters = Number(verificationResult.roll.meters || 0);
     const goodMeters = Number(metersOut);
     const discardedMeters = Number(scrapMeters || 0);
@@ -142,6 +149,7 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
         scrap_meters: discardedMeters,
         scrap_weight_kg: scrapWeight ? Number(scrapWeight) : undefined,
         scrap_reason: scrapReason.trim() || undefined,
+        virgin_qr_code: area === 'LAMINADO' ? outputVirginQr.trim().toUpperCase() : undefined,
         notes: notes || undefined,
       });
 
@@ -393,16 +401,21 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Preview del Nuevo QR que se estampará */}
-                    <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-between">
-                      <span className="text-xs font-black uppercase text-slate-300 flex items-center gap-1.5">
-                        <Sparkles className="h-4 w-4 text-amber-400" />
-                        Nuevo QR que se Asignará a este Rollo:
-                      </span>
-                      <span className="font-mono text-base font-black px-3 py-1 rounded-lg bg-blue-950 text-blue-300 border border-blue-700">
-                        {verificationResult.preview_new_qr}
-                      </span>
-                    </div>
+                    {area === 'LAMINADO' ? (
+                      <div className="space-y-2 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-4">
+                        <label className="text-xs font-black uppercase text-slate-200">QR virgen para el rollo laminado <span className="text-rose-300">*</span></label>
+                        <div className="flex gap-2">
+                          <Input value={outputVirginQr} onChange={(event) => setOutputVirginQr(event.target.value.toUpperCase())} placeholder="Escanea una etiqueta de Laminado" className="min-h-11 font-mono" />
+                          <QrScannerButton title="Escanear QR virgen de Laminado" onScan={(value) => setOutputVirginQr(value.trim().toUpperCase())} />
+                        </div>
+                        <p className="text-xs text-slate-400">La etiqueta solo se consume al confirmar la transformación. Si cancelas o falla el registro, seguirá virgen.</p>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-between">
+                        <span className="text-xs font-black uppercase text-slate-300 flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-amber-400" />Nuevo QR generado:</span>
+                        <span className="font-mono text-base font-black px-3 py-1 rounded-lg bg-blue-950 text-blue-300 border border-blue-700">{verificationResult.preview_new_qr}</span>
+                      </div>
+                    )}
 
                     {/* Transformación de Costo (Visible para Administradores) */}
                     {allowCosts && (
@@ -420,7 +433,7 @@ export const ScanAndTransformModal: React.FC<ScanAndTransformModalProps> = ({
                     {/* Botón de Ejecución de Transformación */}
                     <Button
                       onClick={handleTransform}
-                      disabled={transforming}
+                      disabled={transforming || (area === 'LAMINADO' && !outputVirginQr.trim())}
                       className="w-full h-15 bg-blue-600 hover:bg-blue-700 text-white font-black text-base uppercase tracking-wider rounded-xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 transition-transform active:scale-[0.99]"
                     >
                       {transforming ? (

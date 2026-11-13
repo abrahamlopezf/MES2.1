@@ -3,6 +3,8 @@ module.exports = (sequelize, DataTypes) => sequelize.define('CorteLaminadoOrder'
   order_number: { type: DataTypes.STRING(40), allowNull: false, unique: true },
   status: { type: DataTypes.STRING(24), allowNull: false, defaultValue: 'REQUESTED' },
   requested_by: { type: DataTypes.INTEGER, allowNull: false },
+  target_specification_id: { type: DataTypes.INTEGER, allowNull: true },
+  requested_roll_count: { type: DataTypes.INTEGER, allowNull: true },
   requested_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   notes: { type: DataTypes.TEXT, allowNull: true },
 }, { tableName: 'corte_laminado_orders', timestamps: true, underscored: true });

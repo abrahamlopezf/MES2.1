@@ -10,7 +10,6 @@ const {
   WipInventory,
   Lote,
   QrCode,
-  QrBatch,
   Role,
   Notification,
   Loom,
@@ -20,6 +19,8 @@ const {
   TraceabilityLink,
   TraceabilityMovement,
   CorteLaminadoOrderItem,
+  CorteLaminadoOrder,
+  Area,
 } = require('../../database/models');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const normalizeViajeroQr = require('../../shared/utils/normalizeViajeroQr');
@@ -166,12 +167,16 @@ class LaminadoService {
       transaction,
     });
 
-    const rollsInFloor = rolls.filter((r) => r.current_stage === 'LAMINADO');
     const pickedOrderItems = await CorteLaminadoOrderItem.findAll({
       where: { status: 'PICKED' }, attributes: ['roll_id'], transaction,
     });
     const pickedRollIds = new Set(pickedOrderItems.map((item) => Number(item.roll_id)));
-    const rollsIncoming = rolls.filter((r) => r.current_stage !== 'LAMINADO' && r.next_allowed_stage === 'LAMINADO' && pickedRollIds.has(Number(r.id)));
+    const requestedOrderItems = await CorteLaminadoOrderItem.findAll({ where: { status: 'REQUESTED' }, attributes: ['roll_id'], transaction });
+    const requestedRollIds = new Set(requestedOrderItems.map((item) => Number(item.roll_id)));
+    // A pickup is the custody handoff: these source rolls now belong to Laminado WIP,
+    // even though current_stage remains Telares until the transformation is committed.
+    const rollsInFloor = rolls.filter((r) => r.current_stage === 'LAMINADO' || pickedRollIds.has(Number(r.id)));
+    const rollsIncoming = rolls.filter((r) => r.current_stage !== 'LAMINADO' && requestedRollIds.has(Number(r.id)));
 
     // 2. Materiales de Almacén en Custodia de Laminado (area_id = 4)
     const warehouseWip = await WipInventory.findAll({
@@ -334,6 +339,10 @@ class LaminadoService {
     if (!roll) {
       throw Object.assign(new Error(`El rollo con ID ${roll_id} no existe.`), { statusCode: 404 });
     }
+    if (roll.current_stage === 'TELARES') {
+      const picked = await CorteLaminadoOrderItem.findOne({ where: { roll_id: roll.id, status: 'PICKED' } });
+      if (!picked) throw Object.assign(new Error('Primero Laminado debe confirmar con el QR la recogida del rollo solicitado por Corte.'), { statusCode: 409, code: 'CORTE_ORDER_PICKUP_REQUIRED' });
+    }
     if (!roll.route?.includes('LAMINADO') || roll.next_allowed_stage !== 'LAMINADO') {
       throw Object.assign(new Error('Este rollo no está encaminado a Laminado como siguiente etapa.'), { statusCode: 409, code: 'AREA_NOT_IN_ROUTE' });
     }
@@ -423,6 +432,10 @@ class LaminadoService {
 
     if (!spec.is_active || !rollTransformation.compatibility(spec, roll, 'LAMINADO') || !roll.route?.includes('LAMINADO') || roll.next_allowed_stage !== 'LAMINADO') {
       throw Object.assign(new Error('El rollo no está encaminado a Laminado como siguiente etapa o la especificación no es compatible.'), { statusCode: 409 });
+    }
+    if (roll.current_stage === 'TELARES') {
+      const picked = await CorteLaminadoOrderItem.findOne({ where: { roll_id: roll.id, status: 'PICKED' } });
+      if (!picked) throw Object.assign(new Error('Primero confirma la recogida física del rollo en Laminado.'), { statusCode: 409, code: 'CORTE_ORDER_PICKUP_REQUIRED' });
     }
     const assessment = await rollTransformation.assessWip({ spec, meters: Number(roll.meters), areaId: 4 });
     const requested = new Map(missing_materials.map((item) => [Number(item.material_id), Number(item.missing_kg)]));
@@ -619,7 +632,7 @@ class LaminadoService {
    * - Genera y asigna el NUEVO QR al rollo (${roll_code}-LAM)
    * - Actualiza etapa y Kardex de enrutamiento
    */
-  async transformRoll({ roll_id, specification_id, meters_out, weight_out_kg, scrap_meters = 0, scrap_weight_kg, scrap_reason, operator_id, currentUser = null, notes }) {
+  async transformRoll({ roll_id, specification_id, meters_out, weight_out_kg, scrap_meters = 0, scrap_weight_kg, scrap_reason, virgin_qr_code, operator_id, currentUser = null, notes }) {
     const allowCosts = canViewCosts(currentUser);
 
     return await sequelize.transaction(async (t) => {
@@ -637,11 +650,15 @@ class LaminadoService {
       if (!routeState || !routeState.isNext || !routeState.isAtPreviousStage || roll.status === 'TRANSFORMADO' || !roll.is_active) {
         throw Object.assign(new Error(`El rollo no está autorizado para transformación en LAMINADO. Siguiente etapa oficial: ${roll.next_allowed_stage}`), { statusCode: 400 });
       }
+      let pickedOrderItem = null;
       if (roll.current_stage === 'TELARES') {
-        const pickedOrderItem = await CorteLaminadoOrderItem.findOne({
+        pickedOrderItem = await CorteLaminadoOrderItem.findOne({
           where: { roll_id: roll.id, status: 'PICKED' },
+          include: [{ model: CorteLaminadoOrder, as: 'order' }],
           transaction: t,
-          lock: t.LOCK.UPDATE,
+          // The order is an optional joined association; lock the picked item
+          // only and lock the parent order explicitly when its status changes.
+          lock: { level: t.LOCK.UPDATE, of: CorteLaminadoOrderItem },
         });
         if (!pickedOrderItem) throw Object.assign(new Error('Laminado no puede transformar este rollo hasta que exista una orden de Corte y se confirme su recogida en Telares.'), { statusCode: 409, code: 'CORTE_ORDER_PICKUP_REQUIRED' });
       }
@@ -658,6 +675,9 @@ class LaminadoService {
       });
 
       if (!spec) throw Object.assign(new Error(`La especificación con ID ${specification_id} no existe.`), { statusCode: 404 });
+      if (pickedOrderItem?.order?.target_specification_id && Number(pickedOrderItem.order.target_specification_id) !== Number(spec.id)) {
+        throw Object.assign(new Error(`La orden de Corte solicitó el PTI ${pickedOrderItem.order.target_specification_id}; selecciona la especificación correspondiente.`), { statusCode: 409, code: 'CORTE_ORDER_SPECIFICATION_MISMATCH' });
+      }
       rollTransformation.validateSpecificationPayload(spec.toJSON(), 'LAMINADO');
       if (!spec.is_active || !rollTransformation.compatibility(spec, roll, 'LAMINADO')) {
         throw Object.assign(new Error('La especificación está inactiva o no es compatible con el rollo.'), { statusCode: 409, code: 'SPEC_NOT_COMPATIBLE' });
@@ -680,47 +700,32 @@ class LaminadoService {
       const newTransformedCost = Number(((previousCost + totalStageMaterialCost) * transformationIndex).toFixed(4));
 
       // 3. Generar Nuevo QR para el Rollo Transformado
-      const newQrCodeString = `${roll.roll_code}-LAM`;
+      const newQrCodeString = String(virgin_qr_code || '').trim().toUpperCase();
+      if (!newQrCodeString) throw Object.assign(new Error('Escanea un QR virgen de Laminado para identificar el rollo terminado.'), { statusCode: 400, code: 'LAMINADO_OUTPUT_VIRGIN_QR_REQUIRED' });
       const route = routeState.route;
       const lamIdx = route.indexOf('LAMINADO');
       const nextStage = lamIdx >= 0 && lamIdx + 1 < route.length ? route[lamIdx + 1] : 'TERMINADO';
       const isRouteComplete = nextStage === 'TERMINADO';
 
-      let batch = await QrBatch.findOne({ transaction: t });
-      if (!batch) {
-        batch = await QrBatch.create(
-          {
-            batch_number: 'BATCH-LAM-001',
-            total_qrs: 5000,
-            type: 'LAMINADO_PTI_TRANSFORM',
-            created_by: operator_id || roll.operator_id || 1,
-          },
-          { transaction: t }
-        );
+      const laminadoArea = await Area.findOne({ where: { code: 'LAMINADO' }, transaction: t });
+      const corteArea = await Area.findOne({ where: { code: 'CORTE' }, transaction: t });
+      if (!laminadoArea) throw Object.assign(new Error('No está configurada el área Laminado.'), { statusCode: 500 });
+      const outputArea = nextStage === 'CORTE' ? corteArea : laminadoArea;
+      if (!outputArea) throw Object.assign(new Error('No está configurada el área Corte para recibir el PTI laminado.'), { statusCode: 500 });
+      const qrRecord = await QrCode.findOne({ where: { qr_code: newQrCodeString }, transaction: t, lock: t.LOCK.UPDATE });
+      const virginStatuses = new Set(['UNASSIGNED', 'ASSIGNED', 'GENERATED', 'AVAILABLE']);
+      if (!qrRecord || !qrRecord.is_active || Number(qrRecord.assigned_area_id) !== Number(laminadoArea.id) || !virginStatuses.has(String(qrRecord.status || '').toUpperCase()) || qrRecord.entity_type || qrRecord.entity_id) {
+        throw Object.assign(new Error('El QR escaneado no existe, no está virgen o no pertenece al lote de Laminado. Solicita una etiqueta nueva a Almacén.'), { statusCode: 409, code: 'LAMINADO_OUTPUT_VIRGIN_QR_INVALID' });
       }
-
-      const duplicateQr = await QrCode.findOne({ where: { qr_code: newQrCodeString }, transaction: t, lock: t.LOCK.UPDATE });
-      if (duplicateQr) throw Object.assign(new Error(`El QR ${newQrCodeString} ya existe; se bloqueó la transformación para evitar reutilizarlo.`), { statusCode: 409, code: 'QR_ALREADY_ASSIGNED' });
-      const qrRecord = await QrCode.create(
-          {
-            serial: Date.now() + Math.floor(Math.random() * 100000),
-            qr_code: newQrCodeString,
-            batch_id: batch.id,
-            purpose: 'TRANSFORMED_LAMINADO_PTI',
-            assigned_area_id: 4,
-            status: 'ACTIVE',
-            created_by: operator_id || roll.operator_id || 1,
-            is_active: true,
-          },
-          { transaction: t }
-        );
+      const preexistingTraceable = await TraceableItem.findOne({ where: { qr_code_id: qrRecord.id }, transaction: t, lock: t.LOCK.UPDATE });
+      if (preexistingTraceable) throw Object.assign(new Error('El QR ya tiene trazabilidad y no puede reutilizarse.'), { statusCode: 409, code: 'LAMINADO_OUTPUT_QR_ALREADY_USED' });
 
       const outputTraceable = await TraceableItem.create({
         qr_code_id: qrRecord.id,
         item_type: isRouteComplete ? 'FINISHED_PRODUCT' : 'INTERMEDIATE_PRODUCT',
         product_name: spec.output_product_name,
         origin_area_id: 4,
-        current_area_id: 4,
+        current_area_id: outputArea.id,
         quantity_initial: outWeight,
         quantity_current: outWeight,
         unit: 'KG',
@@ -728,7 +733,7 @@ class LaminadoService {
         metadata: { output_pti_code: spec.output_pti_code, specification_id: spec.id, specification_code: spec.code, meters: outMeters, scrap_meters: scrapMeters },
         created_by: operator_id || null,
       }, { transaction: t });
-      await TraceabilityMovement.create({ traceable_item_id: outputTraceable.id, qr_code_id: qrRecord.id, movement_type: isRouteComplete ? 'FINALIZACION' : 'GENERACION_INTERMEDIA', from_area_id: 4, to_area_id: 4, quantity: outWeight, unit: 'KG', balance_after: outWeight, reference_folio: spec.code, notes: `Generación de PTI ${spec.output_pti_code} en Laminado`, metadata: { output_qr: newQrCodeString, meters: outMeters, specification_code: spec.code }, performed_by: operator_id || null }, { transaction: t });
+      await TraceabilityMovement.create({ traceable_item_id: outputTraceable.id, qr_code_id: qrRecord.id, movement_type: outputArea.code === 'CORTE' ? 'TRANSFERENCIA_AREA' : 'GENERACION_INTERMEDIA', from_area_id: laminadoArea.id, to_area_id: outputArea.id, quantity: outWeight, unit: 'KG', balance_after: outWeight, reference_folio: spec.code, notes: outputArea.code === 'CORTE' ? `PTI laminado entregado a WIP de Corte: ${spec.output_pti_code}` : `Generación de PTI ${spec.output_pti_code} en Laminado`, metadata: { output_qr: newQrCodeString, meters: outMeters, specification_code: spec.code }, performed_by: operator_id || null }, { transaction: t });
       const consumedKg = sourceQrConsumptions.reduce((sum, row) => sum + row.quantity_used_kg, 0);
       for (const source of sourceQrConsumptions) await TraceabilityLink.create({
         parent_traceable_item_id: source.traceable_item_id,
@@ -793,6 +798,7 @@ class LaminadoService {
           next_allowed_stage: nextStage,
           status: isRouteComplete ? 'TRANSFORMADO' : 'DISPONIBLE',
           qr_code: newQrCodeString,
+          virgin_qr_code_id: qrRecord.id,
           meters: outMeters,
           weight_kg: outWeight,
           calculated_roll_cost: newTransformedCost,
@@ -804,8 +810,16 @@ class LaminadoService {
         { status: 'PROCESSED', processed_at: new Date() },
         { where: { roll_id: roll.id, status: 'PICKED' }, transaction: t },
       );
+      await qrRecord.update({ status: 'ACTIVE', assigned_area_id: outputArea.id, current_area_id: outputArea.id, entity_type: 'VIAJERO_ROLL', entity_id: roll.id, used_by: operator_id || null, used_at: new Date() }, { transaction: t });
       if (previousQr) await previousQr.update({ status: 'TRANSFORMED', is_active: false }, { transaction: t });
-      await qrRecord.update({ status: 'ACTIVE', assigned_area_id: 4 }, { transaction: t });
+
+      const completedOrderItems = await CorteLaminadoOrderItem.findAll({ where: { roll_id: roll.id, status: 'PROCESSED' }, attributes: ['order_id'], transaction: t });
+      for (const completedItem of completedOrderItems) {
+        const order = await CorteLaminadoOrder.findByPk(completedItem.order_id, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!order) continue;
+        const unfinished = await CorteLaminadoOrderItem.count({ where: { order_id: order.id, status: { [Op.in]: ['REQUESTED', 'PICKED'] } }, transaction: t });
+        if (unfinished === 0) await order.update({ status: 'PROCESSED' }, { transaction: t });
+      }
 
       // 6. Registrar en Kardex de Enrutamiento
       await ViajeroRoutingLog.create(
@@ -824,6 +838,21 @@ class LaminadoService {
         },
         { transaction: t }
       );
+      if (outputArea.code === 'CORTE') {
+        await ViajeroRoutingLog.create({
+          viajero_roll_id: roll.id,
+          from_stage: 'LAMINADO',
+          to_stage: 'CORTE',
+          area_id: outputArea.id,
+          operator_id,
+          action: 'ENTREGA_WIP_CORTE',
+          meters_in: outMeters,
+          meters_out: outMeters,
+          weight_in_kg: outWeight,
+          weight_out_kg: outWeight,
+          notes: `PTI laminado ${spec.output_pti_code} entregado al WIP de Corte con QR ${newQrCodeString}.`,
+        }, { transaction: t });
+      }
 
       return {
         success: true,
@@ -842,7 +871,7 @@ class LaminadoService {
         new_transformed_cost: allowCosts ? newTransformedCost : null,
         consumed_materials: consumedMaterialsSummary,
         scrap: { processed_meters: processedMeters, good_meters: outMeters, scrap_meters: scrapMeters, scrap_weight_kg: scrap_weight_kg == null ? null : Number(scrap_weight_kg) },
-        message: `✔ Rollo transformado exitosamente en LAMINADO. Nuevo QR asignado: ${newQrCodeString}`,
+        message: outputArea.code === 'CORTE' ? `✔ Rollo laminado y entregado al WIP de Corte. Escanea el nuevo QR ${newQrCodeString}.` : `✔ Rollo transformado exitosamente en LAMINADO. Nuevo QR asignado: ${newQrCodeString}`,
       };
     });
   }

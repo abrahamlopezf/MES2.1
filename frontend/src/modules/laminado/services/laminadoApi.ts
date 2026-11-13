@@ -70,6 +70,7 @@ export const laminadoApi = {
     scrap_meters?: number;
     scrap_weight_kg?: number;
     scrap_reason?: string;
+    virgin_qr_code?: string;
     notes?: string;
   }) => {
     const res = await axiosClient.post('/laminado/wip/transform-roll', payload);

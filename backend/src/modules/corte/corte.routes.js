@@ -9,6 +9,8 @@ router.use(authMiddleware, (req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Corte.' });
 });
 router.get('/laminado-eligible-rolls', controller.eligible);
+router.get('/laminado-wip', controller.laminatedWip);
+router.get('/laminado-demand-options', controller.demandOptions);
 router.get('/laminado-orders', controller.list);
 router.post('/laminado-orders', controller.create);
 router.post('/laminado-orders/:id/cancel', controller.cancel);
