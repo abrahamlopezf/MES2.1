@@ -403,8 +403,8 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="px-5 sm:px-6 py-3 border-t border-border bg-muted/10 shrink-0 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="px-4 sm:px-6 py-3 border-t border-border bg-muted/10 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="w-full sm:w-auto flex flex-wrap items-center justify-between sm:justify-start gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <div>
             Total Solicitado: <strong className="text-foreground text-sm font-black">{totalRequestedKg.toFixed(2)} KG</strong>
           </div>
@@ -414,18 +414,18 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="w-full sm:w-auto flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2">
           <button 
             type="button"
             onClick={onClose}
-            className="h-10 px-4 sm:px-5 bg-background border border-border text-foreground rounded-xl font-bold text-xs sm:text-sm hover:bg-muted transition-colors cursor-pointer"
+            className="w-full sm:w-auto min-h-11 px-4 sm:px-5 bg-background border border-border text-foreground rounded-xl font-bold text-sm hover:bg-muted transition-colors cursor-pointer"
           >
             Cancelar
           </button>
           <button 
             type="submit"
             disabled={submitting || inventoryLoading || Boolean(inventoryLoadError) || items.length === 0 || items.some(i => !i.req_quantity || i.req_quantity <= 0)}
-            className="h-10 px-5 sm:px-6 bg-primary text-primary-foreground rounded-xl font-bold text-xs sm:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto min-h-11 px-4 sm:px-6 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer"
           >
             <Icon name="check_circle" size={17} />
             <span>{submitting ? 'Generando...' : `Generar Orden (${items.length})`}</span>
@@ -646,7 +646,16 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
     try {
       setLoading(true);
       setInventoryLoadError(null);
-      const res = await axiosClient.get('/warehouse/inventory');
+      const requestedMaterialIds = [...new Set((initialItems || []).flatMap((item) => [
+        ...(item.eligible_material_ids || []),
+        ...(item.eligible_materials || []).map((candidate) => candidate.material_id),
+        item.material_id,
+      ]).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+      const res = await axiosClient.get('/warehouse/inventory', {
+        params: requestedMaterialIds.length
+          ? { material_ids: requestedMaterialIds.join(','), limit: 1000 }
+          : { limit: 1000 },
+      });
       const data = res.data.data || res.data;
       const invList = data.items || data || [];
       setInventory(invList);
@@ -662,12 +671,12 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
               const inventoryItem: any = inventoryById.get(Number(candidate.material_id));
               return {
                 material_id: Number(candidate.material_id),
-                // The inventory endpoint is backed by the same FIFO lots used
-                // to fulfill ODCs; use it when present, retaining formula detail
-                // stock only as a fallback if the list omits a zero-stock row.
+                // Use the targeted, lot-backed inventory response as the only
+                // availability source. Missing rows mean zero stock; formula
+                // detail can be stale after a warehouse receipt or movement.
                 amount: inventoryItem
                   ? Number(inventoryItem.amount || 0)
-                  : Number(candidate.warehouse_available_kg || 0),
+                  : 0,
                 material: inventoryItem?.material || {
                   id: Number(candidate.material_id),
                   name: candidate.name,

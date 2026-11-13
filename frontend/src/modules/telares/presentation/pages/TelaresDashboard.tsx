@@ -246,7 +246,7 @@ export const TelaresDashboard: React.FC = () => {
       )}
 
       {/* MACRO KPIS GLOBALES DE WIP (CONSOLIDADO GENERAL) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-6">
         {/* TOTAL WIP EN KG */}
         <div className="p-4 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between border-b-4 border-b-blue-500">
           <div className="flex items-center justify-between opacity-80">
@@ -756,10 +756,10 @@ export const TelaresDashboard: React.FC = () => {
       {/* MODAL DE TRANSFERENCIA ATÓMICA DE CARRITO (EXTRUSIÓN -> TELAR) */}
       {isTransferModalOpen && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/80 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-4"
           style={{ isolation: 'isolate' }}
         >
-          <div className="bg-slate-900 border-2 border-slate-700 text-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-5 my-auto">
+          <div className="my-auto max-h-[90dvh] w-full max-w-xl space-y-5 overflow-y-auto overscroll-contain rounded-2xl border-2 border-slate-700 bg-slate-900 p-4 text-white shadow-2xl sm:p-6">
             {/* TÍTULO DEL MODAL */}
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-700">
               <div className="flex items-center gap-3">
@@ -778,8 +778,9 @@ export const TelaresDashboard: React.FC = () => {
 
               <button
                 type="button"
+                aria-label="Cerrar traspaso"
                 onClick={() => setIsTransferModalOpen(false)}
-                className="text-slate-400 hover:text-white text-xl font-bold p-1"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
               >
                 ✕
               </button>

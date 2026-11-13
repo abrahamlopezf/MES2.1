@@ -50,6 +50,7 @@ const applyMaterialCatalogFilters = (where, query = {}) => {
 
 const getInventory = async (query = {}, currentUser) => {
   const { material_id } = query;
+  const requestedMaterialIds = parseIntList(query.material_ids);
   const allowCosts = canViewCosts(currentUser);
   const limit = Math.min(Number(query.limit) || 100, 1000);
   const offset = Math.max(0, Number(query.offset) || 0);
@@ -62,6 +63,13 @@ const getInventory = async (query = {}, currentUser) => {
   if (material_id) {
     conditions.push('m.id = :materialId');
     replacements.materialId = material_id;
+  }
+  if (query.material_ids) {
+    if (!requestedMaterialIds.length) conditions.push('1 = 0');
+    else {
+      conditions.push('m.id IN (:materialIds)');
+      replacements.materialIds = requestedMaterialIds;
+    }
   }
 
   const tags = parseUuidList(query.tag);
@@ -153,6 +161,7 @@ const getInventory = async (query = {}, currentUser) => {
   for (const siloModel of silos) {
     const silo = siloModel.toJSON ? siloModel.toJSON() : siloModel;
     if (material_id && Number(silo.material_id) !== Number(material_id)) continue;
+    if (query.material_ids && (!requestedMaterialIds.length || !requestedMaterialIds.includes(Number(silo.material_id)))) continue;
     if (query.tag && (!tagIds || !tagIds.has(Number(silo.material_tag_id)))) continue;
     if (query.family && (!families.length || !silo.material || !families.includes(String(silo.material.family?.uuid || '')))) continue;
     if (query.ranking && (!rankings.length || !rankings.includes(Number(silo.material?.ranking_id)))) continue;

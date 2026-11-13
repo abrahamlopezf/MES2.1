@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import CollapsibleFilterPanel from '@/components/shared/CollapsibleFilterPanel';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,6 +8,7 @@ import { apiClient } from '@/core/api/apiClient';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Factory,
   Layers,
@@ -71,6 +73,8 @@ const emptyBom = () => ({
   is_provisional: true,
   target_width_cm: 0,
   target_weight_g_per_m: 0,
+  weight_conversion_width_m: '' as number | '',
+  weight_conversion_factor: '' as number | '',
   warp_density: 0,
   weft_density: 0,
   expected_output_quantity: 1,
@@ -164,6 +168,7 @@ export const TelaresCatalogPage: React.FC = () => {
   const [bomTypeFilter, setBomTypeFilter] = useState<'ALL' | 'TUBULAR' | 'PLANA'>('ALL');
   const [bomSubareaFilter, setBomSubareaFilter] = useState<'ALL' | string>('ALL');
   const [bomProductFilter, setBomProductFilter] = useState<'ALL' | 'ROLLO_TELA' | 'BANDA' | 'CINTA'>('ALL');
+  const [bomViewMode, setBomViewMode] = useState<'CARDS' | 'TABLE'>('TABLE');
 
   // Filtros y Vista Tab Telares
   const [loomSearch, setLoomSearch] = useState('');
@@ -175,6 +180,7 @@ export const TelaresCatalogPage: React.FC = () => {
   const [isBomModalOpen, setIsBomModalOpen] = useState(false);
   const [editingBom, setEditingBom] = useState<any | null>(null);
   const [bomDraft, setBomDraft] = useState(emptyBom());
+  const [qrBom, setQrBom] = useState<any | null>(null);
 
   const [isLoomModalOpen, setIsLoomModalOpen] = useState(false);
   const [editingLoom, setEditingLoom] = useState<any | null>(null);
@@ -188,12 +194,12 @@ export const TelaresCatalogPage: React.FC = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: boms = [], isLoading: loadingBoms } = useQuery({
+  const { data: boms = [], isLoading: loadingBoms, isError: bomsError, refetch: refetchBoms } = useQuery({
     queryKey: ['telares', 'catalog', 'boms'],
     queryFn: async () => apiClient.get('/telares/boms?all=true'),
   });
 
-  const { data: looms = [], isLoading: loadingLooms } = useQuery({
+  const { data: looms = [], isLoading: loadingLooms, isError: loomsError, refetch: refetchLooms } = useQuery({
     queryKey: ['telares', 'catalog', 'looms'],
     queryFn: async () => apiClient.get('/telares/looms?all=true'),
   });
@@ -364,6 +370,8 @@ export const TelaresCatalogPage: React.FC = () => {
       default_route: savedRoute,
       allowed_routes: savedAllowedRoutes,
       ounces_yd2: bom.ounces_yd2 == null ? '' : Number(bom.ounces_yd2),
+      weight_conversion_width_m: bom.weight_conversion_width_m == null ? '' : Number(bom.weight_conversion_width_m),
+      weight_conversion_factor: bom.weight_conversion_factor == null ? '' : Number(bom.weight_conversion_factor),
       standard_output_meters: bom.standard_output_meters ? Number(bom.standard_output_meters) : '',
       cost_transformation_index: bom.cost_transformation_index ? Number(bom.cost_transformation_index) : 1.0,
       items: (bom.items || []).map((item: any) => {
@@ -437,6 +445,77 @@ export const TelaresCatalogPage: React.FC = () => {
     });
   }, [boms, bomSearch, bomOuncesFilter, bomTypeFilter, bomProductFilter, bomSubareaFilter]);
 
+  const downloadAllBomQrs = () => {
+    const items = boms.filter((bom: any) => String(bom.code || '').trim());
+    if (!items.length) {
+      toast.error('No hay fichas de PTI con código para descargar.');
+      return;
+    }
+
+    const escapeXml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
+    }[character] as string));
+    const wrapText = (value: unknown, limit: number, maxLines: number) => {
+      const words = String(value || '').trim().split(/\s+/).filter(Boolean).flatMap((word) => {
+        if (word.length <= limit) return [word];
+        return word.match(new RegExp(`.{1,${limit}}`, 'g')) || [word];
+      });
+      const lines: string[] = [];
+      let line = '';
+      words.forEach((word) => {
+        const next = line ? `${line} ${word}` : word;
+        if (next.length > limit && line) {
+          lines.push(line);
+          line = word;
+        } else line = next;
+      });
+      if (line) lines.push(line);
+      if (lines.length > maxLines) {
+        lines.length = maxLines;
+        lines[maxLines - 1] = `${lines[maxLines - 1].slice(0, Math.max(1, limit - 1))}…`;
+      }
+      return lines;
+    };
+    const columns = 3;
+    const cellWidth = 330;
+    const cellHeight = 250;
+    const gap = 18;
+    const margin = 30;
+    const rows = Math.ceil(items.length / columns);
+    const width = margin * 2 + columns * cellWidth + (columns - 1) * gap;
+    const height = margin * 2 + rows * cellHeight + (rows - 1) * gap;
+    const cards = items.map((bom: any, index: number) => {
+      const x = margin + (index % columns) * (cellWidth + gap);
+      const y = margin + Math.floor(index / columns) * (cellHeight + gap);
+      const name = bom.output_product_name || bom.name || 'PTI sin nombre';
+      const code = bom.code;
+      const payload = bom.catalog_qr_value || `TELARES-PTI:${code}`;
+      const qrMarkup = renderToStaticMarkup(<QRCodeSVG value={payload} size={150} level="H" includeMargin />);
+      const viewBox = qrMarkup.match(/viewBox="([^"]+)"/)?.[1] || '0 0 150 150';
+      const qrContent = qrMarkup.match(/<svg[^>]*>([\s\S]*?)<\/svg>/)?.[1] || '';
+      const nameLines = wrapText(name, 17, 4);
+      const codeLines = wrapText(code, 18, 2);
+      const textX = x + 164;
+      const nameText = nameLines.map((line, lineIndex) => `<text x="${textX}" y="${y + 58 + lineIndex * 21}" class="name">${escapeXml(line)}</text>`).join('');
+      const codeY = y + 158;
+      const codeText = codeLines.map((line, lineIndex) => `<text x="${textX}" y="${codeY + lineIndex * 17}" class="code">${escapeXml(line)}</text>`).join('');
+      const statusY = codeY + codeLines.length * 17 + 7;
+      return `<g><defs><clipPath id="label-text-${index}"><rect x="${textX}" y="${y + 38}" width="${cellWidth - 176}" height="${cellHeight - 48}"/></clipPath></defs><rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" rx="14" fill="#ffffff" stroke="#334155" stroke-width="2"/><text x="${x + 16}" y="${y + 29}" class="eyebrow">FICHA DE TELA / BANDA</text><svg x="${x + 14}" y="${y + 48}" width="140" height="140" viewBox="${viewBox}" shape-rendering="crispEdges">${qrContent}</svg><g clip-path="url(#label-text-${index})">${nameText}${codeText}<text x="${textX}" y="${statusY}" class="status">${bom.is_active === false || bom.is_active === 0 ? 'INACTIVA' : 'ACTIVA'}</text></g></g>`;
+    }).join('');
+    const printHeightMm = (height * 297 / width).toFixed(1);
+    const documentSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="297mm" height="${printHeightMm}mm" viewBox="0 0 ${width} ${height}"><style>.eyebrow{font:700 11px Arial,sans-serif;fill:#475569;letter-spacing:.6px}.name{font:700 15px Arial,sans-serif;fill:#0f172a}.code{font:700 13px monospace;fill:#1d4ed8}.status{font:700 11px Arial,sans-serif;fill:#475569}</style><rect width="100%" height="100%" fill="#f8fafc"/>${cards}</svg>`;
+    const blob = new Blob([documentSvg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'telares-catalogo-pti-etiquetas-qr.svg';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`Descarga preparada: ${items.length} etiquetas QR con nombre y código.`);
+  };
+
   // Filtrado de Telares
   const filteredLooms = useMemo(() => {
     return looms.filter((l: any) => {
@@ -504,7 +583,9 @@ export const TelaresCatalogPage: React.FC = () => {
               <span className="block text-lg font-extrabold">Productos de tela y banda</span>
               <span className={`mt-1 block text-sm ${tab === 'telas' ? 'text-blue-100' : 'text-slate-300'}`}>Ver especificaciones y materiales requeridos</span>
             </span>
-            <span className="rounded-full bg-black/20 px-3 py-1 text-sm font-bold">{boms.length}</span>
+            <span className="rounded-full bg-black/20 px-3 py-1 text-sm font-bold">
+              {loadingBoms ? '…' : bomsError ? 'Error' : boms.length}
+            </span>
           </button>
           <button
             type="button"
@@ -521,7 +602,9 @@ export const TelaresCatalogPage: React.FC = () => {
               <span className="block text-lg font-extrabold">Telares y filetas</span>
               <span className={`mt-1 block text-sm ${tab === 'telares' ? 'text-blue-100' : 'text-slate-300'}`}>Consultar máquinas, subáreas y capacidad de bobinas</span>
             </span>
-            <span className="rounded-full bg-black/20 px-3 py-1 text-sm font-bold">{looms.length}</span>
+            <span className="rounded-full bg-black/20 px-3 py-1 text-sm font-bold">
+              {loadingLooms ? '…' : loomsError ? 'Error' : looms.length}
+            </span>
           </button>
         </nav>
       </header>
@@ -541,19 +624,60 @@ export const TelaresCatalogPage: React.FC = () => {
                 </p>
               </div>
 
-                {/* Alta de producto de Telares */}
-              <Button
-                type="button"
-                onClick={startNewBom}
-                className="min-h-12 shrink-0 rounded-xl bg-blue-600 px-5 text-base font-bold text-white shadow-md shadow-blue-950/30 hover:bg-blue-500 sm:self-center"
-              >
-                <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
-                Registrar producto
-              </Button>
+              <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={downloadAllBomQrs}
+                  disabled={loadingBoms || boms.length === 0}
+                  className="min-h-12 rounded-xl px-4 text-sm font-bold sm:text-base"
+                  title={`Descargar QR de las ${boms.length} fichas del catálogo`}
+                >
+                  <QrCode className="mr-2 h-5 w-5 shrink-0" aria-hidden="true" />
+                  Descargar todos los QR ({boms.length})
+                </Button>
+                <Button
+                  type="button"
+                  onClick={startNewBom}
+                  className="min-h-12 rounded-xl bg-blue-600 px-5 text-base font-bold text-white shadow-md shadow-blue-950/30 hover:bg-blue-500"
+                >
+                  <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+                  Registrar producto
+                </Button>
+              </div>
             </div>
 
             {/* Filtros de Telas */}
-            <CollapsibleFilterPanel title="Buscar y filtrar productos" summary={`${filteredBoms.length} de ${boms.length} productos${bomSearch ? ` · ${bomSearch}` : ''}`} variant="plain" className="border-t border-slate-700/80 pt-3" contentClassName="mt-0 border-0 pt-3">
+            <CollapsibleFilterPanel
+              title="Buscar y filtrar productos"
+              summary={`${filteredBoms.length} de ${boms.length} productos${bomSearch ? ` · ${bomSearch}` : ''}`}
+              defaultExpanded={false}
+              variant="plain"
+              className="border-t border-slate-700/80 pt-3"
+              contentClassName="mt-0 border-0 pt-3"
+              actions={(
+                <div className="flex min-h-11 w-full items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 p-1 sm:mr-16 sm:w-auto" role="group" aria-label="Vista de resultados">
+                  <button
+                    type="button"
+                    onClick={() => setBomViewMode('TABLE')}
+                    aria-pressed={bomViewMode === 'TABLE'}
+                    className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-colors sm:flex-none sm:px-3 ${bomViewMode === 'TABLE' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                  >
+                    <TableIcon className="h-4 w-4" aria-hidden="true" />
+                    Tabla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBomViewMode('CARDS')}
+                    aria-pressed={bomViewMode === 'CARDS'}
+                    className={`inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-colors sm:flex-none sm:px-3 ${bomViewMode === 'CARDS' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                  >
+                    <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                    Tarjetas
+                  </button>
+                </div>
+              )}
+            >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12 xl:items-end">
               <label className="flex min-w-0 flex-col gap-1.5 text-sm font-semibold text-slate-200 sm:col-span-2 xl:col-span-3">
                 <span>Buscar producto</span>
@@ -642,7 +766,9 @@ export const TelaresCatalogPage: React.FC = () => {
               </label>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700/60 pt-3 text-sm">
-              <p className="rounded-lg bg-slate-900/70 px-3 py-2 font-medium text-slate-200" aria-live="polite">Mostrando <strong className="text-white">{filteredBoms.length}</strong> de {boms.length} fichas</p>
+              <p className="rounded-lg bg-slate-900/70 px-3 py-2 font-medium text-slate-200" aria-live="polite">
+                {bomsError ? 'No se pudo consultar el catálogo de productos.' : loadingBoms ? 'Consultando catálogo…' : <>Mostrando <strong className="text-white">{filteredBoms.length}</strong> de {boms.length} fichas</>}
+              </p>
               {(bomSearch || bomSubareaFilter !== 'ALL' || bomProductFilter !== 'ALL' || bomTypeFilter !== 'ALL' || bomOuncesFilter !== 'ALL') && (
                 <Button type="button" variant="outline" onClick={() => { setBomSearch(''); setBomSubareaFilter('ALL'); setBomProductFilter('ALL'); setBomTypeFilter('ALL'); setBomOuncesFilter('ALL'); }} className="min-h-11 border-slate-600 px-4 text-sm font-semibold text-slate-100">
                   Limpiar filtros
@@ -653,15 +779,22 @@ export const TelaresCatalogPage: React.FC = () => {
           </div>
 
           {/* Tabla de Fichas Técnicas (Full Width) */}
-          {loadingBoms ? (
+          {bomsError ? (
+            <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-500/50 bg-rose-950/30 p-6 text-rose-100 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-bold">No se pudo cargar el catálogo</h3>
+                <p className="mt-1 text-sm text-rose-200">Los registros podrían existir; revisa la conexión o el esquema de la base de datos y vuelve a intentar.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => void refetchBoms()} className="min-h-11 border-rose-400/60 text-rose-100 hover:bg-rose-900/40">Reintentar consulta</Button>
+            </div>
+          ) : loadingBoms ? (
             <p className="p-12 text-center text-slate-400 font-semibold">Cargando catálogo de telas…</p>
           ) : filteredBoms.length === 0 ? (
             <div className="p-12 text-center text-slate-400 font-bold bg-slate-800 rounded-2xl border-2 border-slate-700">
                 No se encontraron productos con estos filtros.
             </div>
-          ) : (
-            <>
-            <div className="grid gap-3 xl:hidden">
+          ) : bomViewMode === 'CARDS' ? (
+            <div className="grid gap-3 xl:grid-cols-2">
               {filteredBoms.map((bom: any) => {
                 const isFabricRoll = String(bom.product_kind || 'ROLLO_TELA').toUpperCase() === 'ROLLO_TELA';
                 return (
@@ -683,12 +816,62 @@ export const TelaresCatalogPage: React.FC = () => {
                       {allowCosts && <Badge className="bg-emerald-950 text-sm text-emerald-200">Índice x{Number(bom.cost_transformation_index || 1).toFixed(4)}</Badge>}
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2">
+                      <Button type="button" variant="outline" onClick={() => setQrBom(bom)} className="min-h-12 border-cyan-500/50 text-sm font-semibold text-cyan-100"><QrCode className="mr-2 h-4 w-4" />QR de ficha</Button>
                       <Button type="button" variant="outline" onClick={() => editBom(bom)} className="min-h-12 border-slate-600 text-sm font-semibold"><Edit2 className="mr-2 h-4 w-4" />Editar ficha</Button>
                       {bom.is_active ? <Button type="button" variant="destructive" onClick={() => window.confirm(`¿Desactivar la especificación ${bom.name}?`) && deactivateMutation.mutate({ kind: 'boms', id: bom.id })} className="min-h-12 text-sm font-semibold">Desactivar</Button> : <span className="flex min-h-12 items-center justify-center rounded-lg border border-slate-600 text-sm text-slate-300">Inactiva</span>}
                     </div>
                   </article>
                 );
               })}
+            </div>
+          ) : (
+            <>
+            <div className="overflow-hidden rounded-2xl border-2 border-slate-700 bg-slate-800 shadow-xl xl:hidden">
+              <table className="w-full table-fixed text-left text-sm text-slate-200">
+                <thead className="border-b-2 border-slate-700 bg-slate-900 text-xs font-black uppercase text-slate-300">
+                  <tr>
+                    <th className="w-[68%] p-3">Producto y especificación</th>
+                    <th className="w-[32%] p-3 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700 font-semibold">
+                  {filteredBoms.map((bom: any) => {
+                    const isFabricRoll = String(bom.product_kind || 'ROLLO_TELA').toUpperCase() === 'ROLLO_TELA';
+                    const productKind = bom.product_kind === 'BANDA' ? 'Banda' : bom.product_kind === 'CINTA' ? 'Cinta' : 'Rollo de tela';
+                    const route = (Array.isArray(bom.allowed_routes) && bom.allowed_routes.length ? bom.allowed_routes[0] : bom.default_route) || [];
+                    const routeText = routeStagesToValue(route).replaceAll(',', ' → ') || 'Ruta pendiente';
+                    return (
+                      <tr key={bom.id} className="align-top hover:bg-slate-750 transition-colors">
+                        <td className="p-3">
+                          <strong className="block break-words font-black leading-snug text-white">{bom.name}</strong>
+                          <span className="mt-1 block break-all font-mono text-xs font-bold text-blue-300">{bom.code}</span>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <Badge className="bg-blue-950 text-xs text-blue-100">{productKind}</Badge>
+                            {bom.is_provisional && <Badge className="bg-amber-950 text-xs text-amber-200">Provisional</Badge>}
+                            {isFabricRoll && <Badge className="bg-slate-900 text-xs text-slate-200">{bom.fabric_type || 'TUBULAR'}</Badge>}
+                          </div>
+                          <p className="mt-2 text-xs leading-relaxed text-slate-300">{bom.subarea?.name || 'Subárea pendiente'}{bom.output_color ? ` · ${bom.output_color}` : ''}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                            {[bom.output_width_value ? `${Number(bom.output_width_value)} ${bom.output_width_unit || 'cm'}` : null, bom.output_denier ? `${bom.output_denier} D` : null, bom.ounces_yd2 ? `${Number(bom.ounces_yd2).toFixed(1)} oz/yd²` : null].filter(Boolean).join(' · ') || 'Especificación pendiente'}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                            <span className="text-slate-200">PTI: {bom.items?.length || 0} insumos</span>
+                            <span className="text-slate-400">{routeText}</span>
+                            {allowCosts && <span className="font-mono font-bold text-emerald-300">Índice x{Number(bom.cost_transformation_index || 1).toFixed(4)}</span>}
+                          </div>
+                        </td>
+                        <td className="p-2 sm:p-3">
+                          <div className="flex flex-col items-stretch gap-1.5">
+                            <Button type="button" variant="outline" aria-label={`Ver QR de ${bom.name}`} title="Ver QR de ficha" onClick={() => setQrBom(bom)} className="min-h-11 w-full gap-1 px-1 text-xs font-bold text-cyan-100"><QrCode className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">QR</span></Button>
+                            <Button type="button" variant="outline" aria-label={`Editar ${bom.name}`} title="Editar ficha" onClick={() => editBom(bom)} className="min-h-11 w-full gap-1 px-1 text-xs font-bold"><Edit2 className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">Editar</span></Button>
+                            {bom.is_active ? <Button type="button" variant="destructive" aria-label={`Desactivar ${bom.name}`} title="Desactivar ficha" onClick={() => window.confirm(`¿Desactivar la especificación ${bom.name}?`) && deactivateMutation.mutate({ kind: 'boms', id: bom.id })} className="min-h-11 w-full px-1 text-xs font-bold"><span className="hidden sm:inline">Desactivar</span><span className="sm:hidden">Baja</span></Button> : <span className="flex min-h-11 items-center justify-center rounded-lg border border-slate-600 px-1 text-center text-[11px] text-slate-300">Inactiva</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
             <div className="hidden overflow-x-auto rounded-2xl border-2 border-slate-700 bg-slate-800 shadow-xl xl:block">
               <table className="w-full min-w-[850px] text-left text-sm text-slate-200">
@@ -785,6 +968,7 @@ export const TelaresCatalogPage: React.FC = () => {
                         </td>
                         <td className="p-3.5 pr-5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <Button size="sm" variant="outline" onClick={() => setQrBom(bom)} className="h-8 border-cyan-500/50 bg-slate-900 text-cyan-100 font-bold text-xs"><QrCode className="h-3.5 w-3.5 mr-1" />QR</Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -848,11 +1032,11 @@ export const TelaresCatalogPage: React.FC = () => {
             </div>
 
             {/* Barra de Filtros Industriales */}
-            <CollapsibleFilterPanel title="Buscar y filtrar telares" summary={`${filteredLooms.length} de ${looms.length} telares${loomSearch ? ` · ${loomSearch}` : ''}`} variant="plain" contentClassName="mt-0 border-0 pt-3">
+            <CollapsibleFilterPanel title="Buscar y filtrar telares" summary={loomsError ? 'No se pudo consultar el catálogo' : `${filteredLooms.length} de ${looms.length} telares${loomSearch ? ` · ${loomSearch}` : ''}`} variant="plain" contentClassName="mt-0 border-0 pt-3">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1 border-t border-slate-700/60">
               {/* Buscador */}
-              <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <div className="relative min-w-0 flex-1">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   type="text"
                   placeholder="Buscar telar por número (#1-21), código, nombre o modelo..."
@@ -862,8 +1046,10 @@ export const TelaresCatalogPage: React.FC = () => {
                 />
                 {loomSearch && (
                   <button
+                    type="button"
+                    aria-label="Limpiar búsqueda de telares"
                     onClick={() => setLoomSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -871,20 +1057,20 @@ export const TelaresCatalogPage: React.FC = () => {
               </div>
 
               {/* Filtro por Tipo de Telar */}
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
+              <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 p-1">
                 <button
                   type="button"
                   onClick={() => setLoomFilter('ALL')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${
+                  className={`min-h-11 whitespace-nowrap px-3 py-2 rounded-lg text-xs font-black uppercase transition-all ${
                     loomFilter === 'ALL' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Todos ({looms.length})
+                  Todos ({loomsError ? '—' : looms.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoomFilter('CIRCULARES')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${
+                  className={`min-h-11 whitespace-nowrap px-3 py-2 rounded-lg text-xs font-black uppercase transition-all ${
                     loomFilter === 'CIRCULARES' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -893,7 +1079,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLoomFilter('BANDA')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${
+                  className={`min-h-11 whitespace-nowrap px-3 py-2 rounded-lg text-xs font-black uppercase transition-all ${
                     loomFilter === 'BANDA' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -906,7 +1092,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLoomStatusFilter('ALL')}
-                  className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-lg ${
+                  className={`min-h-11 px-3 py-2 text-xs font-black uppercase rounded-lg ${
                     loomStatusFilter === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -915,7 +1101,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLoomStatusFilter('DISPONIBLE')}
-                  className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-lg ${
+                  className={`min-h-11 px-3 py-2 text-xs font-black uppercase rounded-lg ${
                     loomStatusFilter === 'DISPONIBLE' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -924,7 +1110,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLoomStatusFilter('EN_PRODUCCION')}
-                  className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-lg ${
+                  className={`min-h-11 px-3 py-2 text-xs font-black uppercase rounded-lg ${
                     loomStatusFilter === 'EN_PRODUCCION' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -933,12 +1119,12 @@ export const TelaresCatalogPage: React.FC = () => {
               </div>
 
               {/* Selector de Modo de Vista (Tarjetas vs Tabla) */}
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
+              <div className="ml-auto flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 p-1 lg:mr-16">
                 <button
                   type="button"
                   onClick={() => setLoomViewMode('CARDS')}
                   title="Vista de Tarjetas / Cuadrícula"
-                  className={`p-1.5 rounded-lg transition-all ${
+                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${
                     loomViewMode === 'CARDS' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -948,7 +1134,7 @@ export const TelaresCatalogPage: React.FC = () => {
                   type="button"
                   onClick={() => setLoomViewMode('TABLE')}
                   title="Vista de Tabla Detallada"
-                  className={`p-1.5 rounded-lg transition-all ${
+                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-all ${
                     loomViewMode === 'TABLE' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -960,7 +1146,15 @@ export const TelaresCatalogPage: React.FC = () => {
           </div>
 
           {/* Renderizado de Telares: Modo Tarjetas o Modo Tabla */}
-          {loadingLooms ? (
+          {loomsError ? (
+            <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-500/50 bg-rose-950/30 p-6 text-rose-100 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-bold">No se pudo cargar el catálogo de telares</h3>
+                <p className="mt-1 text-sm text-rose-200">Los telares no se muestran como cero porque la consulta falló. Revisa la conexión o el esquema y vuelve a intentar.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => void refetchLooms()} className="min-h-11 border-rose-400/60 text-rose-100 hover:bg-rose-900/40">Reintentar consulta</Button>
+            </div>
+          ) : loadingLooms ? (
             <p className="p-12 text-center text-slate-400 font-semibold">Cargando máquinas…</p>
           ) : filteredLooms.length === 0 ? (
             <div className="p-12 text-center text-slate-400 font-bold bg-slate-800 rounded-2xl border-2 border-slate-700">
@@ -1212,8 +1406,8 @@ export const TelaresCatalogPage: React.FC = () => {
       {/* MODAL 1: ALTA / EDICIÓN DE FICHA TÉCNICA DE TELA (PDF)    */}
       {/* ========================================================= */}
       {isBomModalOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" style={{ isolation: 'isolate' }}>
-          <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl border-2 border-slate-700 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/80 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-4" style={{ isolation: 'isolate' }}>
+          <div className="relative flex min-h-0 max-h-[90dvh] w-full max-w-3xl flex-col rounded-2xl border-2 border-slate-700 bg-slate-900 p-4 shadow-2xl sm:p-6">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4">
               <div className="flex items-center gap-2.5">
@@ -1231,7 +1425,9 @@ export const TelaresCatalogPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsBomModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                type="button"
+                aria-label="Cerrar formulario de ficha técnica"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1243,7 +1439,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 e.preventDefault();
                 saveBomMutation.mutate();
               }}
-              className="flex-1 overflow-y-auto py-4 space-y-4 pr-1"
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-4 pr-1"
             >
               {/* Código y Nombre */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1483,6 +1679,19 @@ export const TelaresCatalogPage: React.FC = () => {
                       className="mt-1 bg-slate-900 border-slate-700 font-mono text-white text-xs"
                     />
                   </label>
+                </div>
+                <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3">
+                  <h5 className="text-xs font-black uppercase text-cyan-200">Conversión estimada de metros a kg (Excel)</h5>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-300">Ancho de manga × metros × factor de capas × 33.9 × onzas / 1000. Confirma el factor para esta ficha: el archivo contiene una excepción tubular.</p>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="text-xs font-bold text-slate-300">ANCHO DE MANGA PARA CÁLCULO (m)
+                      <Input type="number" min="0.0001" step="0.0001" value={bomDraft.weight_conversion_width_m} onChange={(e) => setBomDraft({ ...bomDraft, weight_conversion_width_m: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Ej. 1.16" className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                    </label>
+                    <label className="text-xs font-bold text-slate-300">FACTOR DE CAPAS (por ficha)
+                      <Input type="number" min="0.0001" step="0.01" value={bomDraft.weight_conversion_factor} onChange={(e) => setBomDraft({ ...bomDraft, weight_conversion_factor: e.target.value === '' ? '' : Number(e.target.value) })} placeholder={bomDraft.fabric_type === 'PLANA' ? '1' : '2 (confirmar)'} className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                    </label>
+                  </div>
+                  {Number(bomDraft.weight_conversion_width_m) > 0 && Number(bomDraft.ounces_yd2) > 0 && Number(bomDraft.weight_conversion_factor) > 0 && <p className="mt-2 text-sm font-bold text-cyan-100">Estimación: {((Number(bomDraft.weight_conversion_width_m) * Number(bomDraft.weight_conversion_factor) * 33.9 * Number(bomDraft.ounces_yd2))).toLocaleString('es-MX', { maximumFractionDigits: 3 })} g/m · {Number(bomDraft.standard_output_meters) > 0 ? `${(Number(bomDraft.weight_conversion_width_m) * Number(bomDraft.standard_output_meters) * Number(bomDraft.weight_conversion_factor) * 33.9 * Number(bomDraft.ounces_yd2) / 1000).toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg en ${Number(bomDraft.standard_output_meters).toLocaleString('es-MX')} m` : 'define metros de referencia para ver el total'}</p>}
                 </div>
               </div>
               )}
@@ -1796,8 +2005,8 @@ export const TelaresCatalogPage: React.FC = () => {
       {/* MODAL 2: ALTA / EDICIÓN DE TELAR                         */}
       {/* ========================================================= */}
       {isLoomModalOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" style={{ isolation: 'isolate' }}>
-          <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-2xl border-2 border-slate-700 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/80 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-4" style={{ isolation: 'isolate' }}>
+          <div className="relative flex min-h-0 max-h-[90dvh] w-full max-w-xl flex-col rounded-2xl border-2 border-slate-700 bg-slate-900 p-4 shadow-2xl sm:p-6">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4">
               <div className="flex items-center gap-2.5">
@@ -1815,7 +2024,9 @@ export const TelaresCatalogPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsLoomModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                type="button"
+                aria-label="Cerrar formulario de telar"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1827,9 +2038,9 @@ export const TelaresCatalogPage: React.FC = () => {
                 e.preventDefault();
                 saveLoomMutation.mutate();
               }}
-              className="flex-1 overflow-y-auto py-4 space-y-4 pr-1"
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-4 pr-1"
             >
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block text-xs font-bold text-slate-300">
                   CÓDIGO TELAR *
                   <Input
@@ -1868,7 +2079,7 @@ export const TelaresCatalogPage: React.FC = () => {
                 />
               </label>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <label className="block text-xs font-bold text-slate-300">
                   MODELO
                   <Input
@@ -1970,13 +2181,23 @@ export const TelaresCatalogPage: React.FC = () => {
         </div>,
         document.body
       )}
+      {qrBom && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/75 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Código QR de ficha de Telares">
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-slate-600 bg-slate-800 p-5 text-center shadow-2xl">
+            <div className="flex items-start justify-between gap-3 text-left"><div><h2 className="text-lg font-black text-white">QR de ficha de Telares</h2><p className="text-sm text-slate-300">Escanéalo en la terminal para seleccionar el producto.</p></div><button type="button" onClick={() => setQrBom(null)} className="min-h-10 min-w-10 rounded-lg border border-slate-600 text-xl text-white" aria-label="Cerrar">×</button></div>
+            <div className="inline-block rounded-xl bg-white p-3"><QRCodeSVG value={qrBom.catalog_qr_value || `TELARES-PTI:${qrBom.code}`} size={220} level="H" includeMargin /></div>
+            <p className="font-bold text-white">{qrBom.output_product_name || qrBom.name}</p><p className="font-mono text-sm text-cyan-200">{qrBom.catalog_qr_value || `TELARES-PTI:${qrBom.code}`}</p>
+            <div className="flex justify-end gap-2 print:hidden"><Button type="button" variant="outline" onClick={() => setQrBom(null)}>Cerrar</Button><Button type="button" onClick={() => window.print()}>Imprimir QR</Button></div>
+          </div>
+        </div>, document.body
+      )}
 
       {/* ========================================================= */}
       {/* MODAL 3: CARGAR BOBINAS A FILETA CREEL (WIP INTERNO)      */}
       {/* ========================================================= */}
       {isCreelModalOpen && selectedLoomForCreel && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" style={{ isolation: 'isolate' }}>
-          <div className="w-full max-w-lg rounded-2xl border-2 border-slate-700 bg-slate-900 p-6 shadow-2xl text-slate-100 space-y-4">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/80 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-4" style={{ isolation: 'isolate' }}>
+          <div className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto overscroll-contain rounded-2xl border-2 border-slate-700 bg-slate-900 p-4 text-slate-100 sm:p-6">
             <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-black uppercase text-white flex items-center gap-2">

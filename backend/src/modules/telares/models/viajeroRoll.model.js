@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
+      virgin_qr_code_id: { type: DataTypes.INTEGER, allowNull: true, unique: true },
       roll_code: {
         type: DataTypes.STRING(100),
         allowNull: false,

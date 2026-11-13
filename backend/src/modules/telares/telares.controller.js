@@ -165,7 +165,7 @@ exports.loadCreel = async (req, res, next) => {
 
 exports.finishRoll = async (req, res, next) => {
   try {
-    const { run_id, meters, weight_kg, custom_route, notes, shift_number, operator_nomina, shift_supervisor_id, operator_segments, idempotency_key } = req.body;
+    const { run_id, meters, weight_kg, custom_route, notes, shift_number, operator_nomina, shift_supervisor_id, operator_segments, idempotency_key, virgin_qr_code } = req.body;
     const recorded_by = req.user?.id;
     const operator_id = Number(operator_segments?.[0]?.operator_id) || recorded_by;
     const result = await telaresService.finishRollAndBackflush({
@@ -181,6 +181,7 @@ exports.finishRoll = async (req, res, next) => {
       operator_segments,
       recorded_by,
       idempotency_key,
+      virgin_qr_code,
     });
     res.status(201).json(result);
   } catch (err) {

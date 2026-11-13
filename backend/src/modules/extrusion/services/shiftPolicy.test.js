@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SHIFT_CODES, SHIFT_MAX_DURATION_MS, validateExtrusionShift, isExtrusionShiftExpired, validateTransitionWeighings, filterQualifyingShiftQueues, getShiftQueueHandoffMode } = require('./shiftPolicy');
+const { SHIFT_CODES, SHIFT_MAX_DURATION_MS, validateExtrusionShift, isExtrusionShiftExpired, validateTransitionWeighings, filterQualifyingShiftQueues, getShiftQueueHandoffMode, getShiftHandoffSuggestion } = require('./shiftPolicy');
 
 test('extrusion allows only two shifts and Monday through Thursday', () => {
   assert.deepEqual(SHIFT_CODES, ['TURNO_1', 'TURNO_2']);
@@ -36,6 +36,33 @@ test('shift suggestion advances to the next operating day after both shifts clos
   });
   assert.deepEqual(suggestion, {
     shift_date: '2026-11-09', shift_code: 'TURNO_1', auto_start: true, reason: 'PRIMER_TURNO_DEL_DIA',
+  });
+});
+
+test('a stale open shift is reconciled, then hands off to the current operating day Turno 1', () => {
+  assert.deepEqual(getShiftHandoffSuggestion({
+    today: '2026-11-12',
+    session: { shift_date: '2026-11-11', shift_code: 'TURNO_1' },
+  }), {
+    shift_date: '2026-11-12', shift_code: 'TURNO_1', auto_start: true, reason: 'PRIMER_TURNO_DEL_DIA',
+  });
+});
+
+test('a stale open shift on Thursday hands off to the next operating day without reopening a stale slot', () => {
+  assert.deepEqual(getShiftHandoffSuggestion({
+    today: '2026-11-13',
+    session: { shift_date: '2026-11-12', shift_code: 'TURNO_2' },
+  }), {
+    shift_date: '2026-11-16', shift_code: 'TURNO_1', auto_start: false, reason: 'DIA_NO_OPERATIVO',
+  });
+});
+
+test('a same-day Turno 1 still hands off to Turno 2', () => {
+  assert.deepEqual(getShiftHandoffSuggestion({
+    today: '2026-11-12',
+    session: { shift_date: '2026-11-12', shift_code: 'TURNO_1' },
+  }), {
+    shift_date: '2026-11-12', shift_code: 'TURNO_2', auto_start: false, reason: 'RELEVO_DEL_DIA',
   });
 });
 

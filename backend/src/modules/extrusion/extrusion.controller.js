@@ -241,7 +241,12 @@ class ExtrusionController {
 
   async createRack(req, res, next) {
     try {
-      const rack = await extrusionService.createPtiRack({ ...req.body, userId: req.user?.id });
+      const rack = await extrusionService.createPtiRack({
+        virgin_qr_code: req.body?.virgin_qr_code,
+        max_capacity: req.body?.max_capacity,
+        userId: req.user?.id,
+        userAreaName: req.user?.area?.name,
+      });
       return res.status(201).json({
         success: true,
         message: `Rack ${rack.rack_code} creado exitosamente.`,

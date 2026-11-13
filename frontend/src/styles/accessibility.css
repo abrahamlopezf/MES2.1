@@ -84,23 +84,6 @@ a:focus {
   }
 }
 
-@media (min-width: 1024px) {
-  .extrusion-ingress-flow {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: 1.25rem;
-  }
-
-  .extrusion-ingress-flow > * + * {
-    margin-block-start: 0;
-  }
-
-  .extrusion-ingress-step--count {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   a,
   button {

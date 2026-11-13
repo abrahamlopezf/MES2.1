@@ -59,13 +59,13 @@ module.exports = (sequelize, DataTypes) => {
         comment: 'Capacidad máxima de bobinas en creel / fileta (hasta 1800 bobinas)',
       },
       current_spools_count: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(10, 3),
         allowNull: false,
         defaultValue: 0,
         comment: 'Cantidad actual de bobinas montadas en fileta interna (WIP del telar)',
       },
       current_wip_kg: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(10, 3),
         allowNull: false,
         defaultValue: 0,
         comment: 'Peso estimado de hilo cargado en creel (kg)',

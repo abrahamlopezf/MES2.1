@@ -914,6 +914,8 @@ db.ViajeroRoll = initViajeroRollModel(sequelize, DataTypes);
 db.ViajeroRollOperatorSegment = initViajeroRollOperatorSegmentModel(sequelize, DataTypes);
 db.ViajeroRoutingLog = initViajeroRoutingLogModel(sequelize, DataTypes);
 db.LoomBackflushConsumption = initLoomBackflushConsumptionModel(sequelize, DataTypes);
+db.CorteLaminadoOrder = require('../../modules/corte/models/corteLaminadoOrder.model')(sequelize, DataTypes);
+db.CorteLaminadoOrderItem = require('../../modules/corte/models/corteLaminadoOrderItem.model')(sequelize, DataTypes);
 
 // Loom Associations
 db.Loom.belongsTo(db.PtiRack, { foreignKey: 'active_warp_rack_id', as: 'warpRack' });
@@ -943,11 +945,18 @@ db.LoomRun.hasMany(db.ViajeroRoll, { foreignKey: 'run_id', as: 'rolls' });
 db.ViajeroRoll.belongsTo(db.LoomRun, { foreignKey: 'run_id', as: 'run' });
 db.ViajeroRoll.belongsTo(db.Loom, { foreignKey: 'loom_id', as: 'loom' });
 db.ViajeroRoll.belongsTo(db.ProductionBom, { foreignKey: 'bom_id', as: 'bom' });
+db.ViajeroRoll.belongsTo(db.QrCode, { foreignKey: 'virgin_qr_code_id', as: 'identityQr' });
+db.QrCode.hasOne(db.ViajeroRoll, { foreignKey: 'virgin_qr_code_id', as: 'telaresRoll' });
 db.ViajeroRoll.belongsTo(db.User, { foreignKey: 'operator_id', as: 'operator' });
 db.ViajeroRoll.belongsTo(db.User, { foreignKey: 'shift_supervisor_id', as: 'shiftSupervisor' });
 db.ViajeroRoll.hasMany(db.ViajeroRollOperatorSegment, { foreignKey: 'viajero_roll_id', as: 'operatorSegments' });
 db.ViajeroRoll.hasMany(db.ViajeroRoutingLog, { foreignKey: 'viajero_roll_id', as: 'routingLogs' });
 db.ViajeroRoll.hasMany(db.LoomBackflushConsumption, { foreignKey: 'viajero_roll_id', as: 'consumptions' });
+db.CorteLaminadoOrder.hasMany(db.CorteLaminadoOrderItem, { foreignKey: 'order_id', as: 'items' });
+db.CorteLaminadoOrderItem.belongsTo(db.CorteLaminadoOrder, { foreignKey: 'order_id', as: 'order' });
+db.CorteLaminadoOrderItem.belongsTo(db.ViajeroRoll, { foreignKey: 'roll_id', as: 'roll' });
+db.CorteLaminadoOrder.belongsTo(db.User, { foreignKey: 'requested_by', as: 'requester' });
+db.CorteLaminadoOrderItem.belongsTo(db.User, { foreignKey: 'picked_by', as: 'picker' });
 
 // ViajeroRoutingLog Associations
 db.ViajeroRoutingLog.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id', as: 'roll' });

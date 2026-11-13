@@ -57,8 +57,8 @@ export const ViajeroLabelModal: React.FC<ViajeroLabelModalProps> = ({ roll, onCl
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-none">
-      <div className="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl border-4 border-slate-900 text-slate-900">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-none sm:items-center sm:p-4">
+      <div role="dialog" aria-modal="true" aria-label="QR viajero de tejido" className="relative my-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-2xl border-4 border-slate-900 bg-white p-4 text-slate-900 shadow-2xl sm:p-6">
         {/* Header con botón cerrar */}
         <div className="flex items-center justify-between border-b-2 border-slate-300 pb-3">
           <div className="flex items-center gap-3">

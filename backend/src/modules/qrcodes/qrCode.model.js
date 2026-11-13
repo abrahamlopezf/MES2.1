@@ -36,6 +36,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      current_area_id: { type: DataTypes.INTEGER, allowNull: true },
+      entity_type: { type: DataTypes.STRING(80), allowNull: true },
+      entity_id: { type: DataTypes.INTEGER, allowNull: true },
+      used_by: { type: DataTypes.INTEGER, allowNull: true },
+      used_at: { type: DataTypes.DATE, allowNull: true },
       status: {
         type: DataTypes.STRING(40),
         allowNull: false,

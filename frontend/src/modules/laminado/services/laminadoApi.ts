@@ -52,6 +52,16 @@ export const laminadoApi = {
     return res.data;
   },
 
+  getCorteOrders: async () => {
+    const res = await axiosClient.get('/laminado/corte-orders');
+    return res.data?.data ?? res.data ?? [];
+  },
+
+  confirmCortePickup: async (orderId: number, qr_code: string) => {
+    const res = await axiosClient.post(`/laminado/corte-orders/${orderId}/pick`, { qr_code });
+    return res.data?.data ?? res.data;
+  },
+
   transformRoll: async (payload: {
     roll_id: number;
     specification_id: number;

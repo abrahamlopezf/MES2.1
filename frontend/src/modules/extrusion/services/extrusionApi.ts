@@ -31,7 +31,7 @@ export const extrusionApi = {
     return response.data.data;
   },
 
-  createPtiRack: async (payload: { rack_code: string; max_capacity?: number; location_name?: string }): Promise<PtiRack> => {
+  createPtiRack: async (payload: { virgin_qr_code: string; max_capacity?: number }): Promise<PtiRack> => {
     const response = await axiosClient.post('/extrusion/racks', payload);
     return response.data.data;
   },
@@ -81,7 +81,7 @@ export const extrusionApi = {
     return response.data.data;
   },
 
-  getShiftActivity: async (params: { shift_date: string; shift_code: string }): Promise<any> => {
+  getShiftActivity: async (params: { shift_date: string; shift_code: string; shift_session_id?: number }): Promise<any> => {
     const response = await axiosClient.get('/extrusion/shifts/activity', { params });
     return response.data.data;
   },
@@ -92,6 +92,7 @@ export const extrusionApi = {
   },
 
   getActiveShiftSession: async (): Promise<any | null> => (await axiosClient.post('/extrusion/shifts/session/entry', {})).data.data,
+  getCurrentShiftSession: async (): Promise<any | null> => (await axiosClient.get('/extrusion/shifts/session/active')).data.data,
   openShiftSession: async (payload: { shift_date: string; shift_code: string; confirm_carryover?: boolean; confirm_active_mixture?: boolean; confirmed_mixture_qrs?: string[] }): Promise<any> => (await axiosClient.post('/extrusion/shifts/session/open', payload)).data.data,
   closeShiftSession: async (payload: { id: number }): Promise<any> => (await axiosClient.post(`/extrusion/shifts/session/${payload.id}/close`, {})).data.data,
 

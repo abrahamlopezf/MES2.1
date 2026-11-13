@@ -135,6 +135,7 @@ export interface PtiRack {
   current_pti_type_id: number | null;
   current_pti_product_id?: number | null;
   destination_route?: PtiDestinationRoute | null;
+  destination_subarea_id?: number | null;
   current_quantity: number;
   min_capacity: number;
   max_capacity: number;

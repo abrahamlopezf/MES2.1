@@ -10,6 +10,7 @@ interface CollapsibleFilterPanelProps {
   className?: string;
   contentClassName?: string;
   variant?: 'card' | 'plain';
+  defaultExpanded?: boolean;
 }
 
 /** Shared disclosure for search and filter controls. Starts compact on phones. */
@@ -22,9 +23,10 @@ export function CollapsibleFilterPanel({
   className = '',
   contentClassName = '',
   variant = 'card',
+  defaultExpanded,
 }: CollapsibleFilterPanelProps) {
   const [isExpanded, setIsExpanded] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+    defaultExpanded ?? (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches)
   );
   const contentId = useId();
 

@@ -5,7 +5,33 @@ const assert = require('node:assert/strict');
 const {
   normalizeProductionRoute,
   validateOperatorMeterCoverage,
+  calculateFabricWeightKg,
+  estimateBomFabricWeightKg,
+  getTelaresPtiCatalogQr,
+  resolveTelaresPtiCatalogQr,
 } = require('../src/modules/telares/productionRules');
+
+test('Excel fabric conversion uses width, meters, ounces, and per-ficha layer factor', () => {
+  assert.deepEqual(calculateFabricWeightKg({ meters: 15, widthMeters: 1.9, ouncesYd2: 6.5, layerFactor: 2 }), {
+    weight_kg: 12.56,
+    grams_per_meter: 837.33,
+  });
+  assert.equal(estimateBomFabricWeightKg({ weight_conversion_width_m: 1.9, ounces_yd2: 6.5, weight_conversion_factor: 1 }, 15), 6.28);
+  assert.equal(estimateBomFabricWeightKg({ weight_conversion_width_m: 1.9, ounces_yd2: 6.5, fabric_type: 'TUBULAR' }, 15), null);
+});
+
+test('Fabric conversion rejects missing or nonphysical parameters', () => {
+  assert.throws(() => calculateFabricWeightKg({ meters: 10, widthMeters: 0, ouncesYd2: 5, layerFactor: 2 }), (error) => error.code === 'INVALID_FABRIC_WEIGHT_INPUT');
+  assert.throws(() => calculateFabricWeightKg({ meters: -10, widthMeters: 1, ouncesYd2: 5, layerFactor: 2 }), (error) => error.code === 'INVALID_FABRIC_WEIGHT_INPUT');
+});
+
+test('Catalog QR resolves only a known Telares PTI code', () => {
+  const boms = [{ code: 'TEL-ROLL-01', id: 10 }, { code: 'TEL-BAND-01', id: 11 }];
+  assert.equal(getTelaresPtiCatalogQr(boms[0]), 'TELARES-PTI:TEL-ROLL-01');
+  assert.equal(resolveTelaresPtiCatalogQr('telares-pti:tel-roll-01', boms), boms[0]);
+  assert.equal(resolveTelaresPtiCatalogQr('TELARES-PTI:NOT-FOUND', boms), null);
+  assert.equal(resolveTelaresPtiCatalogQr('random:TEL-ROLL-01', boms), null);
+});
 
 test('Telares output routes block Globo for rolls, bands and cintilla alike', () => {
   for (const [productKind, expectedCode] of [

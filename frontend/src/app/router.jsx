@@ -48,7 +48,7 @@ import { ExtrusionWipInventoryPage } from '../modules/extrusion/presentation/pag
 import ExtrusionScrapControlPage from '../modules/extrusion/presentation/pages/ExtrusionScrapControlPage';
 import ExtrusionShiftPage from '../modules/extrusion/presentation/pages/ExtrusionShiftPage';
 import ExtrusionReportsPage from '../modules/extrusion/presentation/pages/ExtrusionReportsPage';
-import { SuperAdminRoute, GlobalAdminRoute, UsersManagementRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute } from './SuperAdminRoute';
+import { SuperAdminRoute, GlobalAdminRoute, UsersManagementRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute, CorteRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
 import PermissionRoute from './PermissionRoute';
 
@@ -64,6 +64,7 @@ import GloboCatalogPage from '../modules/globo/pages/GloboCatalogPage';
 import GloboWipPage from '../modules/globo/pages/GloboWipPage';
 import LaminadoCatalogPage from '../modules/laminado/pages/LaminadoCatalogPage';
 import LaminadoWipPage from '../modules/laminado/pages/LaminadoWipPage';
+import CorteLaminadoOrdersPage from '../modules/corte/pages/CorteLaminadoOrdersPage';
 
 // Warehouse
 import { ReceptionProvider } from '../modules/reception/ReceptionProvider';
@@ -453,6 +454,10 @@ export const router = createBrowserRouter([
           {
             path: '/laminado/wip',
             element: <LaminadoRoute><LaminadoWipPage /></LaminadoRoute>
+          },
+          {
+            path: '/corte/laminado-orders',
+            element: <CorteRoute><CorteLaminadoOrdersPage /></CorteRoute>
           },
           {
             path: '/viajero',

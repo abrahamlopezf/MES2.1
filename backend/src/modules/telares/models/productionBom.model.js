@@ -46,6 +46,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 65.00,
       },
+      weight_conversion_width_m: {
+        type: DataTypes.DECIMAL(10, 4),
+        allowNull: true,
+        comment: 'Ancho Manga en metros usado por la conversión del Excel (33.9 × oz/yd²).',
+      },
+      weight_conversion_factor: {
+        type: DataTypes.DECIMAL(8, 4),
+        allowNull: true,
+        comment: 'Factor configurable de capas: normalmente 2 para tubular y 1 para plana; confirmar por ficha.',
+      },
       warp_density: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: 10.00,

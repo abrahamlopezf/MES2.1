@@ -104,6 +104,11 @@ export const PtiCatalogPanel: React.FC = () => {
       toast.error('El nombre de la ficha PTI debe corresponder a un solo color y coincidir con el campo Color.');
       return;
     }
+    const standardUnitWeight = Number(draft.unit_weight_kg);
+    if (!Number.isFinite(standardUnitWeight) || standardUnitWeight <= 0) {
+      toast.error('Registra el peso estándar por bobina en kg para poder calcular ingresos a rack por piezas y por peso.');
+      return;
+    }
     const payload: CreatePtiProductPayload = {
       code: draft.code.trim() || undefined,
       name,
@@ -225,7 +230,7 @@ export const PtiCatalogPanel: React.FC = () => {
               </>
             )}
             <div className={`grid gap-3 ${allowCosts ? 'sm:grid-cols-2' : 'sm:grid-cols-1'}`}>
-              <label className="text-sm font-bold">Peso estándar por bobina (kg)<Input type="number" min="0.001" step="0.001" value={draft.unit_weight_kg} onChange={(e) => set('unit_weight_kg', e.target.value)} placeholder="No indicado en el PDF" className="mt-1 min-h-12 text-base" /></label>
+              <label className="text-sm font-bold">Peso estándar por bobina (kg) *<Input required type="number" min="0.001" step="0.001" value={draft.unit_weight_kg} onChange={(e) => set('unit_weight_kg', e.target.value)} placeholder="Ej. 6.800" className="mt-1 min-h-12 text-base" /><span className="mt-1 block text-xs font-normal text-muted-foreground">Dato requerido para estimar kg por piezas y convertir kg a piezas en Ingreso a racks.</span></label>
               {allowCosts && (
                 <label className="text-sm font-bold">Precio unitario histórico ($/bobina)<Input type="number" min="0" step="0.01" value={draft.unit_price} onChange={(e) => set('unit_price', e.target.value)} className="mt-1 min-h-12 text-base" /></label>
               )}

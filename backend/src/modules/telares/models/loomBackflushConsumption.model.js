@@ -32,19 +32,19 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       theoretical_kg: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(14, 6),
         allowNull: false,
       },
       spools_consumed: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(10, 3),
         allowNull: false,
       },
       rack_balance_spools_before: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(10, 3),
         allowNull: false,
       },
       rack_balance_spools_after: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(10, 3),
         allowNull: false,
       },
       unit_cost_per_kg_snapshot: { type: DataTypes.DECIMAL(14, 6), allowNull: true },

@@ -64,15 +64,15 @@ export interface PtiIngressPresenterProps {
   rackQr: string;
   onRackQrChange: (val: string) => void;
   selectedPtiMaterialId: number | '';
-  onPtiMaterialIdChange: (val: number | '') => void;
   // Modo de Ingreso: Piezas vs Báscula
-  ingressMode: 'PIECES' | 'WEIGHT';
-  onIngressModeChange: (val: 'PIECES' | 'WEIGHT') => void;
+  ingressMode: 'FULL_RACK' | 'PIECES' | 'WEIGHT';
+  onIngressModeChange: (val: 'FULL_RACK' | 'PIECES' | 'WEIGHT') => void;
   quantityPieces: string;
   onQuantityPiecesChange: (val: string) => void;
   scaleWeightKg: string;
   onScaleWeightKgChange: (val: string) => void;
   computedPiecesFromScale: number;
+  fullRackTarget: { rackCode: string | null; pieces: number } | null;
   unitPrice: string;
   onUnitPriceChange: (val: string) => void;
   scrapWeightKg: string;
@@ -97,7 +97,8 @@ export interface PtiIngressPresenterProps {
   massBalance: MassBalanceData | null;
   onSelectRackFromGrid: (rack: PtiRack) => void;
   onSelectQueueFromList: (queue: ExtruderQueue) => void;
-  onCreateRack?: (data: { rack_code: string; max_capacity?: number; location_name?: string }) => Promise<PtiRack>;
+  onCreateRack?: (data: { virgin_qr_code: string; max_capacity?: number }) => Promise<PtiRack>;
+  defaultRackLocation: string;
   isCreatingRack?: boolean;
   // Valorización y Edición de Precios
   valuation?: ExtrusionValuation | null;
@@ -126,7 +127,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   rackQr,
   onRackQrChange,
   selectedPtiMaterialId,
-  onPtiMaterialIdChange,
   ingressMode,
   onIngressModeChange,
   quantityPieces,
@@ -134,6 +134,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   scaleWeightKg,
   onScaleWeightKgChange,
   computedPiecesFromScale,
+  fullRackTarget,
   unitPrice,
   onUnitPriceChange,
   scrapWeightKg,
@@ -157,6 +158,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   onSelectRackFromGrid,
   onSelectQueueFromList,
   onCreateRack,
+  defaultRackLocation,
   isCreatingRack = false,
   valuation,
   canViewCosts,
@@ -180,7 +182,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   // Pestaña Activa: INGRESS (Operador), RACKS (Mapa de piso), BALANCE (Auditoría/Finanzas)
   const [activeTab, setActiveTab] = React.useState<'INGRESS' | 'RACKS' | 'BALANCE'>('INGRESS');
   const selectedPtiProduct = ptiProducts.find((product) => product.id === Number(selectedPtiMaterialId));
-  const knownPtiUnitWeight = Number(selectedRack?.unit_weight_kg || selectedPtiProduct?.unit_weight_kg || 0);
+  const knownPtiUnitWeight = Number(selectedPtiProduct?.unit_weight_kg || 0);
 
   // Filtros de Racks en Pestaña 2
   const [rackFilter, setRackFilter] = React.useState<'ALL' | 'VACIO' | 'DISPONIBLE' | 'LLENO'>('ALL');
@@ -192,7 +194,6 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
   const [isRackModalOpen, setIsRackModalOpen] = React.useState(false);
   const [newRackCode, setNewRackCode] = React.useState('');
   const [newMaxCapacity, setNewMaxCapacity] = React.useState('100');
-  const [newLocationName, setNewLocationName] = React.useState('ALMACEN-PTI-01');
 
   // Acordeón de opciones secundarias (Scrap / Notas)
   const [showSecondaryOptions, setShowSecondaryOptions] = React.useState(
@@ -223,14 +224,56 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
   // Sin peso unitario definido, el modo báscula pide capturar las bobinas
   // contadas manualmente; ese valor también debe habilitar el botón de ingreso.
-  const pieces = ingressMode === 'WEIGHT'
-    ? (knownPtiUnitWeight > 0 ? computedPiecesFromScale : (Number(quantityPieces) || 0))
-    : (Number(quantityPieces) || 0);
-  const selectedRackCapacity = selectedRack ? Number(selectedRack.max_capacity || 100) : 0;
-  const selectedRackAvailable = selectedRack
-    ? Math.max(0, selectedRackCapacity - Number(selectedRack.current_quantity || 0))
-    : 0;
-  const splitOverflowPieces = Math.max(0, pieces - selectedRackAvailable);
+  const pieces = ingressMode === 'FULL_RACK'
+    ? (fullRackTarget?.pieces || 0)
+    : ingressMode === 'WEIGHT'
+      ? (knownPtiUnitWeight > 0 ? computedPiecesFromScale : (Number(quantityPieces) || 0))
+      : (Number(quantityPieces) || 0);
+  const expectedRoute = selectedPtiProduct
+    ? (selectedPtiProduct.telares_subarea_code === 'TELARES_BANDA' || (!selectedPtiProduct.telares_subarea_code && Number(selectedQueue?.extruder_id) === 1)
+      ? 'TELARES_BANDA'
+      : selectedPtiProduct.telares_subarea_code === 'TELARES_ROLLO' || (!selectedPtiProduct.telares_subarea_code && [2, 4, 5].includes(Number(selectedQueue?.extruder_id)))
+        ? 'TELARES_ROLLO'
+        : null)
+    : null;
+  const rackAssignmentPreview = React.useMemo(() => {
+    if (!selectedPtiProduct || !pieces || !expectedRoute) return { allocations: [] as Array<{ rack: PtiRack; pieces: number }>, remaining: pieces };
+    const eligible = racks.filter((rack) => {
+      if (rack.locked_until_shift_close || rack.available_for_active_shift === false
+        || (rack.custody_shift_session_id != null && rack.available_for_active_shift !== true)) return false;
+      const occupied = Number(rack.current_quantity || 0);
+      if (occupied <= 0) return true;
+      return Number(rack.current_pti_product_id) === Number(selectedPtiProduct.id)
+        && rack.destination_route === expectedRoute
+        && rack.destination_subarea_id == null;
+    });
+    const firstChoice = [...eligible]
+      .sort((a, b) => Number(b.current_quantity || 0) - Number(a.current_quantity || 0) || Number(a.id) - Number(b.id))
+      .find((rack) => Number(rack.current_quantity || 0) < Number(rack.max_capacity || 100));
+    const allocationOrder = firstChoice
+      ? [firstChoice, ...eligible.filter((rack) => rack.id !== firstChoice.id).sort((a, b) => Number(a.id) - Number(b.id))]
+      : [];
+    let remaining = pieces;
+    const allocations: Array<{ rack: PtiRack; pieces: number }> = [];
+    for (const rack of allocationOrder) {
+      const available = Math.max(0, Number(rack.max_capacity || 100) - Number(rack.current_quantity || 0));
+      const assigned = Math.min(remaining, available);
+      if (assigned > 0) allocations.push({ rack, pieces: assigned });
+      remaining -= assigned;
+      if (remaining <= 0) break;
+    }
+    return { allocations, remaining: Math.max(0, remaining) };
+  }, [racks, selectedPtiProduct, pieces, expectedRoute]);
+  const isIngressSubmitDisabled = isSubmitting || !selectedPtiMaterialId || pieces <= 0 || !expectedRoute || rackAssignmentPreview.remaining > 0;
+  const ingressSubmitHint = !selectedPtiMaterialId
+    ? 'Selecciona el PTI'
+    : pieces <= 0
+      ? 'Captura cantidad'
+      : !expectedRoute
+        ? 'Configura el destino del PTI'
+        : rackAssignmentPreview.remaining > 0
+          ? 'Completa la asignación de racks'
+          : 'Confirmar ingreso a rack';
 
   // Atajos para sumar piezas rápidamente
   const handleAddPieces = (delta: number) => {
@@ -322,9 +365,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
     if (!newRackCode.trim() || !onCreateRack) return;
     try {
       const createdRack = await onCreateRack({
-        rack_code: newRackCode.trim().toUpperCase(),
-        max_capacity: Number(newMaxCapacity) || 100,
-        location_name: newLocationName.trim() || undefined
+        virgin_qr_code: newRackCode.trim().toUpperCase(),
+        max_capacity: Number(newMaxCapacity) || 100
       });
       setNewRackCode('');
       setIsRackModalOpen(false);
@@ -419,13 +461,13 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+        <div className="grid w-full grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:flex sm:w-auto sm:items-center sm:gap-2.5">
           {onCreateRack && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsRackModalOpen(true)}
-              className="min-h-11 px-3 text-sm font-bold border-border gap-1.5"
+              className="min-h-11 w-full justify-center px-2 sm:w-auto sm:px-3 text-sm font-bold border-border gap-1.5"
             >
               <Plus className="h-4 w-4 text-primary" />
               <span>Nuevo Rack</span>
@@ -437,7 +479,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             size="sm"
             onClick={onRefresh}
             disabled={isLoading}
-            className="min-h-11 px-3 text-sm font-bold border-border gap-1.5"
+            className={`min-h-11 w-full justify-center px-2 sm:w-auto sm:px-3 text-sm font-bold border-border gap-1.5 ${!onCreateRack ? 'min-[360px]:col-span-2' : ''}`}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Sincronizar</span>
@@ -448,27 +490,29 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {/* SELECTOR DE PESTAÑAS INDUSTRIALES (GRANDES Y TÁCTILES) */}
       {/* ========================================================= */}
-      <div role="tablist" aria-label="Secciones de ingreso de PTI" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border">
+      <div role="tablist" aria-label="Secciones de ingreso de PTI" className="mt-3 grid grid-cols-3 gap-1.5 rounded-2xl border border-border bg-muted/40 p-1.5 sm:gap-2">
         {/* Tab 1: Terminal de Ingreso */}
         <button
           type="button"
           id="pti-tab-ingress"
           role="tab"
+          aria-label="1. Registrar ingreso · Ingreso de planta, 3 pasos"
           aria-selected={activeTab === 'INGRESS'}
           aria-controls="pti-panel-ingress"
           tabIndex={activeTab === 'INGRESS' ? 0 : -1}
           onClick={() => setActiveTab('INGRESS')}
           onKeyDown={handleTabKeyDown}
-          className={`flex min-h-16 items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-base uppercase tracking-wide transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center text-xs font-black leading-tight transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-16 sm:flex-row sm:gap-3 sm:px-4 sm:py-3 sm:text-sm sm:text-left sm:uppercase sm:tracking-wide xl:text-base ${
             activeTab === 'INGRESS'
               ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
           }`}
         >
-          <Boxes className="h-5 w-5 shrink-0" />
-          <div className="text-left">
-            <span className="block leading-tight">1. Registrar Ingreso</span>
-            <span className="text-sm font-semibold opacity-85 normal-case block">
+          <Boxes className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+          <div className="min-w-0 sm:text-left">
+            <span className="block sm:hidden">Ingreso</span>
+            <span className="hidden leading-tight sm:block">1. Registrar Ingreso</span>
+            <span className="hidden text-sm font-semibold normal-case opacity-85 xl:block">
               Ingreso de planta · 3 pasos
             </span>
           </div>
@@ -479,29 +523,31 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           type="button"
           id="pti-tab-racks"
           role="tab"
+          aria-label={`2. Racks en piso · ${racks.length} racks · Disponibilidad física`}
           aria-selected={activeTab === 'RACKS'}
           aria-controls="pti-panel-racks"
           tabIndex={activeTab === 'RACKS' ? 0 : -1}
           onClick={() => setActiveTab('RACKS')}
           onKeyDown={handleTabKeyDown}
-          className={`flex min-h-16 items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-base uppercase tracking-wide transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center text-xs font-black leading-tight transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-16 sm:flex-row sm:gap-3 sm:px-4 sm:py-3 sm:text-sm sm:text-left sm:uppercase sm:tracking-wide xl:text-base ${
             activeTab === 'RACKS'
               ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
           }`}
         >
-          <Archive className="h-5 w-5 shrink-0" />
-          <div className="text-left">
-            <div className="flex items-center gap-2">
+          <Archive className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+          <div className="min-w-0 sm:text-left">
+            <span className="inline-flex items-center gap-1 sm:hidden">Racks <Badge variant={activeTab === 'RACKS' ? 'secondary' : 'outline'} className="min-h-5 px-1.5 text-[10px] font-mono font-bold">{racks.length}</Badge></span>
+            <div className="hidden items-center gap-2 sm:flex">
               <span className="block leading-tight">2. Racks en Piso</span>
               <Badge
                 variant={activeTab === 'RACKS' ? 'secondary' : 'outline'}
-              className="min-h-6 px-2 text-xs font-mono font-bold"
+                className="min-h-6 px-2 text-xs font-mono font-bold"
               >
                 {racks.length}
               </Badge>
             </div>
-            <span className="text-sm font-semibold opacity-85 normal-case block">
+            <span className="hidden text-sm font-semibold normal-case opacity-85 xl:block">
               Disponibilidad física
             </span>
           </div>
@@ -512,21 +558,23 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           type="button"
           id="pti-tab-balance"
           role="tab"
+          aria-label="3. Balance y auditoría · Existencias, consumo y costos"
           aria-selected={activeTab === 'BALANCE'}
           aria-controls="pti-panel-balance"
           tabIndex={activeTab === 'BALANCE' ? 0 : -1}
           onClick={() => setActiveTab('BALANCE')}
           onKeyDown={handleTabKeyDown}
-          className={`flex min-h-16 items-center justify-center gap-3 py-3 px-4 rounded-xl font-black text-base uppercase tracking-wide transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center text-xs font-black leading-tight transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-16 sm:flex-row sm:gap-3 sm:px-4 sm:py-3 sm:text-sm sm:text-left sm:uppercase sm:tracking-wide xl:text-base ${
             activeTab === 'BALANCE'
               ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
           }`}
         >
-          <Scale className="h-5 w-5 shrink-0" />
-          <div className="text-left">
-            <span className="block leading-tight">3. Balance y Auditoría</span>
-            <span className="text-sm font-semibold opacity-85 normal-case block">
+          <Scale className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+          <div className="min-w-0 sm:text-left">
+            <span className="block sm:hidden">Balance</span>
+            <span className="hidden leading-tight sm:block">3. Balance y Auditoría</span>
+            <span className="hidden text-sm font-semibold normal-case opacity-85 xl:block">
               Existencias, consumo y costos
             </span>
           </div>
@@ -637,18 +685,18 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                           onSelectQueueFromList(q);
                           setShowActiveQueues(false);
                         }}
-                        className={`p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                    className={`min-w-0 p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                           isSelected
                             ? 'border-primary bg-primary/10 shadow-sm ring-1 ring-primary/40'
                             : 'border-border bg-background hover:border-primary/40'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-black text-xs uppercase px-2 py-0.5 rounded bg-muted text-foreground">
                             Extrusora {q.extruder_id}
                           </span>
                           {isSelected ? (
-                            <Badge variant="default" className="text-[10px] font-black uppercase gap-1">
+                            <Badge variant="default" className="max-w-full shrink-0 whitespace-nowrap text-[10px] font-black uppercase gap-1">
                               <Check className="h-3 w-3" /> Seleccionada
                             </Badge>
                           ) : (
@@ -657,7 +705,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                             </Badge>
                           )}
                         </div>
-                        <span className="font-mono text-sm sm:text-base font-black text-foreground block select-all">
+                        <span className="block break-all font-mono text-sm sm:text-base font-black leading-snug text-foreground select-all">
                           {q.consumption_order_qr_id}
                         </span>
                         <div className="text-[11px] text-muted-foreground font-bold truncate">
@@ -677,12 +725,12 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
               {/* Ficha Resumen de la Fórmula si está identificada */}
               {selectedFormula && (
-                <div className="p-3 bg-muted/30 border border-border rounded-xl flex items-center justify-between text-xs font-semibold">
-                  <div className="flex items-center gap-2">
+                <div className="p-3 bg-muted/30 border border-border rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs font-semibold">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     <Layers className="h-4 w-4 text-primary shrink-0" />
-                    <span>Fórmula: <strong className="text-foreground">{selectedFormula.name}</strong><span className="block text-muted-foreground">Color(es) PTI: {[...new Set((selectedFormula.ptiProducts || []).filter((pti) => pti.is_active && pti.color).map((pti) => pti.color))].join(', ') || 'sin PTI enlazado'}</span></span>
+                    <span className="min-w-0 break-words">Fórmula: <strong className="text-foreground">{selectedFormula.name}</strong><span className="block text-muted-foreground">Color(es) PTI: {[...new Set((selectedFormula.ptiProducts || []).filter((pti) => pti.is_active && pti.color).map((pti) => pti.color))].join(', ') || 'sin PTI enlazado'}</span></span>
                   </div>
-                  <div className="font-mono text-muted-foreground">
+                  <div className="shrink-0 font-mono text-muted-foreground sm:text-right">
                     Peso Teórico: <strong className="text-primary">{theoreticalWeightPerPiece} kg/pza</strong>
                   </div>
                 </div>
@@ -693,38 +741,88 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
             {/* PASO 2: ASIGNACIÓN AUTOMÁTICA A RACKS */}
             {/* ---------------------------------------------------- */}
             <div className="extrusion-ingress-step space-y-3 pb-6 border-b border-border">
-              <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">2</div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-foreground">Asignación automática a racks compatibles</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Al registrar la producción, el sistema elige racks con espacio del mismo PTI y destino. Si la cantidad excede la capacidad, distribuye el resto y crea racks con QR cuando haga falta. No es necesario escanear el rack.</p>
+              <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_1fr] gap-4 items-start">
+              <div className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:p-4">
+                <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-sm shrink-0">2</div>
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-black text-foreground">Racks compatibles</h2>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">El sistema asigna las bobinas automáticamente.</p>
+                  <details className="mt-1.5 text-xs text-muted-foreground">
+                    <summary className="min-h-11 inline-flex cursor-pointer items-center font-bold text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                      ¿Qué hago si falta espacio?
+                    </summary>
+                    <p className="mt-1 leading-snug">Registra un rack vacío con QR virgen. No necesitas escanear racks existentes.</p>
+                  </details>
                 </div>
               </div>
 
-              {/* Selector de Tipo de Producto PTI */}
-              <div className="pt-2">
+              {/* PTI determinado por la mezcla; no se puede sustituir manualmente */}
+              <div className="min-w-0">
                 <label className="text-xs font-black uppercase text-foreground block mb-1">
-                  Tipo de Producto PTI *
+                  PTI de salida · definido por la fórmula
                 </label>
-                <select
-                    value={selectedPtiMaterialId}
-                    onChange={(e) => onPtiMaterialIdChange(Number(e.target.value) || '')}
-                    className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                  >
-                    <option value="">-- Seleccionar Producto PTI --</option>
-                    {ptiProducts.length > 0 ? (
-                      ptiProducts.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.code} - {p.name} · Color: {p.color || 'sin definir'} ({p.unit_weight_kg == null ? 'peso pendiente' : `${Number(p.unit_weight_kg).toFixed(2)} kg`}{canViewCosts ? `, índice ×${Number(p.transformed_cost_index || 1).toFixed(2)}` : ''})
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>La fórmula activa no tiene un PTI enlazado. Completa el enlace desde el catálogo de PTI.</option>
-                    )}
-                  </select>
+                {selectedPtiProduct ? (
+                  <div className="min-h-14 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0">
+                      <strong className="block break-words text-sm text-foreground">{selectedPtiProduct.code} · {selectedPtiProduct.name}</strong>
+                      <span className="text-xs text-muted-foreground">Color: {selectedPtiProduct.color || 'sin definir'} · {selectedPtiProduct.unit_weight_kg == null ? 'peso unitario pendiente' : `${Number(selectedPtiProduct.unit_weight_kg).toFixed(3)} kg/pza`}</span>
+                    </span>
+                    <Badge variant="outline" className="min-h-7 shrink-0 border-primary/40 text-primary">Automático · no editable</Badge>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                    {selectedQueue && ptiProducts.length > 1
+                      ? 'La mezcla no identifica cuál de los PTI enlazados debe producirse. Corrige el enlace de salida en el catálogo antes de registrar.'
+                      : 'La mezcla no tiene un PTI de salida enlazado. Corrige el catálogo o la asignación de la mezcla antes de registrar.'}
+                  </div>
+                )}
+              </div>
               </div>
 
-              {selectedPtiProduct && <div className="mt-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-xs leading-relaxed text-muted-foreground">Este PTI se entrega a {selectedPtiProduct.telares_subarea_code === 'TELARES_BANDA' || (!selectedPtiProduct.telares_subarea_code && Number(selectedPtiProduct.extrusion_machine_number) === 1) ? 'Telares Banda' : selectedPtiProduct.telares_subarea_code === 'NO_APLICA' ? 'un destino fuera de Telares' : 'Telares Rollo'} según su máquina. La ruta posterior del rollo o banda se define en Telares.</div>}
+              {selectedPtiProduct && (
+                <p className="text-xs leading-snug text-muted-foreground">
+                  <strong className="text-foreground">Destino:</strong>{' '}
+                  {selectedPtiProduct.telares_subarea_code === 'NO_APLICA'
+                    ? 'Fuera de Telares'
+                    : expectedRoute ? PTI_DESTINATION_LABELS[expectedRoute] : 'Por definir'}
+                  {' · '}La ruta final se define en Telares.
+                </p>
+              )}
+
+              <section className="rounded-xl border border-border bg-background/50 p-3 sm:p-4 space-y-2" aria-live="polite">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <strong className="text-sm font-black text-foreground">Asignación prevista de racks</strong>
+                  <span className="text-xs font-bold text-muted-foreground">
+                    {selectedPtiProduct?.telares_subarea_code === 'NO_APLICA'
+                      ? 'Fuera de Telares'
+                      : expectedRoute ? PTI_DESTINATION_LABELS[expectedRoute] : 'Destino pendiente'}
+                  </span>
+                </div>
+                {rackAssignmentPreview.allocations.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {rackAssignmentPreview.allocations.map(({ rack, pieces: assigned }) => (
+                      <li key={rack.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+                        <span className="font-bold text-foreground">{rack.rack_code}<span className="ml-2 text-xs font-medium text-muted-foreground">{Number(rack.current_quantity || 0)} / {Number(rack.max_capacity || 100)} piezas</span></span>
+                        <span className="font-mono font-black text-primary">+{assigned} piezas</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : pieces > 0 && selectedPtiProduct ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">No hay racks con espacio disponible.</p>
+                    <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={() => setIsRackModalOpen(true)}>Crear rack con QR</Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Captura la cantidad para ver los racks sugeridos.</p>
+                )}
+                {rackAssignmentPreview.remaining > 0 && rackAssignmentPreview.allocations.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Faltan racks para {rackAssignmentPreview.remaining} piezas.</p>
+                    {onCreateRack && <Button type="button" variant="outline" className="min-h-11 shrink-0" onClick={() => setIsRackModalOpen(true)}>Crear rack con QR</Button>}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Se valida nuevamente al confirmar.</p>
+              </section>
             </div>
 
             {/* ---------------------------------------------------- */}
@@ -740,13 +838,26 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     Cantidad de Bobinas / Peso en Báscula
                   </h2>
                   <p className="text-xs text-muted-foreground font-semibold">
-                    Elige si ingresas por conteo de piezas o por peso en báscula industrial.
+                    Completa un rack o registra una cantidad por piezas o peso parcial.
                   </p>
                 </div>
               </div>
 
               {/* Botones Grandes de Toggle Modo */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => onIngressModeChange('FULL_RACK')}
+                  disabled={!fullRackTarget?.pieces || knownPtiUnitWeight <= 0}
+                  className={`min-h-14 rounded-xl border-2 px-3 py-3 font-black text-xs sm:text-sm uppercase flex items-center justify-center gap-2 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                    ingressMode === 'FULL_RACK'
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                  }`}
+                >
+                  <Boxes className="h-4 w-4 shrink-0" />
+                  <span>Completar rack</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => onIngressModeChange('PIECES')}
@@ -770,12 +881,25 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   }`}
                 >
                   <Scale className="h-4 w-4" />
-                  <span>Por Báscula (Peso Kg)</span>
+                  <span>Peso parcial (kg)</span>
                 </button>
               </div>
 
-              {/* Input Modo 1: Piezas */}
-              {ingressMode === 'PIECES' ? (
+              {ingressMode === 'FULL_RACK' ? (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4" aria-live="polite">
+                  <p className="text-sm font-black text-foreground">Ingreso para completar un rack</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {fullRackTarget?.rackCode
+                      ? <>Se asignará a <strong className="text-foreground">{fullRackTarget.rackCode}</strong>.</>
+                      : 'Se asignará a un rack nuevo compatible; si hace falta, el sistema solicitará un QR virgen.'}
+                  </p>
+                  <div className="mt-3 grid gap-2 rounded-lg bg-background/70 p-3 text-sm sm:grid-cols-2">
+                    <span>Piezas para completar</span><strong className="font-mono tabular-nums">{fullRackTarget?.pieces || 0} pzas</strong>
+                    <span>Peso estándar estimado</span><strong className="font-mono tabular-nums">{((fullRackTarget?.pieces || 0) * knownPtiUnitWeight).toFixed(3)} kg</strong>
+                  </div>
+                  {knownPtiUnitWeight <= 0 && <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">Registra primero el peso estándar por bobina en el Catálogo de PTI.</p>}
+                </div>
+              ) : ingressMode === 'PIECES' ? (
                 <div className="space-y-2 pt-1">
                   <label className="text-xs font-black uppercase text-foreground flex items-center justify-between">
                     <span>Cantidad de Piezas a Ingresar *</span>
@@ -809,18 +933,20 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   </div>
 
                   {/* Atajos Rápidos de Suma Táctil */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="text-[11px] font-bold text-muted-foreground uppercase">Sumar rápido:</span>
-                    {[5, 10, 25, 50].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => handleAddPieces(num)}
-                        className="px-3 py-1 bg-muted/50 hover:bg-primary hover:text-primary-foreground border border-border rounded-lg text-xs font-mono font-bold transition-all cursor-pointer"
-                      >
-                        +{num}
-                      </button>
-                    ))}
+                  <div className="pt-1">
+                    <span className="mb-2 block text-xs font-bold text-muted-foreground sm:mb-1 sm:inline-block sm:mr-2">Sumar rápido:</span>
+                    <div className="grid grid-cols-4 gap-2 sm:inline-grid">
+                      {[5, 10, 25, 50].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => handleAddPieces(num)}
+                          className="min-h-11 min-w-0 rounded-lg border border-border bg-muted/50 px-2 py-2 text-sm font-mono font-bold transition-all cursor-pointer hover:bg-primary hover:text-primary-foreground sm:px-3"
+                        >
+                          +{num}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Estimación de Peso Total */}
@@ -830,13 +956,13 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       {knownPtiUnitWeight > 0 ? `${((Number(quantityPieces) || 0) * knownPtiUnitWeight).toFixed(2)} KG` : 'Peso unitario pendiente'}
                     </strong>
                   </div>
-                  {knownPtiUnitWeight <= 0 && <p className="text-xs text-amber-700 dark:text-amber-300">El documento del cliente no especifica el peso de bobina. Usa báscula y captura peso total y piezas para calibrar el rack.</p>}
+                  {knownPtiUnitWeight <= 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Registra el peso estándar de este PTI en su catálogo para calcular el peso estimado.</p>}
                 </div>
               ) : (
                 /* Input Modo 2: Peso en Báscula */
                 <div className="space-y-2 pt-1">
                   <label className="text-xs font-black uppercase text-foreground flex items-center justify-between">
-                    <span>Peso Total Registrado en Báscula *</span>
+                    <span>Peso parcial medido en báscula *</span>
                     <span className="font-mono text-xs text-primary font-bold">BÁSCULA INDUSTRIAL</span>
                   </label>
 
@@ -854,20 +980,18 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       KG
                     </div>
                   </div>
+                  <p className="text-sm text-muted-foreground">Conversión con peso estándar del catálogo: <strong className="font-mono text-foreground">{knownPtiUnitWeight > 0 ? `${computedPiecesFromScale} pzas · ${(computedPiecesFromScale * knownPtiUnitWeight).toFixed(3)} kg estándar` : 'falta configurar el peso estándar del PTI'}</strong></p>
+                  <p className="text-xs text-muted-foreground">El peso de báscula se conserva como peso neto medido; el número de piezas se estima redondeando con el estándar del PTI.</p>
 
                   <div className="p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-between text-xs font-bold text-foreground">
                     <span>
-                      Peso unitario: <strong>{knownPtiUnitWeight > 0 ? `${knownPtiUnitWeight} kg/pza` : 'Pendiente; captura también las piezas'}</strong>
+                      Peso estándar por bobina: <strong>{knownPtiUnitWeight > 0 ? `${knownPtiUnitWeight.toFixed(3)} kg/pza` : 'Pendiente en Catálogo de PTI'}</strong>
                     </span>
                     {knownPtiUnitWeight > 0 && <span className="text-primary font-mono font-black text-sm">
                       → Equivale a: {computedPiecesFromScale} bobinas
                     </span>}
                   </div>
-                  {knownPtiUnitWeight <= 0 && (
-                    <label className="block space-y-1 text-xs font-bold">BOBINAS CONTADAS
-                      <Input type="number" min="1" step="1" value={quantityPieces} onChange={(event) => onQuantityPiecesChange(event.target.value)} placeholder="Número de bobinas" />
-                    </label>
-                  )}
+                  {knownPtiUnitWeight <= 0 && <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">No se puede convertir peso a piezas sin el peso estándar del PTI. Completa ese dato en el catálogo.</p>}
                 </div>
               )}
             </div>
@@ -958,14 +1082,10 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 const result = await onSubmitIngress();
                 if (result?.created_racks?.length) setRackQrLabels(result.created_racks);
               }}
-              disabled={
-                isSubmitting ||
-                !selectedPtiMaterialId ||
-                pieces <= 0
-              }
-              className={`w-full h-14 text-base sm:text-lg font-black uppercase tracking-wider shadow-md transition-all gap-2 ${
-                isSubmitting || !selectedPtiMaterialId || pieces <= 0
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed border border-border opacity-70'
+              disabled={isIngressSubmitDisabled}
+              className={`mt-2 mb-1 w-full h-auto min-h-14 whitespace-normal break-words px-3 py-3 text-sm sm:text-lg font-black uppercase tracking-normal sm:tracking-wider leading-tight text-center shadow-md transition-all gap-2 disabled:opacity-100 ${
+                isIngressSubmitDisabled
+                  ? 'bg-muted text-foreground cursor-not-allowed border border-border'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }`}
             >
@@ -976,8 +1096,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-6 w-6" />
-                  <span>Confirmar y Registrar Ingreso en Rack</span>
+                  {!isIngressSubmitDisabled && <CheckCircle2 className="h-6 w-6" />}
+                  <span className="whitespace-normal leading-tight">{ingressSubmitHint}</span>
                 </>
               )}
             </Button>
@@ -1171,13 +1291,13 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   </div>
 
                   {/* Acciones al Pie */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-border">
+                  <div className="grid grid-cols-1 min-[360px]:grid-cols-2 items-stretch gap-2 pt-2 border-t border-border sm:flex sm:items-center">
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
                       onClick={() => setRackQrLabels([rack])}
-                      className="min-h-11 gap-1.5 px-3 text-sm font-bold border-border"
+                      className="min-h-11 h-auto w-full min-w-0 justify-center whitespace-normal px-2 py-2 text-center text-sm leading-tight font-bold border-border sm:w-auto sm:gap-1.5 sm:px-3"
                       title={`Descargar QR de ${rack.rack_code}`}
                       aria-label={`Descargar QR del rack ${rack.rack_code}`}
                     >
@@ -1188,7 +1308,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       size="sm"
                       onClick={() => handlePickRackForIngress(rack)}
                       disabled={isLleno || hasUnidentifiedPti}
-                      className={`min-h-11 flex-1 text-sm font-bold gap-1.5 ${hasUnidentifiedPti ? 'bg-destructive/10 text-destructive border border-destructive/40' : 'bg-primary text-primary-foreground'}`}
+                      className={`min-h-11 h-auto w-full min-w-0 flex-1 justify-center whitespace-normal px-2 py-2 text-center text-sm leading-tight font-bold sm:gap-1.5 sm:px-3 ${hasUnidentifiedPti ? 'bg-destructive/10 text-destructive border border-destructive/40' : 'bg-primary text-primary-foreground'}`}
                     >
                       <Boxes className="h-3.5 w-3.5" />
                       <span>{isLleno ? 'Rack Lleno' : hasUnidentifiedPti ? 'PTI sin identificar' : 'Usar este Rack'}</span>
@@ -1200,10 +1320,11 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                       variant="outline"
                       onClick={(e) => handleOpenEditRack(rack, e)}
                       aria-label={`Editar valores del rack ${rack.rack_code}`}
-                      className="min-h-11 min-w-11 px-3 text-sm font-bold border-border"
+                      className="min-h-11 min-w-11 w-full px-3 text-sm font-bold border-border min-[360px]:col-span-2 sm:col-span-1 sm:w-11"
                       title="Editar precio histórico y peso por bobina"
                     >
                       <Pencil className="h-3.5 w-3.5" />
+                      <span className="sm:hidden">Editar rack</span>
                     </Button>}
                   </div>
                 </div>
@@ -1291,36 +1412,50 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
           )}
 
           {extrusionWip && (
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
               <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-foreground">WIP disponible en Extrusión</h2>
                   <p className="text-sm font-medium text-muted-foreground">Material recibido de almacén y mezcla preparada aún disponible.</p>
                 </div>
-                <Badge variant="outline" className="font-mono font-black">{Number(extrusionWip.total_kg || 0).toFixed(2)} kg materia prima</Badge>
+                <Badge variant="outline" aria-label={`${Number(extrusionWip.total_kg || 0).toFixed(2)} kilogramos de WIP`} className="shrink-0 whitespace-nowrap px-2.5 font-mono text-xs font-black sm:text-sm">{Number(extrusionWip.total_kg || 0).toFixed(2)} kg</Badge>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground">Mezclas preparadas</h3>
-                  {(extrusionWip.mixtures || []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay mezcla preparada pendiente de consumo.</p>
-                  ) : (extrusionWip.mixtures || []).map((mix: any) => (
-                    <div key={mix.id} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-sm">
-                      <div className="min-w-0"><strong className="font-mono break-all">{mix.folio}</strong><div className="text-muted-foreground">{mix.formula || 'Fórmula'} · {mix.status}</div></div>
-                      <div className="text-right font-mono font-bold tabular-nums">{Number(mix.remaining_kg).toFixed(2)} kg{canViewCosts && mix.remaining_value != null && <div className="text-muted-foreground">${Number(mix.remaining_value).toFixed(2)}</div>}</div>
+                  <details className="group overflow-hidden rounded-xl border border-border bg-background/30">
+                    <summary className="flex min-h-12 list-none cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
+                      <span>Mezclas preparadas</span>
+                      <span className="flex shrink-0 items-center gap-2"><Badge variant="secondary" className="min-h-6 px-2 text-xs font-mono">{(extrusionWip.mixtures || []).length}</Badge><ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" /></span>
+                    </summary>
+                    <div className="space-y-2 border-t border-border p-3">
+                      {(extrusionWip.mixtures || []).length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No hay mezcla preparada pendiente de consumo.</p>
+                      ) : (extrusionWip.mixtures || []).map((mix: any) => (
+                        <div key={mix.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3 text-sm">
+                          <div className="min-w-0"><strong className="break-all font-mono">{mix.folio}</strong><div className="text-muted-foreground">{mix.formula || 'Fórmula'} · {mix.status}</div></div>
+                          <div className="text-right font-mono font-bold tabular-nums">{Number(mix.remaining_kg).toFixed(2)} kg{canViewCosts && mix.remaining_value != null && <div className="text-muted-foreground">${Number(mix.remaining_value).toFixed(2)}</div>}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </details>
                 </div>
                 <div className="space-y-2">
-                    <h3 className="text-sm font-bold uppercase text-muted-foreground">Materiales por lote</h3>
-                  {(extrusionWip.items || []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground p-3 bg-muted/20 rounded-lg">No hay material en WIP.</p>
-                  ) : (extrusionWip.items || []).map((item: any) => (
-                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/20 border border-border rounded-lg text-sm">
-                      <div className="min-w-0"><strong className="break-words">{item.material?.name || 'Material'}</strong><div className="text-muted-foreground break-words">Lote {item.lote?.folio || 'sin lote'} · {item.qr_code || 'sin QR'}</div></div>
-                      <div className="text-right font-mono font-bold tabular-nums">{Number(item.amount_kg).toFixed(2)} kg{canViewCosts && item.value != null && <div className="text-muted-foreground">${Number(item.value).toFixed(2)}</div>}</div>
+                  <details className="group overflow-hidden rounded-xl border border-border bg-background/30">
+                    <summary className="flex min-h-12 list-none cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
+                      <span>Materiales por lote</span>
+                      <span className="flex shrink-0 items-center gap-2"><Badge variant="secondary" className="min-h-6 px-2 text-xs font-mono">{(extrusionWip.items || []).length}</Badge><ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" /></span>
+                    </summary>
+                    <div className="space-y-2 border-t border-border p-3">
+                      {(extrusionWip.items || []).length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No hay material en WIP.</p>
+                      ) : (extrusionWip.items || []).map((item: any) => (
+                        <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3 text-sm">
+                          <div className="min-w-0"><strong className="break-words">{item.material?.name || 'Material'}</strong><div className="break-words text-muted-foreground">Lote {item.lote?.folio || 'sin lote'} · {item.qr_code || 'sin QR'}</div></div>
+                          <div className="text-right font-mono font-bold tabular-nums">{Number(item.amount_kg).toFixed(2)} kg{canViewCosts && item.value != null && <div className="text-muted-foreground">${Number(item.value).toFixed(2)}</div>}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </details>
                 </div>
               </div>
             </div>
@@ -1495,8 +1630,8 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* MODAL 1: EDITAR PRECIO Y PESO POR RACK (SUPERVISIÓN) */}
       {/* ========================================================= */}
       <Dialog open={isEditRackModalOpen} onOpenChange={setIsEditRackModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card border-2 border-border text-foreground">
-          <DialogHeader>
+        <DialogContent className="min-w-0 sm:max-w-md bg-card border-2 border-border text-foreground">
+          <DialogHeader className="min-w-0 pr-12 text-left">
             <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
               Editar Precio y Peso — {editingRack?.rack_code}
@@ -1562,78 +1697,67 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       {/* MODAL 2: REGISTRAR NUEVO RACK */}
       {/* ========================================================= */}
-      <Dialog open={isRackModalOpen} onOpenChange={setIsRackModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card border-2 border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase flex items-center gap-2">
-              <Boxes className="h-5 w-5 text-primary" />
-              Registrar Nuevo Rack PTI
+      <Dialog open={isRackModalOpen} onOpenChange={(open) => { setIsRackModalOpen(open); if (!open) setNewRackCode(''); }}>
+        <DialogContent className="w-[calc(100%-1.5rem)] max-h-[calc(100dvh-1.5rem)] min-w-0 gap-5 rounded-xl border border-border bg-card p-4 text-foreground sm:max-w-md sm:p-6">
+          <DialogHeader className="min-w-0 pr-12 text-left">
+            <DialogTitle className="flex items-center gap-2 text-lg font-extrabold leading-snug sm:text-xl">
+              <Boxes className="h-5 w-5 shrink-0 text-primary" />
+              <span>Registrar rack PTI</span>
             </DialogTitle>
-            <DialogDescription className="text-xs font-semibold text-muted-foreground">
-              Escanea un QR virgen de Extrusión para identificar el rack y define su capacidad y ubicación inicial.
+            <DialogDescription className="max-w-[38ch] text-sm leading-relaxed text-muted-foreground">
+              Escanea el QR virgen. La ubicación se asignará automáticamente a tu área.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveRack} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-black uppercase text-foreground">QR virgen del rack *</label>
-              <div className="flex items-center gap-2">
+          <form onSubmit={handleSaveRack} className="w-full min-w-0 space-y-5">
+            <section aria-labelledby="new-rack-qr-label" role="group" className="min-w-0 space-y-2">
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <span id="new-rack-qr-label" className="min-w-0 text-sm font-bold text-foreground">QR virgen del rack <span aria-hidden="true" className="text-destructive">*</span></span>
                 <QrScannerButton title="Escanear QR virgen para el rack" onScan={(value) => setNewRackCode(value.trim().toUpperCase())} />
-                <Input
-                  value={newRackCode}
-                  readOnly
-                  placeholder="Escanea la etiqueta QR del lote de Extrusión"
-                  required
-                  className="font-mono uppercase font-bold"
-                  data-testid="new-rack-code-input"
-                />
               </div>
-            </div>
+              <div className={`min-w-0 rounded-lg border px-3 py-3 text-sm ${newRackCode ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-border bg-background'}`} aria-live="polite">
+                <span className="block text-xs font-bold text-muted-foreground">{newRackCode ? 'Código leído' : 'Esperando escaneo'}</span>
+                <strong className="mt-1 block break-all font-mono text-foreground">{newRackCode || 'Escanea la etiqueta del rack para continuar'}</strong>
+              </div>
+            </section>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase text-foreground">
+                <label htmlFor="new-rack-capacity" className="text-sm font-bold text-foreground">
                   Capacidad Máxima *
                 </label>
                 <Input
+                  id="new-rack-capacity"
                   type="number"
                   min="1"
                   max="1000"
                   value={newMaxCapacity}
                   onChange={(e) => setNewMaxCapacity(e.target.value)}
                   required
-                  className="font-mono font-bold"
+                  className="w-full min-w-0 font-mono font-bold"
                   data-testid="new-rack-capacity-input"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase text-foreground">
-                  Ubicación Inicial
-                </label>
-                <Input
-                  value={newLocationName}
-                  onChange={(e) => setNewLocationName(e.target.value)}
-                  placeholder="Ej. EXT-PTI-BAY-1"
-                  className="font-semibold"
-                  data-testid="new-rack-location-input"
-                />
+                <label htmlFor="new-rack-location" className="text-sm font-bold text-foreground">Ubicación asignada</label>
+                <Input id="new-rack-location" value={defaultRackLocation} readOnly className="min-h-11 border-border bg-muted/30 text-sm font-semibold text-foreground" />
               </div>
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter className="w-full min-w-0 gap-2 border-t border-border pt-4 sm:flex-row sm:gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsRackModalOpen(false)}
-                className="font-bold border-2"
+                className="min-h-11 w-full font-bold sm:w-auto sm:min-w-28"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isCreatingRack || !newRackCode.trim()}
-                className="font-bold bg-primary text-primary-foreground"
+                className="min-h-12 w-full min-w-0 whitespace-normal px-3 text-center leading-tight font-bold bg-primary text-primary-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:border disabled:border-border sm:flex-1"
                 data-testid="submit-create-rack-btn"
               >
                 {isCreatingRack ? 'Registrando...' : 'Vincular QR y registrar Rack'}
@@ -1648,7 +1772,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
       {/* ========================================================= */}
       <Dialog open={isRackScannerModalOpen} onOpenChange={setIsRackScannerModalOpen}>
         <DialogContent className="sm:max-w-md bg-card border-2 border-border text-foreground">
-          <DialogHeader>
+          <DialogHeader className="min-w-0 pr-12 text-left">
             <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
               <QrCode className="h-5 w-5 text-primary" />
               Escanear QR de Rack Físico
@@ -1705,7 +1829,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
       <Dialog open={Boolean(dispatchRack)} onOpenChange={(open) => { if (!open && !isDispatchingToWarehouse) setDispatchRack(null); }}>
         <DialogContent className="sm:max-w-xl bg-card border-2 border-border text-foreground">
-          <DialogHeader>
+          <DialogHeader className="min-w-0 pr-12 text-left">
             <DialogTitle className="flex items-center gap-2 text-xl font-black"><ArrowRight className="h-5 w-5 text-emerald-400" /> Salida de PTI a Almacén</DialogTitle>
             <DialogDescription>El QR generado representa una transferencia pendiente. Almacén debe escanearlo para confirmar la entrada y capitalizar el mismo costo.</DialogDescription>
           </DialogHeader>
@@ -1736,7 +1860,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
       <Dialog open={Boolean(saleExitRack)} onOpenChange={(open) => { if (!open && !isRegisteringSaleExit) setSaleExitRack(null); }}>
         <DialogContent className="sm:max-w-xl bg-card border-2 border-border text-foreground">
-          <DialogHeader>
+          <DialogHeader className="min-w-0 pr-12 text-left">
             <DialogTitle className="flex items-center gap-2 text-xl font-black"><ShieldAlert className="h-5 w-5 text-amber-400" /> Confirmar salida a Venta</DialogTitle>
             <DialogDescription>Esta operación retira todo el contenido del WIP de Extrusión. El QR quedará marcado como vendido y conservará su historial; no podrá entrar a Telares ni a otro proceso.</DialogDescription>
           </DialogHeader>
@@ -1766,7 +1890,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
 
       <Dialog open={Boolean(dispatchQr)} onOpenChange={(open) => { if (!open) setDispatchQr(''); }}>
         <DialogContent className="sm:max-w-sm bg-card border-2 border-border text-foreground">
-          <DialogHeader><DialogTitle className="font-black">Transferencia lista para Almacén</DialogTitle><DialogDescription>El PTI ya salió del WIP de Extrusión. Entrega este QR al personal de Almacén para confirmar la recepción.</DialogDescription></DialogHeader>
+          <DialogHeader className="min-w-0 pr-12 text-left"><DialogTitle className="font-black">Transferencia lista para Almacén</DialogTitle><DialogDescription>El PTI ya salió del WIP de Extrusión. Entrega este QR al personal de Almacén para confirmar la recepción.</DialogDescription></DialogHeader>
           <div className="mx-auto space-y-3 rounded-xl bg-white p-4 text-center"><QRCodeSVG id="pti-warehouse-transfer-qr" value={dispatchQr} size={220} level="H" includeMargin /><div className="break-all font-mono text-xs text-slate-900">{dispatchQr}</div></div>
           <DialogFooter><Button type="button" variant="outline" onClick={downloadDispatchQr}><Download className="mr-2 h-4 w-4" /> Descargar QR SVG</Button><Button type="button" onClick={() => setDispatchQr('')}>Listo</Button></DialogFooter>
         </DialogContent>

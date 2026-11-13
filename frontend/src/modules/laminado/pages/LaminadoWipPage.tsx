@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Layers,
@@ -18,6 +18,7 @@ import {
   Scale,
   Sparkles,
 } from '@/design-system/components/Icon/googleIconCompat';
+import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { canViewCosts } from '../../../utils/authHelpers';
@@ -36,8 +37,9 @@ export const LaminadoWipPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialQrFromUrl = searchParams.get('qr')?.trim() || '';
 
-  const [activeTab, setActiveTab] = useState<'rolls' | 'warehouse' | 'incoming' | 'history' | 'scrap'>('rolls');
+  const [activeTab, setActiveTab] = useState<'rolls' | 'warehouse' | 'incoming' | 'corteOrders' | 'history' | 'scrap'>('rolls');
   const [searchTerm, setSearchTerm] = useState('');
+  const [pickupQr, setPickupQr] = useState<Record<number, string>>({});
   const [selectedRollForPreparation, setSelectedRollForPreparation] = useState<any | null>(null);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [scanInitialQr, setScanInitialQr] = useState('');
@@ -52,6 +54,20 @@ export const LaminadoWipPage: React.FC = () => {
     queryKey: ['laminado-wip-summary'],
     queryFn: () => laminadoApi.getWipSummary(),
     refetchInterval: 15000,
+  });
+  const queryClient = useQueryClient();
+  const { data: corteOrders = [], refetch: refetchCorteOrders, isFetching: isFetchingCorteOrders } = useQuery({
+    queryKey: ['laminado-corte-orders'],
+    queryFn: () => laminadoApi.getCorteOrders(),
+    refetchInterval: 12000,
+  });
+  const pickupMutation = useMutation({
+    mutationFn: ({ orderId, qr }: { orderId: number; qr: string }) => laminadoApi.confirmCortePickup(orderId, qr),
+    onSuccess: (_result, variables) => {
+      setPickupQr((prev) => ({ ...prev, [variables.orderId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['laminado-corte-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['laminado-wip-summary'] });
+    },
   });
 
   const macro = wipData?.macro;
@@ -249,6 +265,17 @@ export const LaminadoWipPage: React.FC = () => {
 
           <button
             role="tab"
+            aria-selected={activeTab === 'corteOrders'}
+            aria-controls="laminado-wip-panel"
+            onClick={() => setActiveTab('corteOrders')}
+            className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'corteOrders' ? 'bg-blue-600 text-white shadow-md' : isDark ? 'bg-slate-900 text-slate-300 hover:bg-slate-800' : 'bg-white text-slate-700 hover:bg-slate-100 border'}`}
+          >
+            <QrIcon className="h-4 w-4" />
+            Órdenes de Corte ({corteOrders.reduce((sum: number, order: any) => sum + (order.items || []).filter((item: any) => item.status === 'REQUESTED').length, 0)})
+          </button>
+
+          <button
+            role="tab"
             aria-selected={activeTab === 'history'}
             aria-controls="laminado-wip-panel"
             onClick={() => setActiveTab('history')}
@@ -274,7 +301,7 @@ export const LaminadoWipPage: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={activeTab === 'rolls' ? 'Buscar rollo, QR o telar' : activeTab === 'warehouse' ? 'Buscar insumo, código o lote' : 'La búsqueda no aplica en esta sección'}
-            disabled={activeTab === 'incoming' || activeTab === 'history'}
+            disabled={activeTab === 'incoming' || activeTab === 'corteOrders' || activeTab === 'history'}
             className="pl-8 min-h-11 text-sm bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
@@ -289,6 +316,22 @@ export const LaminadoWipPage: React.FC = () => {
         </div>
       ) : isLoading ? (
         <div className="text-center py-16 text-slate-500">Cargando inventario WIP de Laminado...</div>
+      ) : activeTab === 'corteOrders' ? (
+        <section className="space-y-4" aria-label="Órdenes de Corte para recoger en Telares">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
+            <div><h2 className="font-bold text-blue-100">Recogida física en Telares</h2><p className="mt-1 text-sm text-slate-300">Selecciona una orden y escanea el QR de cada rollo al recogerlo. Solo los rollos confirmados pasarán a la cola de recepción de Laminado.</p></div>
+            <Button variant="outline" className="min-h-11" onClick={() => refetchCorteOrders()} disabled={isFetchingCorteOrders}><RefreshCw className={`mr-2 h-4 w-4 ${isFetchingCorteOrders ? 'animate-spin' : ''}`} />Actualizar órdenes</Button>
+          </div>
+          {pickupMutation.error && <div role="alert" className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-200">{pickupMutation.error instanceof Error ? pickupMutation.error.message : 'No se pudo confirmar la recogida.'}</div>}
+          {corteOrders.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-slate-300">No hay solicitudes de Corte pendientes de recogida.</div> : corteOrders.map((order: any) => {
+            const pendingItems = (order.items || []).filter((item: any) => item.status === 'REQUESTED');
+            return <article key={order.id} className="rounded-xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-mono text-lg font-bold text-blue-300">{order.order_number}</h3><p className="text-sm text-slate-300">Solicitó {order.requester} · {new Date(order.requested_at).toLocaleString()}</p></div><span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-200">{pendingItems.length} rollo(s) pendientes</span></div>
+              <ul className="my-3 divide-y divide-slate-800">{(order.items || []).map((item: any) => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span><strong>{item.roll?.roll_code || 'Rollo'}</strong><span className="ml-2 text-xs text-slate-400">{item.roll?.loom?.code} · {item.roll?.meters} m / {item.roll?.weight_kg} kg</span></span><span className={item.status === 'PICKED' ? 'font-semibold text-emerald-300' : 'text-amber-200'}>{item.status === 'PICKED' ? 'Recogido' : 'Pendiente'}</span></li>)}</ul>
+              {pendingItems.length > 0 && <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end"><label className="text-xs font-semibold text-slate-300">Escanea QR del rollo que recogiste<Input value={pickupQr[order.id] || ''} onChange={(event) => setPickupQr((prev) => ({ ...prev, [order.id]: event.target.value }))} placeholder="Escanea o captura el QR" className="mt-1 min-h-11" /></label><QrScannerButton title="Escanear QR del rollo recogido" onScan={(value) => setPickupQr((prev) => ({ ...prev, [order.id]: value.trim() }))} /><Button className="min-h-11" disabled={!pickupQr[order.id]?.trim() || pickupMutation.isPending} onClick={() => pickupMutation.mutate({ orderId: order.id, qr: pickupQr[order.id].trim() })}>{pickupMutation.isPending ? 'Confirmando…' : 'Confirmar recogida'}</Button></div>}
+            </article>;
+          })}
+        </section>
       ) : activeTab === 'rolls' ? (
         /* TAB 1: Rollos en Piso Laminado */
         filteredRolls.length === 0 ? (

@@ -150,11 +150,58 @@ function validateOperatorWeightCoverage(segments, totalWeightKg, tolerance = 0.0
   return true;
 }
 
+// Worksheet conversion: width in meters x linear meters x g/m² (33.9 x oz/yd²),
+// multiplied by the configured number of fabric layers (normally 2 tubular, 1 flat).
+function calculateFabricWeightKg({ meters, widthMeters, ouncesYd2, layerFactor = 1, coefficient = 33.9 }) {
+  const length = Number(meters);
+  const width = Number(widthMeters);
+  const ounces = Number(ouncesYd2);
+  const layers = Number(layerFactor);
+  const gramsPerSquareMeterPerOunce = Number(coefficient);
+  if (![length, width, ounces, layers, gramsPerSquareMeterPerOunce].every(Number.isFinite)
+    || length <= 0 || width <= 0 || ounces <= 0 || layers <= 0 || gramsPerSquareMeterPerOunce <= 0) {
+    throw Object.assign(new Error('Para estimar el peso se requieren metros, ancho de conversión, onzas y factor de capas mayores a cero.'), { statusCode: 400, code: 'INVALID_FABRIC_WEIGHT_INPUT' });
+  }
+  const weightKg = (width * length * layers * ounces * gramsPerSquareMeterPerOunce) / 1000;
+  return { weight_kg: Number(weightKg.toFixed(3)), grams_per_meter: Number((weightKg * 1000 / length).toFixed(3)) };
+}
+
+function estimateBomFabricWeightKg(bom, meters) {
+  const widthMeters = Number(bom?.weight_conversion_width_m || 0);
+  const ouncesYd2 = Number(bom?.ounces_yd2 || 0);
+  const configuredFactor = Number(bom?.weight_conversion_factor || 0);
+  if (widthMeters > 0 && ouncesYd2 > 0 && configuredFactor > 0) {
+    const layerFactor = configuredFactor;
+    return calculateFabricWeightKg({ meters, widthMeters, ouncesYd2, layerFactor }).weight_kg;
+  }
+  const standardMeters = Number(bom?.standard_output_meters || 0);
+  const standardWeight = Number(bom?.output_weight_kg || 0);
+  if (standardMeters > 0 && standardWeight > 0) return Number((standardWeight * Number(meters) / standardMeters).toFixed(3));
+  const gramsPerMeter = Number(bom?.target_weight_g_per_m || 0);
+  return gramsPerMeter > 0 ? Number((gramsPerMeter * Number(meters) / 1000).toFixed(3)) : null;
+}
+
+function getTelaresPtiCatalogQr(bom) {
+  const code = String(bom?.code || '').trim().toUpperCase();
+  return code ? `TELARES-PTI:${code}` : null;
+}
+
+function resolveTelaresPtiCatalogQr(qrValue, boms) {
+  const scanned = String(qrValue || '').trim().toUpperCase();
+  if (!scanned.startsWith('TELARES-PTI:')) return null;
+  const code = scanned.slice('TELARES-PTI:'.length).trim();
+  return (boms || []).find((bom) => String(bom.code || '').trim().toUpperCase() === code) || null;
+}
+
 module.exports = {
   normalizeStageName,
   normalizeProductionRoute,
   validateOperatorMeterCoverage,
   validateOutputMeasures,
   validateOperatorWeightCoverage,
+  calculateFabricWeightKg,
+  estimateBomFabricWeightKg,
+  getTelaresPtiCatalogQr,
+  resolveTelaresPtiCatalogQr,
   OPERATOR_METER_TOLERANCE,
 };

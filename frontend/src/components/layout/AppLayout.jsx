@@ -15,6 +15,11 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const showDesktopScannerFab = !(
+    location.pathname.startsWith('/telares') ||
+    location.pathname === '/production/telares' ||
+    location.pathname === '/production/viajero-tracker'
+  );
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -185,7 +190,7 @@ const AppLayout = () => {
       <GlobalScannerModal />
 
       {/* FAB: Global Scanner Trigger (Disponible en todas las pantallas y para todos los roles en vista de Monitor) */}
-      <div className="hidden lg:block fixed bottom-8 right-8 z-50">
+      {showDesktopScannerFab && <div className="hidden lg:block fixed bottom-8 right-8 z-50">
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
           aria-label="Abrir escáner global"
@@ -194,7 +199,7 @@ const AppLayout = () => {
         >
           <Icon name="qr_code_scanner" size={28} />
         </button>
-      </div>
+      </div>}
 
       {/* Modal for forcing password change */}
       <ForceChangePasswordModal />

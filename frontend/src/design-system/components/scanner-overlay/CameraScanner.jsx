@@ -12,6 +12,7 @@ export const CameraScanner = ({
   onScan,
   onClose,
   inline = false,
+  portalContainer = null,
   allowManualInput = true,
   allowImageInput = false,
   onScanFailure,
@@ -482,7 +483,7 @@ export const CameraScanner = ({
   );
 
   if (!inline && typeof document !== 'undefined') {
-    return createPortal(content, document.body);
+    return createPortal(content, portalContainer || document.body);
   }
 
   return content;

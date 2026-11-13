@@ -114,7 +114,7 @@ export const GlobalBreadcrumbs = () => {
       <div className="flex min-h-12 items-center gap-2 px-3 py-2 pr-16 sm:px-5 sm:pr-20 lg:px-6 lg:pr-6">
         <nav className="min-w-0 flex-1" aria-label="Ruta de navegación">
           <ol className="flex min-w-0 items-center gap-1.5 text-sm">
-            <li className="flex shrink-0 items-center">
+            <li className="flex shrink-0 items-center max-[359px]:hidden">
               <Link
                 to="/dashboard"
                 aria-label="Inicio"
@@ -128,16 +128,18 @@ export const GlobalBreadcrumbs = () => {
               const isCurrent = index === pathnames.length - 1;
               const path = getBreadcrumbPath(pathnames, index);
               const label = getSegmentLabel(segment, pathnames[index - 1]);
-              const showOnMobile = index === 0 || isCurrent;
+              // On narrow screens keep Home and the current page label only;
+              // the server clock and notifications occupy the right side of the bar.
+              const showOnMobile = isCurrent;
 
               return (
                 <li
                   key={path}
                   className={`flex min-w-0 items-center gap-1.5 ${showOnMobile ? '' : 'hidden lg:flex'}`}
                 >
-                  <ChevronRight size={15} className="shrink-0 text-muted-foreground/70" aria-hidden="true" />
+                  <ChevronRight size={15} className="shrink-0 text-muted-foreground/70 max-[359px]:hidden" aria-hidden="true" />
                   {isCurrent && pathnames.length > 2 && (
-                    <span className="px-1 text-muted-foreground lg:hidden" aria-hidden="true">…</span>
+                    <span className="px-1 text-muted-foreground lg:hidden max-[359px]:hidden" aria-hidden="true">…</span>
                   )}
                   {isCurrent ? (
                     <span

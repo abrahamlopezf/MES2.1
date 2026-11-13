@@ -34,6 +34,7 @@ const formulasRoutes = require('../modules/formulas/formulas.routes');
 const telaresRoutes = require('../modules/telares/telares.routes');
 const globoRoutes = require('../modules/globo/globo.routes');
 const laminadoRoutes = require('../modules/laminado/laminado.routes');
+const corteRoutes = require('../modules/corte/corte.routes');
 
 const router = express.Router();
 
@@ -68,5 +69,6 @@ router.use('/formulas', formulasRoutes);
 router.use('/telares', telaresRoutes);
 router.use('/globo', globoRoutes);
 router.use('/laminado', laminadoRoutes);
+router.use('/corte', corteRoutes);
 
 module.exports = router;

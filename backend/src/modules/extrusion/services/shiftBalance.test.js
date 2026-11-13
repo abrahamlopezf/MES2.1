@@ -17,12 +17,14 @@ test('overnight shift is attributed to the date it started before 06:00 CDMX', (
   assert.equal(getShiftDateForInstant(new Date('2026-10-31T12:00:00.000Z')), '2026-10-31');
 });
 
-test('balance includes purge exactly once and reconciles scale variance', () => {
+test('PTI output balance excludes separately measured purge from mixture production', () => {
   const result = calculateShiftBalance({ goodOutputKg: 300, mixtureScrapKg: 50, purgeKg: 20, actualScrapKg: 73 });
   assert.equal(result.mixture_input_kg, 350);
   assert.equal(result.total_input_kg, 370);
-  assert.equal(result.theoretical_scrap_kg, 70);
-  assert.equal(result.variance_kg, 3);
+  assert.equal(result.consumed_mixture_kg, 350);
+  assert.equal(result.theoretical_good_output_kg, 277);
+  assert.equal(result.theoretical_scrap_kg, 50);
+  assert.equal(result.variance_kg, 23);
 });
 
 test('shift balance subtracts carried opening stock and closing remnant before calculating scrap', () => {
@@ -38,9 +40,10 @@ test('shift balance subtracts carried opening stock and closing remnant before c
   assert.equal(result.total_input_kg, 520);
   assert.equal(result.closing_remnant_kg, 150);
   assert.equal(result.consumed_input_kg, 370);
-  assert.equal(result.theoretical_scrap_kg, 70);
-  assert.equal(result.theoretical_good_output_kg, 297);
-  assert.equal(result.variance_kg, 3);
+  assert.equal(result.consumed_mixture_kg, 350);
+  assert.equal(result.theoretical_scrap_kg, 50);
+  assert.equal(result.theoretical_good_output_kg, 277);
+  assert.equal(result.variance_kg, 23);
 });
 
 test('balance never reports negative consumption when a legacy digital remnant exceeds its recorded input', () => {

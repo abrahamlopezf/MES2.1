@@ -54,7 +54,7 @@ export const useCreatePtiRackMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { rack_code: string; max_capacity?: number; location_name?: string }) =>
+    mutationFn: (payload: { virgin_qr_code: string; max_capacity?: number }) =>
       extrusionApi.createPtiRack(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.racks });

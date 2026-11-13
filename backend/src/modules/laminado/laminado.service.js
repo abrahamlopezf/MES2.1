@@ -19,6 +19,7 @@ const {
   TraceableItem,
   TraceabilityLink,
   TraceabilityMovement,
+  CorteLaminadoOrderItem,
 } = require('../../database/models');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const normalizeViajeroQr = require('../../shared/utils/normalizeViajeroQr');
@@ -144,7 +145,7 @@ class LaminadoService {
   /**
    * WIP Interno de Laminado: Rollos en custodia/espera + Resinas e Insumos en Piso + Métricas
    */
-  async getWipSummary(currentUser = null) {
+  async getWipSummary(currentUser = null, { transaction } = {}) {
     const allowCosts = canViewCosts(currentUser);
 
     // 1. Rollos pendientes de Laminado. La etapa actual por sí sola no basta:
@@ -162,10 +163,15 @@ class LaminadoService {
         { model: User, as: 'operator', attributes: ['id', 'first_name', 'last_name', 'username'] },
       ],
       order: [['created_at', 'DESC']],
+      transaction,
     });
 
     const rollsInFloor = rolls.filter((r) => r.current_stage === 'LAMINADO');
-    const rollsIncoming = rolls.filter((r) => r.current_stage !== 'LAMINADO' && r.next_allowed_stage === 'LAMINADO');
+    const pickedOrderItems = await CorteLaminadoOrderItem.findAll({
+      where: { status: 'PICKED' }, attributes: ['roll_id'], transaction,
+    });
+    const pickedRollIds = new Set(pickedOrderItems.map((item) => Number(item.roll_id)));
+    const rollsIncoming = rolls.filter((r) => r.current_stage !== 'LAMINADO' && r.next_allowed_stage === 'LAMINADO' && pickedRollIds.has(Number(r.id)));
 
     // 2. Materiales de Almacén en Custodia de Laminado (area_id = 4)
     const warehouseWip = await WipInventory.findAll({
@@ -188,6 +194,7 @@ class LaminadoService {
         },
       ],
       order: [['created_at', 'ASC']],
+      transaction,
     });
 
     // 3. Rollos procesados recientemente en Laminado
@@ -209,6 +216,7 @@ class LaminadoService {
       ],
       order: [['created_at', 'DESC']],
       limit: 15,
+      transaction,
     });
 
     // 4. Catálogo de Especificaciones para compatibilidad rápida
@@ -295,6 +303,7 @@ class LaminadoService {
           { model: User, as: 'recorder', attributes: ['id', 'first_name', 'last_name'] },
         ],
         order: [['created_at', 'DESC']], limit: 100,
+        transaction,
       })).map((log) => ({ id: log.id, roll_id: log.viajero_roll_id, source_qr: log.sourceQr?.qr_code || 'N/A', output_qr: log.outputQr?.qr_code || 'N/A', output_pti_code: log.output_pti_code, specification_code: log.specification_code, processed_meters: Number(log.processed_meters), good_meters: Number(log.good_meters), scrap_meters: Number(log.scrap_meters), good_weight_kg: Number(log.good_weight_kg), scrap_weight_kg: log.scrap_weight_kg == null ? null : Number(log.scrap_weight_kg), reason: log.reason, notes: log.notes, recorded_by: log.recorder ? `${log.recorder.first_name || ''} ${log.recorder.last_name || ''}`.trim() : 'N/A', created_at: log.created_at })),
       recent_transformed: recentTransformed.map((log) => ({
         id: log.id,
@@ -449,7 +458,7 @@ class LaminadoService {
    * 1. Verifica si fue encaminado a Laminado y la secuencia de ruta
    * 2. Prepara datos para producción y preview de nuevo QR
    */
-  async verifyScan({ qr_code, operator_id, currentUser = null }) {
+  async verifyScan({ qr_code, operator_id, currentUser = null, transaction }) {
     const clean = normalizeViajeroQr(qr_code);
     const roll = await ViajeroRoll.findOne({
       where: {
@@ -465,6 +474,7 @@ class LaminadoService {
         { model: Loom, as: 'loom', attributes: ['id', 'code', 'name'] },
         { model: ProductionBom, as: 'bom', attributes: ['id', 'code', 'name', 'product_kind', 'target_width_cm', 'target_weight_g_per_m', 'fabric_type'] },
       ],
+      transaction,
     });
 
     if (!roll) {
@@ -478,6 +488,20 @@ class LaminadoService {
     const targetArea = 'LAMINADO';
     const routeState = getLaminadoRouteState(roll);
     const route = routeState?.route || roll.route || [];
+
+    // Every Telares-to-Laminado transfer is authorized by a Corte order and
+    // recorded pickup. Knowing the route alone must never allow direct intake.
+    if (roll.current_stage === 'TELARES') {
+      const pickedOrderItem = await CorteLaminadoOrderItem.findOne({ where: { roll_id: roll.id, status: 'PICKED' }, transaction });
+      if (!pickedOrderItem) {
+        return {
+          is_allowed: false,
+          error_code: 'CORTE_ORDER_PICKUP_REQUIRED',
+          roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+          message: 'Este rollo requiere una orden de Corte y que Laminado confirme su recogida física en Telares antes de recibirlo.',
+        };
+      }
+    }
 
     if (!routeState) {
       return {
@@ -498,7 +522,7 @@ class LaminadoService {
         operator_id: operator_id || null,
         action: 'BLOQUEO_RUTEO_INVALIDO',
         notes: `Intento de escaneo no autorizado en LAMINADO. Ruta oficial: ${route.join(' -> ')}`,
-      });
+      }, { transaction });
 
       return {
         is_allowed: false,
@@ -524,7 +548,7 @@ class LaminadoService {
         operator_id: operator_id || null,
         action: 'BLOQUEO_RUTEO_INVALIDO',
         notes: `Intento fuera de secuencia a LAMINADO. Estado actual: ${roll.current_stage}; se esperaba ${routeState.previousStage} → LAMINADO.`,
-      });
+      }, { transaction });
 
       return {
         is_allowed: false,
@@ -544,6 +568,7 @@ class LaminadoService {
     const allSpecs = await LaminadoSpecification.findAll({
       where: { is_active: true },
       order: [['code', 'ASC']],
+      transaction,
     });
     const compatibleSpecs = allSpecs.filter((s) => rollTransformation.compatibility(s, roll, 'LAMINADO'));
 
@@ -611,6 +636,14 @@ class LaminadoService {
       const routeState = getLaminadoRouteState(roll);
       if (!routeState || !routeState.isNext || !routeState.isAtPreviousStage || roll.status === 'TRANSFORMADO' || !roll.is_active) {
         throw Object.assign(new Error(`El rollo no está autorizado para transformación en LAMINADO. Siguiente etapa oficial: ${roll.next_allowed_stage}`), { statusCode: 400 });
+      }
+      if (roll.current_stage === 'TELARES') {
+        const pickedOrderItem = await CorteLaminadoOrderItem.findOne({
+          where: { roll_id: roll.id, status: 'PICKED' },
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        if (!pickedOrderItem) throw Object.assign(new Error('Laminado no puede transformar este rollo hasta que exista una orden de Corte y se confirme su recogida en Telares.'), { statusCode: 409, code: 'CORTE_ORDER_PICKUP_REQUIRED' });
       }
 
       const spec = await LaminadoSpecification.findByPk(specification_id, {
@@ -766,6 +799,10 @@ class LaminadoService {
           stages_history: history,
         },
         { transaction: t }
+      );
+      await CorteLaminadoOrderItem.update(
+        { status: 'PROCESSED', processed_at: new Date() },
+        { where: { roll_id: roll.id, status: 'PICKED' }, transaction: t },
       );
       if (previousQr) await previousQr.update({ status: 'TRANSFORMED', is_active: false }, { transaction: t });
       await qrRecord.update({ status: 'ACTIVE', assigned_area_id: 4 }, { transaction: t });

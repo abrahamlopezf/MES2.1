@@ -263,10 +263,10 @@ export const TelaresOperatorsPage: React.FC = () => {
       {/* Encabezado de Filtros */}
       <CollapsibleFilterPanel title="Buscar y filtrar operadores" summary={`${filteredOperators.length} de ${operators.length} operadores · ${roleFilter === 'ALL' ? 'Todos los roles' : roleFilter === 'SUPERVISOR' ? 'Supervisores' : 'Operadores'} · ${statusFilter === 'ALL' ? 'Todos los estados' : statusFilter === 'ACTIVE' ? 'Activos' : 'Inactivos'}${searchTerm ? ` · ${searchTerm}` : ''}`} className="border-2 border-slate-700 bg-slate-800 shadow-lg">
         <div className="space-y-3">
-          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(260px,1fr)_auto_auto]">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-[minmax(280px,1fr)_minmax(330px,1.2fr)_minmax(330px,1.2fr)]">
           {/* Barra de Búsqueda */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <div className="relative min-w-0 md:col-span-2 2xl:col-span-1">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               type="text"
               placeholder="Buscar por nómina, nombre de operador o usuario..."
@@ -276,8 +276,10 @@ export const TelaresOperatorsPage: React.FC = () => {
             />
             {searchTerm && (
               <button
+                type="button"
+                aria-label="Limpiar búsqueda"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-700 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -291,16 +293,16 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setRoleFilter('ALL')}
-              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
+              className={`min-h-11 min-w-0 whitespace-nowrap rounded-lg px-1 text-xs font-semibold transition-all sm:px-2 sm:text-sm ${
                 roleFilter === 'ALL' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Todos los Roles
+              Todos
             </button>
             <button
               type="button"
               onClick={() => setRoleFilter('OPERADOR')}
-              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
+              className={`min-h-11 min-w-0 whitespace-nowrap rounded-lg px-1 text-xs font-semibold transition-all sm:px-2 sm:text-sm ${
                 roleFilter === 'OPERADOR' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -309,7 +311,7 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setRoleFilter('SUPERVISOR')}
-              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
+              className={`min-h-11 min-w-0 whitespace-nowrap rounded-lg px-1 text-xs font-semibold transition-all sm:px-2 sm:text-sm ${
                 roleFilter === 'SUPERVISOR' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -325,7 +327,7 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('ALL')}
-              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
+              className={`min-h-11 min-w-0 whitespace-nowrap rounded-lg px-1 text-xs font-semibold transition-all sm:px-2 sm:text-sm ${
                 statusFilter === 'ALL' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -334,7 +336,7 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('ACTIVE')}
-              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
+              className={`min-h-11 min-w-0 whitespace-nowrap rounded-lg px-1 text-xs font-semibold transition-all sm:px-2 sm:text-sm ${
                 statusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -343,7 +345,7 @@ export const TelaresOperatorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('INACTIVE')}
-              className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition-all ${
+              className={`min-h-11 min-w-0 whitespace-nowrap rounded-lg px-1 text-xs font-semibold transition-all sm:px-2 sm:text-sm ${
                 statusFilter === 'INACTIVE' ? 'bg-red-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -374,7 +376,7 @@ export const TelaresOperatorsPage: React.FC = () => {
           </div>
         ) : (
           <>
-          <div className="grid gap-3 p-3 xl:hidden">
+          <div className="grid gap-3 p-3 2xl:hidden">
             {filteredOperators.map((op) => {
               const isActive = op.is_active !== false;
               const isSupervisor = (op.role_name || '').toLowerCase().includes('supervisor');
@@ -402,8 +404,8 @@ export const TelaresOperatorsPage: React.FC = () => {
               );
             })}
           </div>
-          <div className="hidden overflow-x-auto xl:block">
-            <table className="w-full border-collapse text-left text-sm text-slate-200">
+          <div className="hidden overflow-x-auto 2xl:block">
+            <table className="w-full min-w-[1180px] border-collapse text-left text-sm text-slate-200">
               <thead className="border-b-2 border-slate-700 bg-slate-900 text-xs font-black uppercase text-slate-300">
                 <tr>
                   <th className="p-3.5 pl-5">Nómina (QR)</th>
@@ -534,8 +536,8 @@ export const TelaresOperatorsPage: React.FC = () => {
       {/* MODAL DE REGISTRO / EDICIÓN DE OPERADOR                   */}
       {/* ========================================================= */}
       {isModalOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" style={{ isolation: 'isolate' }}>
-          <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-2xl border-2 border-slate-700 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/80 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:p-4" style={{ isolation: 'isolate' }}>
+          <div className="relative flex min-h-0 max-h-[90dvh] w-full max-w-xl flex-col rounded-2xl border-2 border-slate-700 bg-slate-900 p-4 shadow-2xl sm:p-6">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4">
               <div className="flex items-center gap-2.5">
@@ -554,17 +556,19 @@ export const TelaresOperatorsPage: React.FC = () => {
                 </div>
               </div>
               <button
+                type="button"
+                aria-label="Cerrar formulario de operador"
                 onClick={closeModal}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+            <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain py-4 pr-1">
               {/* Nombres y Apellidos */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-xs font-black uppercase text-slate-300">Nombre(s) *</label>
                   <Input
@@ -589,7 +593,7 @@ export const TelaresOperatorsPage: React.FC = () => {
               </div>
 
               {/* Usuario y Número de Nómina */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-xs font-black uppercase text-slate-300">Usuario de Sistema *</label>
                   <Input
@@ -632,7 +636,7 @@ export const TelaresOperatorsPage: React.FC = () => {
               </div>
 
               {/* Teléfono y Correo */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-xs font-black uppercase text-slate-300 flex items-center gap-1">
                     <Phone className="h-3.5 w-3.5 text-slate-400" />

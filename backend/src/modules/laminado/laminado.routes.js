@@ -1,6 +1,7 @@
 const express = require('express');
 const laminadoController = require('./laminado.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
+const corteController = require('../corte/corte.controller');
 
 const router = express.Router();
 
@@ -30,5 +31,7 @@ router.post('/wip/assess-roll', supervisorOrAdmin, (req, res, next) => laminadoC
 router.post('/wip/create-odc', supervisorOrAdmin, (req, res, next) => laminadoController.createOdcForRoll(req, res, next));
 router.post('/wip/verify-scan', areaProcess, (req, res, next) => laminadoController.verifyScan(req, res, next));
 router.post('/wip/transform-roll', areaProcess, (req, res, next) => laminadoController.transformRoll(req, res, next));
+router.get('/corte-orders', areaProcess, (req, res, next) => corteController.list(req, res, next));
+router.post('/corte-orders/:id/pick', areaProcess, (req, res, next) => corteController.pick(req, res, next));
 
 module.exports = router;

@@ -55,6 +55,28 @@ const getShiftEntrySuggestion = ({ today, sessions = [] } = {}) => {
   };
 };
 
+const getShiftHandoffSuggestion = ({ today, session } = {}) => {
+  const shiftDate = String(session?.shift_date || '').slice(0, 10);
+  const shiftCode = String(session?.shift_code || '').trim().toUpperCase();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || !SHIFT_CODES.includes(shiftCode)) return null;
+  // A shift left open on an earlier operating day must still be explicitly
+  // reconciled and handed off, but it must not force production to reopen a
+  // missed historical slot (for example, yesterday's Turno 2).
+  if (shiftDate < String(today || '')) {
+    return getShiftEntrySuggestion({ today, sessions: [{ shift_date: shiftDate, shift_code: shiftCode }] });
+  }
+  if (shiftCode === 'TURNO_1') {
+    return { shift_date: shiftDate, shift_code: 'TURNO_2', auto_start: false, reason: 'RELEVO_DEL_DIA' };
+  }
+  const nextDate = nextOperatingDate(shiftDate);
+  return {
+    shift_date: nextDate,
+    shift_code: 'TURNO_1',
+    auto_start: nextDate === today && isOperatingDate(today),
+    reason: nextDate === today ? 'PRIMER_TURNO_DEL_DIA' : 'DIA_COMPLETO',
+  };
+};
+
 const validateExtrusionShift = ({ shiftDate, shiftCode }) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(shiftDate || '')) || !SHIFT_CODES.includes(String(shiftCode || '').trim().toUpperCase())) {
     return 'Selecciona una fecha válida y Turno 1 o Turno 2.';
@@ -105,4 +127,4 @@ const getShiftQueueHandoffMode = (status) => {
   return 'NO_TRANSFERIR';
 };
 
-module.exports = { SHIFT_CODES, SHIFT_MAX_DURATION_MS, validateExtrusionShift, isExtrusionShiftExpired, validateTransitionWeighings, filterQualifyingShiftQueues, getShiftQueueHandoffMode, isOperatingDate, nextOperatingDate, getShiftEntrySuggestion };
+module.exports = { SHIFT_CODES, SHIFT_MAX_DURATION_MS, validateExtrusionShift, isExtrusionShiftExpired, validateTransitionWeighings, filterQualifyingShiftQueues, getShiftQueueHandoffMode, isOperatingDate, nextOperatingDate, getShiftEntrySuggestion, getShiftHandoffSuggestion };

@@ -61,9 +61,13 @@ function calculateShiftBalance({
   const [good, mixtureScrap, purge, actual, opening, loaded, remnant] = values;
   const mixtureInput = hasDetailedBalance ? opening + loaded : loaded;
   const totalInputKg = mixtureInput + purge;
+  // El purgante se registra como entrada independiente y no es mezcla
+  // transformable a PTI. El balance de PTI debe usar solo mezcla disponible:
+  // mezcla inicial + cargada - remanente - merma/scrap de mezcla.
+  const consumedMixtureKg = Math.max(0, mixtureInput - remnant);
   const consumedInputKg = Math.max(0, totalInputKg - remnant);
-  const theoreticalGoodOutputKg = Math.max(0, consumedInputKg - actual);
-  const theoreticalScrapKg = Math.max(0, consumedInputKg - good);
+  const theoreticalGoodOutputKg = Math.max(0, consumedMixtureKg - actual);
+  const theoreticalScrapKg = Math.max(0, consumedMixtureKg - good);
   return {
     good_output_kg: Number(good.toFixed(3)),
     theoretical_good_output_kg: Number(theoreticalGoodOutputKg.toFixed(3)),
@@ -71,6 +75,7 @@ function calculateShiftBalance({
     loaded_mixture_kg: Number(loaded.toFixed(3)),
     mixture_input_kg: Number(mixtureInput.toFixed(3)),
     closing_remnant_kg: Number(remnant.toFixed(3)),
+    consumed_mixture_kg: Number(consumedMixtureKg.toFixed(3)),
     consumed_input_kg: Number(consumedInputKg.toFixed(3)),
     mixture_scrap_kg: Number(mixtureScrap.toFixed(3)),
     purge_input_kg: Number(purge.toFixed(3)),

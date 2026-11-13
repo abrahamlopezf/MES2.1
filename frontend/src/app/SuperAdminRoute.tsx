@@ -134,8 +134,26 @@ export const LaminadoRoute: React.FC<{ children?: React.ReactNode }> = ({ childr
   <AreaProductionRoute area="LAMINADO">{children}</AreaProductionRoute>
 );
 
+export const CorteRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuthStore();
+  const roleCode = String(typeof user?.role === 'string' ? user.role : user?.role?.code || user?.role?.name || '').toUpperCase();
+  if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_CORTE', 'SUPERVISOR_CORTE', 'OPERADOR_CORTE'].includes(roleCode)) {
+    return children ? <>{children}</> : <Outlet />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
 export const WarehouseRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { user } = useAuthStore();
+  const location = useLocation();
+
+  // Órdenes de Consumo también es el punto de entrada para que Extrusión solicite
+  // materiales al Almacén. Limitar esta excepción a esa pantalla mantiene el resto
+  // del módulo de Almacén protegido por las reglas habituales.
+  const isConsumptionOrdersPage = location.pathname.replace(/\/+$/, '') === '/warehouse/orders';
+  if (isConsumptionOrdersPage && getUserAreaCode(user) === 'EXTRUSION') {
+    return children ? <>{children}</> : <Outlet />;
+  }
 
   if (isAdminUser(user)) {
     return children ? <>{children}</> : <Outlet />;

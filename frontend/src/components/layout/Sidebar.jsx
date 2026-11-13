@@ -98,7 +98,7 @@ const menuGroups = [
       { label: "Terminal de Extrusión", path: "/production/extrusion", icon: "settings", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
       { label: "Tablero de Colas", path: "/extrusion/board", icon: "view_kanban", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
       { label: "Ingreso PTI a Racks", path: "/extrusion/rack-ingress", icon: "shelves", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] },
-      { label: "Órdenes de Consumo", path: "/warehouse/orders", icon: "assignment", permission: "" },
+      { label: "Órdenes de Consumo", path: "/warehouse/orders?area_id=2&area_name=Extrusión", icon: "assignment", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION", "OPERADOR_EXTRUSION"] },
       { label: "Control de Merma/Scrap", path: "/extrusion/scrap-control", icon: "scale", permission: "extrusion.view", allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION"] }
     ]
   },
@@ -128,6 +128,16 @@ const menuGroups = [
       { label: "Catálogo de Laminado", path: "/laminado/catalogos", icon: "menu_book", permission: "", allowedRoles: ["ADMIN_LAMINADO"] },
       { label: "Estación de Laminado", path: "/production/laminado", icon: "layers", permission: "", allowedRoles: ["ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO"] },
       { label: "Órdenes de Consumo (ODC)", path: "/warehouse/orders?area_id=4&area_name=Laminado", icon: "assignment", permission: "" }
+    ]
+  },
+  {
+    label: "Corte",
+    icon: "content_cut",
+    permission: "",
+    allowedRoles: ["ADMIN_CORTE", "SUPERVISOR_CORTE", "OPERADOR_CORTE"],
+    isGroup: true,
+    children: [
+      { label: "Solicitudes a Laminado", path: "/corte/laminado-orders", icon: "assignment", permission: "" }
     ]
   },
   {

@@ -10,6 +10,8 @@ const {
   validateOperatorMeterCoverage,
   validateOutputMeasures,
   validateOperatorWeightCoverage,
+  estimateBomFabricWeightKg,
+  getTelaresPtiCatalogQr,
 } = require('./productionRules');
 const {
   sequelize,
@@ -36,6 +38,7 @@ const {
   QrCode,
   TraceableItem,
   TraceabilityMovement,
+  TraceabilityEvent,
   AuditLog,
   Notification,
   ExtrusionProductionEntry,
@@ -114,13 +117,10 @@ class TelaresService {
         if (perMeterUnit === 'KG') requiredKg = perMeter * meters;
         else if (perMeterUnit === 'PIEZAS') requiredSpools = perMeter * meters;
       } else if (requiredQuantity > 0 && outputUnit === 'KG') {
-        const standardWeightKg = Number(bom.output_weight_kg || 0);
         const reportedWeightKg = Number(plannedWeightKg || 0);
         const estimatedWeightKg = reportedWeightKg > 0
           ? reportedWeightKg
-          : standardWeightKg > 0 && standardMeters > 0
-          ? standardWeightKg * (meters / standardMeters)
-          : (!bom.is_provisional ? Number(bom.target_weight_g_per_m || 0) * meters / 1000 : 0);
+          : (!bom.is_provisional ? (estimateBomFabricWeightKg(bom, meters) || 0) : 0);
         if (estimatedWeightKg <= 0 || expectedOutputs <= 0) {
           throw Object.assign(new Error(`La ficha ${bom.code} requiere un peso base de salida para calcular el consumo por kg.`), { statusCode: 409, code: 'BOM_OUTPUT_BASIS_REQUIRED' });
         }
@@ -587,7 +587,7 @@ class TelaresService {
    * Listar recetas / BOMs de producción con especificaciones de tela
    */
   async getBoms(includeInactive = false) {
-    return await ProductionBom.findAll({
+    const boms = await ProductionBom.findAll({
       where: includeInactive ? {} : { is_active: true },
       include: [
         { model: Subarea, as: 'subarea', attributes: ['id', 'name', 'nomenclature'], required: false },
@@ -605,6 +605,7 @@ class TelaresService {
         ['id', 'ASC'],
       ],
     });
+    return boms.map((bom) => ({ ...bom.toJSON(), catalog_qr_value: getTelaresPtiCatalogQr(bom) }));
   }
 
   /**
@@ -832,10 +833,12 @@ class TelaresService {
         error.statusCode = 409;
         throw error;
       }
-      const addedWeightKg = parseFloat((spools * unitWeight).toFixed(2));
-      const newLoomSpools = parseFloat((currentSpools + spools).toFixed(2));
-      const newLoomWipKg = parseFloat((Number(loom.current_wip_kg || 0) + addedWeightKg).toFixed(2));
-      const newRackBalance = parseFloat((availableInRack - spools).toFixed(2));
+      // Keep the PTI catalog's 3-decimal unit-weight precision when debiting
+      // the source QR balance; rounding to 2 decimals can exceed its balance.
+      const addedWeightKg = parseFloat((spools * unitWeight).toFixed(3));
+      const newLoomSpools = parseFloat((currentSpools + spools).toFixed(3));
+      const newLoomWipKg = parseFloat((Number(loom.current_wip_kg || 0) + addedWeightKg).toFixed(3));
+      const newRackBalance = parseFloat((availableInRack - spools).toFixed(3));
 
       const sourceProductionEntry = await ExtrusionProductionEntry.findOne({
         where: { rack_id: rack.id, voided_at: null },
@@ -1084,6 +1087,10 @@ class TelaresService {
         description: payload.description ?? bom?.description ?? null,
         target_width_cm: Number(payload.target_width_cm ?? bom?.target_width_cm ?? 0),
         target_weight_g_per_m: Number(payload.target_weight_g_per_m ?? bom?.target_weight_g_per_m ?? 0),
+        weight_conversion_width_m: payload.weight_conversion_width_m === '' || payload.weight_conversion_width_m === null
+          ? null : Number(payload.weight_conversion_width_m ?? bom?.weight_conversion_width_m ?? 0) || null,
+        weight_conversion_factor: payload.weight_conversion_factor === '' || payload.weight_conversion_factor === null
+          ? null : Number(payload.weight_conversion_factor ?? bom?.weight_conversion_factor ?? 0) || null,
         warp_density: Number(payload.warp_density ?? bom?.warp_density ?? 0),
         weft_density: Number(payload.weft_density ?? bom?.weft_density ?? 0),
         output_product_name: String(payload.output_product_name ?? bom?.output_product_name ?? name).trim(),
@@ -1135,6 +1142,12 @@ class TelaresService {
       }
       if (values.standard_output_meters !== null && (!Number.isFinite(values.standard_output_meters) || values.standard_output_meters <= 0)) {
         throw new Error('Los metros de referencia de salida deben ser mayores a cero.');
+      }
+      if (values.weight_conversion_width_m !== null && (!Number.isFinite(values.weight_conversion_width_m) || values.weight_conversion_width_m <= 0)) {
+        throw new Error('El ancho Manga para conversión debe ser mayor a cero metros.');
+      }
+      if (values.weight_conversion_factor !== null && (!Number.isFinite(values.weight_conversion_factor) || values.weight_conversion_factor <= 0)) {
+        throw new Error('El factor de capas de conversión debe ser mayor a cero.');
       }
 
       if (bom) {
@@ -1281,10 +1294,10 @@ class TelaresService {
       }
       let plannedMeters = Number(meters_planned || 0);
       const plannedWeightKg = Number(weight_planned_kg || 0);
+      const estimatedKgPerMeter = estimateBomFabricWeightKg(bom, 1);
       if (plannedWeightKg > 0) {
-        const targetGramsPerMeter = Number(bom.target_weight_g_per_m || 0);
-        if (targetGramsPerMeter <= 0) throw Object.assign(new Error(`La ficha ${bom.name} no tiene gramaje objetivo para convertir el peso en metros.`), { statusCode: 409 });
-        plannedMeters = plannedWeightKg * 1000 / targetGramsPerMeter;
+        if (!estimatedKgPerMeter || estimatedKgPerMeter <= 0) throw Object.assign(new Error(`La ficha ${bom.name} no tiene ancho, onzas y factor de conversión, ni gramaje de referencia para convertir kg a metros.`), { statusCode: 409 });
+        plannedMeters = plannedWeightKg / estimatedKgPerMeter;
       }
       if (!Number.isFinite(plannedMeters) || plannedMeters <= 0) throw Object.assign(new Error('Indica una meta válida de metros o peso.'), { statusCode: 400 });
       const supportedBoms = Array.isArray(loom.supported_bom_ids) ? loom.supported_bom_ids.map(Number) : [];
@@ -1318,7 +1331,7 @@ class TelaresService {
           warp_rack_id: loom.active_warp_rack_id || null,
           weft_rack_id: loom.active_weft_rack_id || null,
           meters_planned: Number(plannedMeters.toFixed(2)),
-          weight_planned_kg: plannedWeightKg > 0 ? Number(plannedWeightKg.toFixed(3)) : Number((plannedMeters * Number(bom.target_weight_g_per_m || 0) / 1000).toFixed(3)),
+          weight_planned_kg: plannedWeightKg > 0 ? Number(plannedWeightKg.toFixed(3)) : (estimateBomFabricWeightKg(bom, plannedMeters) ?? Number((plannedMeters * Number(bom.target_weight_g_per_m || 0) / 1000).toFixed(3))),
           meters_produced: 0.0,
           total_weight_produced_kg: 0.0,
           total_pti_consumed_kg: 0.0,
@@ -1350,7 +1363,9 @@ class TelaresService {
    * Formato Estricto de Código (PDF Pág 2): [TELAR]-[TURNO]-[NUM_ROLLO]-[NOMINA] (Ej: 10-3-24-1200)
    * Manejo de Creel WIP (días sin consumo de racks vs días con consumo de creel o racks)
    */
-  async finishRollAndBackflush({ run_id, meters, weight_kg, operator_id, recorded_by, shift_supervisor_id, operator_segments, custom_route, notes, shift_number, operator_nomina, idempotency_key }) {
+  async finishRollAndBackflush({ run_id, meters, weight_kg, operator_id, recorded_by, shift_supervisor_id, operator_segments, custom_route, notes, shift_number, operator_nomina, idempotency_key, virgin_qr_code }) {
+    const virginQrValue = String(virgin_qr_code || '').trim();
+    if (!virginQrValue) throw Object.assign(new Error('Escanea un QR virgen solicitado a Almacén para identificar el rollo o banda terminada.'), { statusCode: 400, code: 'TELARES_OUTPUT_QR_REQUIRED' });
     const idempotencyKey = String(idempotency_key || '').trim();
     if (!/^[A-Za-z0-9_-]{16,64}$/.test(idempotencyKey)) {
       throw Object.assign(new Error('No se pudo asegurar el registro contra envíos duplicados. Actualiza la pantalla y vuelve a intentarlo.'), { statusCode: 400, code: 'IDEMPOTENCY_KEY_REQUIRED' });
@@ -1362,6 +1377,7 @@ class TelaresService {
       operator_segments: operator_segments || [], custom_route: custom_route || [],
       notes: String(notes || ''), shift_number: Number(shift_number) || null,
       operator_nomina: String(operator_nomina || ''),
+      virgin_qr_code: virginQrValue,
     });
     const payloadHash = createHash('sha256').update(requestFingerprint).digest('hex');
     const t = await sequelize.transaction();
@@ -1414,6 +1430,18 @@ class TelaresService {
 
       if (!run) throw new Error(`Corrida ID ${run_id} no encontrada.`);
       if (run.status !== 'EN_PROCESO') throw new Error(`La corrida ${run.folio} no se encuentra en estado EN_PROCESO.`);
+
+      const qrArea = await Area.findOne({ where: { code: 'TELARES' }, transaction: t });
+      if (!qrArea) throw Object.assign(new Error('No está configurada el área Telares para validar sus etiquetas.'), { statusCode: 409 });
+      const outputQr = await QrCode.findOne({ where: { qr_code: virginQrValue }, transaction: t, lock: t.LOCK.UPDATE });
+      if (!outputQr || !outputQr.is_active) throw Object.assign(new Error('El QR no existe o está inactivo. Solicita un lote vigente a Almacén.'), { statusCode: 409, code: 'TELARES_OUTPUT_QR_INVALID' });
+      if (Number(outputQr.assigned_area_id) !== Number(qrArea.id)) throw Object.assign(new Error('Este QR no está asignado a Telares. Escanea una etiqueta virgen del lote solicitado para esta área.'), { statusCode: 409, code: 'TELARES_OUTPUT_QR_WRONG_AREA' });
+      const qrStatus = String(outputQr.status || '').toUpperCase();
+      if (!['UNASSIGNED', 'ASSIGNED'].includes(qrStatus) || outputQr.entity_type || outputQr.entity_id || ['IN_USE', 'CONSUMED', 'CANCELADO', 'DANADO'].includes(qrStatus)) {
+        throw Object.assign(new Error('Este QR ya fue usado, cancelado o asignado a otro registro.'), { statusCode: 409, code: 'TELARES_OUTPUT_QR_ALREADY_USED' });
+      }
+      const existingQrItem = await TraceableItem.findOne({ where: { qr_code_id: outputQr.id }, transaction: t, lock: t.LOCK.UPDATE });
+      if (existingQrItem) throw Object.assign(new Error('Este QR ya tiene un elemento de trazabilidad asociado.'), { statusCode: 409, code: 'TELARES_OUTPUT_QR_ALREADY_USED' });
 
       const outputMeasures = validateOutputMeasures(meters, weight_kg);
       const numMeters = outputMeasures.meters;
@@ -1500,6 +1528,15 @@ class TelaresService {
       if (!configuredRoutes.some((configuredRoute) => routeKey(this.normalizeProductionRoute(configuredRoute, bomProductKind)) === routeKey(officialRoute))) {
         throw Object.assign(new Error('La ruta elegida no está autorizada en el catálogo para este PTI. Selecciona una de las rutas de su ficha técnica.'), { statusCode: 400, code: 'PRODUCTION_ROUTE_NOT_ALLOWED' });
       }
+      const corteManagedRoutes = configuredRoutes
+        .map((configuredRoute) => this.normalizeProductionRoute(configuredRoute, bomProductKind))
+        .filter((configuredRoute) => bomProductKind === 'ROLLO_TELA' && configuredRoute.includes('LAMINADO'));
+      if (corteManagedRoutes.length) {
+        const canonicalCorteRoute = corteManagedRoutes.find((candidate) => candidate.includes('CORTE')) || corteManagedRoutes[0];
+        if (routeKey(officialRoute) !== routeKey(canonicalCorteRoute)) {
+          throw Object.assign(new Error('La ruta de este rollo con opción de Laminado la determina la ficha técnica. Corte decide después si solicita el rollo; Telares no debe elegir otra ruta.'), { statusCode: 409, code: 'CORTE_MANAGED_LAMINATION_ROUTE' });
+        }
+      }
       const currentStage = 'TELARES';
       const nextAllowedStage = officialRoute[1];
 
@@ -1540,7 +1577,7 @@ class TelaresService {
         finalRollSequence = rollSeq + collision;
         rollCode = `${loomNumber}-${shiftNum}-${finalRollSequence}-${opNomina}`;
       }
-      const qrCode = rollCode;
+      const qrCode = virginQrValue;
 
       // 3. Cálculo de Transformación de Costo (Editable en el BOM)
       const costTransformationIndex = Number(bom.cost_transformation_index || 1.0000);
@@ -1572,6 +1609,7 @@ class TelaresService {
       const viajeroRoll = await ViajeroRoll.create(
         {
           qr_code: qrCode,
+          virgin_qr_code_id: outputQr.id,
           roll_code: rollCode,
           idempotency_key: idempotencyKey,
           idempotency_payload_hash: payloadHash,
@@ -1611,6 +1649,45 @@ class TelaresService {
         },
         { transaction: t }
       );
+
+      await outputQr.update({
+        purpose: 'TELARES_ROLL',
+        status: 'IN_USE',
+        current_area_id: qrArea.id,
+        entity_type: 'VIAJERO_ROLL',
+        entity_id: viajeroRoll.id,
+        used_by: recorded_by || operator_id || null,
+        used_at: now,
+      }, { transaction: t });
+      await TraceableItem.create({
+        qr_code_id: outputQr.id,
+        item_type: 'FINISHED_PRODUCT',
+        product_name: bom.output_product_name || bom.name,
+        origin_area_id: qrArea.id,
+        current_area_id: qrArea.id,
+        quantity_initial: numWeightKg,
+        quantity_current: numWeightKg,
+        unit: 'KG',
+        status: 'DISPONIBLE',
+        reference_folio: rollCode,
+        location: run.loom?.name || null,
+        metadata: { roll_code: rollCode, bom_code: bom.code, bom_id: bom.id, meters: numMeters, weight_kg: numWeightKg, route: officialRoute, loom_id: run.loom_id, shift_number: shiftNum },
+        created_by: recorded_by || operator_id || null,
+        updated_by: recorded_by || operator_id || null,
+      }, { transaction: t });
+      await TraceabilityEvent.create({
+        qr_code_id: outputQr.id,
+        entity_type: 'VIAJERO_ROLL',
+        entity_id: String(viajeroRoll.id),
+        event_type: 'FINALIZED',
+        from_status: qrStatus,
+        to_status: 'IN_USE',
+        from_area_id: outputQr.assigned_area_id || null,
+        to_area_id: qrArea.id,
+        performed_by: recorded_by || operator_id,
+        notes: `QR virgen asignado al producto de Telares ${rollCode}.`,
+        metadata: { roll_code: rollCode, bom_code: bom.code, meters: numMeters, weight_kg: numWeightKg, route: officialRoute, loom_id: run.loom_id, run_id: run.id },
+      }, { transaction: t });
 
       await ViajeroRollOperatorSegment.bulkCreate(normalizedSegments.map((segment) => ({
         viajero_roll_id: viajeroRoll.id,
@@ -1653,7 +1730,10 @@ class TelaresService {
           const balanceBefore = Number(wipRow.quantity_remaining_spools);
           const consumedPieces = Number(Math.min(balanceBefore, piecesRemaining).toFixed(3));
           const balanceAfter = Number((balanceBefore - consumedPieces).toFixed(3));
-          const consumedKg = Number((consumedPieces * Number(wipRow.unit_weight_kg)).toFixed(3));
+          // Keep all product precision in the backflush ledger. The aggregate
+          // loom balance is rounded only once after summing the remaining FIFO
+          // rows, otherwise per-row 3-decimal rounding creates cumulative drift.
+          const consumedKg = Number((consumedPieces * Number(wipRow.unit_weight_kg)).toFixed(6));
           const unitCost = wipRow.unit_cost_per_kg == null ? null : Number(wipRow.unit_cost_per_kg);
           const materialCost = unitCost == null ? null : Number((consumedKg * unitCost).toFixed(4));
           const transformedCost = materialCost == null ? null : Number((materialCost * costTransformationIndex).toFixed(4));
@@ -1693,9 +1773,13 @@ class TelaresService {
       if (currentCreelSpools + 0.001 < totalSpoolsConsumed || currentCreelKg + 0.001 < totalWeightConsumed) {
         throw Object.assign(new Error(`El saldo agregado de ${run.loom.name} no concuerda con su desglose por PTI. Requiere conciliación antes de registrar producción.`), { statusCode: 409 });
       }
+      const remainingWipKg = trackedLoomWip.reduce(
+        (sum, row) => sum + Number(row.quantity_remaining_spools || 0) * Number(row.unit_weight_kg || 0),
+        0,
+      );
       await run.loom.update({
-        current_spools_count: Number(Math.max(0, currentCreelSpools - totalSpoolsConsumed).toFixed(2)),
-        current_wip_kg: Number(Math.max(0, currentCreelKg - totalWeightConsumed).toFixed(2)),
+        current_spools_count: Number(Math.max(0, currentCreelSpools - totalSpoolsConsumed).toFixed(3)),
+        current_wip_kg: Number(Math.max(0, remainingWipKg).toFixed(3)),
         total_rolls_produced: finalRollSequence,
       }, { transaction: t });
 
@@ -1717,7 +1801,7 @@ class TelaresService {
       // 6. Actualizar Acumulados de la Corrida
       const updatedMeters = Number(run.meters_produced) + numMeters;
       const updatedWeight = Number(run.total_weight_produced_kg) + numWeightKg;
-      const updatedPtiConsumed = Number(run.total_pti_consumed_kg) + totalPtiDeductedKg;
+      const updatedPtiConsumed = Number((Number(run.total_pti_consumed_kg) + totalPtiDeductedKg).toFixed(3));
       const updatedRollsCount = run.rolls_produced_count + 1;
 
       await run.update(

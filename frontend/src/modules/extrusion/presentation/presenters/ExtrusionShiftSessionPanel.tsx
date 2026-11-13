@@ -102,12 +102,12 @@ export const ExtrusionShiftSessionPanel: React.FC = () => {
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">El turno se inicia para toda Extrusión, no para una sola máquina. El supervisor queda a cargo de las cuatro extrusoras y revisa aquí las mezclas activas o en espera que recibe del turno anterior.</p>
         </div>
       </div>
-      <span className={`inline-flex min-h-9 items-center gap-2 self-start rounded-full px-3 text-sm font-bold ${session ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
-        <span className={`h-2.5 w-2.5 rounded-full ${session ? 'animate-pulse bg-warning' : 'bg-muted-foreground/50'}`} />{session ? session.handoff_ready_at ? 'ESPERANDO RECEPCIÓN' : 'TURNO ABIERTO' : 'SIN TURNO ABIERTO'}
+      <span className={`inline-flex min-h-9 items-center gap-2 self-start rounded-full px-3 text-sm font-bold ${session ? 'bg-warning/10 text-warning' : activeQuery.isLoading ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+        <span className={`h-2.5 w-2.5 rounded-full ${session ? 'animate-pulse bg-warning' : activeQuery.isLoading ? 'animate-pulse bg-primary' : 'bg-muted-foreground/50'}`} />{session ? session.handoff_ready_at ? 'ESPERANDO RECEPCIÓN' : 'TURNO ABIERTO' : activeQuery.isLoading ? 'CONSULTANDO TURNO' : activeQuery.isError ? 'ESTADO NO DISPONIBLE' : 'SIN TURNO ABIERTO'}
       </span>
     </div>
     {activeQuery.isError && <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm font-semibold text-danger">No se pudo consultar el turno actual. Actualiza la pantalla antes de iniciar producción.</div>}
-    {session ? incomingHandoffReady ? <div className="space-y-4 rounded-xl border border-primary/40 bg-primary/5 p-4">
+    {activeQuery.isLoading ? <p role="status" className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm font-semibold text-muted-foreground">Consultando el turno activo y las mezclas asignadas…</p> : session ? incomingHandoffReady ? <div className="space-y-4 rounded-xl border border-primary/40 bg-primary/5 p-4">
       <div><h3 className="text-lg font-black">Recibir turno y verificar mezclas</h3><p className="mt-1 text-sm text-muted-foreground">Escanea el QR original de cada mezcla que continúa. La verificación confirma que recibes la custodia; no detiene ni pesa la extrusora. Los remanentes pausados deben pesarse y clasificarse antes de entregar.</p></div>
       {activeMixes.length > 0 ? <div className="space-y-3">{activeMixes.map((mix: any) => {
         const queueId = Number(mix.queue_id);

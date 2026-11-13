@@ -148,6 +148,8 @@ export const TelaresTerminalPage: React.FC = () => {
   const [metersInput, setMetersInput] = useState<string>('500');
   const [weightInput, setWeightInput] = useState<string>('35.0');
   const [notesInput, setNotesInput] = useState<string>('');
+  const [outputVirginQr, setOutputVirginQr] = useState('');
+  const [ptiCatalogQrInput, setPtiCatalogQrInput] = useState('');
 
   // Selector de Turno y Operador de Tejido (con número de nómina)
   const [shiftSelection, setShiftSelection] = useState<number>(() => getCdmxShift().shiftNumber);
@@ -235,6 +237,17 @@ export const TelaresTerminalPage: React.FC = () => {
   }, [activeLoom]);
 
   const selectedBom = useMemo(() => boms.find((bom) => bom.id === Number(selectedBomId)) || null, [boms, selectedBomId]);
+  const selectedBomEstimatedKgPerMeter = useMemo(() => {
+    if (!selectedBom) return 0;
+    const width = Number(selectedBom.weight_conversion_width_m || 0);
+    const ounces = Number(selectedBom.ounces_yd2 || 0);
+    const factor = Number(selectedBom.weight_conversion_factor || 0);
+    if (width > 0 && ounces > 0 && factor > 0) return width * ounces * factor * 33.9 / 1000;
+    const outputKg = Number(selectedBom.output_weight_kg || 0);
+    const outputMeters = Number(selectedBom.standard_output_meters || 0);
+    if (outputKg > 0 && outputMeters > 0) return outputKg / outputMeters;
+    return Number(selectedBom.target_weight_g_per_m || 0) / 1000;
+  }, [selectedBom]);
   const outputProductKind = String(
     activeRun?.bom?.product_kind ||
       selectedBom?.product_kind ||
@@ -263,9 +276,20 @@ export const TelaresTerminalPage: React.FC = () => {
     }
     return [...optionMap.values()];
   }, [allowedRoutes]);
+  const corteManagedRoute = useMemo(() => (
+    isFabricRoll
+      ? allowedDestinationOptions.find(({ route }) => route.includes('LAMINADO') && route.includes('CORTE'))?.route
+        || allowedDestinationOptions.find(({ route }) => route.includes('LAMINADO'))?.route
+      : undefined
+  ), [allowedDestinationOptions, isFabricRoll]);
+  const usesCorteLaminationGate = Boolean(corteManagedRoute);
   const allowedRouteSignature = JSON.stringify(allowedRoutes);
 
   useEffect(() => {
+    if (corteManagedRoute?.length) {
+      setDestinationChoice(corteManagedRoute.join(','));
+      return;
+    }
     const preferredRoute = routeToValue(outputBom?.default_route);
     const preferredKey = preferredRoute.join(',');
     if (preferredRoute.length && allowedDestinationOptions.some((option) => option.route.join(',') === preferredKey)) {
@@ -273,9 +297,10 @@ export const TelaresTerminalPage: React.FC = () => {
     } else if (allowedDestinationOptions.length) {
       setDestinationChoice(allowedDestinationOptions[0].route.join(','));
     }
-  }, [outputBom?.id, allowedRouteSignature]);
+  }, [outputBom?.id, allowedRouteSignature, corteManagedRoute?.join(',')]);
 
   const getSelectedRoute = (): string[] => {
+    if (corteManagedRoute?.length) return corteManagedRoute;
     return allowedDestinationOptions.find((option) => option.route.join(',') === destinationChoice)?.route || [];
   };
 
@@ -352,9 +377,8 @@ export const TelaresTerminalPage: React.FC = () => {
   }, [compatibleBoms, selectedBomId]);
   const plannedMeters = useMemo(() => {
     if (plannedInputMode === 'METROS') return Number(plannedMetersInput) || 0;
-    const targetGramsPerMeter = Number(selectedBom?.target_weight_g_per_m || 0);
-    return targetGramsPerMeter > 0 ? (Number(plannedWeightInput) * 1000) / targetGramsPerMeter : 0;
-  }, [plannedInputMode, plannedMetersInput, plannedWeightInput, selectedBom]);
+    return selectedBomEstimatedKgPerMeter > 0 ? (Number(plannedWeightInput) || 0) / selectedBomEstimatedKgPerMeter : 0;
+  }, [plannedInputMode, plannedMetersInput, plannedWeightInput, selectedBomEstimatedKgPerMeter]);
   const demandPreview = useMemo(() => {
     if (!selectedBom?.items?.length || plannedMeters <= 0) return [];
     const baselineMeters = Number(selectedBom.standard_output_meters || 0);
@@ -366,7 +390,7 @@ export const TelaresTerminalPage: React.FC = () => {
       ? plannedWeightKg
       : standardWeightKg > 0 && baselineMeters > 0
         ? standardWeightKg * (plannedMeters / baselineMeters)
-        : Number(selectedBom.target_weight_g_per_m || 0) * plannedMeters / 1000;
+        : selectedBomEstimatedKgPerMeter > 0 ? selectedBomEstimatedKgPerMeter * plannedMeters : 0;
     const quantityMultiplier = outputUnit === 'KG'
       ? (estimatedOutputWeightKg > 0 && expectedOutput > 0 ? estimatedOutputWeightKg / expectedOutput : null)
       : outputUnit === 'METRO'
@@ -606,6 +630,10 @@ export const TelaresTerminalPage: React.FC = () => {
       weight_start_kg: segment.weight_start_kg === '' ? undefined : Number(segment.weight_start_kg),
       weight_end_kg: segment.weight_end_kg === '' ? undefined : Number(segment.weight_end_kg),
     }));
+    if (!outputVirginQr.trim()) {
+      toast.error('Escanea un QR virgen asignado a Telares por Almacén para registrar la salida.');
+      return;
+    }
     if (!segmentsPayload.length || segmentsPayload.some((segment) =>
       !segment.operator_id || !availableOperators.some((candidate) => candidate.id === segment.operator_id)
       || ![1, 2, 3].includes(segment.shift_number)
@@ -628,6 +656,7 @@ export const TelaresTerminalPage: React.FC = () => {
         shift_supervisor_id: Number(shiftSupervisorId),
         operator_segments: segmentsPayload,
         custom_route: getSelectedRoute(),
+        virgin_qr_code: outputVirginQr.trim(),
       };
       const signature = JSON.stringify(rollPayload);
       if (!finishRequestRef.current || finishRequestRef.current.signature !== signature) {
@@ -649,6 +678,7 @@ export const TelaresTerminalPage: React.FC = () => {
 
       setActiveViajeroRoll(roll);
       setNotesInput('');
+      setOutputVirginQr('');
       finishRequestRef.current = null;
       refetchLooms();
     } catch (err: any) {
@@ -890,6 +920,10 @@ export const TelaresTerminalPage: React.FC = () => {
               <div className="mt-4 space-y-4">
                 <label className="block space-y-1.5 text-sm font-semibold text-slate-200">
                   Rollo o banda a producir
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                    <Input value={ptiCatalogQrInput} onChange={(event) => setPtiCatalogQrInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); const code = ptiCatalogQrInput.trim().toUpperCase().replace(/^TELARES-PTI:/, ''); const match = compatibleBoms.find((bom) => String(bom.code).toUpperCase() === code); if (match) { setSelectedBomId(Number(match.id)); setPtiCatalogQrInput(''); toast.success(`Ficha ${match.code} seleccionada.`); } else toast.error('El QR no corresponde a una ficha activa compatible con este telar.'); } }} placeholder="Escanea o escribe QR de la ficha" className="h-11 bg-slate-950 text-white" />
+                    <QrScannerButton title="Escanear QR de ficha PTI" onScan={(value) => { const code = value.trim().toUpperCase().replace(/^TELARES-PTI:/, ''); const match = compatibleBoms.find((bom) => String(bom.code).toUpperCase() === code); if (match) { setSelectedBomId(Number(match.id)); setPtiCatalogQrInput(''); toast.success(`Ficha ${match.code} seleccionada.`); } else { setPtiCatalogQrInput(value); toast.error('El QR no corresponde a una ficha activa compatible con este telar.'); } }} />
+                  </div>
                   <select
                     value={selectedBomId}
                     onChange={(event) => setSelectedBomId(Number(event.target.value) || '')}
@@ -920,7 +954,8 @@ export const TelaresTerminalPage: React.FC = () => {
                       <Input type="number" min="0.01" step="0.01" value={plannedWeightInput} onChange={(event) => setPlannedWeightInput(event.target.value)} placeholder="Ej. 250" className="h-12 bg-slate-950 text-base text-white" />
                     </label>
                   )}
-                  {plannedInputMode === 'PESO' && selectedBom && !Number(selectedBom.target_weight_g_per_m) && <p className="mt-2 text-xs text-amber-200">Falta el gramaje objetivo de la ficha; no se pueden convertir kg a metros para calcular el material.</p>}
+                  {plannedInputMode === 'PESO' && selectedBom && !selectedBomEstimatedKgPerMeter && <p className="mt-2 text-xs text-amber-200">Faltan parámetros de conversión de la ficha (ancho de manga, onzas y factor, o gramaje de referencia); no se pueden convertir kg a metros.</p>}
+                  {selectedBom && selectedBomEstimatedKgPerMeter > 0 && <p className="mt-2 text-xs text-slate-300">Peso estimado por conversión de ficha: <strong className="text-cyan-200">{(selectedBomEstimatedKgPerMeter * 1000).toFixed(2)} g/m</strong>. El peso real se captura en báscula al registrar la salida.</p>}
                   {plannedMeters > 0 && <p className="mt-2 text-xs text-slate-300">Meta equivalente: <strong className="text-white">{plannedMeters.toLocaleString('es-MX', { maximumFractionDigits: 2 })} m</strong>{plannedInputMode === 'PESO' ? ` · ${Number(plannedWeightInput).toLocaleString('es-MX')} kg` : ''}</p>}
                 </div>
 
@@ -1089,6 +1124,16 @@ export const TelaresTerminalPage: React.FC = () => {
 
               {activeRun ? (
                 <form onSubmit={handleFinishRoll} className="space-y-6">
+                  <section className="space-y-3 rounded-2xl border-2 border-cyan-500/40 bg-cyan-950/20 p-4">
+                    <div><h3 className="text-sm font-black uppercase text-cyan-100">QR virgen del producto terminado *</h3><p className="mt-1 text-sm text-slate-300">Solicita etiquetas de salida para Telares a Almacén. El QR solo se asigna al rollo cuando se confirma el registro; si se cancela o falla, permanece virgen.</p></div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr] sm:items-end">
+                      <QrScannerButton title="Escanear QR virgen del rollo terminado" onScan={(value) => { setOutputVirginQr(value.trim()); toast.success('QR leído. Se asignará al confirmar el registro del rollo.'); }} />
+                      <label className="space-y-1 text-xs font-bold uppercase text-slate-300">Código leído / captura manual
+                        <Input value={outputVirginQr} onChange={(event) => setOutputVirginQr(event.target.value)} placeholder="Escanea o captura el QR virgen de Telares" className="h-11 bg-slate-950 font-mono text-sm normal-case text-white" />
+                      </label>
+                    </div>
+                    {outputVirginQr && <p className="break-all rounded-lg bg-slate-950 p-2 font-mono text-xs text-emerald-200" aria-live="polite">QR listo: {outputVirginQr}</p>}
+                  </section>
                   {/* BANNER INDUSTRIAL: PREVISUALIZACIÓN DEL CÓDIGO OFICIAL */}
                   <div className="rounded-2xl border-4 border-blue-500 bg-slate-950 p-5 shadow-2xl space-y-2">
                     <span className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
@@ -1317,7 +1362,12 @@ export const TelaresTerminalPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))' }}>
+                    {usesCorteLaminationGate ? (
+                      <div className="rounded-xl border border-indigo-400/30 bg-indigo-950/30 p-4 text-sm text-slate-200">
+                        <p className="font-bold text-indigo-200">Este rollo queda disponible para una solicitud de Corte a Laminado.</p>
+                        <p className="mt-1">Telares registra la ruta de la ficha. Corte decidirá si requiere el rollo; Laminado deberá escanearlo y confirmar la recogida física en Telares antes de recibirlo.</p>
+                      </div>
+                    ) : <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))' }}>
                       {allowedDestinationOptions.map(({ route }) => {
                         const choice = route.join(',');
                         const destination = destinationForRoute(route) || 'CORTE';
@@ -1359,7 +1409,7 @@ export const TelaresTerminalPage: React.FC = () => {
                           </button>
                         );
                       })}
-                    </div>
+                    </div>}
                     {allowedDestinationOptions.length === 0 ? (
                       <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-sm font-bold text-rose-200">
                         Esta ficha no tiene rutas autorizadas configuradas. Pide al administrador que la actualice en Catálogo Telares / PTI.
@@ -1400,7 +1450,7 @@ export const TelaresTerminalPage: React.FC = () => {
                   {/* Botón Principal de Salida */}
                   <Button
                     type="submit"
-                    disabled={finishRollMutation.isPending || getSelectedRoute().length < 2}
+                    disabled={finishRollMutation.isPending || getSelectedRoute().length < 2 || !outputVirginQr.trim()}
                     className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white font-black text-lg sm:text-xl uppercase tracking-wider rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 transition-transform active:scale-[0.99]"
                   >
                     <CheckCircle2 className="h-7 w-7" />

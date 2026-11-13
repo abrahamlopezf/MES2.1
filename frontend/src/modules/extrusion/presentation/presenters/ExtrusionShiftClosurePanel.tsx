@@ -31,7 +31,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
   const { data: groups = [] } = useExtruderQueuesQuery();
   const activeSessionQuery = useQuery({
     queryKey: ['extrusion', 'active-shift-session'],
-    queryFn: extrusionApi.getActiveShiftSession,
+    queryFn: extrusionApi.getCurrentShiftSession,
     staleTime: 0,
   });
   useEffect(() => {
@@ -42,8 +42,14 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     }
   }, [activeSessionQuery.data]);
   const activityQuery = useQuery({
-    queryKey: ['extrusion', 'shift-activity', shiftDate, shiftCode],
-    queryFn: () => extrusionApi.getShiftActivity({ shift_date: shiftDate, shift_code: shiftCode }),
+    queryKey: ['extrusion', 'shift-activity', shiftDate, shiftCode, activeSessionQuery.data?.id],
+    queryFn: () => extrusionApi.getShiftActivity({
+      shift_date: shiftDate,
+      shift_code: shiftCode,
+      ...(activeSessionQuery.data?.shift_date === shiftDate && activeSessionQuery.data?.shift_code === shiftCode
+        ? { shift_session_id: activeSessionQuery.data.id }
+        : {}),
+    }),
     enabled: Boolean(shiftDate && shiftCode),
     staleTime: 0,
   });
@@ -173,7 +179,8 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
           <div><dt className="text-muted-foreground">Mezcla recibida + cargada</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.mixture_input_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Purgante (entrada)</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.purge_input_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Remanente al cierre</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.closing_remnant_kg).toFixed(3)} kg</dd></div>
-          <div><dt className="text-muted-foreground">Consumo neto del turno</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.consumed_input_kg).toFixed(3)} kg</dd></div>
+          <div><dt className="text-muted-foreground">Mezcla consumida neta</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.consumed_mixture_kg ?? lastClosure.mass_balance_snapshot.consumed_input_kg).toFixed(3)} kg</dd></div>
+          <div><dt className="text-muted-foreground">PTI calculado por balance</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.theoretical_good_output_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">PTI bueno registrado</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.good_output_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">PTI real pesado</dt><dd className="font-bold tabular-nums">{lastClosure.mass_balance_snapshot.actual_good_output_kg == null ? 'No capturado · se conserva estimado' : `${Number(lastClosure.mass_balance_snapshot.actual_good_output_kg).toFixed(3)} kg`}</dd></div>
           {lastClosure.mass_balance_snapshot.pti_weight_variance_kg != null && <div><dt className="text-muted-foreground">Diferencia PTI real vs. registro</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.pti_weight_variance_kg).toFixed(3)} kg</dd></div>}
@@ -215,7 +222,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
         <section className="space-y-3 rounded-xl border border-border p-4 sm:p-5">
           <div>
             <h3 className="text-lg font-bold">Producción y mezclas del turno</h3>
-            <p className="mt-1 text-sm text-muted-foreground">El peso de PTI es opcional. Si no se captura, el cierre usa los registros de producción y sus pesos estándar para estimarlo.</p>
+            <p className="mt-1 text-sm text-muted-foreground">El cálculo del turno es: mezcla recibida y cargada − remanente − merma/scrap pesado. El purgante se concilia aparte y no cuenta como mezcla convertida a PTI. El peso real de PTI es opcional para contrastar el cálculo con las piezas registradas y su peso estándar.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg bg-muted/30 p-3">
@@ -227,7 +234,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
             </label>
           </div>
           {selectedMachine?.mixtures?.length > 0
-            ? <div className="space-y-2"><h4 className="font-bold">Mezclas preparadas/cargadas en esta extrusora</h4><ul className="grid gap-2 sm:grid-cols-2">{selectedMachine.mixtures.map((mix: any) => <li key={mix.queue_id} className="rounded-lg border border-border bg-muted/20 p-3"><strong className="block font-mono">{mix.mixture_qr}</strong><span className="block text-sm text-muted-foreground">{mix.formula_code ? `${mix.formula_code} · ` : ''}{mix.formula_name || `Fórmula #${mix.formula_id || '—'}`} · {mix.status || 'registrada'}</span></li>)}</ul></div>
+            ? <div className="space-y-2"><h4 className="font-bold">Mezclas preparadas y recibidas en esta extrusora</h4><ul className="grid gap-2 sm:grid-cols-2">{selectedMachine.mixtures.map((mix: any) => <li key={mix.queue_id} className="rounded-lg border border-border bg-muted/20 p-3"><strong className="block font-mono">{mix.mixture_qr}</strong><span className="block text-sm text-muted-foreground">{mix.formula_code ? `${mix.formula_code} · ` : ''}{mix.formula_name || `Fórmula #${mix.formula_id || '—'}`} · {mix.status || 'registrada'}</span>{mix.quantity_kg != null && <span className="mt-1 block text-sm font-semibold tabular-nums">Saldo digital: {Number(mix.quantity_kg).toFixed(3)} kg</span>}</li>)}</ul></div>
             : <p className="text-sm text-muted-foreground">La consulta no devolvió mezclas preparadas para esta extrusora.</p>}
         </section>
         <div>

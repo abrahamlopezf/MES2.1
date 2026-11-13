@@ -2897,7 +2897,7 @@ class ExtrusionService {
       }
 
       // Punto 5: Cálculo automático de piezas por peso en báscula si se ingresó peso
-      let rackUnitWeight = Number(unit_weight_kg) || (Number(rack?.current_quantity) > 0 ? Number(rack.unit_weight_kg) : 0);
+      let rackUnitWeight = 0;
       if (pieces > 0 && !Number.isInteger(pieces)) {
         const error = new Error('La cantidad de bobinas debe ser un número entero.');
         error.statusCode = 400;
@@ -2921,12 +2921,52 @@ class ExtrusionService {
         error.statusCode = 400;
         throw error;
       }
+      const catalogUnitWeight = Number(ptiProduct.unit_weight_kg || 0);
+      if (!Number.isFinite(catalogUnitWeight) || catalogUnitWeight <= 0) {
+        throw Object.assign(new Error(`El PTI ${ptiProduct.code} no tiene peso estándar configurado. Actualiza el Catálogo de PTI antes de registrar producción.`), { statusCode: 409, code: 'PTI_STANDARD_WEIGHT_REQUIRED' });
+      }
+      // El catálogo del PTI es la fuente estándar del peso; no se calibra ni
+      // se reemplaza con el dato de un rack o con una captura de este ingreso.
+      rackUnitWeight = catalogUnitWeight;
       const linkedFormulaId = Number(ptiProduct.formula_id || 0);
+      if (!queueItem.output_pti_product_id) {
+        const linkedOutputProducts = await PtiProduct.findAll({
+          where: { formula_id: Number(queueItem.formula_id), is_active: true },
+          attributes: ['id', 'color'],
+          transaction: t,
+        });
+        const outputColor = String(queueItem.output_pti_color || '').trim().toUpperCase();
+        const colorMatches = outputColor
+          ? linkedOutputProducts.filter((product) => String(product.color || '').trim().toUpperCase() === outputColor)
+          : [];
+        const resolvedOutputProducts = outputColor ? colorMatches : linkedOutputProducts;
+        if (resolvedOutputProducts.length !== 1) {
+          throw Object.assign(new Error('La mezcla no identifica un único PTI de salida. Vincula un PTI único a la fórmula o corrige la salida de la mezcla antes de registrar.'), { statusCode: 409, code: 'EXTRUSION_OUTPUT_PTI_AMBIGUOUS' });
+        }
+        if (Number(resolvedOutputProducts[0].id) !== Number(ptiProduct.id)) {
+          throw Object.assign(new Error('El PTI solicitado no coincide con el único PTI enlazado a la fórmula activa.'), { statusCode: 409, code: 'EXTRUSION_OUTPUT_PTI_MISMATCH' });
+        }
+      }
       const { validatePtiDestination } = require('./services/ptiDestinationRules');
       const resolvedDestinationRoute = validatePtiDestination({
         extruderNumber: effectiveExtruderNumber,
         telaresSubareaCode: extruderMachine?.telares_subarea_code,
       });
+      const racksWithRegisteredQr = async (rackCandidates) => {
+        if (!rackCandidates.length) return [];
+        const qrCodes = [...new Set(rackCandidates.map((candidate) => String(candidate.qr_code || '').trim()).filter(Boolean))];
+        if (!qrCodes.length) return [];
+        const registeredQrRows = await QrCode.findAll({
+          where: { qr_code: { [sequelize.Sequelize.Op.in]: qrCodes } },
+          attributes: ['qr_code'],
+          transaction: t,
+        });
+        const registeredQrCodes = new Set(registeredQrRows.map((row) => String(row.qr_code || '').trim().toUpperCase()));
+        return rackCandidates.filter((candidate) => registeredQrCodes.has(String(candidate.qr_code || '').trim().toUpperCase()));
+      };
+      if (rack && !(await racksWithRegisteredQr([rack])).length) {
+        throw Object.assign(new Error(`El Rack ${rack.rack_code} no tiene un QR registrado y trazable. Selecciona otro rack o corrige su identificación antes de ingresar PTI.`), { statusCode: 409, code: 'PTI_RACK_QR_MISSING' });
+      }
       if (!rack) {
         const candidates = await PtiRack.findAll({
           where: {
@@ -2940,7 +2980,8 @@ class ExtrusionService {
           transaction: t,
           lock: t.LOCK.UPDATE,
         });
-        rack = candidates.find((candidate) => Number(candidate.current_quantity || 0) < Number(candidate.max_capacity || 100)) || null;
+        const traceableCandidates = await racksWithRegisteredQr(candidates);
+        rack = traceableCandidates.find((candidate) => Number(candidate.current_quantity || 0) < Number(candidate.max_capacity || 100)) || null;
         if (!rack) {
           const newRackCapacity = 100;
           const initialNewRackCount = Math.ceil(pieces / newRackCapacity);
@@ -2964,15 +3005,14 @@ class ExtrusionService {
         : linkedFormulaId !== Number(queueItem.formula_id)) {
         throw Object.assign(new Error(`El PTI ${ptiProduct.code} (${ptiProduct.color || 'color no definido'}) no está enlazado a la fórmula ${queueItem.formula?.name || queueItem.formula_id}. Selecciona un PTI compatible en el catálogo.`), { statusCode: 409 });
       }
-      rackUnitWeight = Number(unit_weight_kg) || (currentQty > 0 ? Number(rack.unit_weight_kg) : Number(ptiProduct.unit_weight_kg)) || 0;
+      rackUnitWeight = catalogUnitWeight;
       if ((!pieces || pieces <= 0) && scaleWeight > 0 && rackUnitWeight > 0) pieces = Math.round(scaleWeight / rackUnitWeight);
       if (!pieces || pieces <= 0 || !Number.isInteger(pieces)) {
         throw Object.assign(new Error('Indica la cantidad entera de bobinas; el documento del cliente no incluye su peso unitario.'), { statusCode: 400 });
       }
-      if (rackUnitWeight <= 0 && scaleWeight <= 0) {
-        throw Object.assign(new Error('Registra el peso unitario del PTI o pesa esta producción en báscula para poder valorarla.'), { statusCode: 400 });
+      if (rackUnitWeight <= 0) {
+        throw Object.assign(new Error('El PTI requiere un peso estándar válido en su catálogo para registrar la producción.'), { statusCode: 409, code: 'PTI_STANDARD_WEIGHT_REQUIRED' });
       }
-      if (rackUnitWeight <= 0 && scaleWeight > 0) rackUnitWeight = Number((scaleWeight / pieces).toFixed(3));
 
       // 2. Validar el producto y destino del rack elegido. Si no alcanza su
       // capacidad, el sobrante se distribuirá en racks compatibles.
@@ -3010,7 +3050,7 @@ class ExtrusionService {
       };
 
       allocateRackCapacity(rack);
-      const compatibleRacks = await PtiRack.findAll({
+      const compatibleRackCandidates = await PtiRack.findAll({
         where: {
           id: { [sequelize.Sequelize.Op.ne]: rack.id },
           custody_shift_session_id: { [sequelize.Sequelize.Op.or]: [null, Number(shift_session_id)] },
@@ -3027,6 +3067,7 @@ class ExtrusionService {
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
+      const compatibleRacks = await racksWithRegisteredQr(compatibleRackCandidates);
       for (const compatibleRack of compatibleRacks) allocateRackCapacity(compatibleRack);
 
       const autoCapacity = maxCap > 0 ? maxCap : 100;
@@ -3615,10 +3656,10 @@ class ExtrusionService {
    * Registra un rack de PTI vinculando un QR virgen ya generado para Extrusión.
    * Puntos 6 y 7: Soporta precio unitario y peso unitario por pieza.
    */
-  async createPtiRack({ rack_code, max_capacity = 100, location_name, unit_price = 0, unit_weight_kg = null, userId }) {
+  async createPtiRack({ virgin_qr_code, max_capacity = 100, unit_price = 0, unit_weight_kg = null, userId, userAreaName }) {
     const { PtiRack, QrCode, Area, TraceableItem, TraceabilityEvent } = require('../../database/models');
-    const qrCode = String(rack_code || '').trim().toUpperCase();
-    if (!qrCode) throw domainError('Escanea el QR virgen que identificará al rack.', 400, 'PTI_RACK_VIRGIN_QR_REQUIRED');
+    const qrCode = String(virgin_qr_code || '').trim().toUpperCase();
+    if (!qrCode) throw domainError('Debes escanear un QR virgen para identificar el rack.', 400, 'PTI_RACK_VIRGIN_QR_REQUIRED');
 
     return sequelize.transaction(async (transaction) => {
       const area = await Area.findOne({ where: { code: 'EXTRUSION', is_active: true }, transaction });
@@ -3652,7 +3693,7 @@ class ExtrusionService {
         unit_price: Number(unit_price) || 0,
         unit_weight_kg: unit_weight_kg == null || unit_weight_kg === '' ? null : Number(unit_weight_kg),
         status: 'VACIO',
-        location_name: location_name || 'Piso Extrusión',
+        location_name: String(userAreaName || 'Extrusión').trim(),
       }, { transaction });
       await TraceabilityEvent.create({
         qr_code_id: qr.id,
@@ -4402,33 +4443,65 @@ class ExtrusionService {
     scrap.valuation_status = unitCost == null ? 'PENDIENTE_COSTO' : 'VALUADO';
   }
 
-  async getExtrusionShiftActivity({ shift_date, shift_code, extruder_id }, options = {}) {
+  async getExtrusionShiftActivity({ shift_date, shift_code, extruder_id, shift_session_id }, options = {}) {
     const transaction = options.transaction;
     const transactionOptions = transaction ? { transaction } : {};
     const { Extruder, ExtruderQueue, Formula, ExtrusionProductionEntry, ExtrusionTransition, ExtrusionShiftMixtureHandoff, ProcessPreparation, ExtrusionShiftSession, TraceabilityEvent } = require('../../database/models');
-    const shiftSession = shift_date && shift_code ? await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code }, ...transactionOptions }) : null;
+    let shiftSession = null;
+    if (shift_session_id) {
+      shiftSession = await ExtrusionShiftSession.findByPk(Number(shift_session_id), { ...transactionOptions });
+      if (!shiftSession) throw Object.assign(new Error('La sesión de turno seleccionada ya no existe.'), { statusCode: 404 });
+      if (shiftSession && (String(shiftSession.shift_date).slice(0, 10) !== String(shift_date).slice(0, 10)
+        || String(shiftSession.shift_code) !== String(shift_code))) {
+        throw Object.assign(new Error('La sesión de turno no coincide con la fecha y turno seleccionados.'), { statusCode: 400 });
+      }
+    }
+    if (!shiftSession && shift_date && shift_code) {
+      // Si hubo sesiones duplicadas durante pruebas/reintentos, el cierre debe
+      // consultar la sesión abierta actual; si no hay una, usa la más reciente.
+      shiftSession = await ExtrusionShiftSession.findOne({
+        where: { shift_date, shift_code, closed_at: null },
+        order: [['opened_at', 'DESC'], ['id', 'DESC']],
+        ...transactionOptions,
+      }) || await ExtrusionShiftSession.findOne({
+        where: { shift_date, shift_code },
+        order: [['opened_at', 'DESC'], ['id', 'DESC']],
+        ...transactionOptions,
+      });
+    }
     const { start, end } = shiftSession
       ? { start: shiftSession.opened_at, end: shiftSession.closed_at || new Date() }
       : getExtrusionShiftWindow(shift_date, shift_code);
     const machineFilter = extruder_id ? { extruder_id: Number(extruder_id) } : {};
     const extrusionArea = await Area.findOne({ where: { code: 'EXTRUSION' }, attributes: ['id'], ...transactionOptions });
+    const preparationShiftScope = shiftSession
+      ? { [Op.or]: [{ prepared_at: { [Op.gte]: start, [Op.lt]: end } }, { shift_session_id: shiftSession.id }] }
+      : { prepared_at: { [Op.gte]: start, [Op.lt]: end } };
     const preparations = extrusionArea ? await ProcessPreparation.findAll({
-      where: { to_area_id: extrusionArea.id, prepared_at: { [Op.gte]: start, [Op.lt]: end } },
+      // Session linkage is authoritative when timestamps predate session.opened_at
+      // (e.g. a prepared batch attached during recovery or handoff).
+      where: { to_area_id: extrusionArea.id, ...preparationShiftScope },
       attributes: ['id', 'folio', 'formula_id', 'prepared_at', 'shift_session_id', 'total_quantity', 'status'],
       ...transactionOptions,
     }) : [];
     const preparedIds = preparations.map((row) => Number(row.id));
-    const incomingHandoffs = shiftSession ? await ExtrusionShiftMixtureHandoff.findAll({ where: { to_shift_session_id: shiftSession.id }, attributes: ['queue_id'], ...transactionOptions }) : [];
+    const incomingHandoffs = shiftSession ? await ExtrusionShiftMixtureHandoff.findAll({ where: { to_shift_session_id: shiftSession.id }, attributes: ['queue_id', 'mixture_qr', 'remaining_balance_kg'], ...transactionOptions }) : [];
     const incomingQueueIds = new Set(incomingHandoffs.map((row) => Number(row.queue_id)));
     const queueActivityConditions = [{ created_at: { [Op.gte]: start, [Op.lt]: end } }];
     if (shiftSession) queueActivityConditions.push({ shift_session_id: shiftSession.id });
+    // Una cola recibida en relevo conserva el session_id de origen hasta que
+    // el supervisor entrante la confirma; incluirla por el vínculo de entrega.
+    if (incomingQueueIds.size) queueActivityConditions.push({ id: { [Op.in]: [...incomingQueueIds] } });
     if (preparedIds.length) queueActivityConditions.push({ process_preparation_id: { [Op.in]: preparedIds } });
     // Una transacción Sequelize ocupa una sola conexión PostgreSQL; lanzar
     // consultas concurrentes sobre ella produce client.query deprecations y
     // no ejecuta trabajo realmente paralelo. Mantener el orden evita carreras.
+    const productionShiftScope = shiftSession
+      ? { [Op.or]: [{ recorded_at: { [Op.gte]: start, [Op.lt]: end } }, { shift_session_id: shiftSession.id }] }
+      : { recorded_at: { [Op.gte]: start, [Op.lt]: end } };
     const production = await ExtrusionProductionEntry.findAll({
-        where: { ...machineFilter, voided_at: null, recorded_at: { [Op.gte]: start, [Op.lt]: end } },
-        attributes: ['id', 'extruder_id', 'queue_id', 'process_preparation_id', 'mixture_qr', 'pieces', 'net_weight_kg', 'recorded_at'],
+        where: { ...machineFilter, voided_at: null, ...productionShiftScope },
+        attributes: ['id', 'extruder_id', 'queue_id', 'process_preparation_id', 'mixture_qr', 'pieces', 'net_weight_kg', 'standard_unit_weight_kg', 'recorded_at'],
         ...transactionOptions,
       });
     const queues = await ExtruderQueue.findAll({
@@ -4450,7 +4523,7 @@ class ExtrusionService {
     const { PtiProduct } = require('../../database/models');
     const productionWithPti = production.length ? await ExtrusionProductionEntry.findAll({
       where: { id: production.map((row) => row.id) },
-      attributes: ['id', 'extruder_id', 'pti_product_id', 'pieces', 'net_weight_kg'],
+      attributes: ['id', 'extruder_id', 'pti_product_id', 'pieces', 'net_weight_kg', 'standard_unit_weight_kg'],
       include: [{ model: PtiProduct, as: 'ptiProduct', attributes: ['id', 'code', 'name'], required: false }],
       ...transactionOptions,
     }) : [];
@@ -4465,6 +4538,8 @@ class ExtrusionService {
       preparedIds,
       incomingQueueIds: [...incomingQueueIds],
     });
+    const incomingQueues = queues.filter((row) => incomingQueueIds.has(Number(row.id)));
+    const incomingHandoffByQueue = new Map(incomingHandoffs.map((row) => [Number(row.queue_id), row]));
     // Una preparación puede existir sin que se haya asignado a una extrusora
     // (o sin cola en registros históricos). Debe aparecer en el reporte como
     // pendiente de asignación, en vez de desaparecer por depender de la cola.
@@ -4529,6 +4604,7 @@ class ExtrusionService {
         ptiMap.set(productId, current);
       }
       const preparedMixes = qualifyingQueues.filter((row) => Number(row.extruder_id) === id);
+      const machineIncomingQueues = incomingQueues.filter((row) => Number(row.extruder_id) === id);
       const machineTransitions = transitions.filter((row) => Number(row.extruder_id) === id);
       const queueQuantity = (row) => Number(row.mixture_balance_initial_kg ?? row.preparation?.total_quantity ?? 0);
       const preparedMixKg = preparedMixes.reduce((sum, row) => sum + queueQuantity(row), 0);
@@ -4544,11 +4620,22 @@ class ExtrusionService {
         code: machine.code,
         is_active: machine.is_active,
         production_entries: productionEntries.length,
-        good_pti_kg: Number(productionEntries.reduce((sum, row) => sum + Number(row.net_weight_kg || 0), 0).toFixed(3)),
+        good_pti_kg: Number(productionEntries.reduce((sum, row) => {
+          const standard = Number(row.standard_unit_weight_kg);
+          const pieces = Number(row.pieces || 0);
+          return sum + (row.standard_unit_weight_kg != null && Number.isFinite(standard) && standard > 0
+            ? pieces * standard
+            : Number(row.net_weight_kg || 0));
+        }, 0).toFixed(3)),
         good_pti_pieces: machineProduction.reduce((sum, row) => sum + Number(row.pieces || 0), 0),
         prepared_mix_kg: Number(preparedMixKg.toFixed(3)),
         prepared_mixes: preparedBatchIds.size,
         prepared_containers: preparedMixes.length,
+        incoming_mix_kg: Number(machineIncomingQueues.reduce((sum, row) => {
+          const handoff = incomingHandoffByQueue.get(Number(row.id));
+          return sum + Number(row.preparation?.remaining_quantity_kg ?? handoff?.remaining_balance_kg ?? row.mixture_balance_initial_kg ?? 0);
+        }, 0).toFixed(3)),
+        incoming_containers: machineIncomingQueues.length,
         loaded_mixes: loadedBatchIds.size,
         loaded_containers: loadedMixes.length,
         loaded_mix_kg_pending_count: loadedMixKgPendingCount,
@@ -4560,7 +4647,24 @@ class ExtrusionService {
         }, 0).toFixed(3)),
         queued_mixes: preparedMixes.filter((row) => String(row.status || '').toUpperCase() === 'EN_ESPERA').length,
         produced_by_pti: [...ptiMap.values()].map((row) => ({ ...row, weight_kg: Number(row.weight_kg.toFixed(3)) })),
-        mixtures: preparedMixes.map((row) => ({
+        mixtures: [
+          ...machineIncomingQueues.map((row) => {
+            const handoff = incomingHandoffByQueue.get(Number(row.id));
+            return {
+              queue_id: Number(row.id),
+              mixture_qr: row.consumption_order_qr_id || null,
+              formula_id: row.formula_id || null,
+              formula_name: row.formula?.name || null,
+              formula_code: row.formula?.code || null,
+              status: 'RECIBIDA_EN_RELEVO',
+              prepared_at: row.created_at || null,
+              // A ProcessPreparation can represent several divided containers,
+              // so its remaining_quantity_kg is the batch total. A handoff is
+              // recorded per queue/QR and is the authoritative container balance.
+              quantity_kg: Number(handoff?.remaining_balance_kg ?? row.mixture_balance_initial_kg ?? row.preparation?.remaining_quantity_kg ?? 0),
+            };
+          }),
+          ...preparedMixes.map((row) => ({
           queue_id: Number(row.id),
           mixture_qr: row.consumption_order_qr_id || null,
           formula_id: row.formula_id || null,
@@ -4569,7 +4673,8 @@ class ExtrusionService {
           status: row.status || null,
           prepared_at: row.created_at || null,
           quantity_kg: queueQuantity(row),
-        })),
+          })),
+        ],
         transitions: machineTransitions.length,
         activity_count: productionEntries.length + preparedMixes.length + machineTransitions.length,
         has_qualifying_activity: hasQualifyingShiftActivity({ productionEntries: productionEntries.length, preparedMixes: preparedMixes.length, transitions: machineTransitions.length }),
@@ -4778,14 +4883,19 @@ class ExtrusionService {
   }
 
   async getExtrusionShiftEntryState({ user, now = new Date() } = {}) {
-    const role = String(user?.role?.code || user?.role?.name || user?.role || '').toUpperCase();
+    const role = String(user?.role?.code || user?.role?.name || user?.role || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
     const todayParts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
     }).formatToParts(now).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
     const today = `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
     const { ExtrusionShiftSession, User } = require('../../database/models');
-    const { isExtrusionShiftExpired, getShiftEntrySuggestion } = require('./services/shiftPolicy');
-    if (role !== 'SUPERVISOR_EXTRUSION') {
+    const { isExtrusionShiftExpired, getShiftEntrySuggestion, getShiftHandoffSuggestion } = require('./services/shiftPolicy');
+    if (!['SUPERVISOR_EXTRUSION', 'SUPERVISOR_DE_EXTRUSION'].includes(role)) {
       const session = await this.getActiveExtrusionShiftSession();
       return { session, auto_started: false, suggested_shift: null };
     }
@@ -4801,9 +4911,7 @@ class ExtrusionService {
       });
       if (openSession) {
         const suggested = openSession.handoff_ready_at
-          ? (String(openSession.shift_code).toUpperCase() === 'TURNO_1'
-            ? { shift_date: String(openSession.shift_date).slice(0, 10), shift_code: 'TURNO_2', auto_start: false, reason: 'RELEVO_DEL_DIA' }
-            : { shift_date: require('./services/shiftPolicy').nextOperatingDate(String(openSession.shift_date).slice(0, 10)), shift_code: 'TURNO_1', auto_start: false, reason: 'SIGUIENTE_DIA_OPERATIVO' })
+          ? getShiftHandoffSuggestion({ today, session: openSession })
           : null;
         return { session: openSession, auto_started: false, suggested_shift: suggested };
       }
@@ -4869,7 +4977,10 @@ class ExtrusionService {
         formula_id: queue.formula_id || null,
         formula_code: formula?.code || null,
         formula_name: formula?.name || null,
-        color: queue.output_pti_color || null,
+        // Older queues may predate the output-color snapshot. In that case
+        // derive the display value from the immutable formula identity so the
+        // shift handoff does not incorrectly show "Sin color".
+        color: queue.output_pti_color || getFormulaOutputColorLabel(formula) || null,
         queue_status: queue.status,
         handoff_mode: getShiftQueueHandoffMode(queue.status),
         process_preparation_id: queue.process_preparation_id || null,
@@ -4972,6 +5083,10 @@ class ExtrusionService {
     const shiftError = validateExtrusionShift({ shiftDate: shift_date, shiftCode: shift_code });
     if (shiftError) throw Object.assign(new Error(shiftError), { statusCode: 400 });
     const { ExtrusionShiftSession } = require('../../database/models');
+    const todayParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date()).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
+    const today = `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
     const duplicate = await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code: String(shift_code).trim() } });
     if (duplicate) throw Object.assign(new Error('Ya existe un registro operativo para esa fecha y turno. Verifica fecha/turno o solicita una corrección administrativa.'), { statusCode: 409 });
     const { ExtrusionShiftClosure } = require('../../database/models');
@@ -4997,24 +5112,17 @@ class ExtrusionService {
       }
       const existing = await ExtrusionShiftSession.findOne({ where: { status: 'ABIERTO' }, transaction, lock: transaction.LOCK.UPDATE });
       if (existing) {
-        const { nextOperatingDate } = require('./services/shiftPolicy');
-        const currentDate = String(existing.shift_date).slice(0, 10);
-        const currentCode = String(existing.shift_code).trim().toUpperCase();
-        const expected = currentCode === 'TURNO_1'
-          ? { shift_date: currentDate, shift_code: 'TURNO_2' }
-          : currentCode === 'TURNO_2'
-            ? { shift_date: nextOperatingDate(currentDate), shift_code: 'TURNO_1' }
-            : null;
+        const { getShiftHandoffSuggestion } = require('./services/shiftPolicy');
+        const expected = getShiftHandoffSuggestion({ today, session: existing });
+        if (expected?.shift_date > today) {
+          throw Object.assign(new Error(`La siguiente fecha operativa es ${expected.shift_date}. El turno aún no puede iniciarse.`), { statusCode: 409, code: 'EXTRUSION_SHIFT_NOT_OPEN_YET' });
+        }
         if (expected && (requestedDate !== expected.shift_date || requestedCode !== expected.shift_code)) {
           throw Object.assign(new Error(`El relevo debe iniciar ${expected.shift_code.replace('_', ' ')} del ${expected.shift_date}.`), { statusCode: 409, code: 'EXTRUSION_SHIFT_SEQUENCE_INVALID' });
         }
       } else {
         const { Op } = require('sequelize');
         const { getShiftEntrySuggestion } = require('./services/shiftPolicy');
-        const dateParts = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).formatToParts(new Date()).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
-        const today = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
         const history = await ExtrusionShiftSession.findAll({
           attributes: ['shift_date', 'shift_code'],
           where: { shift_date: { [Op.lte]: today } },
@@ -5200,10 +5308,17 @@ class ExtrusionService {
       if (!machine) throw Object.assign(new Error('Extrusora no encontrada.'), { statusCode: 404 });
       const activeSession = await ExtrusionShiftSession.findOne({ where: { shift_date, shift_code, status: 'ABIERTO' }, transaction, lock: transaction.LOCK.UPDATE });
       const { start, end } = activeSession ? { start: activeSession.opened_at, end: new Date() } : getExtrusionShiftWindow(shift_date, shift_code);
+      const resolvedSessionId = Number(shift_session_id) || Number(activeSession?.id) || null;
+      // El vínculo al turno prevalece sobre la hora de captura. Puede haber
+      // registros asociados al turno unos segundos antes de opened_at (o
+      // durante una recuperación); la misma regla se usa en actividad y cierre.
+      const shiftRecordScope = resolvedSessionId
+        ? { [Op.or]: [{ created_at: { [Op.gte]: start, [Op.lt]: end } }, { shift_session_id: resolvedSessionId }] }
+        : { created_at: { [Op.gte]: start, [Op.lt]: end } };
       const existingClosure = await ExtrusionShiftClosure.findOne({ where: { extruder_id: machineId, shift_date, shift_code }, transaction, lock: transaction.LOCK.UPDATE });
       if (existingClosure) throw Object.assign(new Error('Este turno ya fue conciliado y cerrado.'), { statusCode: 409 });
       const logs = await ExtrusionScrapLog.findAll({
-        where: { extruder_id: machineId, shift_code, created_at: { [Op.gte]: start, [Op.lt]: end } },
+        where: { extruder_id: machineId, shift_code, ...shiftRecordScope },
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
@@ -5217,7 +5332,13 @@ class ExtrusionService {
         throw Object.assign(new Error('No se puede registrar merma: esta extrusora no tiene preparaciones, producción ni registros de PTI en el turno seleccionado.'), { statusCode: 409 });
       }
       const productionEntries = await ExtrusionProductionEntry.findAll({
-        where: { extruder_id: machineId, voided_at: null, recorded_at: { [Op.gte]: start, [Op.lt]: end } },
+        where: {
+          extruder_id: machineId,
+          voided_at: null,
+          ...(resolvedSessionId
+            ? { [Op.or]: [{ recorded_at: { [Op.gte]: start, [Op.lt]: end } }, { shift_session_id: resolvedSessionId }] }
+            : { recorded_at: { [Op.gte]: start, [Op.lt]: end } }),
+        },
         attributes: ['mixture_qr', 'pieces', 'net_weight_kg', 'mixture_consumed_kg', 'standard_unit_weight_kg', 'recorded_at'],
         transaction,
       });
@@ -5383,7 +5504,13 @@ class ExtrusionService {
       const mixtureScrapLogs = logs.filter((log) => !['MATERIAL_PURGA', 'MERMA_COLOR', 'MERMA_NO_ATRIBUIDA', 'MERMA_CIERRE_TURNO'].includes(String(log.category || '').toUpperCase()));
       const purgeLogs = logs.filter((log) => String(log.category || '').toUpperCase() === 'MATERIAL_PURGA');
       const transitionsForBalance = await ExtrusionTransition.findAll({
-        where: { extruder_id: machineId, shift_code, started_at: { [Op.gte]: start, [Op.lt]: end } },
+        where: {
+          extruder_id: machineId,
+          shift_code,
+          ...(resolvedSessionId
+            ? { [Op.or]: [{ started_at: { [Op.gte]: start, [Op.lt]: end } }, { shift_session_id: resolvedSessionId }] }
+            : { started_at: { [Op.gte]: start, [Op.lt]: end } }),
+        },
         attributes: ['id', 'purge_weight_kg'], transaction,
       });
       // La medición explícita de la transición es la fuente principal.
@@ -5501,7 +5628,7 @@ class ExtrusionService {
         massBalance.actual_good_output_kg = Number(actualPtiWeight.toFixed(3));
         massBalance.pti_weight_variance_kg = Number((actualPtiWeight - massBalance.good_output_kg).toFixed(3));
         massBalance.pti_weight_source = 'PESAJE_REAL_CIERRE_TURNO';
-        massBalance.theoretical_scrap_kg = Number(Math.max(0, massBalance.consumed_input_kg - actualPtiWeight).toFixed(3));
+        massBalance.theoretical_scrap_kg = Number(Math.max(0, massBalance.consumed_mixture_kg - actualPtiWeight).toFixed(3));
         massBalance.variance_kg = Number((massBalance.actual_scrap_kg - massBalance.theoretical_scrap_kg).toFixed(3));
       } else {
         massBalance.actual_good_output_kg = null;
@@ -6784,7 +6911,7 @@ class ExtrusionService {
 
     const weight = unit_weight_kg == null || unit_weight_kg === '' ? null : Number(unit_weight_kg);
     const price = Number(unit_price);
-    if (weight !== null && (!Number.isFinite(weight) || weight <= 0)) throw Object.assign(new Error('El peso unitario, si se captura, debe ser mayor a cero.'), { statusCode: 400 });
+    if (weight === null || !Number.isFinite(weight) || weight <= 0) throw Object.assign(new Error('El peso estándar por bobina es obligatorio y debe ser mayor a cero.'), { statusCode: 400, code: 'PTI_STANDARD_WEIGHT_REQUIRED' });
     if (unit_price !== undefined && (!Number.isFinite(price) || price < 0)) throw Object.assign(new Error('El precio unitario debe ser igual o mayor a cero.'), { statusCode: 400 });
 
     let pti;
@@ -6931,6 +7058,11 @@ class ExtrusionService {
       const w = payload.unit_weight_kg == null || payload.unit_weight_kg === '' ? null : Number(payload.unit_weight_kg);
       if (w !== null && (!Number.isFinite(w) || w <= 0)) throw Object.assign(new Error('El peso unitario en kg debe ser mayor a 0 o quedar vacío.'), { statusCode: 400 });
       pti.unit_weight_kg = w;
+    }
+
+    const resultingActive = payload.is_active === undefined ? pti.is_active : Boolean(payload.is_active);
+    if (resultingActive && (!Number.isFinite(Number(pti.unit_weight_kg)) || Number(pti.unit_weight_kg) <= 0)) {
+      throw Object.assign(new Error('Un PTI activo requiere un peso estándar por bobina mayor a cero. Captúralo antes de guardar.'), { statusCode: 400, code: 'PTI_STANDARD_WEIGHT_REQUIRED' });
     }
 
     if (payload.unit_price !== undefined) {

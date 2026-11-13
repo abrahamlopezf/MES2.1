@@ -483,8 +483,51 @@ export const ViajeroTrackerPage: React.FC = () => {
         ) : recentRolls.length === 0 ? (
           <p className="text-xs text-slate-400 italic">No hay rollos registrados recientemente.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
-            <table className="w-full min-w-[900px] text-left text-sm text-slate-200">
+          <>
+          <div className="grid gap-3 2xl:hidden">
+            {recentRolls.map((item) => {
+              const isSelected = queriedCode === item.roll_code || queriedCode === item.qr_code;
+              return (
+                <article key={item.id} className={`min-w-0 rounded-xl border p-4 ${isSelected ? 'border-blue-400 bg-blue-950/30' : 'border-slate-700 bg-slate-900'}`}>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <div className="min-w-0">
+                      <p className="break-all font-mono text-base font-black text-amber-300">{item.roll_code}</p>
+                      <p className="mt-1 text-sm font-bold text-white">Telar #{item.loom_number || item.loom?.loom_number || item.loom_id} · Turno {item.shift_number || 1}°</p>
+                      <p className="break-words text-sm text-slate-300">{item.output_product_name || item.bom?.name || 'Rollo de Telares'}</p>
+                    </div>
+                    <Badge variant="outline" className="w-fit shrink-0 border-slate-600 text-slate-200">{item.product_kind || item.bom?.product_kind || 'ROLLO_TELA'}</Badge>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-slate-800/70 p-3 text-sm">
+                    <div className="min-w-0"><dt className="text-xs font-semibold text-slate-400">Producción</dt><dd className="mt-0.5 font-mono font-bold text-emerald-300">{Number(item.meters).toFixed(0)} m · {Number(item.weight_kg).toFixed(1)} kg</dd></div>
+                    <div className="min-w-0"><dt className="text-xs font-semibold text-slate-400">Fecha</dt><dd className="mt-0.5 break-words text-slate-200">{formatDateTimeCdmx(item.created_at)}</dd></div>
+                    <div className="min-w-0"><dt className="text-xs font-semibold text-slate-400">Nómina</dt><dd className="mt-0.5 break-words text-slate-200">{item.operator_nomina || item.operator?.numero_nomina || 'No registrada'}</dd></div>
+                    <div className="min-w-0"><dt className="text-xs font-semibold text-slate-400">Ruta autorizada</dt><dd className="mt-0.5 break-words text-slate-200">{(item.route || []).join(' → ') || 'Sin ruta'}</dd></div>
+                  </dl>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      disabled={isFetching && queriedCode === item.roll_code}
+                      onClick={() => { setSearchInput(item.roll_code); setQueriedCode(item.roll_code); }}
+                      className="min-h-11 w-full bg-blue-600 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-70"
+                    >
+                      {isFetching && queriedCode === item.roll_code ? 'Consultando…' : 'Ver genealogía'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => { setModalRollOverride(item); setIsLabelModalOpen(true); }}
+                      className="min-h-11 w-full gap-2 border-slate-600 bg-slate-800 text-sm font-bold text-slate-100"
+                    >
+                      <Printer className="h-4 w-4" /> Imprimir QR
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-700 bg-slate-900 2xl:block">
+            <table className="w-full min-w-[1100px] text-left text-sm text-slate-200">
               <thead className="border-b border-slate-700 bg-slate-950 font-black uppercase text-slate-400">
                 <tr>
                   <th className="p-3">Código Rollo / QR</th>
@@ -556,7 +599,7 @@ export const ViajeroTrackerPage: React.FC = () => {
                               setModalRollOverride(item);
                               setIsLabelModalOpen(true);
                             }}
-                            className="h-8 px-2.5 border-slate-600 bg-slate-800 text-slate-200 font-bold text-xs rounded-lg flex items-center gap-1"
+                            className="h-11 px-3 border-slate-600 bg-slate-800 text-slate-200 font-bold text-xs rounded-lg flex items-center gap-1"
                           >
                             <Printer className="h-3.5 w-3.5" />
                             QR
@@ -569,6 +612,7 @@ export const ViajeroTrackerPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
