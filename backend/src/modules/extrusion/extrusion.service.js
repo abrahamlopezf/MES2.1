@@ -4263,9 +4263,7 @@ class ExtrusionService {
         const qty = Number(ing.quantity || 0);
         const lastLote = await Lote.findOne({
           where: { material_id: ing.material_id },
-          // This calculation only needs these three persisted values. Selecting every
-          // Lote attribute made the formula catalog depend on unrelated, newer lot
-          // columns (package and invoice metadata) being migrated in every environment.
+          // Queue valuation uses only these fields; avoid loading unrelated lot data.
           attributes: ['material_id', 'unit_cost', 'created_at'],
           order: [['created_at', 'DESC']]
         });
@@ -4393,6 +4391,9 @@ class ExtrusionService {
         const qty = Number(ing.quantity || 0);
         const lastLote = await Lote.findOne({
           where: { material_id: ing.material_id },
+          // Formula listing only needs these fields. Selecting every Lote attribute
+          // couples this read endpoint to unrelated package/invoice schema migrations.
+          attributes: ['material_id', 'unit_cost', 'created_at'],
           order: [['created_at', 'DESC']]
         });
         const unitCost = lastLote && Number(lastLote.unit_cost) > 0 ? Number(lastLote.unit_cost) : null;
