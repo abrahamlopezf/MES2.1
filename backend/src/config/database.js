@@ -1,12 +1,15 @@
 const { Sequelize } = require('sequelize');
 const env = require('./env');
+const {
+  validateAndResolveDbConfig,
+  verifyPostgresConnectionIdentity,
+} = require('./dbGuard');
 
-const isProduction =
-  env.isProduction &&
-  env.databaseUrl;
+// Re-validar en el punto de creación de Sequelize (fail-closed)
+const activeDbConfig = validateAndResolveDbConfig(process.env);
 
-const sequelize = isProduction
-  ? new Sequelize(env.databaseUrl, {
+const sequelize = activeDbConfig.useDatabaseUrl
+  ? new Sequelize(activeDbConfig.databaseUrl, {
       dialect: 'postgres',
       protocol: 'postgres',
       timezone: 'America/Mexico_City',
@@ -39,10 +42,7 @@ const sequelize = isProduction
       dialect: 'postgres',
       timezone: 'America/Mexico_City',
 
-      logging:
-        env.nodeEnv === 'development'
-          ? console.log
-          : false,
+      logging: env.nodeEnv === 'development' && env.appEnv === 'local' ? console.log : false,
 
       pool: {
         max: 10,
@@ -61,12 +61,17 @@ const sequelize = isProduction
 
 const testDatabaseConnection = async () => {
   try {
+    const resolved = validateAndResolveDbConfig(process.env);
     await sequelize.authenticate();
+    const identity = await verifyPostgresConnectionIdentity(sequelize, resolved);
 
-    console.log('✅ PostgreSQL conectado correctamente.');
+    console.log(
+      `✅ PostgreSQL conectado correctamente [APP_ENV=${resolved.appEnv} | DB=${identity.db} | HOST=${identity.addr || resolved.host}:${identity.port || resolved.port}].`
+    );
+    return identity;
   } catch (error) {
-    console.error('❌ Error al conectar PostgreSQL');
-    console.error(error);
+    console.error('❌ Error al conectar o verificar identidad de PostgreSQL');
+    console.error(error.message);
 
     throw error;
   }

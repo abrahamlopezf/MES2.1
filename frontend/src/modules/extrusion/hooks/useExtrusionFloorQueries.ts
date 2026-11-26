@@ -3,6 +3,7 @@ import { extrusionApi } from '../services/extrusionApi';
 import {
   SwitchQueuePriorityPayload,
   EnqueueMixPayload,
+  TransferMixContainerPayload,
   ScanRackPtiPayload
 } from '../types/extrusion.types';
 
@@ -106,6 +107,19 @@ export const useEnqueueMixMutation = () => {
       extrusionApi.enqueueMix(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.queues });
+    },
+  });
+};
+
+export const useTransferMixContainerMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: TransferMixContainerPayload) => extrusionApi.transferMixContainer(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: EXTRUSION_QUERY_KEYS.queues });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'shift-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'dashboard-shift-activity'] });
+      queryClient.invalidateQueries({ queryKey: ['extrusion', 'shift-report'] });
     },
   });
 };

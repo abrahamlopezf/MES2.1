@@ -23,6 +23,8 @@ import { Input } from '@/components/ui/input';
 import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { useAuthStore } from '@/store/authStore';
 import { canViewCosts } from '@/utils/authHelpers';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TransferMixContainerPayload } from '../../types/extrusion.types';
 
 export interface ExtrusionBoardPresenterProps {
   queues: MachineQueueGroup[];
@@ -78,6 +80,8 @@ export interface ExtrusionBoardPresenterProps {
   onConfirmEnqueue: () => void;
   isEnqueuing: boolean;
   isFormulaRestrictedForMachine: (formula: Formula, machineId: number) => boolean;
+  onTransferContainer: (payload: TransferMixContainerPayload) => Promise<boolean>;
+  isTransferringContainer: boolean;
 }
 
 type QueueEntryStatus = 'ACTIVA' | 'PAUSADA' | 'EN_ESPERA';
@@ -149,6 +153,7 @@ interface FormulaQueueGroupsProps {
   onOpenSwitchModal: (targetQueue: ExtruderQueue, activeQueue: ExtruderQueue | null, prioritizeFormulaId?: number) => void;
   onScanPausedQr: (scannedCode: string, expectedQueue: ExtruderQueue) => void;
   onOpenContainerQr?: (qrCodeOrFolio: string) => void;
+  onTransferContainer?: (queue: ExtruderQueue, fromExtruderId: number) => void;
 }
 
 const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
@@ -156,6 +161,7 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
   onOpenSwitchModal,
   onScanPausedQr,
   onOpenContainerQr,
+  onTransferContainer,
 }) => {
   const formulaGroups = groupQueuesByFormula(machineQueue);
 
@@ -243,6 +249,7 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
                 {queue.container_remaining_quantity_kg != null && (
                   <p className="mt-2 text-sm font-bold text-foreground">Saldo de este contenedor: {Number(queue.container_remaining_quantity_kg).toFixed(3)} kg</p>
                 )}
+                {queue.last_transfer && <p className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm font-semibold text-muted-foreground">Último traslado: {queue.last_transfer.from_extruder_name || `Extrusora ${queue.last_transfer.from_extruder_id}`} → {queue.last_transfer.to_extruder_name || `Extrusora ${queue.last_transfer.to_extruder_id}`}</p>}
 
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   {status === 'PAUSADA' && (
@@ -262,6 +269,7 @@ const FormulaQueueGroups: React.FC<FormulaQueueGroupsProps> = ({
                       Priorizar / Activar
                     </Button>
                   )}
+                  {status === 'EN_ESPERA' && onTransferContainer && <Button type="button" variant="outline" onClick={() => onTransferContainer(queue, machineQueue.machine.id)} className="min-h-12 w-full whitespace-normal text-base font-bold sm:w-auto"><RefreshCw className="mr-2 h-4 w-4" />Transferir a otra extrusora</Button>}
                   {onOpenContainerQr && (
                     <Button
                       type="button"
@@ -357,12 +365,43 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
   isEnqueuing,
   isFormulaRestrictedForMachine,
   onOpenContainerQr,
+  onTransferContainer,
+  isTransferringContainer,
 }) => {
   const { user } = useAuthStore();
   const activeRemainingKg = Number(activeQueue?.container_remaining_quantity_kg ?? activeQueue?.preparation?.remaining_quantity_kg ?? 0);
   const allowCosts = canViewCosts(user);
   const selectedQuickProduct = quickPtiProducts.find((product) => Number(product.id) === Number(quickPtiProductId));
   const [activeTabMachineId, setActiveTabMachineId] = React.useState<number | null>(null);
+  const [transferTargetQueue, setTransferTargetQueue] = React.useState<{ queue: ExtruderQueue; fromExtruderId: number } | null>(null);
+  const [transferTargetExtruderId, setTransferTargetExtruderId] = React.useState('');
+  const [transferQr, setTransferQr] = React.useState('');
+  const [transferNotes, setTransferNotes] = React.useState('');
+  const compatibleTransferTargets = transferTargetQueue
+    ? queues.filter((group) => group.machine.id !== transferTargetQueue.fromExtruderId
+      && group.machine.status === 'ACTIVE'
+      && group.machine.is_active !== false
+      && Boolean(transferTargetQueue.queue.formula)
+      && !isFormulaRestrictedForMachine(transferTargetQueue.queue.formula!, group.machine.id))
+    : [];
+  const resetTransferDialog = () => {
+    if (isTransferringContainer) return;
+    setTransferTargetQueue(null);
+    setTransferTargetExtruderId('');
+    setTransferQr('');
+    setTransferNotes('');
+  };
+  const confirmContainerTransfer = async () => {
+    if (!transferTargetQueue || !transferTargetExtruderId || !transferQr.trim()) return;
+    const succeeded = await onTransferContainer({
+      queue_id: transferTargetQueue.queue.id,
+      from_extruder_id: transferTargetQueue.fromExtruderId,
+      to_extruder_id: Number(transferTargetExtruderId),
+      scanned_mixture_qr: transferQr.trim(),
+      notes: transferNotes.trim() || undefined,
+    });
+    if (succeeded) resetTransferDialog();
+  };
   const visibleMachineId = queues.some((group) => group.machine.id === activeTabMachineId)
     ? activeTabMachineId
     : queues[0]?.machine.id ?? null;
@@ -494,6 +533,17 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
                   onOpenSwitchModal={onOpenSwitchModal}
                   onScanPausedQr={onScanPausedQr}
                   onOpenContainerQr={onOpenContainerQr}
+                  onTransferContainer={(queue, fromExtruderId) => {
+                    setTransferTargetQueue({ queue, fromExtruderId });
+                    setTransferQr('');
+                    setTransferNotes('');
+                    const firstCompatible = queues.find((candidate) => candidate.machine.id !== fromExtruderId
+                      && candidate.machine.status === 'ACTIVE'
+                      && candidate.machine.is_active !== false
+                      && Boolean(queue.formula)
+                      && !isFormulaRestrictedForMachine(queue.formula!, candidate.machine.id));
+                    setTransferTargetExtruderId(firstCompatible ? String(firstCompatible.machine.id) : '');
+                  }}
                 />
                 {/* Pie de Columna */}
                 <div className="pt-2 border-t border-border">
@@ -817,6 +867,40 @@ export const ExtrusionBoardPresenter: React.FC<ExtrusionBoardPresenterProps> = (
           </div>
         </div>
       )}
+
+      <Dialog open={Boolean(transferTargetQueue)} onOpenChange={(open) => { if (!open) resetTransferDialog(); }}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Transferir contenedor de mezcla</DialogTitle>
+            <DialogDescription>El QR conserva la identidad, fórmula, consumos y saldo del contenedor. El traslado cambia solo la extrusora asignada y queda registrado con el usuario y turno que lo confirman.</DialogDescription>
+          </DialogHeader>
+          {transferTargetQueue && <div className="space-y-4">
+            <div className="grid gap-3 rounded-xl border border-border bg-muted/20 p-3 text-sm sm:grid-cols-2">
+              <p><span className="block text-xs font-bold uppercase text-muted-foreground">Contenedor</span><strong className="break-all font-mono">{transferTargetQueue.queue.consumption_order_qr_id}</strong></p>
+              <p><span className="block text-xs font-bold uppercase text-muted-foreground">Fórmula</span><strong>{transferTargetQueue.queue.formula?.name || 'No disponible'}</strong></p>
+              <p><span className="block text-xs font-bold uppercase text-muted-foreground">Origen</span><strong>{queues.find((group) => group.machine.id === transferTargetQueue.fromExtruderId)?.machine.name || `Extrusora ${transferTargetQueue.fromExtruderId}`}</strong></p>
+              <p><span className="block text-xs font-bold uppercase text-muted-foreground">Saldo registrado</span><strong>{Number(transferTargetQueue.queue.container_remaining_quantity_kg || 0).toFixed(3)} kg</strong></p>
+            </div>
+            <label className="block space-y-1.5 text-sm font-bold" htmlFor="mix-transfer-target">Extrusora destino compatible *</label>
+            <select id="mix-transfer-target" value={transferTargetExtruderId} onChange={(event) => setTransferTargetExtruderId(event.target.value)} className="h-12 w-full rounded-lg border-2 border-border bg-background px-3 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <option value="">Selecciona una extrusora</option>
+              {compatibleTransferTargets.map((group) => <option key={group.machine.id} value={group.machine.id}>{group.machine.name} · {group.machine.code}</option>)}
+            </select>
+            {compatibleTransferTargets.length === 0 && <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-semibold">No hay otra extrusora disponible que sea compatible con esta fórmula.</p>}
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold" htmlFor="mix-transfer-qr">Escanea el QR original del contenedor *</label>
+              <div className="flex flex-col gap-2 sm:flex-row"><QrScannerButton title="Escanear QR original de mezcla" onScan={(code) => setTransferQr(code.trim())} /><Input id="mix-transfer-qr" value={transferQr} onChange={(event) => setTransferQr(event.target.value)} placeholder="Escanea o captura el código impreso" className="min-h-12 font-mono" /></div>
+              <p className="text-xs text-muted-foreground">El servidor validará el QR antes de cambiar la asignación.</p>
+            </div>
+            <label className="block space-y-1.5 text-sm font-bold" htmlFor="mix-transfer-notes">Motivo del traslado (opcional)<Input id="mix-transfer-notes" value={transferNotes} onChange={(event) => setTransferNotes(event.target.value)} maxLength={500} placeholder="Ej. ajuste de carga entre máquinas" /></label>
+            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-semibold">Solo se permite mover contenedores en espera. Una mezcla ya cargada o con producción registrada no se puede reasignar.</p>
+          </div>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={resetTransferDialog} disabled={isTransferringContainer}>Cancelar</Button>
+            <Button type="button" onClick={confirmContainerTransfer} disabled={isTransferringContainer || !transferTargetQueue || !transferTargetExtruderId || !transferQr.trim()}>{isTransferringContainer ? 'Registrando traslado…' : 'Confirmar traslado'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

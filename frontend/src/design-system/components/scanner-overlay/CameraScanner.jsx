@@ -249,6 +249,10 @@ export const CameraScanner = ({
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
+    // This scanner may be rendered in a dialog nested under a production form.
+    // React events bubble through portals, so contain the manual QR submit here
+    // to avoid submitting the parent operation with an empty QR payload.
+    e.stopPropagation();
     // QR v2 envelopes contain case-sensitive base64url segments. Preserve the
     // scanner payload exactly; uppercasing it makes valid signed QRs undecryptable.
     const clean = manualInput.trim();

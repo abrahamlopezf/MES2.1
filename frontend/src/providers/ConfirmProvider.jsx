@@ -81,7 +81,7 @@ export const ConfirmProvider = ({ children }) => {
     <ConfirmContext.Provider value={{ confirm, withConfirm }}>
       {children}
       {isOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={config.onCancel} />
           
           <div className="relative w-[90%] max-w-md bg-card rounded-3xl shadow-2xl border border-border p-6 flex flex-col gap-6 animate-page-enter">

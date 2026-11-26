@@ -18,7 +18,6 @@ import {
   Scale,
   Sparkles,
 } from '@/design-system/components/Icon/googleIconCompat';
-import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { canViewCosts } from '../../../utils/authHelpers';
@@ -27,6 +26,9 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { PrepareRollMaterialsModal } from '../../../shared/components/wip/PrepareRollMaterialsModal';
 import { ScanAndTransformModal } from '../../../shared/components/wip/ScanAndTransformModal';
+import { CorteProcessPickupPanel } from '../../../shared/components/wip/CorteProcessPickupPanel';
+import { LaminadoCutTransferPanel } from '../../../shared/components/wip/LaminadoCutTransferPanel';
+import { TelaresScrapObservationForm } from '../../../shared/components/wip/TelaresScrapObservationForm';
 
 export const LaminadoWipPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -39,7 +41,6 @@ export const LaminadoWipPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'rolls' | 'warehouse' | 'incoming' | 'corteOrders' | 'history' | 'scrap'>('rolls');
   const [searchTerm, setSearchTerm] = useState('');
-  const [pickupQr, setPickupQr] = useState<Record<number, string>>({});
   const [selectedRollForPreparation, setSelectedRollForPreparation] = useState<any | null>(null);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [scanInitialQr, setScanInitialQr] = useState('');
@@ -56,18 +57,10 @@ export const LaminadoWipPage: React.FC = () => {
     refetchInterval: 15000,
   });
   const queryClient = useQueryClient();
-  const { data: corteOrders = [], refetch: refetchCorteOrders, isFetching: isFetchingCorteOrders } = useQuery({
+  const { data: corteOrders = [], refetch: refetchCorteOrders } = useQuery({
     queryKey: ['laminado-corte-orders'],
     queryFn: () => laminadoApi.getCorteOrders(),
     refetchInterval: 12000,
-  });
-  const pickupMutation = useMutation({
-    mutationFn: ({ orderId, qr }: { orderId: number; qr: string }) => laminadoApi.confirmCortePickup(orderId, qr),
-    onSuccess: (_result, variables) => {
-      setPickupQr((prev) => ({ ...prev, [variables.orderId]: '' }));
-      queryClient.invalidateQueries({ queryKey: ['laminado-corte-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['laminado-wip-summary'] });
-    },
   });
 
   const macro = wipData?.macro;
@@ -76,6 +69,7 @@ export const LaminadoWipPage: React.FC = () => {
   const warehouseMaterials = wipData?.warehouse_materials || [];
   const recentTransformed = wipData?.recent_transformed || [];
   const scrapLogs = wipData?.scrap_logs || [];
+  const telaresScrapObservations = wipData?.telares_scrap_observations || [];
 
   const filteredRolls = rollsInFloor.filter(
     (r) =>
@@ -271,7 +265,7 @@ export const LaminadoWipPage: React.FC = () => {
             className={`min-h-11 px-3 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'corteOrders' ? 'bg-blue-600 text-white shadow-md' : isDark ? 'bg-slate-900 text-slate-300 hover:bg-slate-800' : 'bg-white text-slate-700 hover:bg-slate-100 border'}`}
           >
             <QrIcon className="h-4 w-4" />
-            Órdenes de Corte ({corteOrders.reduce((sum: number, order: any) => sum + (order.items || []).filter((item: any) => item.status === 'REQUESTED').length, 0)})
+            Órdenes de Corte ({corteOrders.reduce((sum: number, order: any) => sum + (order.items || []).filter((item: any) => ['REQUESTED', 'PICKED', 'AWAITING_DISPATCH', 'IN_TRANSIT'].includes(item.status)).length, 0)})
           </button>
 
           <button
@@ -317,22 +311,10 @@ export const LaminadoWipPage: React.FC = () => {
       ) : isLoading ? (
         <div className="text-center py-16 text-slate-500">Cargando inventario WIP de Laminado...</div>
       ) : activeTab === 'corteOrders' ? (
-        <section className="space-y-4" aria-label="Órdenes de Corte para recoger en Telares">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
-            <div><h2 className="font-bold text-blue-100">Recogida física en Telares</h2><p className="mt-1 text-sm text-slate-300">Selecciona una orden y escanea el QR de cada rollo al recogerlo. Solo los rollos confirmados pasarán a la cola de recepción de Laminado.</p></div>
-            <Button variant="outline" className="min-h-11" onClick={() => refetchCorteOrders()} disabled={isFetchingCorteOrders}><RefreshCw className={`mr-2 h-4 w-4 ${isFetchingCorteOrders ? 'animate-spin' : ''}`} />Actualizar órdenes</Button>
-          </div>
-          {pickupMutation.error && <div role="alert" className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-200">{pickupMutation.error instanceof Error ? pickupMutation.error.message : 'No se pudo confirmar la recogida.'}</div>}
-          {corteOrders.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-slate-300">No hay solicitudes de Corte pendientes de recogida.</div> : corteOrders.map((order: any) => {
-            const pendingItems = (order.items || []).filter((item: any) => item.status === 'REQUESTED');
-            return <article key={order.id} className="rounded-xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-mono text-lg font-bold text-blue-300">{order.order_number}</h3><p className="text-sm text-slate-300">Solicitó {order.requester} · {new Date(order.requested_at).toLocaleString()}</p><p className="mt-1 text-sm text-indigo-200">PTI solicitado: <strong>{order.target_specification?.output_pti_code || order.target_specification?.code || 'Por confirmar'}</strong> · {order.requested_roll_count || order.items?.length || 0} rollo(s)</p></div><span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-200">{pendingItems.length} rollo(s) pendientes</span></div>
-              {(order.compatible_available_rolls || []).length > 0 && <div className="my-3 rounded-xl border border-blue-500/20 bg-blue-950/20 p-3"><p className="text-xs font-bold uppercase text-blue-200">Disponibilidad compatible en Telares</p><ul className="mt-2 grid gap-2 sm:grid-cols-2">{order.compatible_available_rolls.map((candidate: any) => <li key={candidate.id} className="rounded-lg bg-slate-950/60 p-2 text-xs"><strong className="font-mono text-slate-100">{candidate.roll_code}</strong><span className="ml-2 text-slate-300">Telar {candidate.loom?.code || '—'} · {candidate.meters} m · {candidate.weight_kg} kg</span></li>)}</ul></div>}
-              <ul className="my-3 divide-y divide-slate-800">{(order.items || []).map((item: any) => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span><strong>{item.roll?.roll_code || 'Rollo'}</strong><span className="ml-2 text-xs text-slate-400">{item.roll?.loom?.code} · {item.roll?.meters} m / {item.roll?.weight_kg} kg</span></span><span className={item.status === 'PICKED' ? 'font-semibold text-emerald-300' : 'text-amber-200'}>{item.status === 'PICKED' ? 'Recogido' : 'Pendiente'}</span></li>)}</ul>
-              {pendingItems.length > 0 && <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end"><label className="text-xs font-semibold text-slate-300">Escanea QR del rollo que recogiste<Input value={pickupQr[order.id] || ''} onChange={(event) => setPickupQr((prev) => ({ ...prev, [order.id]: event.target.value }))} placeholder="Escanea o captura el QR" className="mt-1 min-h-11" /></label><QrScannerButton title="Escanear QR del rollo recogido" onScan={(value) => setPickupQr((prev) => ({ ...prev, [order.id]: value.trim() }))} /><Button className="min-h-11" disabled={!pickupQr[order.id]?.trim() || pickupMutation.isPending} onClick={() => pickupMutation.mutate({ orderId: order.id, qr: pickupQr[order.id].trim() })}>{pickupMutation.isPending ? 'Confirmando…' : 'Confirmar recogida'}</Button></div>}
-            </article>;
-          })}
-        </section>
+        <div className="space-y-5">
+          <CorteProcessPickupPanel area="LAMINADO" onReceived={() => { queryClient.invalidateQueries({ queryKey: ['laminado-wip-summary'] }); refetchCorteOrders(); }} />
+          <LaminadoCutTransferPanel mode="dispatch" onChanged={() => { refetch(); refetchCorteOrders(); }} />
+        </div>
       ) : activeTab === 'rolls' ? (
         /* TAB 1: Rollos en Piso Laminado */
         filteredRolls.length === 0 ? (
@@ -407,6 +389,7 @@ export const LaminadoWipPage: React.FC = () => {
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </div>
+                <TelaresScrapObservationForm area="LAMINADO" roll={roll} onSaved={() => refetch()} />
               </div>
             ))}
           </div>
@@ -466,7 +449,7 @@ export const LaminadoWipPage: React.FC = () => {
           </div>
         )
       ) : activeTab === 'scrap' ? (
-        scrapLogs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-slate-400">No hay registros de merma o scrap en Laminado.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{scrapLogs.map((log: any) => <article key={log.id} className="rounded-xl border border-rose-500/30 bg-slate-900/70 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="font-mono text-rose-300">{log.output_pti_code}</strong><time className="text-xs text-slate-400">{new Date(log.created_at).toLocaleString()}</time></div><p className="mt-1 text-sm text-slate-300">Ficha {log.specification_code} · {log.recorded_by}</p><dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm"><div><dt className="text-xs text-slate-500">Procesado</dt><dd className="font-mono">{log.processed_meters} m</dd></div><div><dt className="text-xs text-slate-500">Bueno</dt><dd className="font-mono text-emerald-400">{log.good_meters} m</dd></div><div><dt className="text-xs text-slate-500">Merma</dt><dd className="font-mono text-rose-300">{log.scrap_meters} m</dd></div><div><dt className="text-xs text-slate-500">Peso merma</dt><dd className="font-mono">{log.scrap_weight_kg ?? 'Sin pesar'}{log.scrap_weight_kg == null ? '' : ' kg'}</dd></div></dl><p className="mt-3 break-all text-xs text-slate-400">QR origen: {log.source_qr} → QR PTI: {log.output_qr}</p>{log.reason && <p className="mt-1 text-xs text-slate-400">Motivo: {log.reason}</p>}</article>)}</div>
+        <div className="space-y-6"><section><h2 className="mb-3 text-lg font-bold">Defectos de Telares detectados al desenrollar</h2>{telaresScrapObservations.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-slate-400">Aún no hay defectos reportados.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{telaresScrapObservations.map((row: any) => <article key={row.id} className="rounded-xl border border-amber-500/30 bg-slate-900/70 p-4"><div className="flex justify-between gap-2"><strong className="font-mono text-amber-200">Rollo #{row.roll_id}</strong><time className="text-xs text-slate-400">{new Date(row.created_at).toLocaleString()}</time></div><p className="mt-2 text-sm">QR {row.source_qr} · {row.meter_start}–{row.meter_end} m</p><p className="text-sm text-amber-100">{row.scrap_meters} m · ~{row.estimated_weight_kg} kg estimados</p><p className="mt-1 text-xs text-slate-400">Causa: Telares · Detectó {row.recorded_by} · {row.reason}</p></article>)}</div>}</section><section><h2 className="mb-3 text-lg font-bold">Merma propia de Laminado</h2>{scrapLogs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-slate-400">No hay registros de merma de proceso.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{scrapLogs.map((log: any) => <article key={log.id} className="rounded-xl border border-rose-500/30 bg-slate-900/70 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="font-mono text-rose-300">{log.output_pti_code}</strong><time className="text-xs text-slate-400">{new Date(log.created_at).toLocaleString()}</time></div><p className="mt-1 text-sm text-slate-300">Ficha {log.specification_code} · {log.recorded_by}</p><p className="mt-2 font-mono text-sm text-rose-200">{log.scrap_meters} m · {log.scrap_weight_kg ?? 'Sin pesar'}{log.scrap_weight_kg == null ? '' : ' kg'}</p>{log.reason && <p className="mt-1 text-xs text-slate-400">Motivo: {log.reason}</p>}</article>)}</div>}</section></div>
       ) : activeTab === 'incoming' ? (
         /* TAB 3: En Tránsito hacia Laminado */
         rollsIncoming.length === 0 ? (
@@ -543,6 +526,7 @@ export const LaminadoWipPage: React.FC = () => {
                   <th className="p-3">BOM Base</th>
                   <th className="p-3">Metros Salida</th>
                   <th className="p-3">Peso Salida</th>
+                  <th className="p-3">Estado / Destino</th>
                   <th className="p-3">Operador</th>
                   <th className="p-3">Fecha Término</th>
                 </tr>
@@ -554,6 +538,7 @@ export const LaminadoWipPage: React.FC = () => {
                     <td className="p-3">{item.bom_name}</td>
                     <td className="p-3 font-mono">{item.meters_out} m</td>
                     <td className="p-3 font-mono">{item.weight_out_kg} kg</td>
+                    <td className="p-3">{item.status === 'PENDIENTE_VENTA' ? 'En espera de Venta' : item.status === 'PENDIENTE_TRANSFERENCIA' ? 'Pendiente despacho a Corte' : item.status === 'EN_TRANSITO' ? 'En tránsito a Corte' : item.next_allowed_stage === 'CORTE' ? 'Recibido por Corte' : 'Finalizado'}</td>
                     <td className="p-3">{item.operator}</td>
                     <td className="p-3 text-slate-400">{new Date(item.finished_at).toLocaleString()}</td>
                   </tr>
@@ -574,6 +559,7 @@ export const LaminadoWipPage: React.FC = () => {
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <div><dt className="text-slate-500">Metros</dt><dd className="font-semibold">{item.meters_out} m</dd></div>
                   <div><dt className="text-slate-500">Peso</dt><dd className="font-semibold">{item.weight_out_kg} kg</dd></div>
+                  <div><dt className="text-slate-500">Estado / destino</dt><dd className="font-semibold">{item.status === 'PENDIENTE_VENTA' ? 'En espera de Venta' : item.status === 'PENDIENTE_TRANSFERENCIA' ? 'Pendiente de salida a Corte' : item.status === 'EN_TRANSITO' ? 'En tránsito a Corte' : item.next_allowed_stage === 'CORTE' ? 'Recibido por Corte' : 'Finalizado'}</dd></div>
                   <div className="col-span-2"><dt className="text-slate-500">Operador</dt><dd className="font-semibold">{item.operator}</dd></div>
                 </dl>
               </article>

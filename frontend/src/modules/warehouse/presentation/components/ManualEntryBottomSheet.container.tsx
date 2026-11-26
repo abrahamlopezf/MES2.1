@@ -26,6 +26,7 @@ export interface ManualEntryBottomSheetContainerProps {
 type ManualEntryRow = {
   folio: string;
   quantity: string;
+  presentation_quantity: string;
   supplier_id: string;
   unit_cost: string;
   currency: 'MXN' | 'USD';
@@ -47,7 +48,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const [materialId, setMaterialId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
   const [selectedSiloId, setSelectedSiloId] = useState<string>('');
-  const [entries, setEntries] = useState<ManualEntryRow[]>([{ folio: '', quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
+  const [ppDestination, setPpDestination] = useState<'SILO' | 'PISO'>('SILO');
+  const [entries, setEntries] = useState<ManualEntryRow[]>([{ folio: '', quantity: '', presentation_quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
   const [notes, setNotes] = useState('');
   const [catalogReminder, setCatalogReminder] = useState<any>(null);
 
@@ -74,7 +76,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       setMaterialId('');
       setLocationId('');
       setSelectedSiloId('');
-      setEntries([{ folio: '', quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
+      setPpDestination('SILO');
+      setEntries([{ folio: '', quantity: '', presentation_quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
       setNotes('');
     }
   }, [isOpen]);
@@ -127,14 +130,24 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
 
   // Silos activos para abastecimiento directo de Polipropileno
   const { data: silosData = [], isLoading: loadingSilos } = useQuery({
-    queryKey: ['warehouse', 'silos'],
+    // Mantener esta caché separada de la pantalla de administración, que guarda
+    // el envelope HTTP completo bajo ['warehouse', 'silos'].
+    queryKey: ['warehouse', 'silos', 'manual-entry'],
     queryFn: async () => {
       const response = await axiosClient.get('/warehouse/silos');
-      return response.data?.data || response.data || [];
+      const payload = response.data;
+      const list = payload?.data ?? payload;
+      return Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : [];
     },
     enabled: isOpen
   });
-  const silos = Array.isArray(silosData) ? silosData : [];
+  const silos = Array.isArray(silosData)
+    ? Array.from(new Map(
+      silosData
+        .filter((silo: any) => silo?.id !== null && silo?.id !== undefined)
+        .map((silo: any) => [String(silo.id), silo])
+    ).values())
+    : [];
 
   // Helper para detectar si el material seleccionado es Polipropileno a granel (Silo)
   const isPpMaterial = (mat: any) => {
@@ -159,11 +172,14 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     mutationFn: async () => {
       const response = await axiosClient.post('/warehouse/inventory/manual-entry', {
         material_id: Number(materialId),
-        location_id: isPp ? null : (locationId ? Number(locationId) : null),
-        silo_id: isPp && selectedSiloId ? Number(selectedSiloId) : null,
+        location_id: (!isPp || ppDestination === 'PISO') && locationId ? Number(locationId) : null,
+        silo_id: isPp && ppDestination === 'SILO' && selectedSiloId ? Number(selectedSiloId) : null,
+        inventory_destination: isPp ? ppDestination : 'PISO',
         entries: entries.map(e => ({ 
           folio: e.folio, 
           quantity: Number(e.quantity),
+          presentation_quantity: e.presentation_quantity === '' ? null : Number(e.presentation_quantity),
+          presentation_unit: selectedMaterialObj?.base_unit?.code || selectedMaterialObj?.base_unit?.name || null,
           supplier_id: e.supplier_id ? (String(e.supplier_id).startsWith('NEW:') ? e.supplier_id : Number(e.supplier_id)) : null,
           unit_cost: e.unit_cost ? Number(e.unit_cost) : null,
           currency: e.currency,
@@ -230,6 +246,13 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     }
   };
 
+  const handlePpDestinationChange = (destination: 'SILO' | 'PISO') => {
+    setPpDestination(destination);
+    if (destination === 'SILO') {
+      setEntries((current) => current.map((entry) => ({ ...entry, presentation_quantity: '' })));
+    }
+  };
+
   const handleUpdateEntry = (index: number, field: string, value: string) => {
     const newEntries = [...entries];
     if (field === 'quantity') {
@@ -246,7 +269,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   };
 
   const handleAddEntry = () => {
-    setEntries([...entries, { folio: '', quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
+    setEntries([...entries, { folio: '', quantity: '', presentation_quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
   };
 
   const handleRemoveEntry = (index: number) => {
@@ -259,13 +282,18 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       return;
     }
 
-    if (!isPp && !locationId) {
+    if ((!isPp || ppDestination === 'PISO') && !locationId) {
       toast.error('Selecciona una localidad de almacenamiento.');
       return;
     }
 
-    if (isPp && !selectedSiloId) {
+    if (isPp && ppDestination === 'SILO' && !selectedSiloId) {
       toast.error('Selecciona el Silo de destino para el Polipropileno.');
+      return;
+    }
+
+    if (isPp && ppDestination === 'SILO' && entries.some((entry) => entry.presentation_quantity !== '')) {
+      toast.error('El ingreso a silo es a granel; la presentación por empaque solo se captura para ingresos a piso.');
       return;
     }
 
@@ -278,6 +306,18 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     const hasInvalidQty = entries.some(e => Number(e.quantity) <= 0 || isNaN(Number(e.quantity)));
     if (hasInvalidQty) {
       toast.error('La cantidad debe ser mayor a 0. No se permiten valores negativos ni cero.');
+      return;
+    }
+
+    if (entries.some((entry) => entry.presentation_quantity !== '' && (!Number.isFinite(Number(entry.presentation_quantity)) || Number(entry.presentation_quantity) <= 0))) {
+      toast.error('La cantidad por empaque debe ser mayor a cero, o déjala vacía si la factura no especifica una presentación fija.');
+      return;
+    }
+
+    if (entries.some((entry) => entry.presentation_quantity !== '' && Math.abs(
+      Number(entry.quantity) / Number(entry.presentation_quantity) - Math.round(Number(entry.quantity) / Number(entry.presentation_quantity))
+    ) > 0.0005)) {
+      toast.error('La cantidad total de la factura debe corresponder a empaques completos.');
       return;
     }
 
@@ -302,8 +342,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
     }
 
     const confirmed = await confirm({
-      title: isPp ? 'Ingreso a Silos (Sin QR)' : 'Ingreso de Material',
-      message: isPp 
+      title: isPp && ppDestination === 'SILO' ? 'Ingreso a Silos (Sin QR)' : 'Ingreso de Material',
+      message: isPp && ppDestination === 'SILO'
         ? `¿Confirmas el ingreso directo de ${entries.reduce((sum, e) => sum + (Number(e.quantity) || 0), 0)} kg de Polipropileno al Silo seleccionado? No se generarán etiquetas QR.`
         : `¿Confirmas el ingreso de ${entries.length} lote(s) al almacén?`,
       confirmText: 'Sí, ingresar',
@@ -335,6 +375,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         loadingSuppliers={loadingSuppliers}
         isSubmitting={isSubmitting}
         isPp={isPp}
+        ppDestination={ppDestination}
+        onChangePpDestination={handlePpDestinationChange}
         silos={silos}
         loadingSilos={loadingSilos}
         selectedSiloId={selectedSiloId}

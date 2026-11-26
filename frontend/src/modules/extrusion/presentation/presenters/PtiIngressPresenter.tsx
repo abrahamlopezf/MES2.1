@@ -1056,7 +1056,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                     <label className="text-[11px] font-bold uppercase text-muted-foreground">Color del scrap para clasificación</label>
                     <Input value={scrapColor} onChange={(e) => onScrapColorChange(e.target.value)} placeholder="Ej. natural, azul, negro" className="text-xs h-10 border" />
                   </div>
-                  <label className="block space-y-1 text-[11px] font-bold uppercase text-muted-foreground">Turno<select value={shiftCode} onChange={(event) => onShiftCodeChange(event.target.value)} className="w-full h-10 rounded-lg border border-border bg-background px-3 text-foreground"><option>TURNO_1</option><option>TURNO_2</option></select></label>
+                  <div className="block space-y-1 text-[11px] font-bold uppercase text-muted-foreground"><span>Turno operativo</span><div className="flex min-h-10 items-center rounded-lg border border-border bg-background px-3 text-sm text-foreground">{String(shiftCode || 'Sin turno activo').replaceAll('_', ' ')}</div></div>
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold uppercase text-muted-foreground">

@@ -134,12 +134,36 @@ const getInventory = async (query = {}, currentUser) => {
     ]
   }) : [];
   const materialById = new Map(materialRows.map((material) => [Number(material.id), material]));
+  const fifoPackagesByMaterial = new Map();
+  if (String(query.include_fifo_packages || '').toLowerCase() === 'true' && materialIds.length > 0) {
+    const fifoLots = await Lote.findAll({
+      where: {
+        material_id: { [Op.in]: materialIds },
+        is_active: true,
+        available_amount: { [Op.gt]: 0 },
+      },
+      attributes: ['id', 'material_id', 'available_amount', 'presentation_quantity', 'presentation_unit'],
+      order: [['created_at', 'ASC'], ['id', 'ASC']],
+      raw: true,
+    });
+    for (const lot of fifoLots) {
+      const materialId = Number(lot.material_id);
+      const rows = fifoPackagesByMaterial.get(materialId) || [];
+      rows.push({
+        available_quantity: Number(lot.available_amount) || 0,
+        presentation_quantity: lot.presentation_quantity == null ? null : Number(lot.presentation_quantity),
+        presentation_unit: lot.presentation_unit || null,
+      });
+      fifoPackagesByMaterial.set(materialId, rows);
+    }
+  }
 
   const items = rows.map((row) => ({
       inventory_source: 'WAREHOUSE',
       material_id: Number(row.material_id),
       warehouse_amount: Number(row.warehouse_amount || 0),
       amount: Number(row.amount || 0),
+      fifo_packages: fifoPackagesByMaterial.get(Number(row.material_id)) || [],
       warehouse_value: allowCosts ? Number(row.warehouse_value || 0) : null,
       total_value: allowCosts ? Number(row.total_value || 0) : null,
       updated_at: row.updated_at,
@@ -855,6 +879,13 @@ const manualEntry = async (payload, currentUser) => {
   if (invoiceCurrencies.some((currency) => !['MXN', 'USD'].includes(currency))) {
     throwHttpError('Moneda no soportada. Selecciona MXN o USD en cada factura.', 400);
   }
+  for (const entry of payload.entries) {
+    if (entry.presentation_quantity == null || entry.presentation_quantity === '') continue;
+    const presentationQuantity = Number(entry.presentation_quantity);
+    if (!Number.isFinite(presentationQuantity) || presentationQuantity <= 0 || !String(entry.presentation_unit || '').trim()) {
+      throwHttpError('La presentación por empaque debe tener una cantidad positiva y su unidad.', 400);
+    }
+  }
   const exchangeRateService = require('./exchangeRate.service');
   const invoiceDates = payload.entries.map((entry) => String(entry.invoice_date || exchangeRateService.localDate()));
   const uniqueInvoiceDates = [...new Set(invoiceDates)];
@@ -898,9 +929,30 @@ const manualEntry = async (payload, currentUser) => {
     const siloTagIds = new Set(configuredSiloTags.map((silo) => Number(silo.material_tag_id)));
     const matchesSiloTag = materialTags.some((tag) => siloTagIds.has(Number(tag.id)));
     const isPp = matchesSiloTag || hasPolypropyleneTag || matName.includes('POLIPROPILENO') || matName.includes('PP ') || matCode.startsWith('MP-PP') || matCode.includes('PP-');
+    const destination = String(payload.inventory_destination || (isPp ? 'SILO' : 'PISO')).trim().toUpperCase();
+    if (!['SILO', 'PISO'].includes(destination) || (!isPp && destination === 'SILO')) {
+      throwHttpError('Selecciona un destino válido para la recepción del material.', 400);
+    }
+    const isSiloReceipt = isPp && destination === 'SILO';
 
-    // Para materiales distintos de Polipropileno, la localidad de almacén es obligatoria
-    if (!isPp && !payload.location_id) {
+    if (isSiloReceipt && payload.entries.some((entry) => entry.presentation_quantity != null && entry.presentation_quantity !== '')) {
+      throwHttpError('La presentación por empaque solo aplica a materiales recibidos en piso; el ingreso a silo es a granel.', 400);
+    }
+    if (!isSiloReceipt) {
+      for (const entry of payload.entries) {
+        const presentation = Number(entry.presentation_quantity) || 0;
+        const quantity = Number(entry.quantity) || 0;
+        if (presentation > 0) {
+          const packageCount = quantity / presentation;
+          if (Math.abs(packageCount - Math.round(packageCount)) > 0.0005) {
+            throwHttpError(`La cantidad de factura (${quantity}) debe corresponder a empaques completos de ${presentation} ${entry.presentation_unit || 'unidades'}.`, 400);
+          }
+        }
+      }
+    }
+
+    // Las recepciones de piso, incluido PP empacado, necesitan localidad y QR/lote.
+    if (!isSiloReceipt && !payload.location_id) {
       throwHttpError('La localidad es obligatoria para el ingreso de este material.', 400);
     }
 
@@ -913,8 +965,8 @@ const manualEntry = async (payload, currentUser) => {
     let createdQrs = [];
     let targetSilo = null;
 
-    if (isPp) {
-      // Regla de Almacén: Si es Polipropileno, NO genera QR y se va a Silos directamente
+    if (isSiloReceipt) {
+      // PP recibido a granel entra al silo elegido sin crear QR de costal.
       if (payload.silo_id) {
         targetSilo = await Silo.findByPk(payload.silo_id, { transaction: t, lock: t.LOCK.UPDATE });
       }
@@ -1087,12 +1139,14 @@ const manualEntry = async (payload, currentUser) => {
       loteData.push({
         material_id: payload.material_id,
         user_id: currentUser.id,
-        qr_id: isPp ? null : createdQrs[i]?.id || null,
+        qr_id: isSiloReceipt ? null : createdQrs[i]?.id || null,
         location_id: payload.location_id,
         folio: generatedFolio,
         initial_amount: q,
         available_amount: q,
-        notes: payload.notes || (isPp ? `Ingreso a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) sin QR` : 'Ingreso manual'),
+        presentation_quantity: entry.presentation_quantity == null || entry.presentation_quantity === '' ? null : Number(entry.presentation_quantity),
+        presentation_unit: entry.presentation_quantity == null || entry.presentation_quantity === '' ? null : String(entry.presentation_unit).trim(),
+        notes: payload.notes || (isSiloReceipt ? `Ingreso a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) sin QR` : 'Ingreso manual'),
         is_active: true,
         supplier_id: finalSupplierId,
         unit_cost: mxnUnitCost,
@@ -1110,22 +1164,22 @@ const manualEntry = async (payload, currentUser) => {
 
     // 1. Bulk create lotes
     console.time('Lote.bulkCreate');
-    const createdLotes = isPp ? [] : await Lote.bulkCreate(loteData, { transaction: t, returning: true });
+    const createdLotes = isSiloReceipt ? [] : await Lote.bulkCreate(loteData, { transaction: t, returning: true });
     console.timeEnd('Lote.bulkCreate');
 
     // 2. Upsert Inventory
     console.time('Inventory.findOne');
-    let inventory = isPp ? null : await Inventory.findOne({
+    let inventory = isSiloReceipt ? null : await Inventory.findOne({
       where: { material_id: payload.material_id },
       transaction: t
     });
     console.timeEnd('Inventory.findOne');
 
     console.time('Inventory.save');
-    if (!isPp && inventory) {
+    if (!isSiloReceipt && inventory) {
       inventory.amount = Number(inventory.amount) + totalQuantity;
       await inventory.save({ transaction: t });
-    } else if (!isPp) {
+    } else if (!isSiloReceipt) {
       inventory = await Inventory.create({
         material_id: payload.material_id,
         amount: totalQuantity
@@ -1134,7 +1188,7 @@ const manualEntry = async (payload, currentUser) => {
     console.timeEnd('Inventory.save');
 
     // 2.1 Si es Polipropileno, depositar directamente en el Silo destino
-    if (isPp && targetSilo) {
+    if (isSiloReceipt && targetSilo) {
       const stockBefore = Number(targetSilo.current_stock_kg || 0);
       const capacity = Number(targetSilo.capacity_kg || 0);
       if (capacity > 0 && stockBefore + totalQuantity > capacity) {
@@ -1220,6 +1274,8 @@ const manualEntry = async (payload, currentUser) => {
           lot_kind: 'INVOICE',
           quantity_received_kg: Number(entry.quantity),
           remaining_quantity_kg: Number(entry.quantity),
+          presentation_quantity: entry.presentation_quantity == null || entry.presentation_quantity === '' ? null : Number(entry.presentation_quantity),
+          presentation_unit: entry.presentation_quantity == null || entry.presentation_quantity === '' ? null : String(entry.presentation_unit).trim(),
           invoice_currency: String(entry.currency || payload.currency || 'MXN').toUpperCase(),
           invoice_unit_cost: Number(entry.unit_cost),
           unit_cost_mxn: mxnUnitCostFor(entry),
@@ -1241,14 +1297,14 @@ const manualEntry = async (payload, currentUser) => {
 
     // 3. Bulk create movements
     console.time('Movement.bulkCreate');
-    const movementData = isPp ? [] : payload.entries.map((entry) => ({
+    const movementData = isSiloReceipt ? [] : payload.entries.map((entry) => ({
       inventory_id: inventory.id,
-      type: isPp ? 'ENTRY' : 'MANUAL_ENTRY',
+      type: isSiloReceipt ? 'ENTRY' : 'MANUAL_ENTRY',
       quantity_change: Number(entry.quantity),
       unit_cost: mxnUnitCostFor(entry),
       total_cost: mxnUnitCostFor(entry) * Number(entry.quantity),
       performed_by: currentUser.id,
-      notes: isPp
+      notes: isSiloReceipt
         ? `Ingreso directo a Silo (${targetSilo ? targetSilo.code : 'Silo PP'}) - Folio: ${entry.folio || 'S/N'}. Consumo directo Mezcladora (Excepción sin QR).`
         : (payload.notes || 'Ingreso manual al sistema (Lote virtual)')
     }));
@@ -1271,15 +1327,16 @@ const manualEntry = async (payload, currentUser) => {
     const { notifyAdminsIfNonAdmin } = require('../notifications/notification.service');
     await notifyAdminsIfNonAdmin(
       currentUser,
-      isPp ? 'Ingreso PP a Silos (Sin QR)' : 'Ingreso Manual Crítico',
-      `Se registró un ingreso de ${totalQuantity} kg del material ${material.name}. Destino: ${isPp ? (targetSilo ? targetSilo.name : 'Silos PP') : 'Almacén General'}. Folios: ${payload.entries.map(e => e.folio).join(', ')}.`,
+      isSiloReceipt ? 'Ingreso PP a Silos (Sin QR)' : 'Ingreso Manual Crítico',
+      `Se registró un ingreso de ${totalQuantity} kg del material ${material.name}. Destino: ${isSiloReceipt ? (targetSilo ? targetSilo.name : 'Silos PP') : 'Piso de Almacén'}. Folios: ${payload.entries.map(e => e.folio).join(', ')}.`,
       t
     );
 
     return { 
       results, 
-      qrBatchId: isPp ? null : qrBatch?.id || null, 
-      is_silo: isPp,
+      qrBatchId: isSiloReceipt ? null : qrBatch?.id || null,
+      is_silo: isSiloReceipt,
+      inventory_destination: isSiloReceipt ? 'SILO' : 'PISO',
       invoice_currency: new Set(invoiceCurrencies).size > 1 ? 'MIXED' : invoiceCurrencies[0],
       exchange_rates_by_invoice_date: exchangeRatesByDate,
       silo_code: targetSilo?.code || null,

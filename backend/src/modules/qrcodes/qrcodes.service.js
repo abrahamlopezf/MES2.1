@@ -21,6 +21,7 @@ const {
   QR_BATCH_STATUS,
   QR_EVENT_TYPE,
 } = require('./qr.constants');
+const { canManageQrBatches } = require('./qrBatchAccess');
 
 const CHUNK_SIZE = 1000;
 
@@ -281,6 +282,10 @@ const createTraceabilityEvent = async ({
 };
 
 const generateQrBatch = async (payload, currentUser) => {
+  if (!canManageQrBatches(currentUser)) {
+    throwHttpError('La generación de lotes QR está centralizada en Almacén y los perfiles globales.', 403);
+  }
+
   return sequelize.transaction(async (transaction) => {
     let assignedAreaId = payload.assigned_area_id || null;
 

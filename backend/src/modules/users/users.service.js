@@ -4,13 +4,67 @@ const { Op } = require('sequelize');
 const { User, Role, Area, Subarea, Permission, Notification, sequelize } = require('../../database/models');
 const {
   SUPERADMIN_ROLE_CODE,
-  isSuperadmin,
   isAdmin,
   throwHttpError,
 } = require('../../shared/security/accessRules');
 const AuthorizationService = require('../../shared/security/authorization.service');
 
 const PASSWORD_SALT_ROUNDS = 12;
+
+const AREA_RESPONSIBILITY_ROLES = {
+  1: { ADMIN: ['ADMIN_ALM', 'ADMIN_ALMACEN'], SUPERVISOR: ['SUPERVISOR'] },
+  2: { ADMIN: ['ADMIN_EXT', 'ADMIN_EXTRUSION'], SUPERVISOR: ['SUPERVISOR_EXTRUSION'] },
+  3: { ADMIN: ['ADMIN_TELARES', 'ADMIN_TEL'], SUPERVISOR: ['SUPERVISOR_TELARES'] },
+  4: { ADMIN: ['ADMIN_LAMINADO'], SUPERVISOR: ['SUPERVISOR_LAMINADO'] },
+  5: { ADMIN: ['ADMIN_GLOBO'], SUPERVISOR: ['SUPERVISOR_GLOBO'] },
+  6: { ADMIN: ['ADMIN_CORTE'], SUPERVISOR: ['SUPERVISOR_CORTE'] },
+};
+
+const getResponsibility = (role) => {
+  const code = String(role?.code || '').toUpperCase();
+  const areaId = Number(role?.area_id);
+  const areaRoles = AREA_RESPONSIBILITY_ROLES[areaId];
+  if (!areaRoles) return null;
+  if (areaRoles.ADMIN.includes(code)) return { areaId, kind: 'ADMIN' };
+  if (areaRoles.SUPERVISOR.includes(code)) return { areaId, kind: 'SUPERVISOR' };
+  return null;
+};
+
+const assertUserManagementActor = (currentUser) => {
+  if (!AuthorizationService.canAdministerUsers(currentUser)) {
+    throwHttpError('Solo los administradores globales o de área pueden administrar usuarios.', 403);
+  }
+};
+
+const assertAreaResponsibleCanBeRemoved = async (role, transaction) => {
+  const responsibility = getResponsibility(role);
+  if (!responsibility) return;
+
+  const bucketKey = `${responsibility.areaId}:${responsibility.kind}`;
+  await sequelize.query(
+    "SELECT pg_advisory_xact_lock(hashtext('traceflow.area-responsibility'), hashtext($1))",
+    { bind: [bucketKey], transaction }
+  );
+
+  const roleCodes = AREA_RESPONSIBILITY_ROLES[responsibility.areaId][responsibility.kind];
+  const responsibleRoles = await Role.findAll({
+    attributes: ['id'],
+    where: { area_id: responsibility.areaId, code: { [Op.in]: roleCodes } },
+    transaction,
+  });
+  const responsibleRoleIds = responsibleRoles.map((item) => item.id);
+  if (!responsibleRoleIds.length) {
+    throwHttpError('No se pudo verificar la configuración de responsables del área.', 409);
+  }
+
+  const activeCount = await User.count({
+    where: { role_id: { [Op.in]: responsibleRoleIds }, is_active: true },
+    transaction,
+  });
+  if (activeCount <= 1) {
+    throwHttpError(`No se puede desactivar o cambiar al último ${responsibility.kind === 'ADMIN' ? 'administrador' : 'supervisor'} activo del área.`, 409);
+  }
+};
 
 const userInclude = (options = {}) => {
   return [
@@ -170,6 +224,7 @@ const buildScopeWhereClause = (actorRole) => {
 };
 
 const getUsers = async (currentUser) => {
+  assertUserManagementActor(currentUser);
   const scopeWhere = buildScopeWhereClause(currentUser.role);
   
   const users = await User.findAll({
@@ -184,6 +239,7 @@ const getUsers = async (currentUser) => {
 };
 
 const getUserById = async (userId, currentUser) => {
+  assertUserManagementActor(currentUser);
   const user = await findVisibleUserById(userId);
 
   if (!user) {
@@ -198,6 +254,7 @@ const getUserById = async (userId, currentUser) => {
 };
 
 const createUser = async (payload, currentUser) => {
+  assertUserManagementActor(currentUser);
   return sequelize.transaction(async (transaction) => {
     const roleToAssign = await Role.findByPk(payload.role_id, { transaction });
     
@@ -205,25 +262,7 @@ const createUser = async (payload, currentUser) => {
       throwHttpError('El rol seleccionado no existe o está inactivo.', 400);
     }
 
-    const actorRoleCode = String(currentUser?.role?.code || '').toUpperCase();
-    const areaUserRolePolicy = {
-      ADMIN_EXT: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
-      ADMIN_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
-      SUPERVISOR_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
-      ADMIN_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
-      ADMIN_TEL: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
-      SUPERVISOR_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
-    };
-    const actorPolicy = areaUserRolePolicy[actorRoleCode];
-    if (actorPolicy && (!actorPolicy.roles.includes(String(roleToAssign.code || '').toUpperCase())
-      || Number(roleToAssign.area_id) !== Number(currentUser.role.area_id ?? actorPolicy.areaId))) {
-      throwHttpError(`Solo se pueden crear supervisores u operadores de ${actorPolicy.areaName}.`, 403);
-    }
-
-    const isSameAreaSupervisorCreation = ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(actorRoleCode)
-      && String(roleToAssign.code || '').toUpperCase() === actorRoleCode
-      && Number(roleToAssign.area_id) === Number(currentUser.role.area_id ?? (actorRoleCode === 'SUPERVISOR_TELARES' ? 3 : 2));
-    if (!AuthorizationService.canAssignRole(currentUser.role, roleToAssign) && !isSameAreaSupervisorCreation) {
+    if (!AuthorizationService.canAssignRole(currentUser.role, roleToAssign)) {
       throwHttpError('No tienes permisos para asignar este rol.', 403);
     }
 
@@ -257,10 +296,8 @@ const createUser = async (payload, currentUser) => {
       transaction,
     });
 
-    // Regla: Supervisor siempre crea usuarios en estado inactivo (is_active: false) a la espera de autorización
-    const isSupervisor = String(currentUser.role?.code || '').toUpperCase().startsWith('SUPERVISOR');
     let isActive = payload.is_active ?? true;
-    if (isSupervisor || payload.status === 'PENDING') {
+    if (payload.status === 'PENDING') {
       isActive = false;
     }
     
@@ -284,7 +321,7 @@ const createUser = async (payload, currentUser) => {
     );
 
     const isGlobalAdmin = isAdmin(currentUser);
-    if (!isGlobalAdmin || isSupervisor) {
+    if (!isGlobalAdmin) {
       const globalAdmins = await User.findAll({
         include: [{
           model: Role,
@@ -304,10 +341,8 @@ const createUser = async (payload, currentUser) => {
         recipient_id: admin.id,
         sender_id: currentUser.id,
         type: 'SYSTEM',
-        title: isSupervisor ? 'Usuario pendiente de autorización' : 'Nuevo usuario creado por Administrador de Área',
-        message: isSupervisor
-          ? `El supervisor ${currentUser.first_name} ${currentUser.last_name} ha registrado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}. Requiere autorización de Superadmin o Admin General.`
-          : `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}.`,
+        title: 'Nuevo usuario creado por Administrador de Área',
+        message: `El usuario ${currentUser.first_name} ${currentUser.last_name} ha creado al usuario ${createdUser.first_name} ${createdUser.last_name} (${createdUser.username}) con el rol ${roleToAssign.name}.`,
       }));
 
       if (notifications.length > 0) {
@@ -321,6 +356,7 @@ const createUser = async (payload, currentUser) => {
 };
 
 const updateUser = async (userId, payload, currentUser) => {
+  assertUserManagementActor(currentUser);
   return sequelize.transaction(async (transaction) => {
     const user = await findVisibleUserById(userId, transaction);
 
@@ -342,20 +378,6 @@ const updateUser = async (userId, payload, currentUser) => {
       if (!AuthorizationService.canChangeRole(currentUser.role, user.role, targetRole)) {
         throwHttpError('No tienes permisos para cambiar a este rol.', 403);
       }
-      const actorRoleCode = String(currentUser?.role?.code || '').toUpperCase();
-      const areaUserRolePolicy = {
-        ADMIN_EXT: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
-        ADMIN_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
-        SUPERVISOR_EXTRUSION: { areaId: 2, roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaName: 'Extrusión' },
-        ADMIN_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
-        ADMIN_TEL: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
-        SUPERVISOR_TELARES: { areaId: 3, roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaName: 'Telares' },
-      };
-      const actorPolicy = areaUserRolePolicy[actorRoleCode];
-      if (actorPolicy && (!actorPolicy.roles.includes(String(targetRole.code || '').toUpperCase())
-        || Number(targetRole.area_id) !== Number(currentUser.role.area_id ?? actorPolicy.areaId))) {
-        throwHttpError(`Solo se pueden asignar roles de supervisor u operador de ${actorPolicy.areaName}.`, 403);
-      }
     }
 
     if (payload.email || payload.username || payload.numero_nomina) {
@@ -369,6 +391,21 @@ const updateUser = async (userId, payload, currentUser) => {
     }
 
     const isGlobalAdmin = isAdmin(currentUser);
+    const mayManageAreaActivation = AuthorizationService.isAreaAdminRole(currentUser.role);
+    const currentResponsibility = getResponsibility(user.role);
+    const nextResponsibility = getResponsibility(targetRole);
+    const roleChanged = Number(targetRole.id) !== Number(user.role_id);
+    const isLeavingResponsibleRole = user.is_active && (
+      payload.is_active === false
+      || (roleChanged && currentResponsibility && (
+        currentResponsibility.areaId !== nextResponsibility?.areaId
+        || currentResponsibility.kind !== nextResponsibility?.kind
+      ))
+    );
+    if (payload.is_active === false && Number(user.id) === Number(currentUser.id)) {
+      throwHttpError('No puedes desactivar tu propio usuario.', 400);
+    }
+    if (isLeavingResponsibleRole) await assertAreaResponsibleCanBeRemoved(user.role, transaction);
 
     const updateData = {
       first_name: payload.first_name ?? user.first_name,
@@ -378,7 +415,7 @@ const updateUser = async (userId, payload, currentUser) => {
       numero_nomina: Object.prototype.hasOwnProperty.call(payload, 'numero_nomina') ? (payload.numero_nomina || null) : user.numero_nomina,
       telefono: Object.prototype.hasOwnProperty.call(payload, 'telefono') ? (payload.telefono || null) : user.telefono,
       role_id: targetRole.id,
-      is_active: isGlobalAdmin ? (payload.is_active ?? user.is_active) : user.is_active,
+      is_active: (isGlobalAdmin || mayManageAreaActivation) ? (payload.is_active ?? user.is_active) : user.is_active,
       must_change_password: payload.must_change_password ?? user.must_change_password,
     };
 
@@ -394,6 +431,7 @@ const updateUser = async (userId, payload, currentUser) => {
 };
 
 const deleteUser = async (userId, currentUser, options = {}) => {
+  assertUserManagementActor(currentUser);
   return sequelize.transaction(async (transaction) => {
     const user = await findVisibleUserById(userId, transaction);
     const { action = 'deactivate', reason = 'Sin justificación' } = options;
@@ -405,6 +443,10 @@ const deleteUser = async (userId, currentUser, options = {}) => {
 
     if (Number(user.id) === Number(currentUser.id)) {
       throwHttpError('No puedes desactivar tu propio usuario.', 400);
+    }
+
+    if (AuthorizationService.isAreaAdminRole(currentUser.role) && action === 'delete') {
+      throwHttpError('Los administradores de área pueden desactivar usuarios, pero no eliminarlos físicamente.', 403);
     }
 
     if (!AuthorizationService.canDisableUser(currentUser.role, user.role)) {
@@ -427,6 +469,8 @@ const deleteUser = async (userId, currentUser, options = {}) => {
         throwHttpError('No se puede desactivar el último Superadmin activo.', 400);
       }
     }
+
+    if (user.is_active) await assertAreaResponsibleCanBeRemoved(user.role, transaction);
 
     if (action === 'delete') {
       if (typeof user.destroy === 'function') {
@@ -454,6 +498,7 @@ const deleteUser = async (userId, currentUser, options = {}) => {
 };
 
 const requestDeactivation = async (userId, currentUser) => {
+  assertUserManagementActor(currentUser);
   return sequelize.transaction(async (transaction) => {
     const user = await findVisibleUserById(userId, transaction);
 

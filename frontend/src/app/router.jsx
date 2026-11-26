@@ -51,6 +51,7 @@ import ExtrusionReportsPage from '../modules/extrusion/presentation/pages/Extrus
 import { SuperAdminRoute, GlobalAdminRoute, UsersManagementRoute, ExtrusionRoute, TelaresRoute, WarehouseRoute, GloboRoute, LaminadoRoute, CorteRoute } from './SuperAdminRoute';
 import AdminAlmRoute from './AdminAlmRoute';
 import PermissionRoute from './PermissionRoute';
+import QrBatchManagerRoute from './QrBatchManagerRoute';
 
 // Telares & Ruteo (Fase Escalonada)
 import TelaresTerminalPage from '../modules/telares/presentation/pages/TelaresTerminalPage';
@@ -213,7 +214,7 @@ export const router = createBrowserRouter([
           // Rutas de Identity Center
           {
             path: '/identity/generate',
-            element: <PermissionRoute permissions={['qr.create', 'qr.generate']}><GenerateBatchPage /></PermissionRoute>,
+            element: <QrBatchManagerRoute><PermissionRoute permissions={['qr.create', 'qr.generate']}><GenerateBatchPage /></PermissionRoute></QrBatchManagerRoute>,
           },
           {
             path: '/identity/requests',
@@ -221,7 +222,7 @@ export const router = createBrowserRouter([
           },
           {
             path: '/identity/print',
-            element: <PermissionRoute permissions={['qr.read', 'qr.create', 'qr.generate']}><PrintBatchPage /></PermissionRoute>,
+            element: <QrBatchManagerRoute><PermissionRoute permissions={['qr.read', 'qr.create', 'qr.generate']}><PrintBatchPage /></PermissionRoute></QrBatchManagerRoute>,
           },
           {
             path: '/identity/custody',

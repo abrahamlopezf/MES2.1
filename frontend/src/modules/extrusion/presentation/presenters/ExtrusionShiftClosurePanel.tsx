@@ -29,6 +29,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
   const [lastClosure, setLastClosure] = useState<any>(null);
   const queryClient = useQueryClient();
   const { data: groups = [] } = useExtruderQueuesQuery();
+  const scheduleQuery = useQuery({ queryKey: ['extrusion', 'shift-schedule'], queryFn: extrusionApi.getShiftSchedule, staleTime: 60_000 });
   const activeSessionQuery = useQuery({
     queryKey: ['extrusion', 'active-shift-session'],
     queryFn: extrusionApi.getCurrentShiftSession,
@@ -41,6 +42,10 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
       setShiftCode(active.shift_code);
     }
   }, [activeSessionQuery.data]);
+  useEffect(() => {
+    if (activeSessionQuery.data || !scheduleQuery.data?.shifts?.length) return;
+    if (!scheduleQuery.data.shifts.some((shift: any) => shift.code === shiftCode)) setShiftCode(scheduleQuery.data.shifts[0].code);
+  }, [activeSessionQuery.data, scheduleQuery.data, shiftCode]);
   const activityQuery = useQuery({
     queryKey: ['extrusion', 'shift-activity', shiftDate, shiftCode, activeSessionQuery.data?.id],
     queryFn: () => extrusionApi.getShiftActivity({
@@ -53,7 +58,10 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
     enabled: Boolean(shiftDate && shiftCode),
     staleTime: 0,
   });
-  const machines = activityQuery.data?.used_extruders || [];
+  // A transfer alone is traceable activity, but it does not create production
+  // or scrap to weigh. Only machines with qualifying operational activity can
+  // be selected for a scrap/shift closure.
+  const machines = (activityQuery.data?.used_extruders || []).filter((machine: any) => machine.has_qualifying_activity);
   const knownColors = useMemo(() => {
     const colors = groups.flatMap((group: any) =>
       [group.active, ...(group.paused || []), ...(group.waiting || [])]
@@ -180,6 +188,10 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
           <div><dt className="text-muted-foreground">Purgante (entrada)</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.purge_input_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Remanente al cierre</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.closing_remnant_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">Mezcla consumida neta</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.consumed_mixture_kg ?? lastClosure.mass_balance_snapshot.consumed_input_kg).toFixed(3)} kg</dd></div>
+          {(Number(lastClosure.mass_balance_snapshot.mixture_transfer_in_containers || 0) > 0 || Number(lastClosure.mass_balance_snapshot.mixture_transfer_out_containers || 0) > 0) && <>
+            <div><dt className="text-muted-foreground">Contenedores recibidos de otra extrusora</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.mixture_transfer_in_containers || 0)} · {Number(lastClosure.mass_balance_snapshot.mixture_transfer_in_kg || 0).toFixed(3)} kg</dd></div>
+            <div><dt className="text-muted-foreground">Contenedores enviados a otra extrusora</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.mixture_transfer_out_containers || 0)} · {Number(lastClosure.mass_balance_snapshot.mixture_transfer_out_kg || 0).toFixed(3)} kg</dd></div>
+          </>}
           <div><dt className="text-muted-foreground">PTI calculado por balance</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.theoretical_good_output_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">PTI bueno registrado</dt><dd className="font-bold tabular-nums">{Number(lastClosure.mass_balance_snapshot.good_output_kg).toFixed(3)} kg</dd></div>
           <div><dt className="text-muted-foreground">PTI real pesado</dt><dd className="font-bold tabular-nums">{lastClosure.mass_balance_snapshot.actual_good_output_kg == null ? 'No capturado · se conserva estimado' : `${Number(lastClosure.mass_balance_snapshot.actual_good_output_kg).toFixed(3)} kg`}</dd></div>
@@ -200,8 +212,7 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
           </label>
           <label className="space-y-1 text-base font-semibold">Turno
             <select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <option value="TURNO_1">Turno 1 · 12 horas</option>
-              <option value="TURNO_2">Turno 2 · 12 horas</option>
+              {(scheduleQuery.data?.shifts || []).map((shift: any) => <option key={shift.code} value={shift.code}>{shift.label} · {shift.start_time}–{shift.end_time}</option>)}
             </select>
           </label>
           <label className="space-y-1 text-base font-semibold">Extrusora a conciliar
@@ -211,12 +222,12 @@ export const ExtrusionShiftClosurePanel: React.FC = () => {
             </select>
           </label>
         </div>
-        <p className="text-sm text-muted-foreground">Se manejan dos turnos de hasta 12 horas; la duración se cuenta desde el inicio registrado. Los horarios exactos quedan pendientes de confirmación. Solo aparecen extrusoras con actividad registrada.</p>
+        <p className="text-sm text-muted-foreground">La duración y el horario corresponden a la programación vigente. Solo aparecen extrusoras con actividad registrada en el turno seleccionado.</p>
         {activityQuery.isError && <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger/40 bg-danger/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-base text-danger">No se pudo consultar la actividad de este turno. Intenta actualizar.</p>
           <Button type="button" variant="outline" className="min-h-11" onClick={() => activityQuery.refetch()} disabled={activityQuery.isFetching}>Actualizar actividad</Button>
         </div>}
-        {activityQuery.data && machines.length === 0 && <p role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-base text-warning">No hay actividad de Extrusión en esta fecha y turno. Se requiere producción, preparación de mezcla o transición para registrar merma.</p>}
+        {activityQuery.data && machines.length === 0 && <p role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-base text-warning">No hay producción, preparación ni transición que requiera conciliación de merma en esta fecha y turno. Los traspasos de mezcla quedan en trazabilidad y no requieren un pesaje de scrap.</p>}
       </section>
       {extruderId && <section aria-labelledby="scrap-shift-weighing" className="space-y-5 border-t border-border pt-5">
         <section className="space-y-3 rounded-xl border border-border p-4 sm:p-5">

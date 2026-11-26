@@ -1,6 +1,5 @@
-import React from 'react';
 import { 
-  BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
+  Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, ComposedChart, Legend 
 } from 'recharts';
@@ -102,9 +101,9 @@ export const ProductionDashboard = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={donutData} cx="50%" cy="50%" innerRadius="50%" outerRadius="80%" dataKey="value" stroke={tooltipBg} strokeWidth={2}>
-                  {donutData.map((entry, index) => <Cell key={cell-} fill={entry.fill} />)}
+                  {donutData.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
                 </Pie>
-                <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} formatter={(value) => ${value}%} />
+                <RechartsTooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} formatter={(value) => `${value}%`} />
                 <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: '11px' }} />
               </PieChart>
             </ResponsiveContainer>

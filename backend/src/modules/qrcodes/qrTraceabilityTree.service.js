@@ -67,6 +67,24 @@ const computeOperationalRouting = ({
     const encodedRoll = encodeURIComponent(rollCode);
     const currentStage = normalizeAreaCode(viajeroRoll.current_stage || 'TELARES');
     const nextStage = normalizeAreaCode(viajeroRoll.next_allowed_stage || '');
+    const rollStatus = String(viajeroRoll.status || '').toUpperCase();
+    if (['PENDIENTE_VENTA', 'PENDIENTE_TRANSFERENCIA', 'EN_TRANSITO'].includes(rollStatus)) {
+      const saleHold = rollStatus === 'PENDIENTE_VENTA';
+      const transferHold = rollStatus === 'PENDIENTE_TRANSFERENCIA';
+      return {
+        qr_kind: 'VIAJERO_ROLL',
+        scanned_code: rollCode,
+        entity_title: `${viajeroRoll.output_product_name || viajeroRoll.bom?.name || 'Rollo laminado'} (${viajeroRoll.roll_code})`,
+        current_stage: saleHold ? 'LAMINADO' : transferHold ? 'LAMINADO · PENDIENTE DE DESPACHO' : 'EN TRÁNSITO A CORTE',
+        current_status: saleHold ? 'EN ESPERA DE VENTA' : transferHold ? 'PENDIENTE DE SALIDA A CORTE' : 'EN TRÁNSITO · ESPERANDO RECEPCIÓN',
+        status_message: saleHold
+          ? 'El rollo está bajo custodia de Laminado y bloqueado para transferencias a otras áreas hasta que Venta registre su salida.'
+          : transferHold
+            ? 'Laminado aún debe confirmar la salida escaneando este QR. Corte no puede recibirlo hasta que se registre el despacho.'
+            : 'La salida de Laminado ya fue confirmada. Corte debe escanear este mismo QR para completar la recepción y tomar la custodia.',
+        actions_by_area: {},
+      };
+    }
     const routeStages = Array.isArray(viajeroRoll.route)
       ? viajeroRoll.route.map(normalizeAreaCode)
       : [];

@@ -56,10 +56,13 @@ const ExtrusionAdminDashboard = ({ user, canViewFinancials }: { user: any; canVi
     queryFn: async () => (await axiosClient.get('/extrusion/dashboard/metrics')).data.data,
     refetchInterval: 15000,
   });
-  const { data: activeShiftSession, refetch: refetchActiveShift } = useQuery({
+  const { data: activeShiftSession, isLoading: loadingActiveShift, isError: activeShiftError, refetch: refetchActiveShift } = useQuery({
     queryKey: ['extrusion', 'dashboard-active-shift'],
     queryFn: async () => (await axiosClient.get('/extrusion/shifts/session/active')).data.data,
-    refetchInterval: 15000,
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
   });
   const { data: activeShiftActivity, isLoading: loadingShiftActivity, isError: shiftActivityError, refetch: refetchShiftActivity } = useQuery({
     queryKey: ['extrusion', 'dashboard-shift-activity', activeShiftSession?.shift_date, activeShiftSession?.shift_code],
@@ -186,12 +189,15 @@ const ExtrusionAdminDashboard = ({ user, canViewFinancials }: { user: any; canVi
             <div><h2 id="shift-live-title" className="text-xl font-black">Progreso del turno · todas las extrusoras</h2><p className="mt-1 text-sm text-muted-foreground">Preparaciones, mezclas activas recibidas, carga y PTI por máquina. Actualización cada 10 segundos.</p></div>
             <Link to="/extrusion/reports" className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 font-bold hover:bg-muted">Abrir reportes</Link>
           </div>
-          {shiftActivityError ? <div role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-warning">No se pudo consultar el progreso del turno. El resto del tablero sigue disponible.</div>
-            : !activeShiftSession ? <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">No hay turno abierto. Al iniciar, la actividad se mostrará aquí para toda el área.</p>
+          {activeShiftError ? <div role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-warning">No se pudo consultar el turno activo. Actualiza la información antes de interpretar este tablero.</div>
+            : loadingActiveShift ? <p role="status" className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">Consultando turno activo…</p>
+              : shiftActivityError ? <div role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-warning">No se pudo consultar el progreso del turno. El resto del tablero sigue disponible.</div>
+                : !activeShiftSession ? <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">No hay turno abierto. Al iniciar, la actividad se mostrará aquí para toda el área.</p>
               : loadingShiftActivity ? <p role="status" className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">Actualizando actividad por extrusora…</p>
                 : (activeShiftActivity?.used_extruders || []).length === 0 ? <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">Turno {String(activeShiftSession.shift_code).replaceAll('_', ' ')} · {activeShiftSession.shift_date}. Aún no hay actividad nueva registrada.</p>
                   : <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[820px] text-left text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3">Extrusora</th><th className="p-3">Mezclas preparadas / cargadas</th><th className="p-3">Kg preparados / cargados</th><th className="p-3">PTI generado</th><th className="p-3">Producción por tipo</th></tr></thead><tbody>{activeShiftActivity.used_extruders.map((machine: any) => <tr key={machine.id} className="border-t border-border align-top"><td className="p-3 font-bold">{machine.name}<span className="block text-xs font-normal text-muted-foreground">{machine.code}</span></td><td className="p-3 tabular-nums">{Number(machine.prepared_mixes || 0)} / {Number(machine.loaded_mixes || 0)} lotes<span className="block text-xs text-muted-foreground">{Number(machine.loaded_containers || 0)} contenedores cargados · {Number(machine.queued_mixes || 0)} en espera</span></td><td className="p-3 font-semibold tabular-nums">{number(machine.prepared_mix_kg)} / {number(machine.loaded_mix_kg)} kg</td><td className="p-3 font-semibold tabular-nums">{number(machine.good_pti_pieces, 0)} pz · {number(machine.good_pti_kg)} kg</td><td className="p-3">{(machine.produced_by_pti || []).length ? machine.produced_by_pti.map((pti: any) => <span key={pti.pti_product_id} className="mb-1 block">{pti.code || pti.name || 'PTI'} · {Number(pti.pieces || 0).toLocaleString('es-MX')} pz</span>) : <span className="text-muted-foreground">Sin salida de PTI</span>}</td></tr>)}</tbody></table></div>}
           {!!activeShiftSession?.summary?.mixture_handoffs_in?.length && <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3"><h3 className="font-bold">Mezclas recibidas del turno anterior</h3><p className="text-sm text-muted-foreground">El QR y el saldo digital del relevo quedan vinculados al reporte del turno; no se cuentan como preparaciones nuevas.</p><div className="grid gap-2 sm:grid-cols-2">{activeShiftSession.summary.mixture_handoffs_in.map((handoff: any) => <div key={handoff.id} className="rounded-md border border-border bg-background p-3"><p className="font-bold">{handoff.extruder_name || `Extrusora ${handoff.extruder_id}`} · {handoff.formula_code || handoff.formula_name || 'Mezcla'}</p><p className="text-sm text-muted-foreground">{handoff.pti_color || 'Color no especificado'} · QR {handoff.mixture_qr} · {handoffStatusLabel(handoff.status)}</p><p className="mt-1 font-semibold tabular-nums">Saldo recibido: {number(handoff.remaining_balance_kg, 3)} kg</p></div>)}</div></div>}
+          {!!activeShiftActivity?.mixture_transfers?.length && <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3"><h3 className="font-bold">Contenedores transferidos durante este turno</h3>{activeShiftActivity.mixture_transfers.map((transfer: any) => <p key={`${transfer.queue_id}-${transfer.transferred_at}`} className="text-sm"><strong>{transfer.from_extruder_name} → {transfer.to_extruder_name}</strong> · QR <span className="font-mono">{transfer.mixture_qr}</span> · {number(transfer.balance_kg, 3)} kg</p>)}</div>}
         </section>
 
         {canViewFinancials && !loadingValuation && !valuationError && Number(valuation?.pending_mix_valuations_count || 0) > 0 && (

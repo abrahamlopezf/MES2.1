@@ -6,29 +6,22 @@ import {
   Layers,
   Plus,
   Search,
-  CheckCircle2,
-  AlertTriangle,
   Edit2,
   Trash2,
   Package,
   Sliders,
-  DollarSign,
-  Filter,
-  Check,
   X,
-  Airplay,
-  ShieldCheck,
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
-import { canViewCosts, getUserAreaCode, isAdminUser, isAreaAdminUser, isSupervisorUser } from '../../../utils/authHelpers';
+import { canViewCosts } from '../../../utils/authHelpers';
 import { laminadoApi } from '../services/laminadoApi';
 import { telaresApi } from '../../telares/services/telaresApi';
 import axiosClient from '../../../api/axiosClient';
 import { LaminadoSpecification } from '../types/laminado.types';
-import { groupIdenticalRecipeLines } from '../../../shared/utils/groupIdenticalRecipeLines';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
+import { SearchSelect } from '../../../design-system/components/Input/SearchSelect';
 import { toast } from 'sonner';
 
 interface MaterialItemDraft {
@@ -45,7 +38,6 @@ const emptySpecificationForm = () => ({
   description: '',
   lamination_type: '' as '' | 'EXTRUSION_COATING' | 'MONOCAPA' | 'BICAPA' | 'BOPP_FILM' | 'PAPEL_KRAFT' | 'OTRO',
   custom_lamination_type: '',
-  target_width_cm: '' as number | '',
   coating_grammage_g_per_m2: '' as number | '',
   output_product_name: '',
   expected_output_quantity: '' as number | '',
@@ -55,29 +47,59 @@ const emptySpecificationForm = () => ({
   cost_transformation_index: '' as number | '',
   loom_roll_requirements: {
     allowed_bom_ids: [] as number[],
-    accepted_input_stages: [] as string[],
+    accepted_input_stages: ['TELARES'] as string[],
     accepts_from_globo: false,
-    min_width_cm: '' as number | '',
-    max_width_cm: '' as number | '',
-    fabric_type: '' as '' | 'TUBULAR' | 'PLANA' | 'CUALQUIERA',
     meters_per_output: '' as number | '',
     notes: '',
   },
   materials: [] as MaterialItemDraft[],
 });
 
+const normalizeMaterialName = (name: unknown) => String(name || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLocaleUpperCase('es-MX');
+
+const materialIdentityKey = (material: any) => {
+  const name = normalizeMaterialName(material?.name);
+  if (material?.family_id && name) return `${material.family_id}:${material.base_unit_id ?? 'NULL'}:${name}`;
+  return `MATERIAL:${material?.id ?? material?.material_id}`;
+};
+
+const consolidateMaterialLines = (materials: any[] = []) => {
+  const grouped = new Map<string, { line: any; quantity: number; codes: Set<string>; notes: Set<string> }>();
+  for (const line of materials) {
+    const material = line.material || {};
+    const key = materialIdentityKey({ ...material, id: line.material_id });
+    const current = grouped.get(key) || { line, quantity: 0, codes: new Set<string>(), notes: new Set<string>() };
+    current.quantity += Number(line.quantity || 0);
+    if (material.internal_code) current.codes.add(String(material.internal_code));
+    if (line.notes) current.notes.add(String(line.notes));
+    grouped.set(key, current);
+  }
+  return [...grouped.values()].map((group) => ({
+    line: group.line,
+    quantity: Number(group.quantity.toFixed(3)),
+    equivalentCodeCount: group.codes.size,
+    notes: [...group.notes].join(' · '),
+  }));
+};
+
 export const LaminadoCatalogPage: React.FC = () => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
   const allowCosts = canViewCosts(user);
-  const canManageCatalog = isAdminUser(user) || (getUserAreaCode(user) === 'LAMINADO' && (isAreaAdminUser(user) || isSupervisorUser(user)));
+  const roleCode = String(typeof user?.role === 'string' ? user.role : user?.role?.code || user?.role?.name || '').toUpperCase();
+  const canManageCatalog = ['SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN_LAMINADO'].includes(roleCode);
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSpecId, setEditingSpecId] = useState<number | null>(null);
+  const [selectedBomToAdd, setSelectedBomToAdd] = useState<number | ''>('');
   const [formData, setFormData] = useState(emptySpecificationForm());
 
   // Queries
@@ -94,8 +116,19 @@ export const LaminadoCatalogPage: React.FC = () => {
   const { data: warehouseMaterials = [], isError: materialsError, refetch: refetchMaterials } = useQuery({
     queryKey: ['warehouse-materials-list'],
     queryFn: async () => {
-      const res = await axiosClient.get('/materials?limit=250');
-      return res.data?.data || res.data || [];
+      const pageSize = 250;
+      const allMaterials: any[] = [];
+      let page = 1;
+      let total = Infinity;
+      while (allMaterials.length < total) {
+        const res = await axiosClient.get('/materials', { params: { page, pageSize, status: 'ACTIVE' } });
+        const rows = Array.isArray(res.data?.data) ? res.data.data : [];
+        allMaterials.push(...rows);
+        total = Number(res.data?.meta?.total ?? allMaterials.length);
+        if (rows.length < pageSize) break;
+        page += 1;
+      }
+      return allMaterials;
     },
   });
   const recipeMaterials = useMemo(() => warehouseMaterials.filter((mat: any) => {
@@ -104,6 +137,21 @@ export const LaminadoCatalogPage: React.FC = () => {
     const unitName = String(mat.base_unit?.name || mat.unit?.name || '').toUpperCase();
     return unitCode === 'KG' || ['KILOGRAMO', 'KILOGRAMOS'].includes(unitName);
   }), [warehouseMaterials]);
+  const recipeMaterialGroups = useMemo(() => {
+    const groups = new Map<string, any>();
+    for (const material of recipeMaterials) {
+      const key = materialIdentityKey(material);
+      const group = groups.get(key) || { ...material, equivalent_material_ids: [], equivalent_codes: [] };
+      group.equivalent_material_ids.push(Number(material.id));
+      if (material.internal_code) group.equivalent_codes.push(String(material.internal_code));
+      if (Number(material.id) < Number(group.id)) {
+        group.id = Number(material.id);
+        group.internal_code = material.internal_code;
+      }
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'es-MX'));
+  }, [recipeMaterials]);
 
   // Mutations
   const createMutation = useMutation({
@@ -145,6 +193,7 @@ export const LaminadoCatalogPage: React.FC = () => {
 
   const handleOpenCreate = () => {
     setEditingSpecId(null);
+    setSelectedBomToAdd('');
     setFormData(emptySpecificationForm());
     setIsModalOpen(true);
   };
@@ -160,6 +209,7 @@ export const LaminadoCatalogPage: React.FC = () => {
 
   const handleOpenEdit = (spec: LaminadoSpecification) => {
     setEditingSpecId(spec.id);
+    setSelectedBomToAdd('');
     setFormData({
       code: spec.code,
       output_pti_code: spec.output_pti_code || '',
@@ -167,7 +217,6 @@ export const LaminadoCatalogPage: React.FC = () => {
       description: spec.description || '',
       lamination_type: ['EXTRUSION_COATING', 'MONOCAPA', 'BICAPA', 'BOPP_FILM', 'PAPEL_KRAFT'].includes(spec.lamination_type) ? spec.lamination_type : 'OTRO',
       custom_lamination_type: ['EXTRUSION_COATING', 'MONOCAPA', 'BICAPA', 'BOPP_FILM', 'PAPEL_KRAFT'].includes(spec.lamination_type) ? '' : String(spec.lamination_type),
-      target_width_cm: spec.target_width_cm == null ? '' : Number(spec.target_width_cm),
       coating_grammage_g_per_m2: spec.coating_grammage_g_per_m2 == null ? '' : Number(spec.coating_grammage_g_per_m2),
       output_product_name: spec.output_product_name || '',
       expected_output_quantity: spec.expected_output_quantity == null ? '' : Number(spec.expected_output_quantity),
@@ -178,19 +227,19 @@ export const LaminadoCatalogPage: React.FC = () => {
       loom_roll_requirements: {
         allowed_bom_ids: spec.loom_roll_requirements?.allowed_bom_ids || [],
         accepts_from_globo: spec.loom_roll_requirements?.accepts_from_globo ?? true,
-        accepted_input_stages: spec.loom_roll_requirements?.accepted_input_stages || ['TELARES', ...((spec.loom_roll_requirements?.accepts_from_globo ?? true) ? ['GLOBO'] : [])],
-        min_width_cm: Number(spec.loom_roll_requirements?.min_width_cm),
-        max_width_cm: Number(spec.loom_roll_requirements?.max_width_cm),
-        fabric_type: spec.loom_roll_requirements?.fabric_type || '',
+        accepted_input_stages: ['TELARES'],
         meters_per_output: Number(spec.loom_roll_requirements?.meters_per_output),
         notes: spec.loom_roll_requirements?.notes || '',
       },
-      materials: (spec.materials || []).map((m) => ({
-        material_id: m.material_id,
-        quantity: Number(m.quantity || 0),
-        unit: m.unit || 'KG',
-        notes: m.notes || '',
-      })),
+      materials: consolidateMaterialLines(spec.materials || []).map(({ line, quantity, notes }) => {
+        const equivalent = recipeMaterialGroups.find((group: any) => group.equivalent_material_ids.includes(Number(line.material_id)));
+        return {
+          material_id: equivalent?.id || line.material_id,
+          quantity,
+          unit: line.unit || 'KG',
+          notes,
+        };
+      }),
     });
     setIsModalOpen(true);
   };
@@ -233,24 +282,42 @@ export const LaminadoCatalogPage: React.FC = () => {
     });
   };
 
+  const isCompatibleTelaresBom = (bom: any) => {
+    if (bom.is_active === false || String(bom.product_kind || '').toUpperCase() !== 'ROLLO_TELA') return false;
+    const width = Number(bom.target_width_cm || 0);
+    if (width <= 0) return false;
+    const routes = Array.isArray(bom.allowed_routes) && bom.allowed_routes.length ? bom.allowed_routes : [bom.default_route];
+    return routes.some((route: any) => Array.isArray(route)
+      && String(route[0] || '').toUpperCase() === 'TELARES'
+      && String(route[1] || '').toUpperCase() === 'LAMINADO');
+  };
+  const selectedBomIds = formData.loom_roll_requirements.allowed_bom_ids;
+  const selectedBomOptions = boms.filter((bom: any) => selectedBomIds.includes(Number(bom.id)));
+  const compatibleBomOptions = boms.filter((bom: any) => !selectedBomIds.includes(Number(bom.id)) && isCompatibleTelaresBom(bom));
+
+  const handleAddSelectedBom = () => {
+    if (!selectedBomToAdd) return;
+    handleBomToggle(Number(selectedBomToAdd));
+    setSelectedBomToAdd('');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const partialMaterial = formData.materials.some((m) => !m.material_id || !Number(m.quantity) || Number(m.quantity) <= 0);
-    if (!formData.code.trim() || !formData.name.trim() || !formData.output_pti_code.trim() || !formData.output_product_name.trim() || partialMaterial) {
-      toast.error('Indica el código y nombre de la ficha y el código y nombre del PTI. Completa o elimina cada línea de insumo iniciada.');
+    if (!formData.code.trim() || !formData.name.trim() || !formData.output_pti_code.trim() || !formData.output_product_name.trim() || formData.loom_roll_requirements.allowed_bom_ids.length === 0 || formData.materials.length === 0 || partialMaterial) {
+      toast.error('Completa la ficha, agrega al menos un material de Almacén con su consumo y selecciona un rollo compatible de Telares.');
       return;
     }
     const payload = {
       ...formData,
       lamination_type: formData.lamination_type === 'OTRO' ? formData.custom_lamination_type.trim().toUpperCase() : formData.lamination_type || null,
-      target_width_cm: formData.target_width_cm === '' ? null : Number(formData.target_width_cm),
       coating_grammage_g_per_m2: formData.coating_grammage_g_per_m2 === '' ? null : Number(formData.coating_grammage_g_per_m2),
       expected_output_quantity: formData.expected_output_quantity === '' ? null : Number(formData.expected_output_quantity),
       expected_output_unit: formData.expected_output_unit || null,
       standard_output_meters: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters),
       standard_waste_percentage: formData.standard_waste_percentage === '' ? null : Number(formData.standard_waste_percentage),
       cost_transformation_index: allowCosts && formData.cost_transformation_index !== '' ? Number(formData.cost_transformation_index) : null,
-      loom_roll_requirements: { ...formData.loom_roll_requirements, min_width_cm: formData.loom_roll_requirements.min_width_cm === '' ? null : Number(formData.loom_roll_requirements.min_width_cm), max_width_cm: formData.loom_roll_requirements.max_width_cm === '' ? null : Number(formData.loom_roll_requirements.max_width_cm), meters_per_output: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters), accepts_from_globo: formData.loom_roll_requirements.accepted_input_stages.includes('GLOBO') },
+      loom_roll_requirements: { allowed_bom_ids: formData.loom_roll_requirements.allowed_bom_ids, notes: formData.loom_roll_requirements.notes, meters_per_output: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters), accepted_input_stages: ['TELARES'], accepts_from_globo: false },
       materials: formData.materials
         .map((m) => ({
           material_id: Number(m.material_id),
@@ -269,7 +336,6 @@ export const LaminadoCatalogPage: React.FC = () => {
 
   const filteredSpecs = useMemo(() => {
     return specs.filter((s) => {
-      if (filterType !== 'ALL' && s.lamination_type !== filterType) return false;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         return (
@@ -280,7 +346,7 @@ export const LaminadoCatalogPage: React.FC = () => {
       }
       return true;
     });
-  }, [specs, filterType, searchTerm]);
+  }, [specs, searchTerm]);
 
   return (
     <div className={`p-4 md:p-6 min-h-screen ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -292,47 +358,31 @@ export const LaminadoCatalogPage: React.FC = () => {
               <Layers className="h-6 w-6" />
             </span>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Catálogo de Fórmulas y Especificaciones de Laminado
+            Catálogo de Laminado
             </h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Recetas de extrusión de película, compatibilidad con rollos de telares/globo e insumos de resina PEBD para PTI Laminado.
+            Una ficha maestra para el proceso. Administra aquí sus rollos compatibles de Telares y los insumos requeridos.
           </p>
         </div>
 
         {canManageCatalog && <div className="flex items-center gap-3">
           <Button
-            onClick={handleOpenCreate}
+            onClick={() => specs[0] ? handleOpenEdit(specs[0]) : handleOpenCreate()}
             className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 flex items-center gap-2 shadow-md"
           >
             <Plus className="h-5 w-5" />
-            Nueva Especificación Laminado
+            {specs[0] ? 'Editar ficha: rollos e insumos' : 'Crear ficha única de Laminado'}
           </Button>
         </div>}
       </div>
 
-      {/* KPI Cards / Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className={`p-4 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Fórmulas Laminado</p>
-          <p className="text-2xl font-black mt-1 text-amber-500">{specs.length}</p>
-        </div>
-        <div className={`p-4 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Activas en Planta</p>
-          <p className="text-2xl font-black mt-1 text-emerald-500">{specs.filter((s) => s.is_active).length}</p>
-        </div>
-        <div className={`p-4 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Extrusión Recubrimiento</p>
-          <p className="text-2xl font-black mt-1 text-blue-500">{specs.filter((s) => s.lamination_type === 'EXTRUSION_COATING').length}</p>
-        </div>
-        <div className={`p-4 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Película BOPP</p>
-          <p className="text-2xl font-black mt-1 text-purple-500">{specs.filter((s) => s.lamination_type === 'BOPP_FILM').length}</p>
-        </div>
+      <div className={`mb-6 rounded-xl border p-4 text-sm ${isDark ? 'border-amber-500/30 bg-amber-950/20 text-amber-100' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+        <strong>Una ficha maestra de Laminado.</strong> En la misma ficha se enlazan los rollos compatibles de Telares y los materiales de Almacén que se consumirán.
       </div>
 
       {/* Filters & Search */}
-      <CollapsibleFilterPanel title="Buscar y filtrar especificaciones" summary={`${filteredSpecs.length} resultados${filterType !== 'ALL' ? ` · ${filterType}` : ''}${searchTerm ? ` · ${searchTerm}` : ''}`} className={`mb-6 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+      <CollapsibleFilterPanel title="Buscar ficha de Laminado" summary={`${filteredSpecs.length} ficha${filteredSpecs.length === 1 ? '' : 's'}${searchTerm ? ` · ${searchTerm}` : ''}`} className={`mb-6 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -344,23 +394,6 @@ export const LaminadoCatalogPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {['ALL', 'EXTRUSION_COATING', 'BOPP_FILM', 'MONOCAPA'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setFilterType(t)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                filterType === t
-                  ? 'bg-amber-600 text-white shadow'
-                  : isDark
-                  ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {t === 'ALL' ? 'Todos los Tipos' : t}
-            </button>
-          ))}
-        </div>
       </div>
       </CollapsibleFilterPanel>
 
@@ -449,7 +482,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                 <div>
                   <span className="text-slate-500 block">Ancho / Capa PE:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {spec.target_width_cm ?? '—'} cm | {spec.coating_grammage_g_per_m2 ?? '—'} g/m²
+                    Según rollo de Telares | {spec.coating_grammage_g_per_m2 ?? '—'} g/m² de recubrimiento
                   </span>
                 </div>
                 <div>
@@ -465,7 +498,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                 <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-1.5">
                   <span className="flex items-center gap-1 text-amber-500">
                     <Layers className="h-3.5 w-3.5" />
-                    Rollos de Telares / Globo Admitidos:
+                    Rollos de Telares compatibles:
                   </span>
                   <span className="text-xs font-bold text-emerald-400">
                     {(spec.loom_roll_requirements?.accepted_input_stages || ['TELARES', ...(spec.loom_roll_requirements?.accepts_from_globo === false ? [] : ['GLOBO'])]).join(' + ')}
@@ -473,7 +506,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {spec.allowed_boms && spec.allowed_boms.length > 0 ? (
+                    {spec.allowed_boms && spec.allowed_boms.length > 0 ? (
                     spec.allowed_boms.map((bom) => (
                       <span
                         key={bom.id}
@@ -492,29 +525,34 @@ export const LaminadoCatalogPage: React.FC = () => {
               <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <span className="flex items-center gap-1 text-xs font-bold text-blue-500 mb-1.5">
                   <Package className="h-3.5 w-3.5" />
-                  Resinas e Insumos de Almacén Requeridos (por Rollo PTI):
+                  Materiales de Almacén requeridos para {spec.standard_output_meters || '—'} m:
                 </span>
 
                 <div className="space-y-1">
                   {spec.materials && spec.materials.length > 0 ? (
-                    groupIdenticalRecipeLines(spec.materials).map(({ line: m, count, totalQuantity }) => (
+                    consolidateMaterialLines(spec.materials).map(({ line: m, quantity, equivalentCodeCount, notes }) => {
+                      const catalogGroup = recipeMaterialGroups.find((group: any) => group.equivalent_material_ids.includes(Number(m.material_id)));
+                      const consolidatedCodes = Math.max(equivalentCodeCount, catalogGroup?.equivalent_codes?.length || 0);
+                      return (
                       <div
-                        key={`${m.material_id}-${m.quantity}-${m.unit}-${m.notes ?? ''}`}
+                        key={`${materialIdentityKey({ ...(m.material || {}), id: m.material_id })}-${m.unit}`}
                         className="flex min-w-0 flex-col gap-1 rounded border border-blue-500/20 bg-blue-500/5 p-1.5 text-xs sm:flex-row sm:items-center sm:justify-between"
                       >
                         <span className="min-w-0 break-words font-semibold text-slate-700 dark:text-slate-300">
                           {m.material?.name || `Material #${m.material_id}`}
-                          {count > 1 && (
+                          {consolidatedCodes > 1 && (
                             <span className="ml-1 text-[10px] font-normal text-slate-500">
-                              · {count} renglones idénticos
+                              · consolidado de {consolidatedCodes} códigos
                             </span>
                           )}
+                          {notes && <span className="block text-[10px] font-normal text-slate-500">{notes}</span>}
                         </span>
                         <span className="shrink-0 font-mono font-bold text-blue-600 dark:text-blue-400">
-                          {count > 1 ? totalQuantity.toFixed(3) : m.quantity} {m.unit}
+                          {quantity.toFixed(3)} {m.unit}
                         </span>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <span className="text-xs text-slate-400 italic">No requiere insumos adicionales</span>
                   )}
@@ -551,7 +589,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Layers className="h-6 w-6 text-amber-500" />
                   <h2 id="laminado-spec-dialog-title" className="text-lg sm:text-xl font-black">
-                    {editingSpecId ? 'Editar Especificación de Laminado' : 'Nueva Especificación / Receta de Laminado'}
+                    {editingSpecId ? 'Editar ficha maestra y rollos compatibles' : 'Crear ficha maestra de Laminado'}
                   </h2>
                 </div>
                 <button
@@ -588,7 +626,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                       <label className="text-xs font-bold text-slate-400 block mb-1">Tipo de Laminación *</label>
                     <select
@@ -612,17 +650,6 @@ export const LaminadoCatalogPage: React.FC = () => {
                       <Input required maxLength={50} value={formData.custom_lamination_type} onChange={(e) => setFormData({ ...formData, custom_lamination_type: e.target.value })} placeholder="Escribe el tipo de laminado" />
                     </div>
                   )}
-                  <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Ancho de salida (cm) *</label>
-                    <Input
-                      type="number"
-                        min="0.01"
-                      step="0.1"
-                        required
-                      value={formData.target_width_cm}
-                      onChange={(e) => setFormData({ ...formData, target_width_cm: e.target.value === '' ? '' : Number(e.target.value) })}
-                    />
-                  </div>
                   <div>
                       <label className="text-xs font-bold text-slate-400 block mb-1">Gramaje de recubrimiento (g/m²) *</label>
                     <Input
@@ -726,102 +753,51 @@ export const LaminadoCatalogPage: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-black uppercase text-blue-400 tracking-wider flex items-center gap-1.5">
                       <Layers className="h-4 w-4" />
-                      Rollos de Telares / Globo Requeridos
+                      Rollos compatibles de Telares
                     </h4>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    {[
-                      ['TELARES', 'Acepta rollo directo de Telares'],
-                      ['GLOBO', 'Acepta rollo procesado por Globo'],
-                    ].map(([stage, label]) => {
-                      const selected = formData.loom_roll_requirements.accepted_input_stages.includes(stage);
-                      return (
-                        <label key={stage} className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer">
-                          <input type="checkbox" checked={selected} onChange={() => setFormData({ ...formData, loom_roll_requirements: { ...formData.loom_roll_requirements, accepted_input_stages: selected ? formData.loom_roll_requirements.accepted_input_stages.filter((item) => item !== stage) : [...formData.loom_roll_requirements.accepted_input_stages, stage] } })} className="h-4 w-4 rounded" />
-                          <span>{label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-
                   <p className="text-xs text-slate-400">
-                    Selecciona los BOM de Telares compatibles. Sus onzas, tipo de tela, denier y cinta se consultan desde el catálogo BOM.
+                    Busca y agrega rollos desde el catálogo de Telares. El ancho se toma automáticamente de cada ficha; no se captura de nuevo en Laminado.
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 bg-black/20 rounded-lg">
-                    {boms.filter((bom: any) => bom.is_active !== false).map((bom: any) => {
-                      const isSelected = formData.loom_roll_requirements.allowed_bom_ids?.includes(bom.id);
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                    <div className="min-w-0 flex-1">
+                      <SearchSelect
+                        options={compatibleBomOptions}
+                        value={selectedBomToAdd || null}
+                        onChange={(value) => setSelectedBomToAdd(Number(value) || '')}
+                        getLabel={(bom: any) => `${bom.code} · ${bom.name}`}
+                        getDescription={(bom: any) => `${bom.fabric_type || 'Tipo no definido'} · ${bom.target_width_cm} cm · ${bom.ounces_yd2 ? `${bom.ounces_yd2} oz/yd²` : 'Gramaje pendiente'}`}
+                        getValue={(bom: any) => Number(bom.id)}
+                        placeholder="Buscar rollo en el catálogo de Telares..."
+                        emptyMessage="No hay rollos compatibles que coincidan con la búsqueda"
+                        disabled={bomsError || compatibleBomOptions.length === 0}
+                      />
+                    </div>
+                    <Button type="button" onClick={handleAddSelectedBom} disabled={!selectedBomToAdd} className="min-h-11 shrink-0 bg-blue-600 text-white hover:bg-blue-700">
+                      <Plus className="mr-1 h-4 w-4" /> Agregar rollo
+                    </Button>
+                  </div>
+                  {compatibleBomOptions.length === 0 && selectedBomOptions.length === 0 && <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">No hay rollos activos de Telares con ruta directa a Laminado y ancho definido en su ficha.</p>}
+
+                  <div className="space-y-2">
+                    {selectedBomOptions.map((bom: any) => {
+                      const isCompatible = isCompatibleTelaresBom(bom);
                       return (
-                        <button
-                          key={bom.id}
-                          type="button"
-                          onClick={() => handleBomToggle(bom.id)}
-                          aria-pressed={Boolean(isSelected)}
-                          className={`text-left p-2 rounded border text-xs transition-colors flex items-center justify-between min-h-16 ${
-                            isSelected
-                              ? 'bg-amber-600 text-white border-amber-500 font-bold'
-                              : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
-                          }`}
-                        >
-                          <span className="min-w-0 pr-1">
-                            <span className="block truncate">{bom.code} · {bom.name}</span>
-                            <span className="block text-[10px] opacity-80">{bom.ounces_yd2 ? `${bom.ounces_yd2} oz/yd² · ` : ''}{bom.fabric_type || 'Tipo no definido'} · {bom.target_width_cm} cm</span>
-                            <span className="block text-[10px] opacity-80">Trama {bom.weft_denier || '—'}D · Urdimbre {bom.warp_denier || '—'}D</span>
-                            <span className="block text-[10px] opacity-80">Cinta {bom.tape_color || '—'} · {bom.tape_denier || '—'}D / {bom.tape_width_mm || '—'} mm</span>
-                            {bom.general_considerations && <span className="block text-[10px] opacity-80 line-clamp-2">{bom.general_considerations}</span>}
-                          </span>
-                          {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
-                        </button>
+                        <div key={bom.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-sm ${isCompatible ? 'border-blue-500/30 bg-blue-500/5' : 'border-rose-500/40 bg-rose-500/10'}`}>
+                          <div className="min-w-0">
+                            <p className="truncate font-bold">{bom.code} · {bom.name}</p>
+                            <p className="text-xs text-slate-400">Ancho heredado: {bom.target_width_cm} cm · {bom.fabric_type || 'Tipo no definido'}{bom.ounces_yd2 ? ` · ${bom.ounces_yd2} oz/yd²` : ''}</p>
+                            {!isCompatible && <p className="text-xs font-semibold text-rose-300">Ya no cumple los requisitos; quítalo antes de guardar.</p>}
+                          </div>
+                          <Button type="button" variant="outline" onClick={() => handleBomToggle(Number(bom.id))} className="min-h-11 shrink-0" aria-label={`Quitar ${bom.code}`}>
+                            <X className="h-4 w-4" /> Quitar
+                          </Button>
+                        </div>
                       );
                     })}
                   </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Ancho mínimo de entrada (cm) *</label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.5"
-                        required
-                        value={formData.loom_roll_requirements.min_width_cm}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            loom_roll_requirements: {
-                              ...formData.loom_roll_requirements,
-                              min_width_cm: e.target.value === '' ? '' : Number(e.target.value),
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Ancho máximo de entrada (cm) *</label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.5"
-                        required
-                        value={formData.loom_roll_requirements.max_width_cm}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            loom_roll_requirements: {
-                              ...formData.loom_roll_requirements,
-                              max_width_cm: e.target.value === '' ? '' : Number(e.target.value),
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Tipo de tela de entrada *</label>
-                      <select required value={formData.loom_roll_requirements.fabric_type} onChange={(e) => setFormData({ ...formData, loom_roll_requirements: { ...formData.loom_roll_requirements, fabric_type: e.target.value as any } })} className="w-full h-10 px-3 rounded-md border text-sm font-semibold bg-transparent">
-                        <option value="">Selecciona</option><option value="TUBULAR">Tubular</option><option value="PLANA">Plana</option><option value="CUALQUIERA">Cualquiera</option>
-                      </select>
-                    </div>
-                  </div>
+                  {selectedBomOptions.length === 0 && <p className="text-xs text-amber-200">Agrega al menos un rollo del catálogo de Telares.</p>}
                   <div>
                     <label className="text-xs font-bold text-slate-400 block mb-1">Notas / restricciones de entrada</label>
                     <Input value={formData.loom_roll_requirements.notes} onChange={(e) => setFormData({ ...formData, loom_roll_requirements: { ...formData.loom_roll_requirements, notes: e.target.value } })} placeholder="Restricciones adicionales para recibir el rollo" />
@@ -833,7 +809,7 @@ export const LaminadoCatalogPage: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-black uppercase text-purple-400 tracking-wider flex items-center gap-1.5">
                       <Sliders className="h-4 w-4" />
-                      Resinas e Insumos de Almacén Requeridos (receta para metros estándar)
+                      Materiales de Almacén (consumo para los metros estándar)
                     </h4>
                     <Button
                       type="button"
@@ -845,28 +821,33 @@ export const LaminadoCatalogPage: React.FC = () => {
                       Agregar Insumo
                     </Button>
                   </div>
-                  <p className="text-xs text-slate-400">Registra el KG de cada resina o insumo necesario para los metros estándar de salida definidos arriba.</p>
+                  <p className="text-xs text-slate-400">Selecciona cualquier material activo de Almacén que se mida en KG —resina, carbonato, aditivo u otro— e indica cuánto consume para los {formData.standard_output_meters || 'metros estándar'} m definidos. El sistema escala esa cantidad según los metros procesados.</p>
 
                   {formData.materials.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">No se han especificado insumos de almacén para esta fórmula.</p>
+                    <div className="rounded-lg border border-dashed border-purple-400/40 p-4 text-sm text-slate-400">
+                      Agrega al menos un material de Almacén para definir la receta y permitir que Laminado consulte su WIP o solicite lo faltante mediante una ODC.
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {formData.materials.map((row, index) => (
                         <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,8rem)_2.75rem] gap-2 items-center bg-black/20 p-2 rounded-lg max-sm:grid-cols-[minmax(0,1fr)_2.75rem]">
-                          <select
-                            required
-                            value={row.material_id}
-                            onChange={(e) => handleMaterialChange(index, 'material_id', e.target.value ? Number(e.target.value) : '')}
-                            className="flex-1 min-h-11 w-full px-2 rounded border text-sm bg-slate-800 text-slate-200 max-sm:col-span-2"
-                          >
-                            <option value="">-- Seleccionar Resina o Insumo --</option>
-                            {recipeMaterials.map((mat: any) => (
-                              <option key={mat.id} value={mat.id}>
-                                {mat.name} ({mat.internal_code}) · {mat.base_unit?.code || mat.base_unit?.name || 'KG'}
-                              </option>
-                            ))}
-                          </select>
-                          {recipeMaterials.length === 0 && <p className="col-span-full text-sm text-amber-300">No hay materiales activos con unidad base KG en el catálogo de Almacén.</p>}
+                          <div className="min-w-0 max-sm:col-span-2">
+                            <SearchSelect
+                              options={recipeMaterialGroups.filter((mat: any) =>
+                                mat.equivalent_material_ids.includes(Number(row.material_id))
+                                || !formData.materials.some((other, otherIndex) => otherIndex !== index && mat.equivalent_material_ids.includes(Number(other.material_id)))
+                              )}
+                              value={row.material_id ? Number(row.material_id) : null}
+                              onChange={(value) => handleMaterialChange(index, 'material_id', Number(value) || '')}
+                              getLabel={(mat: any) => `${mat.name} · ${mat.equivalent_codes.length} código(s)`}
+                              getDescription={(mat: any) => `${mat.equivalent_codes.join(', ')} · ${mat.base_unit?.code || mat.base_unit?.name || 'KG'}`}
+                              getValue={(mat: any) => Number(mat.id)}
+                              placeholder="Buscar material de Almacén..."
+                              emptyMessage="No hay materiales que coincidan con la búsqueda"
+                              disabled={materialsError || recipeMaterialGroups.length === 0}
+                            />
+                          </div>
+                          {recipeMaterials.length === 0 && <p className="col-span-full text-sm text-amber-300">No hay materiales activos medidos en KG en el catálogo de Almacén.</p>}
 
                           <div>
                             <Input
@@ -875,12 +856,15 @@ export const LaminadoCatalogPage: React.FC = () => {
                               step="0.01"
                               required
                               aria-label={`Consumo de ${warehouseMaterials.find((mat: any) => mat.id === Number(row.material_id))?.name || `insumo ${index + 1}`} en kg por ${formData.standard_output_meters || 'metros estándar'} m de salida`}
-                              placeholder="KG"
+                              placeholder={`KG / ${formData.standard_output_meters || 'm estándar'}`}
                               value={row.quantity}
                               onChange={(e) => handleMaterialChange(index, 'quantity', e.target.value)}
                               className="min-h-11 text-sm max-sm:col-span-1"
                             />
                           </div>
+                          <p className="col-span-full text-[11px] text-slate-400">
+                            KG consumidos por {formData.standard_output_meters || 'los metros estándar'} m de salida
+                          </p>
 
                           <button
                             type="button"

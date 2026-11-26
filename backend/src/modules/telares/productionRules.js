@@ -29,13 +29,6 @@ function normalizeProductionRoute(route, productKind = 'ROLLO_TELA') {
     );
   }
 
-  if (stages.includes('GLOBO')) {
-    throw Object.assign(
-      new Error('Ninguna salida de Telares puede tener Globo en su ruta; selecciona un destino permitido para su subárea.'),
-      { statusCode: 400, code: 'GLOBO_NOT_ALLOWED_FOR_TELARES_OUTPUT' },
-    );
-  }
-
   if (['BANDA', 'CINTA'].includes(kind) && (stages.includes('GLOBO') || stages.includes('LAMINADO'))) {
     throw Object.assign(
       new Error('Los productos de Tejido de Banda y Cintilla no pasan por Globo ni Laminado; sus destinos válidos son Corte, Almacén o Venta.'),
@@ -55,6 +48,8 @@ function normalizeProductionRoute(route, productKind = 'ROLLO_TELA') {
         ['CORTE', 'CONFECCION'],
         ['LAMINADO'],
         ['LAMINADO', 'CORTE'],
+        ['LAMINADO', 'VENTA'],
+        ['GLOBO', 'CORTE'],
         ['LONAS'],
         ['ALMACEN'],
         ['VENTA'],
@@ -63,7 +58,7 @@ function normalizeProductionRoute(route, productKind = 'ROLLO_TELA') {
     throw Object.assign(
       new Error(isBanda
         ? 'Ruta no válida para Banda/Cintilla. Elige Corte, Almacén o Venta.'
-        : 'Ruta no válida para rollo de tela. Elige Corte, Laminado, Laminado → Corte, Lonas, Almacén o Venta.'),
+        : 'Ruta no válida para rollo de tela. Elige Corte, Laminado, Laminado → Corte, Globo → Corte, Lonas, Almacén o Venta.'),
       { statusCode: 400, code: 'INVALID_PRODUCTION_ROUTE' },
     );
   }
@@ -193,6 +188,24 @@ function resolveTelaresPtiCatalogQr(qrValue, boms) {
   return (boms || []).find((bom) => String(bom.code || '').trim().toUpperCase() === code) || null;
 }
 
+function getBomPtiProductIds(bom) {
+  return [...new Set((Array.isArray(bom?.items) ? bom.items : [])
+    .map((item) => Number(item?.pti_product_id))
+    .filter((id) => Number.isInteger(id) && id > 0))];
+}
+
+function assertPtiIncludedInBom(ptiProductId, bom) {
+  const productId = Number(ptiProductId);
+  if (!bom || !Number.isInteger(productId) || !getBomPtiProductIds(bom).includes(productId)) {
+    const code = bom?.code || bom?.name || `ficha ${bom?.id || ''}`.trim();
+    throw Object.assign(
+      new Error(`El PTI seleccionado no está configurado en la ficha ${code}. Revisa el PTI y la posición requerida antes de transferirlo.`),
+      { statusCode: 409, code: 'PTI_NOT_IN_SELECTED_BOM' },
+    );
+  }
+  return true;
+}
+
 module.exports = {
   normalizeStageName,
   normalizeProductionRoute,
@@ -203,5 +216,7 @@ module.exports = {
   estimateBomFabricWeightKg,
   getTelaresPtiCatalogQr,
   resolveTelaresPtiCatalogQr,
+  getBomPtiProductIds,
+  assertPtiIncludedInBom,
   OPERATOR_METER_TOLERANCE,
 };

@@ -36,6 +36,9 @@ const AREA_ADMIN_ROLES = [
   'ADMIN_ALMACEN',
   'ADMIN_TELARES',
   'ADMIN_TEL',
+  'ADMIN_LAMINADO',
+  'ADMIN_GLOBO',
+  'ADMIN_CORTE',
 ];
 
 const isSupervisor = (user) => {
@@ -49,12 +52,7 @@ const isAreaAdmin = (user) => {
   if (!user) return false;
   if (isSupervisor(user)) return false;
   const code = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
-  const name = (user?.role?.name || '').toUpperCase();
-  return (
-    AREA_ADMIN_ROLES.includes(code) ||
-    code.startsWith('ADMIN_') ||
-    (name.includes('ADMIN') && !name.includes('SUPERVISOR'))
-  );
+  return AREA_ADMIN_ROLES.includes(code);
 };
 
 const canViewCosts = (user) => {
@@ -63,8 +61,7 @@ const canViewCosts = (user) => {
   const code = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name || '')).toUpperCase();
   return (
     ADMIN_ROLES.includes(code) ||
-    isAreaAdmin(user) ||
-    ['FINANCE', 'FINANZAS'].includes(code)
+    isAreaAdmin(user)
   );
 };
 

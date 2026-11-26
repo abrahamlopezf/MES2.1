@@ -203,6 +203,11 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
               {/* Items List */}
               <div>
                 <h3 className="text-lg font-bold text-foreground mb-4">Materiales Solicitados (Lotes Asignados FIFO)</h3>
+                {order.status === 'PREPARANDO' && (
+                  <p className="mb-3 rounded-lg border border-info/25 bg-info/5 px-3 py-2 text-sm text-foreground">
+                    Para surtir, escanea el QR padre del lote o factura que aparece en «Lote / Factura». El QR hijo marcado WIP identifica el material ya transferido al área y no se usa para surtir esta orden.
+                  </p>
+                )}
                 
                 <div className="border border-border rounded-xl overflow-x-auto bg-card">
                   <table className="w-full text-left border-collapse min-w-[600px]">
@@ -287,11 +292,12 @@ export const ConsumptionOrderDetailsModal: React.FC<ConsumptionOrderDetailsModal
                                         : 'bg-muted text-muted-foreground border-border'
                                     }`}>
                                       <Icon name="qr_code" size={13} />
+                                      <span className="sr-only">QR hijo de material, no escanear para surtir esta orden:</span>
                                       <span>{item.child_qr.qr_code}</span>
                                       {item.child_qr.is_active ? (
-                                        <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-primary text-primary-foreground font-sans ml-1">WIP</span>
+                                        <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-primary text-primary-foreground font-sans ml-1">QR HIJO · WIP</span>
                                       ) : (
-                                        <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-muted-foreground/20 text-muted-foreground font-sans ml-1">RESERVADO</span>
+                                        <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-muted-foreground/20 text-muted-foreground font-sans ml-1">QR HIJO · RESERVADO</span>
                                       )}
                                     </span>
                                   </div>

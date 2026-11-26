@@ -1,8 +1,19 @@
-name: Provision demo users
+name: Provision Demo Users (UAT Only)
 
 on:
   workflow_dispatch:
     inputs:
+      target_environment:
+        description: 'Ambiente permitido (restringido exclusivamente a uat)'
+        required: true
+        default: uat
+        type: choice
+        options:
+          - uat
+      confirm:
+        description: 'Escribe PROVISION_UAT para confirmar'
+        required: true
+        type: string
       supervisor_username:
         description: Usuario para Supervisor de Extrusión
         required: true
@@ -20,7 +31,7 @@ on:
         required: true
         type: string
       global_role_code:
-        description: Código del rol global que ya existe en producción
+        description: Código del rol global existente
         required: true
         default: ADMIN_GRAL
         type: choice
@@ -33,7 +44,8 @@ permissions:
 
 jobs:
   provision:
-    environment: production
+    if: github.event.inputs.target_environment == 'uat' && github.event.inputs.confirm == 'PROVISION_UAT'
+    environment: uat
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,7 +55,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -53,9 +65,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create demo accounts in production
+      - name: Create demo accounts in UAT
         run: node src/scripts/provision-demo-users.js
         env:
+          APP_ENV: uat
           NODE_ENV: production
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEMO_SUPERVISOR_USERNAME: ${{ inputs.supervisor_username }}

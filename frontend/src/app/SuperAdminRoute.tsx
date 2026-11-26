@@ -35,8 +35,7 @@ export const GlobalAdminRoute: React.FC<{ children?: React.ReactNode }> = ({ chi
 
 export const UsersManagementRoute: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { user } = useAuthStore();
-  const roleCode = String(typeof user?.role === 'string' ? user.role : user?.role?.code || '').toUpperCase();
-  const isAllowed = isAdminUser(user) || canManageUsers(user) || ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(roleCode);
+  const isAllowed = isAdminUser(user) || canManageUsers(user);
   if (!isAllowed) return <Navigate to="/dashboard" replace />;
   return children ? <>{children}</> : <Outlet />;
 };

@@ -15,6 +15,8 @@ module.exports = (sequelize, DataTypes) => sequelize.define('SiloReceiptLot', {
   lot_kind: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'INVOICE' },
   quantity_received_kg: { type: DataTypes.DECIMAL(14, 3), allowNull: false },
   remaining_quantity_kg: { type: DataTypes.DECIMAL(14, 3), allowNull: false },
+  presentation_quantity: { type: DataTypes.DECIMAL(12, 3), allowNull: true },
+  presentation_unit: { type: DataTypes.STRING(20), allowNull: true },
   invoice_currency: { type: DataTypes.STRING(3), allowNull: true },
   invoice_unit_cost: { type: DataTypes.DECIMAL(14, 6), allowNull: true },
   unit_cost_mxn: { type: DataTypes.DECIMAL(14, 6), allowNull: false },

@@ -11,6 +11,9 @@ export const AREA_ADMIN_ROLES = [
   'ADMIN_ALMACEN',
   'ADMIN_TELARES',
   'ADMIN_TEL',
+  'ADMIN_LAMINADO',
+  'ADMIN_GLOBO',
+  'ADMIN_CORTE',
 ];
 
 export const isAdminUser = (user: any): boolean => {
@@ -42,11 +45,8 @@ export const isAreaAdminUser = (user: any): boolean => {
       ? user.role
       : user?.role?.code || user?.role?.name || ''
   ).toUpperCase();
-  const roleName = String(user?.role?.name || '').toUpperCase();
   return (
-    AREA_ADMIN_ROLES.includes(roleCode) ||
-    roleCode.startsWith('ADMIN_') ||
-    (roleName.includes('ADMIN') && !roleName.includes('SUPERVISOR'))
+    AREA_ADMIN_ROLES.includes(roleCode)
   );
 };
 
@@ -61,8 +61,7 @@ export const canViewCosts = (user: any): boolean => {
   ).toUpperCase();
   return (
     isAdminUser(user) ||
-    isAreaAdminUser(user) ||
-    ['FINANCE', 'FINANZAS'].includes(roleCode)
+    isAreaAdminUser(user)
   );
 };
 

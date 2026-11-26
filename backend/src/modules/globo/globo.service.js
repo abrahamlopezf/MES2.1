@@ -16,15 +16,19 @@ const {
   Loom,
   User,
   AreaProcessScrapLog,
+  TelaresScrapObservation,
   TraceableItem,
   TraceabilityLink,
   TraceabilityMovement,
+  CorteLaminadoOrderItem,
+  CorteLaminadoOrder,
 } = require('../../database/models');
 const { canViewCosts } = require('../../shared/security/accessRules');
 const normalizeViajeroQr = require('../../shared/utils/normalizeViajeroQr');
 const consumptionOrderService = require('../warehouse/consumptionOrder.service');
 const rollTransformation = require('../wip/rollTransformation');
 const specificationCatalog = require('../wip/specificationCatalog');
+const telaresScrapObservationService = require('../wip/telaresScrapObservation.service');
 
 class GloboService {
   /**
@@ -43,7 +47,7 @@ class GloboService {
             {
               model: Material,
               as: 'material',
-              attributes: ['id', 'internal_code', 'name', 'status'],
+              attributes: ['id', 'internal_code', 'name', 'status', 'family_id', 'base_unit_id'],
             },
           ],
         },
@@ -82,7 +86,7 @@ class GloboService {
             {
               model: Material,
               as: 'material',
-              attributes: ['id', 'internal_code', 'name', 'status'],
+              attributes: ['id', 'internal_code', 'name', 'status', 'family_id', 'base_unit_id'],
             },
           ],
         },
@@ -134,7 +138,7 @@ class GloboService {
     const allowCosts = canViewCosts(currentUser);
 
     // 1. Rollos en custodia de Globo (current_stage = 'GLOBO' o next_allowed_stage = 'GLOBO')
-    const rolls = await ViajeroRoll.findAll({
+    const [rolls, pickedItems] = await Promise.all([ViajeroRoll.findAll({
       where: {
         [Op.or]: [
           { current_stage: 'GLOBO', status: { [Op.ne]: 'TRANSFORMADO' } },
@@ -147,10 +151,15 @@ class GloboService {
         { model: User, as: 'operator', attributes: ['id', 'first_name', 'last_name', 'username'] },
       ],
       order: [['created_at', 'DESC']],
-    });
+    }), CorteLaminadoOrderItem.findAll({
+      where: { status: 'PICKED', roll_id: { [Op.ne]: null } },
+      include: [{ model: CorteLaminadoOrder, as: 'order', where: { destination_area_code: 'GLOBO' }, attributes: [] }],
+      attributes: ['roll_id'],
+    })]);
 
-    const rollsInFloor = rolls.filter((r) => r.current_stage === 'GLOBO');
-    const rollsIncoming = rolls.filter((r) => r.current_stage !== 'GLOBO' && r.next_allowed_stage === 'GLOBO');
+    const pickedRollIds = new Set(pickedItems.map((item) => Number(item.roll_id)));
+    const rollsInFloor = rolls.filter((r) => r.current_stage === 'GLOBO' || pickedRollIds.has(Number(r.id)));
+    const rollsIncoming = rolls.filter((r) => r.current_stage !== 'GLOBO' && r.next_allowed_stage === 'GLOBO' && !pickedRollIds.has(Number(r.id)));
 
     // 2. Materiales de Almacén en Custodia de Globo (area_id = 5)
     const warehouseWip = await WipInventory.findAll({
@@ -280,6 +289,7 @@ class GloboService {
         ],
         order: [['created_at', 'DESC']], limit: 100,
       })).map((log) => ({ id: log.id, roll_id: log.viajero_roll_id, source_qr: log.sourceQr?.qr_code || 'N/A', output_qr: log.outputQr?.qr_code || 'N/A', output_pti_code: log.output_pti_code, specification_code: log.specification_code, processed_meters: Number(log.processed_meters), good_meters: Number(log.good_meters), scrap_meters: Number(log.scrap_meters), good_weight_kg: Number(log.good_weight_kg), scrap_weight_kg: log.scrap_weight_kg == null ? null : Number(log.scrap_weight_kg), reason: log.reason, notes: log.notes, recorded_by: log.recorder ? `${log.recorder.first_name || ''} ${log.recorder.last_name || ''}`.trim() : 'N/A', created_at: log.created_at })),
+      telares_scrap_observations: (await TelaresScrapObservation.findAll({ where: { destination_area_code: 'GLOBO' }, include: [{ model: QrCode, as: 'sourceQr', attributes: ['qr_code'] }, { model: User, as: 'recorder', attributes: ['first_name', 'last_name'] }], order: [['created_at', 'DESC']], limit: 100 })).map((row) => ({ id: row.id, roll_id: row.viajero_roll_id, source_qr: row.sourceQr?.qr_code || 'N/A', meter_start: Number(row.meter_start), meter_end: Number(row.meter_end), scrap_meters: Number(row.scrap_meters), estimated_weight_kg: Number(row.estimated_weight_kg), reason: row.reason, recorded_by: row.recorder ? `${row.recorder.first_name || ''} ${row.recorder.last_name || ''}`.trim() : 'N/A', created_at: row.created_at })),
       recent_transformed: recentTransformed.map((log) => ({
         id: log.id,
         roll_code: log.roll?.roll_code || 'N/A',
@@ -308,6 +318,27 @@ class GloboService {
 
     if (!roll) {
       throw Object.assign(new Error(`El rollo con ID ${roll_id} no existe.`), { statusCode: 404 });
+    }
+
+    const cortePickup = await CorteLaminadoOrderItem.findOne({
+      where: { roll_id: roll.id, status: 'PICKED' },
+      include: [{ model: CorteLaminadoOrder, as: 'order', where: { destination_area_code: 'GLOBO' }, attributes: ['id', 'order_number', 'destination_area_code'] }],
+    });
+    if (roll.current_stage === 'TELARES' && !cortePickup) {
+      return {
+        is_allowed: false,
+        error_code: 'CORTE_ORDER_PICKUP_REQUIRED',
+        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route: roll.route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+        message: 'Primero recoge este rollo mediante una orden de Corte. Al confirmarse la recogida quedará en el WIP de Liner/Globo; después escanea su QR para iniciar el proceso.',
+      };
+    }
+    if (cortePickup) {
+      const globoArea = await Area.findOne({ where: { code: 'GLOBO' } });
+      const sourceQr = await QrCode.findByPk(roll.virgin_qr_code_id);
+      const sourceTraceable = sourceQr ? await TraceableItem.findOne({ where: { qr_code_id: sourceQr.id } }) : null;
+      if (!globoArea || Number(sourceTraceable?.current_area_id) !== Number(globoArea.id)) {
+        return { is_allowed: false, error_code: 'ROLL_NOT_IN_GLOBO_WIP', message: 'La custodia del QR no está en el WIP de Liner/Globo. Revisa la recogida en Telares antes de iniciar.' };
+      }
     }
     if (!roll.route?.includes('GLOBO') || roll.next_allowed_stage !== 'GLOBO') {
       throw Object.assign(new Error('Este rollo no está encaminado a Globo como siguiente etapa.'), { statusCode: 409, code: 'AREA_NOT_IN_ROUTE' });
@@ -363,7 +394,7 @@ class GloboService {
         code: selectedSpec.code,
         name: selectedSpec.name,
         process_type: selectedSpec.process_type,
-        target_width_cm: Number(selectedSpec.target_width_cm),
+        target_width_cm: Number(roll.bom?.target_width_cm || roll.width_cm),
         target_caliber_um: Number(selectedSpec.target_caliber_um),
         cost_transformation_index: Number(selectedSpec.cost_transformation_index),
       },
@@ -380,7 +411,7 @@ class GloboService {
   /**
    * Generar Orden de Consumo (ODC) a Almacén para los materiales faltantes de un rollo
    */
-  async createOdcForRoll({ roll_id, specification_id, missing_materials, user_id, notes }) {
+  async createOdcForRoll({ roll_id, specification_id, missing_materials = [], additional_materials = [], user_id, notes }) {
     const roll = await ViajeroRoll.findByPk(roll_id, { include: [{ model: ProductionBom, as: 'bom' }] });
     if (!roll) {
       throw Object.assign(new Error(`El rollo con ID ${roll_id} no existe.`), { statusCode: 404 });
@@ -391,8 +422,8 @@ class GloboService {
       throw Object.assign(new Error(`La especificación con ID ${specification_id} no existe.`), { statusCode: 404 });
     }
 
-    if (!Array.isArray(missing_materials) || missing_materials.length === 0) {
-      throw Object.assign(new Error('No se enviaron materiales para solicitar a Almacén.'), { statusCode: 400 });
+    if (!Array.isArray(missing_materials) || !Array.isArray(additional_materials)) {
+      throw Object.assign(new Error('La solicitud debe incluir listas válidas de faltantes y materiales adicionales.'), { statusCode: 400 });
     }
 
     if (!spec.is_active || !rollTransformation.compatibility(spec, roll, 'GLOBO') || !roll.route?.includes('GLOBO') || roll.next_allowed_stage !== 'GLOBO') {
@@ -400,10 +431,26 @@ class GloboService {
     }
     const assessment = await rollTransformation.assessWip({ spec, meters: Number(roll.meters), areaId: 5 });
     const requested = new Map(missing_materials.map((item) => [Number(item.material_id), Number(item.missing_kg)]));
-    if (!assessment.missing_materials.length || requested.size !== assessment.missing_materials.length || assessment.missing_materials.some((item) => Math.abs((requested.get(item.material_id) ?? -1) - item.missing_kg) > 0.001)) {
+    if (requested.size !== assessment.missing_materials.length || assessment.missing_materials.some((item) => Math.abs((requested.get(item.material_id) ?? -1) - item.missing_kg) > 0.001)) {
       throw Object.assign(new Error('Los faltantes enviados cambiaron. Actualiza la evaluación WIP antes de solicitar a Almacén.'), { statusCode: 409, code: 'WIP_ASSESSMENT_STALE' });
     }
-    const items = assessment.missing_materials.map((item) => ({ material_id: item.material_id, quantity: item.missing_kg }));
+    const itemQuantities = new Map(assessment.missing_materials.map((item) => [Number(item.material_id), Number(item.missing_kg)]));
+    for (const item of additional_materials) {
+      const materialId = Number(item?.material_id);
+      const quantity = Number(item?.quantity);
+      if (!Number.isInteger(materialId) || materialId <= 0 || !Number.isFinite(quantity) || quantity <= 0) {
+        throw Object.assign(new Error('Cada material adicional debe pertenecer al catálogo y tener una cantidad mayor a cero.'), { statusCode: 400 });
+      }
+      const material = await Material.findByPk(materialId);
+      if (!material || material.is_active === false) {
+        throw Object.assign(new Error(`El material adicional ${materialId} no existe o no está activo en el catálogo.`), { statusCode: 400 });
+      }
+      itemQuantities.set(materialId, Number(((itemQuantities.get(materialId) || 0) + quantity).toFixed(3)));
+    }
+    if (itemQuantities.size === 0) {
+      throw Object.assign(new Error('Agrega un faltante de receta o al menos un material adicional para crear la ODC.'), { statusCode: 400 });
+    }
+    const items = [...itemQuantities].map(([material_id, quantity]) => ({ material_id, quantity }));
 
     const orderNotes = notes || `ODC generada para Rollo ${roll.roll_code} en Globo (Espec: ${spec.code})`;
 
@@ -456,6 +503,27 @@ class GloboService {
         error_code: 'ROLL_NOT_FOUND',
         message: `El código QR '${qr_code}' no corresponde a ningún rollo registrado o activo.`,
       };
+    }
+
+    const cortePickup = await CorteLaminadoOrderItem.findOne({
+      where: { roll_id: roll.id, status: 'PICKED' },
+      include: [{ model: CorteLaminadoOrder, as: 'order', where: { destination_area_code: 'GLOBO' }, attributes: ['id', 'order_number', 'destination_area_code'] }],
+    });
+    if (roll.current_stage === 'TELARES' && !cortePickup) {
+      return {
+        is_allowed: false,
+        error_code: 'CORTE_ORDER_PICKUP_REQUIRED',
+        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route: roll.route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
+        message: 'Primero recoge este rollo mediante una orden de Corte. Al confirmarse la recogida quedará en el WIP de Liner/Globo; después escanea su QR para iniciar el proceso.',
+      };
+    }
+    if (cortePickup) {
+      const globoArea = await Area.findOne({ where: { code: 'GLOBO' } });
+      const sourceQr = await QrCode.findByPk(roll.virgin_qr_code_id);
+      const sourceTraceable = sourceQr ? await TraceableItem.findOne({ where: { qr_code_id: sourceQr.id } }) : null;
+      if (!globoArea || Number(sourceTraceable?.current_area_id) !== Number(globoArea.id)) {
+        return { is_allowed: false, error_code: 'ROLL_NOT_IN_GLOBO_WIP', message: 'La custodia del QR no está en el WIP de Liner/Globo. Revisa la recogida en Telares antes de iniciar.' };
+      }
     }
 
     const targetArea = 'GLOBO';
@@ -583,6 +651,22 @@ class GloboService {
       if (roll.next_allowed_stage !== 'GLOBO' || roll.status === 'TRANSFORMADO' || !roll.is_active || !roll.route?.includes('GLOBO')) {
         throw Object.assign(new Error(`El rollo no está autorizado para transformación en GLOBO. Siguiente etapa oficial: ${roll.next_allowed_stage}`), { statusCode: 400 });
       }
+      const pickedOrderItem = await CorteLaminadoOrderItem.findOne({
+        where: { roll_id: roll.id, status: 'PICKED' },
+        include: [{ model: CorteLaminadoOrder, as: 'order', where: { destination_area_code: 'GLOBO' } }],
+        transaction: t, lock: { level: t.LOCK.UPDATE, of: CorteLaminadoOrderItem },
+      });
+      if (roll.current_stage === 'TELARES' && !pickedOrderItem) {
+        throw Object.assign(new Error('La orden de Corte debe recoger este rollo y transferirlo al WIP de Globo antes de iniciar la transformación.'), { statusCode: 409, code: 'CORTE_ORDER_PICKUP_REQUIRED' });
+      }
+      if (pickedOrderItem) {
+        const globoArea = await Area.findOne({ where: { code: 'GLOBO' }, transaction: t });
+        const qrAtGlobo = await QrCode.findByPk(roll.virgin_qr_code_id, { transaction: t, lock: t.LOCK.UPDATE });
+        const traceableAtGlobo = qrAtGlobo ? await TraceableItem.findOne({ where: { qr_code_id: qrAtGlobo.id }, transaction: t, lock: t.LOCK.UPDATE }) : null;
+        if (!globoArea || Number(traceableAtGlobo?.current_area_id) !== Number(globoArea.id)) {
+          throw Object.assign(new Error('La custodia del QR no está en el WIP de Globo; no se puede iniciar el proceso.'), { statusCode: 409, code: 'ROLL_NOT_IN_GLOBO_WIP' });
+        }
+      }
 
       const spec = await GloboSpecification.findByPk(specification_id, {
         include: [
@@ -605,10 +689,13 @@ class GloboService {
       const outWeight = Number(weight_out_kg || roll.weight_kg);
       const scrapMeters = Number(scrap_meters || 0);
       const processedMeters = Number((outMeters + scrapMeters).toFixed(2));
+      const telaresScrapObservations = await telaresScrapObservationService.listForRoll(roll.id, t);
+      const telaresScrapMeters = Number(telaresScrapObservations.reduce((sum, item) => sum + Number(item.scrap_meters), 0).toFixed(2));
+      const telaresScrapWeightKg = Number(telaresScrapObservations.reduce((sum, item) => sum + Number(item.estimated_weight_kg), 0).toFixed(3));
 
       const scrapWeight = scrap_weight_kg === undefined || scrap_weight_kg === '' ? null : Number(scrap_weight_kg);
-      if (!(outMeters > 0) || !(outWeight > 0) || !Number.isFinite(scrapMeters) || scrapMeters < 0 || (scrapWeight !== null && (!Number.isFinite(scrapWeight) || scrapWeight < 0 || scrapWeight > Number(roll.weight_kg) + 0.01)) || Math.abs(processedMeters - Number(roll.meters)) > 0.02) {
-        throw Object.assign(new Error('La producción buena más los metros de merma deben cubrir exactamente los metros de entrada; revisa también el peso de merma capturado.'), { statusCode: 400, code: 'PROCESS_METER_BALANCE' });
+      if (!(outMeters > 0) || !(outWeight > 0) || !Number.isFinite(scrapMeters) || scrapMeters < 0 || (scrapWeight !== null && (!Number.isFinite(scrapWeight) || scrapWeight < 0 || scrapWeight > Number(roll.weight_kg) + 0.01)) || Math.abs(processedMeters + telaresScrapMeters - Number(roll.meters)) > 0.02) {
+        throw Object.assign(new Error(`La producción buena (${outMeters} m), merma de proceso (${scrapMeters} m) y defecto de Telares (${telaresScrapMeters} m) deben cubrir ${roll.meters} m de entrada.`), { statusCode: 400, code: 'PROCESS_METER_BALANCE' });
       }
       const { consumed: consumedMaterialsSummary, sourceQrConsumptions, materialCost: totalStageMaterialCost } = await rollTransformation.consumeWip({ spec, meters: processedMeters, areaId: 5, transaction: t, performedBy: operator_id });
 
@@ -621,7 +708,10 @@ class GloboService {
       const newQrCodeString = `${roll.roll_code}-GLO`;
       const route = Array.isArray(roll.route) && roll.route.length > 0 ? roll.route : ['TELARES', 'GLOBO', 'CORTE'];
       const globoIdx = route.indexOf('GLOBO');
-      const nextStage = globoIdx >= 0 && globoIdx + 1 < route.length ? route[globoIdx + 1] : 'CORTE';
+      const nextStage = 'CORTE';
+      if (globoIdx < 0 || route[globoIdx + 1] !== 'CORTE') {
+        throw Object.assign(new Error('La ruta de Liner/Globo debe continuar obligatoriamente a Corte. Corrige la ruta antes de transformar el rollo.'), { statusCode: 409, code: 'GLOBO_MUST_ROUTE_TO_CORTE' });
+      }
 
       let batch = await QrBatch.findOne({ transaction: t });
       if (!batch) {
@@ -693,15 +783,15 @@ class GloboService {
             parent_traceable_item_id: previousTraceable.id, child_traceable_item_id: outputTraceable.id,
             parent_qr_code_id: previousQr.id, child_qr_code_id: qrRecord.id, link_type: 'TRANSFORMACION',
             quantity_used: Number(roll.weight_kg), quantity_generated: outWeight,
-            scrap_quantity: Number(scrap_weight_kg || 0), unit: 'KG', process_area_id: 5,
+            scrap_quantity: Number((Number(scrap_weight_kg || 0) + telaresScrapWeightKg).toFixed(3)), unit: 'KG', process_area_id: 5,
             notes: `Transformación de rollo en GLOBO; PTI ${spec.output_pti_code}`,
-            metadata: { input_meters: Number(roll.meters), good_meters: outMeters, scrap_meters: scrapMeters, scrap_reason: scrap_reason || null },
+            metadata: { input_meters: Number(roll.meters), good_meters: outMeters, process_scrap_meters: scrapMeters, telares_scrap_meters: telaresScrapMeters, telares_scrap_observation_ids: telaresScrapObservations.map((item) => item.id), scrap_reason: scrap_reason || null },
             created_by: operator_id || null,
           }, { transaction: t });
           previousTraceable.quantity_current = 0;
           previousTraceable.status = 'CONSUMIDO';
           await previousTraceable.save({ transaction: t });
-          await TraceabilityMovement.create({ traceable_item_id: previousTraceable.id, qr_code_id: previousQr.id, movement_type: 'CONSUMO_PROCESO', from_area_id: 5, to_area_id: 5, quantity: Number(roll.weight_kg), unit: 'KG', balance_after: 0, reference_folio: spec.code, notes: `Transformado a PTI ${spec.output_pti_code}`, metadata: { output_qr: newQrCodeString, good_meters: outMeters, scrap_meters: scrapMeters }, performed_by: operator_id || null }, { transaction: t });
+          await TraceabilityMovement.create({ traceable_item_id: previousTraceable.id, qr_code_id: previousQr.id, movement_type: 'CONSUMO_PROCESO', from_area_id: 5, to_area_id: 5, quantity: Number(roll.weight_kg), unit: 'KG', balance_after: 0, reference_folio: spec.code, notes: `Transformado a PTI ${spec.output_pti_code}`, metadata: { output_qr: newQrCodeString, good_meters: outMeters, process_scrap_meters: scrapMeters, telares_scrap_meters: telaresScrapMeters, telares_scrap_weight_estimated_kg: telaresScrapWeightKg }, performed_by: operator_id || null }, { transaction: t });
         }
       }
       if (scrapMeters > 0 || Number(scrap_weight_kg || 0) > 0) {
@@ -721,6 +811,9 @@ class GloboService {
         meters_in: Number(roll.meters),
         processed_meters: processedMeters,
         scrap_meters: scrapMeters,
+        telares_scrap_meters: telaresScrapMeters,
+        telares_scrap_weight_estimated_kg: telaresScrapWeightKg,
+        telares_scrap_observation_ids: telaresScrapObservations.map((item) => item.id),
         scrap_weight_kg: scrap_weight_kg == null ? null : Number(scrap_weight_kg),
         meters_out: outMeters,
         weight_in_kg: Number(roll.weight_kg),
@@ -745,6 +838,17 @@ class GloboService {
         },
         { transaction: t }
       );
+
+      const pickedOrderItems = await CorteLaminadoOrderItem.findAll({
+        where: { roll_id: roll.id, status: 'PICKED' },
+        include: [{ model: CorteLaminadoOrder, as: 'order', where: { destination_area_code: 'GLOBO' } }],
+        transaction: t,
+      });
+      for (const item of pickedOrderItems) {
+        await item.update({ status: 'PROCESSED', processed_at: new Date() }, { transaction: t });
+        const unfinished = await CorteLaminadoOrderItem.count({ where: { order_id: item.order_id, status: { [Op.in]: ['REQUESTED', 'PICKED'] } }, transaction: t });
+        if (unfinished === 0) await CorteLaminadoOrder.update({ status: 'PROCESSED' }, { where: { id: item.order_id }, transaction: t });
+      }
 
       if (previousQr) await previousQr.update({ status: 'TRANSFORMED', is_active: false }, { transaction: t });
       await qrRecord.update({ status: 'ACTIVE', assigned_area_id: 5 }, { transaction: t });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axiosClient from '../../../api/axiosClient';
 import { Button, Badge } from '@/design-system';
 import {
   Package,
@@ -33,6 +34,7 @@ interface PrepareRollMaterialsModalProps {
       roll_id: number;
       specification_id: number;
       missing_materials: any[];
+      additional_materials?: Array<{ material_id: number; quantity: number }>;
       notes?: string;
     }) => Promise<any>;
   };
@@ -52,6 +54,13 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
   const [assessment, setAssessment] = useState<any>(null);
   const [selectedSpecId, setSelectedSpecId] = useState<number | null>(null);
   const [generatedOdc, setGeneratedOdc] = useState<any>(null);
+  const [warehouseMaterials, setWarehouseMaterials] = useState<any[]>([]);
+  const [loadingWarehouseMaterials, setLoadingWarehouseMaterials] = useState(false);
+  const [warehouseMaterialsError, setWarehouseMaterialsError] = useState<string | null>(null);
+  const [extraMaterialId, setExtraMaterialId] = useState('');
+  const [extraMaterialQuantity, setExtraMaterialQuantity] = useState('');
+  const [extraMaterials, setExtraMaterials] = useState<Array<{ material_id: number; quantity: number; material: any }>>([]);
+  const [extraMaterialSearch, setExtraMaterialSearch] = useState('');
 
   const fetchAssessment = async (specId?: number) => {
     if (!roll) return;
@@ -72,14 +81,49 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
     }
   };
 
+  const fetchWarehouseMaterials = async () => {
+    setLoadingWarehouseMaterials(true);
+    setWarehouseMaterialsError(null);
+    try {
+      const response = await axiosClient.get('/warehouse/inventory', {
+        params: { limit: 1000, include_fifo_packages: true },
+      });
+      const data = response.data?.data || response.data;
+      const entries = (data?.items || data || []).filter((entry: any) =>
+        entry?.inventory_source !== 'SILO'
+        && Number(entry?.material_id) > 0
+        && Number(entry?.amount || 0) > 0
+        && entry?.material?.is_active !== false
+      );
+      const uniqueMaterials = new Map<number, any>();
+      for (const entry of entries) {
+        const id = Number(entry.material_id);
+        const current = uniqueMaterials.get(id);
+        if (!current || Number(entry.amount || 0) > Number(current.amount || 0)) uniqueMaterials.set(id, entry);
+      }
+      setWarehouseMaterials([...uniqueMaterials.values()]);
+    } catch (error: any) {
+      setWarehouseMaterialsError(error?.friendlyMessage || error?.message || 'No se pudo consultar el inventario de Almacén.');
+    } finally {
+      setLoadingWarehouseMaterials(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && roll) {
       setGeneratedOdc(null);
+      setExtraMaterials([]);
+      setExtraMaterialId('');
+      setExtraMaterialQuantity('');
+      setExtraMaterialSearch('');
       fetchAssessment();
+      fetchWarehouseMaterials();
     } else {
       setAssessment(null);
       setSelectedSpecId(null);
       setGeneratedOdc(null);
+      setWarehouseMaterials([]);
+      setExtraMaterials([]);
     }
   }, [isOpen, roll]);
 
@@ -91,7 +135,8 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
 
   const handleCreateOdc = async () => {
     if (!roll || !assessment || !selectedSpecId) return;
-    if (!assessment.missing_materials || assessment.missing_materials.length === 0) {
+    const missingMaterials = assessment.missing_materials || [];
+    if (missingMaterials.length === 0 && extraMaterials.length === 0) {
       toast.info('No hay faltantes. El inventario de WIP en piso es suficiente.');
       return;
     }
@@ -101,10 +146,12 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
       const res = await api.createOdcForRoll({
         roll_id: roll.id,
         specification_id: selectedSpecId,
-        missing_materials: assessment.missing_materials,
-        notes: `ODC automática para preparación de Rollo ${roll.roll_code} en ${area}`,
+        missing_materials: missingMaterials,
+        additional_materials: extraMaterials.map(({ material_id, quantity }) => ({ material_id, quantity })),
+        notes: `ODC para ${area}: rollo ${roll.roll_code}; incluye faltantes de receta y materiales adicionales cuando aplique.`,
       });
       setGeneratedOdc(res.order);
+      setExtraMaterials([]);
       toast.success(
         `Orden de Consumo ${res.order.order_number} generada exitosamente dirigida a Almacén.`
       );
@@ -121,6 +168,32 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
   if (!isOpen || !roll) return null;
 
   const areaColor = area === 'GLOBO' ? 'cyan' : 'indigo';
+  const normalizedExtraSearch = extraMaterialSearch.trim().toLocaleLowerCase();
+  const extraMaterialOptions = warehouseMaterials.filter((entry: any) => {
+    const material = entry.material || {};
+    const haystack = `${material.name || ''} ${material.internal_code || ''} ${material.material_code || ''} ${material.description || ''}`.toLocaleLowerCase();
+    return !normalizedExtraSearch || haystack.includes(normalizedExtraSearch);
+  }).slice(0, 30);
+
+  const addExtraMaterial = () => {
+    const materialId = Number(extraMaterialId);
+    const quantity = Number(extraMaterialQuantity);
+    const entry = warehouseMaterials.find((item: any) => Number(item.material_id) === materialId);
+    if (!entry || !Number.isFinite(quantity) || quantity <= 0) {
+      toast.error('Selecciona un material disponible e indica una cantidad mayor a cero.');
+      return;
+    }
+    setExtraMaterials((current) => {
+      const existing = current.find((item) => item.material_id === materialId);
+      if (existing) return current.map((item) => item.material_id === materialId
+        ? { ...item, quantity: Number((item.quantity + quantity).toFixed(3)) }
+        : item);
+      return [...current, { material_id: materialId, quantity, material: entry.material }];
+    });
+    setExtraMaterialId('');
+    setExtraMaterialQuantity('');
+    toast.success('Material adicional agregado a la ODC.');
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
@@ -318,6 +391,76 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
             </div>
           </div>
 
+          {/* Materiales adicionales independientes de la receta */}
+          <section className="space-y-3 rounded-xl border border-slate-700 bg-slate-950/50 p-4" aria-label="Materiales adicionales para ODC">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">Materiales adicionales de Almacén</h3>
+                <p className="mt-1 text-xs text-slate-400">Agrega insumos extra que requiera el proceso, aunque no estén en la receta. Se enviarán al WIP de {area}.</p>
+              </div>
+              {loadingWarehouseMaterials && <span className="text-xs text-slate-400">Consultando inventario…</span>}
+            </div>
+            {warehouseMaterialsError && (
+              <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-600/50 bg-amber-950/30 p-3 text-xs text-amber-200">
+                <span>{warehouseMaterialsError}</span>
+                <button type="button" onClick={fetchWarehouseMaterials} className="rounded-md border border-amber-500/50 px-3 py-2 font-bold">Reintentar</button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end">
+              <div className="relative">
+                <label className="mb-1 block text-[11px] font-bold text-slate-300" htmlFor={`extra-material-search-${area}`}>Buscar material disponible</label>
+                <input
+                  id={`extra-material-search-${area}`}
+                  value={extraMaterialSearch}
+                  onChange={(event) => { setExtraMaterialSearch(event.target.value); setExtraMaterialId(''); }}
+                  placeholder="Nombre o código de material"
+                  className="h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+                />
+                {extraMaterialSearch && !extraMaterialId && (
+                  <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-xl">
+                    {extraMaterialOptions.length ? extraMaterialOptions.map((entry: any) => (
+                      <button
+                        type="button"
+                        key={entry.material_id}
+                        onClick={() => { setExtraMaterialId(String(entry.material_id)); setExtraMaterialSearch(`${entry.material?.name || 'Material'} · ${entry.material?.internal_code || entry.material_id}`); }}
+                        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-xs text-slate-100 hover:bg-slate-800"
+                      >
+                        <span className="min-w-0"><strong className="block truncate">{entry.material?.name || `Material ${entry.material_id}`}</strong><span className="text-slate-400">{entry.material?.internal_code || 'Sin código'}</span></span>
+                        <span className="shrink-0 text-emerald-300">{Number(entry.amount).toLocaleString()} {entry.material?.base_unit?.code || entry.material?.unit?.code || ''}</span>
+                      </button>
+                    )) : <p className="p-3 text-xs text-slate-400">No hay coincidencias con saldo disponible.</p>}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-slate-300" htmlFor={`extra-material-quantity-${area}`}>Cantidad</label>
+                <input
+                  id={`extra-material-quantity-${area}`}
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={extraMaterialQuantity}
+                  onChange={(event) => setExtraMaterialQuantity(event.target.value)}
+                  placeholder="0.000"
+                  className="h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-mono text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <Button type="button" onClick={addExtraMaterial} disabled={loadingWarehouseMaterials || !extraMaterialId || !extraMaterialQuantity} className="h-11 w-full sm:w-auto">Agregar</Button>
+            </div>
+            {extraMaterials.length > 0 && (
+              <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800">
+                {extraMaterials.map((item) => (
+                  <li key={item.material_id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-xs">
+                    <span className="min-w-0"><strong className="text-white">{item.material?.name || `Material ${item.material_id}`}</strong><span className="ml-2 text-slate-400">{item.material?.internal_code || ''}</span></span>
+                    <span className="font-mono font-bold text-cyan-300">{item.quantity.toLocaleString()} {item.material?.base_unit?.code || item.material?.unit?.code || ''}</span>
+                    <button type="button" onClick={() => setExtraMaterials((current) => current.filter((extra) => extra.material_id !== item.material_id))} aria-label={`Quitar ${item.material?.name || 'material'}`} className="rounded-md p-2 text-slate-400 hover:bg-red-950/50 hover:text-red-300"><X className="h-4 w-4" /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           {/* Veredicto y Acciones Operativas */}
           {assessment && (
             <div className="space-y-4">
@@ -356,17 +499,16 @@ export const PrepareRollMaterialsModal: React.FC<PrepareRollMaterialsModalProps>
                       </p>
                     </div>
                   </div>
-                  <Button
-                    onClick={handleCreateOdc}
-                    disabled={submittingOdc}
-                    className="w-full sm:w-auto h-12 bg-amber-600 hover:bg-amber-700 text-white font-black uppercase text-xs tracking-wider rounded-xl shadow-lg shadow-amber-900/40 flex items-center justify-center gap-2 shrink-0"
-                  >
-                    {submittingOdc ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Send className="h-5 w-5" />
-                    )}
-                    Generar ODC a Almacén
+                </div>
+              )}
+              {(assessment.missing_materials?.length > 0 || extraMaterials.length > 0) && (
+                <div className="flex flex-col gap-3 rounded-xl border border-blue-700/60 bg-blue-950/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-blue-100">
+                    La ODC incluirá <strong>{assessment.missing_materials?.length || 0} faltante(s) de receta</strong> y <strong>{extraMaterials.length} material(es) adicional(es)</strong>. El surtido quedará asignado al WIP de {area}.
+                  </p>
+                  <Button onClick={handleCreateOdc} disabled={submittingOdc || Boolean(generatedOdc)} className="h-11 w-full shrink-0 bg-blue-600 font-black text-white hover:bg-blue-700 sm:w-auto">
+                    {submittingOdc ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Crear ODC
                   </Button>
                 </div>
               )}

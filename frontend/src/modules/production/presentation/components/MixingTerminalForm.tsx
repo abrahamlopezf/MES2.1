@@ -28,6 +28,16 @@ export const isPpBMaterial = (item: any) => {
   return Boolean(item?.is_restricted) || name.includes('POLIPROPILENO (B)') || name.includes('PP-B') || name.includes('PP B') || code.includes('PP-B');
 };
 
+const getWarehousePackageAvailableKg = (item: any) => {
+  const eligibleIds = new Set((item?.allowed_material_ids || [item?.material_id]).map(Number));
+  return Number((item?.eligible_materials || [])
+    .filter((candidate: any) => eligibleIds.has(Number(candidate.material_id)))
+    .reduce((sum: number, candidate: any) => sum + Number(candidate.warehouse_package_available_kg || 0), 0)
+    .toFixed(3));
+};
+const getPpWipCoverageKg = (item: any) => Number((Number(item?.available_wip_kg || 0) + Number(item?.previously_consumed_wip_kg || 0)).toFixed(3));
+const getRemainingPpDemandKg = (item: any) => Number(Math.max(0, Number(item?.required_quantity || 0) - Number(item?.previously_consumed_silo_kg || 0)).toFixed(3));
+
 interface MixingTerminalFormProps {
   ticket?: any;
   onSuccess?: () => void;
@@ -52,7 +62,12 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const allowCosts = canViewCosts(user);
   const { data: rawFormulas, isLoading: loadingFormulas } = useFormulas();
   const { data: queueGroups = [] } = useExtruderQueuesQuery();
-  const { data: registeredPtis = [] } = usePtiProductsQuery({ is_active: true });
+  const {
+    data: registeredPtis = [],
+    isLoading: loadingRegisteredPtis,
+    isError: registeredPtisError,
+    refetch: refetchRegisteredPtis,
+  } = usePtiProductsQuery({ is_active: true });
   const mutation = useMixFormula();
   const queryClient = useQueryClient();
   const [pausedPreparationId, setPausedPreparationId] = useState<number | null>(null);
@@ -121,7 +136,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const [notes, setNotes] = useState('');
 
   // WIP y disponibilidad se consultan por el área Extrusión resuelta en backend.
-  const { data: formulaDetails, isLoading: loadingDetails, isError: formulaDetailsError, refetch: refetchFormulaDetails } = useFormulaDetails(formulaId);
+  const { data: formulaDetails, isLoading: loadingDetails, isError: formulaDetailsError, refetch: refetchFormulaDetails } = useFormulaDetails(formulaId, pausedPreparationId);
 
   const formulaItems: any[] = formulaDetails?.items || [];
 
@@ -172,17 +187,28 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
+    // No elegir una fórmula hasta que ambos catálogos estén listos; si el PTI
+    // tarda más, evitar dejar seleccionada una fórmula sin vínculo por defecto.
+    if (!ticket && (loadingFormulas || loadingRegisteredPtis || registeredPtisError)) return;
     if (ticket) {
       setFormulaId(ticket.formula_id ? String(ticket.formula_id) : '');
       const ticketFormula = formulas.find((formula: any) => Number(formula.id) === Number(ticket.formula_id));
       setSelectedColor(getFormulaColorLabel(ticketFormula) || '');
       setNotes(`Atendiendo solicitud: ${ticket.folio}`);
-    } else if (formulas.length > 0 && !formulaId) {
-      const firstAvailable = formulas.find((formula: any) => registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(formula.id))) || formulas[0];
-      setFormulaId(String(firstAvailable.id));
-      setSelectedColor(getFormulaColorLabel(firstAvailable) || '');
+    } else if (formulas.length > 0) {
+      const linkedFormulas = formulas.filter((formula: any) =>
+        registeredPtis.some((pti: any) => Number(pti.formula_id) === Number(formula.id))
+      );
+      const currentFormula = formulas.find((formula: any) => String(formula.id) === String(formulaId));
+      const selectedFormula = currentFormula && linkedFormulas.some((formula: any) => Number(formula.id) === Number(currentFormula.id))
+        ? currentFormula
+        : linkedFormulas[0] || (currentFormula ? null : formulas[0]);
+      if (selectedFormula && String(selectedFormula.id) !== String(formulaId)) {
+        setFormulaId(String(selectedFormula.id));
+        setSelectedColor(getFormulaColorLabel(selectedFormula) || '');
+      }
     }
-  }, [ticket, formulas, registeredPtis]);
+  }, [ticket, formulas, registeredPtis, formulaId, loadingFormulas, loadingRegisteredPtis, registeredPtisError]);
   const hasLinkedActivePti = Boolean(selectedFormula && registeredPtis.some((pti: any) =>
     Number(pti.formula_id) === Number(selectedFormula.id)
   ));
@@ -249,7 +275,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   const selectedSilo = silos[0] || null;
 
-  // Separación de ingredientes: Polipropileno (Silo a Mezcladora) vs Aditivos (QR Hijo -SN)
+  // El PP empacado en WIP tiene prioridad; el faltante se alimenta desde silos.
   const ppIngredients = useMemo(() => {
     return (formulaItems || []).filter((it: any) => isPpMaterial(it));
   }, [formulaItems]);
@@ -257,6 +283,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const requiredKgPerBatch = (item: any) => Number(item?.required_quantity || 0);
   const ppRequiredKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + requiredKgPerBatch(item), 0).toFixed(3));
   const ppSiloStockKg = Number(silos.reduce((sum: number, silo: any) => sum + (Number(silo.current_stock_kg) || 0), 0).toFixed(3));
+  const ppWipAvailableKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + getPpWipCoverageKg(item), 0).toFixed(3));
+  const ppPreviouslyConsumedSiloKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + Number(item.previously_consumed_silo_kg || 0), 0).toFixed(3));
+  const ppWarehousePackageAvailableKg = Number(ppIngredients.reduce((sum: number, item: any) => sum + getWarehousePackageAvailableKg(item), 0).toFixed(3));
+  const ppScannedWipKg = Number(inputs.reduce((sum, input) =>
+    ppIngredients.some((item: any) => Number(item.material_id) === Number(input.material_id))
+      ? sum + (Number(input.quantity) || 0)
+      : sum, 0).toFixed(3));
+  const ppRemainingDemandKg = Number(Math.max(0, ppRequiredKg - ppPreviouslyConsumedSiloKg).toFixed(3));
+  const ppWipDoseRequiredKg = Math.min(ppRemainingDemandKg, ppWipAvailableKg);
+  const ppMissingFromWipKg = Number(Math.max(0, ppRemainingDemandKg - ppWipAvailableKg).toFixed(3));
+  const ppMustRequestFromWarehouse = ppMissingFromWipKg > 0.05 && ppWarehousePackageAvailableKg > 0.05;
+  const ppSiloRequiredKg = Number(Math.max(0, ppRemainingDemandKg - ppWipDoseRequiredKg).toFixed(3));
 
   const nonPpIngredients = useMemo(() => {
     return (formulaItems || []).filter((it: any) => !isPpMaterial(it));
@@ -270,18 +308,19 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
   const hasSufficientIngredients = nonPpIngredients.every((item: any) =>
     Number(item.available_wip_kg || 0) + 0.005 >= requiredKgPerBatch(item)
   );
-  const allWipAvailable = hasSufficientIngredients;
+  const allWipAvailable = hasSufficientIngredients && !ppMustRequestFromWarehouse;
 
-  // Total de aditivos escaneados con QR Hijo
+  // Totales por origen para no mezclar el PP escaneado con los aditivos.
   const totalScannedNonPpKg = useMemo(() => {
-    return inputs.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  }, [inputs]);
-  const totalScannedKg = totalScannedNonPpKg;
+    const ppMaterialIds = new Set(ppIngredients.map((item: any) => Number(item.material_id)));
+    return inputs.reduce((sum, item) => ppMaterialIds.has(Number(item.material_id)) ? sum : sum + (Number(item.quantity) || 0), 0);
+  }, [inputs, ppIngredients]);
+  const totalScannedKg = Number((totalScannedNonPpKg + ppScannedWipKg).toFixed(3));
 
   // Verificación de stock en Silo para el PP de este lote
   const hasSufficientPpInSilo = useMemo(() => {
-    return ppRequiredKg <= 0 || (silos.length === 2 && ppSiloStockKg + 0.0005 >= ppRequiredKg);
-  }, [ppRequiredKg, ppSiloStockKg, silos.length]);
+    return ppSiloRequiredKg <= 0.0005 || (silos.length === 2 && ppSiloStockKg + 0.0005 >= ppSiloRequiredKg);
+  }, [ppSiloRequiredKg, ppSiloStockKg, silos.length]);
 
   // Validar cada aditivo por separado; un exceso en un material no debe
   // compensar el faltante de otro aunque el total de kg coincida.
@@ -294,8 +333,9 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
 
   const totalBatchKg = batchTargetKg;
   const weightPerContainerKg = Number((totalBatchKg / containerCount).toFixed(2));
-  const isBatchBalanced = isNonPpBalanced && hasSufficientPpInSilo;
-  const progressPercent = Math.min(100, Math.round(((ppRequiredKg + totalScannedNonPpKg) / (totalBatchKg || 1)) * 100));
+  const ppWipBalanced = Math.abs(ppScannedWipKg - ppWipDoseRequiredKg) < 0.05;
+  const isBatchBalanced = isNonPpBalanced && hasSufficientPpInSilo && ppWipBalanced && !ppMustRequestFromWarehouse;
+  const progressPercent = Math.min(100, Math.round(((ppPreviouslyConsumedSiloKg + ppScannedWipKg + (hasSufficientPpInSilo ? ppSiloRequiredKg : 0) + totalScannedNonPpKg) / (totalBatchKg || 1)) * 100));
 
   // Conjunto de QRs ya dosificados en este batch
   const scannedQrCodesSet = useMemo(() => {
@@ -334,11 +374,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     fifo_qrs?: any[];
   }) => {
     if (mat) {
-      if (isPpMaterial(mat)) {
-        toast.info(`Alimentación Automática de Silo: "${mat.name}" se abastece directamente desde el Silo seleccionado hacia la Mezcladora. No requiere escaneo de QR.`);
-        return;
-      }
-
       const item = formulaItems.find((candidate: any) => Number(candidate.id) === Number(mat.ingredient_id || 0))
         || formulaItems.find((candidate: any) => Number(candidate.material_id) === Number(mat.id));
       const allowedIds = new Set((item?.allowed_material_ids || [mat.id]).map(Number));
@@ -400,19 +435,19 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     }
 
     if (mode === 'single' && singleItem) {
-      if (isPpMaterial(singleItem)) {
-        toast.warning(`Alimentación por Silo: "${singleItem.material_name}" se alimenta directamente desde el ${selectedSilo?.name || 'Silo de PP'} por tubería hacia la Mezcladora. No se requiere solicitar costales en ODC.`);
-        return;
-      }
-
-      const req = requiredKgPerBatch(singleItem);
-      const wip = Math.max(0, Number(singleItem.physical_wip_kg ?? singleItem.available_wip_kg ?? 0));
+      const req = isPpMaterial(singleItem) ? getRemainingPpDemandKg(singleItem) : requiredKgPerBatch(singleItem);
+      const wip = isPpMaterial(singleItem)
+        ? getPpWipCoverageKg(singleItem)
+        : Math.max(0, Number(singleItem.physical_wip_kg ?? singleItem.available_wip_kg ?? 0));
       const missing = Math.max(0, Number((req - wip).toFixed(2)));
-      if (missing <= 0) {
+      const requestable = isPpMaterial(singleItem) ? Math.min(missing, getWarehousePackageAvailableKg(singleItem)) : missing;
+      if (requestable <= 0.005) {
         const unscannable = Number(singleItem.unscannable_wip_kg || 0);
         toast.info(unscannable > 0.005
           ? `${singleItem.material_name}: hay ${unscannable.toFixed(2)} kg en WIP sin un QR hijo activo. No se creó una ODC duplicada; solicita corregir el QR/WIP existente.`
-          : `${singleItem.material_name} ya tiene cobertura suficiente en WIP para esta mezcla.`);
+          : isPpMaterial(singleItem) && missing > 0.005
+            ? `No hay costales completos disponibles de ${singleItem.material_name} en Almacén. El faltante de ${missing.toFixed(2)} kg podrá cubrirse desde los silos.`
+            : `${singleItem.material_name} ya tiene cobertura suficiente en WIP para esta mezcla.`);
         return;
       }
 
@@ -422,18 +457,20 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
         eligible_materials: singleItem.eligible_materials || [],
         equivalence_tag_id: singleItem.equivalence_tag_id || null,
         equivalence_tag_name: singleItem.equivalenceTag?.name || null,
-        req_quantity: missing,
+        req_quantity: requestable,
         material: {
           id: singleItem.material_id,
           name: singleItem.material_name,
           material_code: singleItem.material_code,
-          description: `Faltan ${missing.toFixed(2)} kg en WIP Extrusión (Receta requiere ${req.toFixed(2)} kg)`
+          description: isPpMaterial(singleItem)
+            ? `PP prioritario en costales. Faltan ${missing.toFixed(2)} kg en WIP; se solicita hasta ${requestable.toFixed(2)} kg en empaques completos. El resto podrá salir de silos.`
+            : `Faltan ${missing.toFixed(2)} kg en WIP Extrusión (Receta requiere ${req.toFixed(2)} kg)`
         },
         unit: { code: 'KG' },
         isConfirmed: false
       }];
 
-      const notesStr = `Solicitud de insumo individual para Extrusión - Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. Material: ${singleItem.material_name}. Faltante en piso: ${missing.toFixed(2)} kg.`;
+      const notesStr = `Solicitud de insumo individual para Extrusión - Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. Material: ${singleItem.material_name}. Faltante en piso: ${missing.toFixed(2)} kg.${isPpMaterial(singleItem) ? ' PP en costales tiene prioridad; los silos solo cubrirán el saldo.' : ''}`;
 
       setOdcInitialItems(preloaded);
       setOdcInitialNotes(notesStr);
@@ -441,7 +478,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       return;
     }
 
-    if (mode === 'full' && hasSufficientIngredients) {
+    if (mode === 'full' && allWipAvailable) {
       toast.info('La fórmula ya cuenta con insumos suficientes en piso (WIP) para preparar la mezcla.');
       return;
     }
@@ -450,75 +487,89 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
     let notesStr = '';
 
     if (mode === 'full') {
-      // El PP se alimenta directamente desde el Silo hacia la Mezcladora. Solo pedimos aditivos en la ODC.
-      const itemsToLoad = formulaItems.filter((item: any) => !isPpMaterial(item));
+      // Solicita los insumos de fórmula; PP solo se pide en costales si hay paquetes disponibles.
+      const itemsToLoad = formulaItems.filter((item: any) =>
+        !isPpMaterial(item) || (getPpWipCoverageKg(item) + 0.005 < requiredKgPerBatch(item) && getWarehousePackageAvailableKg(item) > 0.005)
+      );
 
       preloaded = itemsToLoad.map((item: any) => {
-        const req = requiredKgPerBatch(item);
+        const req = isPpMaterial(item) ? getRemainingPpDemandKg(item) : requiredKgPerBatch(item);
+        const wip = isPpMaterial(item) ? getPpWipCoverageKg(item) : Math.max(0, Number(item.physical_wip_kg ?? item.available_wip_kg ?? 0));
+        const missing = isPpMaterial(item) ? Math.max(0, req - wip) : req;
+        const requestable = isPpMaterial(item) ? Math.min(missing, getWarehousePackageAvailableKg(item)) : req;
         return {
           material_id: item.material_id,
           eligible_material_ids: item.allowed_material_ids || [item.material_id],
           eligible_materials: item.eligible_materials || [],
           equivalence_tag_id: item.equivalence_tag_id || null,
           equivalence_tag_name: item.equivalenceTag?.name || null,
-          req_quantity: req,
+          req_quantity: requestable,
           material: {
             id: item.material_id,
             name: item.material_name,
             material_code: item.material_code,
-            description: `Receta: ${selectedFormula?.name || ''} - Requerido: ${req.toFixed(2)} kg`
+            description: isPpMaterial(item)
+              ? `PP en costales primero: faltan ${missing.toFixed(2)} kg en WIP; ODC hasta ${requestable.toFixed(2)} kg en paquetes completos. El saldo se alimenta desde silo.`
+              : `Receta: ${selectedFormula?.name || ''} - Requerido: ${req.toFixed(2)} kg`
           },
           unit: { code: 'KG' },
           isConfirmed: false
         };
       });
 
-      notesStr = `Solicitud de Aditivos para Mezcladora - Silo PP: ${selectedSilo?.name || 'Silo'}. Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. El Polipropileno se abastece directo de silo por tubería.`;
+      preloaded = preloaded.filter((item) => Number(item.req_quantity) > 0.005);
+      if (preloaded.length === 0) {
+        toast.info('No hay materiales que solicitar. El PP de esta mezcla puede cubrirse desde los silos.');
+        return;
+      }
+
+      notesStr = `Solicitud de materiales para Mezcladora - Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. El PP disponible en empaques se surte primero a WIP; el faltante se cubre desde silos.`;
     } else {
       // El WIP cubre la fórmula con stock existente; solicitar solo el déficit
       // respecto al tamaño total de mezcla (incluye varias tandas/contendedores).
-      const candidateItems = formulaItems
-        .filter((item: any) => !isPpMaterial(item))
-        .map((item: any) => {
-          const req = requiredKgPerBatch(item);
-          const wip = Math.max(0, Number(item.physical_wip_kg ?? item.available_wip_kg ?? 0));
+      const candidateItems = formulaItems.map((item: any) => {
+          const req = isPpMaterial(item) ? getRemainingPpDemandKg(item) : requiredKgPerBatch(item);
+          const wip = isPpMaterial(item) ? getPpWipCoverageKg(item) : Math.max(0, Number(item.physical_wip_kg ?? item.available_wip_kg ?? 0));
           const missing = Math.max(0, Number((req - wip).toFixed(2)));
-          return { item, req, wip, missing };
+          const requestable = isPpMaterial(item) ? Math.min(missing, getWarehousePackageAvailableKg(item)) : missing;
+          return { item, req, wip, missing, requestable };
         })
-        .filter(({ missing }) => missing > 0.005);
+        .filter(({ requestable }) => requestable > 0.005);
 
       if (candidateItems.length === 0) {
         const unscannableKg = formulaItems.reduce((sum: number, item: any) =>
           sum + (isPpMaterial(item) ? 0 : Number(item.unscannable_wip_kg || 0)), 0);
         toast.info(unscannableKg > 0.005
           ? `El stock físico cubre la receta, pero ${unscannableKg.toFixed(2)} kg no tienen un QR hijo activo. No se creó una ODC duplicada; hay que corregir el QR/WIP existente.`
-          : 'No hay aditivos faltantes: el WIP disponible cubre todos los ingredientes no suministrados por silo.');
+          : 'No hay paquetes de PP disponibles ni otros faltantes en WIP; los silos pueden cubrir el PP restante.');
         return;
       }
 
-      preloaded = candidateItems.map(({ item, req, wip, missing }: any) => {
+      preloaded = candidateItems.map(({ item, req, wip, missing, requestable }: any) => {
         return {
           material_id: item.material_id,
           eligible_material_ids: item.allowed_material_ids || [item.material_id],
           eligible_materials: item.eligible_materials || [],
           equivalence_tag_id: item.equivalence_tag_id || null,
           equivalence_tag_name: item.equivalenceTag?.name || null,
-          req_quantity: missing,
+          req_quantity: requestable,
           material: {
             id: item.material_id,
             name: item.material_name,
             material_code: item.material_code,
-            description: `Requerido para esta mezcla: ${req.toFixed(2)} kg. WIP disponible: ${wip.toFixed(2)} kg. Faltante a solicitar: ${missing.toFixed(2)} kg.`
+            description: isPpMaterial(item)
+              ? `PP prioritario en costales. Receta: ${req.toFixed(2)} kg; WIP: ${wip.toFixed(2)} kg; faltante: ${missing.toFixed(2)} kg; se solicitan hasta ${requestable.toFixed(2)} kg en paquetes completos y silo cubre el resto.`
+              : `Requerido para esta mezcla: ${req.toFixed(2)} kg. WIP disponible: ${wip.toFixed(2)} kg. Faltante a solicitar: ${missing.toFixed(2)} kg.`
           },
           unit: { code: 'KG' },
           isConfirmed: false
         };
       });
 
-      notesStr = `Solicitud de aditivos faltantes para Mezcladora - Silo PP: ${selectedSilo?.name || 'Silo'}. Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. PP omitido por alimentación directa desde Silo.`;
+      notesStr = `Solicitud de materiales faltantes para Mezcladora - Fórmula: ${selectedFormula?.name || ''} ${selectedFormula?.code ? `(${selectedFormula.code})` : ''}. PP en costales tiene prioridad cuando hay empaques disponibles; silo cubre solo el faltante.`;
     }
 
-    toast.info('Alimentación por Silo: Se omitió el Polipropileno (PP) de la ODC. Solicitando aditivos requeridos.');
+    toast.info('ODC preparada con faltantes de fórmula; PP en empaques se prioriza y el silo cubre solo el saldo.');
 
     setOdcInitialItems(preloaded);
     setOdcInitialNotes(notesStr);
@@ -551,14 +602,6 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       const childData = await fetchWipChildQr(cleanQr, pausedPreparationId);
 
       // Bloquear escaneo de Polipropileno (PP)
-      if (isPpMaterial(childData)) {
-        const err = `El Polipropileno "${childData.material_name}" se abastece directamente desde el Silo seleccionado hacia la Mezcladora. No requiere ni admite escaneo de QR.`;
-        setScanError(err);
-        toast.warning(err);
-        setRecognizedChildQr(null);
-        return;
-      }
-
       // Calcular cantidad sugerida inteligentemente y verificar pertenencia a receta
       const formulaItems = formulaDetails?.items || [];
       const matchingItem = formulaItems.find((it: any) =>
@@ -638,6 +681,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       const remainingOnQr = Math.max(0, Number((totalAllowanceForQr - previousQrQuantity).toFixed(2)));
       toast.error(`Este QR ya aporta ${previousQrQuantity.toFixed(2)} kg. Solo puedes agregar ${remainingOnQr.toFixed(2)} kg más (disponible total: ${Number(recognizedChildQr.available_amount).toFixed(2)} kg).`);
       return;
+    }
+
+    const formulaItemForDose = (formulaDetails?.items || []).find((item: any) =>
+      (item.allowed_material_ids || [item.material_id]).map(Number).includes(Number(recognizedChildQr.material_id))
+    );
+    if (formulaItemForDose) {
+      const allowedDoseIds = new Set((formulaItemForDose.allowed_material_ids || [formulaItemForDose.material_id]).map(Number));
+      const alreadyDosed = inputs.reduce((sum, input) => allowedDoseIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
+      if (alreadyDosed + qty > requiredKgPerBatch(formulaItemForDose) + 0.005) {
+        toast.error(`La receta requiere ${requiredKgPerBatch(formulaItemForDose).toFixed(2)} kg de ${formulaItemForDose.material_name}; esta captura excede la dosis pendiente.`);
+        return;
+      }
     }
 
     const updatedInput = {
@@ -816,8 +871,8 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       toast.error('No hay una extrusora compatible activa para esta fórmula.');
       return;
     }
-    if (ppRequiredKg > 0 && !hasSufficientPpInSilo) {
-      toast.error(`Stock insuficiente o configuración incompleta de silos: se requieren 2 silos activos y ${ppRequiredKg} kg de PP; hay ${ppSiloStockKg} kg disponibles.`);
+    if (ppSiloRequiredKg > 0.0005 && !hasSufficientPpInSilo) {
+      toast.error(`Stock insuficiente o configuración incompleta de silos: faltan ${ppSiloRequiredKg.toFixed(2)} kg de PP después de WIP; hay ${ppSiloStockKg} kg disponibles.`);
       return;
     }
     if (nonPpRequiredKg > 0 && inputs.length === 0) {
@@ -850,7 +905,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       container_count: containerCount,
       container_qr_codes: containerQrCodes,
       extruder_id: selectedExtruderId === 'AUTO' ? undefined : Number(selectedExtruderId),
-      inputs: inputs.map(i => ({ qr_code: i.qr_code, quantity: Number(i.quantity) })),
+      inputs: inputs.map(i => ({ qr_code: i.qr_code, quantity: Number(i.quantity), material_id: Number(i.material_id) })),
       notes: notes.trim() || undefined
     };
 
@@ -863,7 +918,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
       return;
     }
 
-    submitMix(mixPayload);
+    submitMix(mixPayload, undefined);
   };
 
   const submitMix = (mixPayload: any, approvalToken?: string) => mutation.mutate({ payload: mixPayload, approvalToken }, {
@@ -1064,7 +1119,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                       setFormulaId(nextFormulaId);
                       setSelectedColor(getFormulaColorLabel(nextFormula) || '');
                     }}
-                    disabled={Boolean(ticket)}
+                    disabled={Boolean(ticket) || loadingFormulas || loadingRegisteredPtis || registeredPtisError}
                     className="w-full !h-12 bg-background border border-border rounded-lg pl-3 pr-10 text-base font-semibold text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer disabled:opacity-60"
                   >
                     <option value="" disabled>-- Seleccione Fórmula --</option>
@@ -1111,7 +1166,16 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   <p className="text-sm text-muted-foreground">Selecciona el color de producción para esta fórmula.</p>
                 )}
 
-                {selectedFormula && !hasLinkedActivePti && (
+                {loadingFormulas || loadingRegisteredPtis ? (
+                  <p role="status" className="text-xs text-muted-foreground">Cargando fórmulas y PTI compatibles…</p>
+                ) : registeredPtisError ? (
+                  <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                    <span>No se pudo consultar el catálogo de PTI. Reintenta para validar las fórmulas compatibles.</span>
+                    <button type="button" onClick={() => void refetchRegisteredPtis()} className="min-h-9 rounded-md border border-destructive/40 px-3 font-bold hover:bg-destructive/10">Reintentar</button>
+                  </div>
+                ) : null}
+
+                {selectedFormula && !hasLinkedActivePti && !registeredPtisError && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
                     Esta fórmula no tiene un PTI activo enlazado. Regístralo en el catálogo de Extrusión antes de preparar la mezcla.
                   </div>
@@ -1289,19 +1353,23 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-base font-bold text-foreground flex items-center gap-2">
                     <Icon name="propane_tank" size={15} className="text-primary" />
-                    <span>Silos de PP *</span>
+                    <span>Origen del PP</span>
                   </label>
                   {selectedSilo && (
                     <Badge
                       variant={hasSufficientPpInSilo ? 'success' : 'destructive'}
                       className="text-[10px] font-mono font-bold shrink-0"
                     >
-                      {hasSufficientPpInSilo ? '✅ AMBOS SILOS LISTOS' : '⚠️ REVISAR SILOS'}
+                      {ppSiloRequiredKg <= 0.0005 ? '✅ CUBIERTO EN WIP' : hasSufficientPpInSilo ? '✅ WIP + SILOS LISTOS' : '⚠️ REVISAR SILOS'}
                     </Badge>
                   )}
                 </div>
 
-                {silos.length === 0 ? (
+                {ppSiloRequiredKg <= 0.0005 ? (
+                  <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                    El PP requerido está cubierto por costales con QR hijo en WIP. No se descontará PP de silos para esta mezcla.
+                  </div>
+                ) : silos.length === 0 ? (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
                     <Icon name="warning" size={16} className="shrink-0" />
                     <span>No hay silos designados para alimentar la mezcladora. En Control de Silos, edita y marca los dos silos físicos de PP.</span>
@@ -1309,18 +1377,18 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                 ) : (
                   <div className={`p-3 rounded-xl border space-y-3 ${hasSufficientPpInSilo ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/40'}`}>
                     <div className="text-xs text-foreground">
-                      Se requieren <strong>{ppRequiredKg.toFixed(2)} kg</strong> de PP. El sistema distribuye el consumo automáticamente entre los silos.
+                      PP de receta: <strong>{ppRequiredKg.toFixed(2)} kg</strong> · Costales/WIP: <strong>{ppWipDoseRequiredKg.toFixed(2)} kg</strong> · A cubrir desde silos: <strong>{ppSiloRequiredKg.toFixed(2)} kg</strong>.
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      {silos.map((silo: any) => (
-                        <div key={silo.id} className="rounded-lg bg-background/70 border border-border p-2 text-xs">
+                      {silos.map((silo: any, siloIndex: number) => (
+                        <div key={silo.id ?? `silo-${silo.code ?? 'sin-codigo'}-${siloIndex}`} className="rounded-lg bg-background/70 border border-border p-2 text-xs">
                           <strong>{silo.code} · {silo.name}</strong>
                           <div className="text-muted-foreground">Disponible: {Number(silo.current_stock_kg || 0).toLocaleString()} kg</div>
                         </div>
                       ))}
                     </div>
                     <div className={`text-[11px] font-bold ${hasSufficientPpInSilo ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-300'}`}>
-                      {silos.length !== 2 ? `Se requieren exactamente 2 silos activos; hay ${silos.length}.` : hasSufficientPpInSilo ? `Stock combinado: ${ppSiloStockKg.toLocaleString()} kg · Consumo equilibrado habilitado.` : `Stock combinado insuficiente: ${ppSiloStockKg.toLocaleString()} kg disponibles.`}
+                      {ppSiloRequiredKg <= 0.0005 ? 'No se requiere consumo de silo.' : silos.length !== 2 ? `Se requieren exactamente 2 silos activos para el faltante; hay ${silos.length}.` : hasSufficientPpInSilo ? `Stock combinado: ${ppSiloStockKg.toLocaleString()} kg · alcanza para el faltante.` : `Stock combinado insuficiente para el faltante: ${ppSiloStockKg.toLocaleString()} kg disponibles.`}
                     </div>
                   </div>
                 )}
@@ -1405,14 +1473,14 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span className="flex items-center gap-1.5 text-base font-bold text-foreground"><Icon name="scale" size={18} className="text-primary" /> Balance del lote</span>
               <span className={`w-fit rounded border px-2.5 py-1 font-mono text-base font-bold tabular-nums ${isBatchBalanced ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-primary/20 bg-primary/10 text-primary'}`}>
-                {(ppRequiredKg + totalScannedNonPpKg).toFixed(2)} / {totalBatchKg.toFixed(2)} kg ({progressPercent}%)
+                {(ppPreviouslyConsumedSiloKg + ppScannedWipKg + (hasSufficientPpInSilo ? ppSiloRequiredKg : 0) + totalScannedNonPpKg).toFixed(2)} / {totalBatchKg.toFixed(2)} kg ({progressPercent}%)
               </span>
             </div>
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full border border-border/40 bg-muted/60">
               <div className={`h-full transition-all duration-300 ${isBatchBalanced ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(100, progressPercent)}%` }} />
             </div>
             <div className="mt-2 flex flex-col gap-1 text-sm font-medium text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <span>PP automático desde silos: {ppRequiredKg.toFixed(2)} kg</span>
+              <span>PP: {ppWipDoseRequiredKg.toFixed(2)} kg de costales/WIP + {ppSiloRequiredKg.toFixed(2)} kg de silo{ppPreviouslyConsumedSiloKg > 0.005 ? ` · ${ppPreviouslyConsumedSiloKg.toFixed(2)} kg de silo ya consumidos` : ''}</span>
               <span>Aditivos escaneados: {totalScannedNonPpKg.toFixed(2)} / {nonPpRequiredKg.toFixed(2)} kg</span>
             </div>
           </section>
@@ -1426,11 +1494,11 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-base font-bold leading-snug text-foreground">{allWipAvailable ? 'Aditivos disponibles en WIP' : 'Faltan algunos aditivos en WIP'}</h4>
+                      <h4 className="text-base font-bold leading-snug text-foreground">{allWipAvailable ? 'Insumos disponibles para preparar' : 'Se requiere surtido de Almacén'}</h4>
                       <Badge variant={allWipAvailable ? 'success' : 'warning'} className="shrink-0 px-2 py-0.5 text-xs font-bold">{allWipAvailable ? 'Listo para preparar' : 'Requiere surtido'}</Badge>
                     </div>
                     <p className="mt-0.5 text-sm leading-relaxed text-foreground/90">
-                      {allWipAvailable ? 'El WIP tiene los aditivos necesarios. El polipropileno se alimenta desde los silos.' : 'Revisa qué aditivos faltan y solicita su surtido a Almacén. El polipropileno se alimenta desde los silos.'}
+                      {allWipAvailable ? 'El WIP cubre los insumos requeridos; el PP se completa con silos si queda faltante.' : 'Solicita a Almacén los insumos faltantes. Si hay costales completos de PP, se priorizan antes de consumir silo.'}
                     </p>
                   </div>
                 </div>
@@ -1441,7 +1509,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     onClick={() => handleOpenOdcModal('missing')}
                     variant="outline"
                     className="min-h-12 w-full gap-2 border-amber-500/40 px-4 text-sm font-bold text-amber-950 hover:bg-amber-500/10 dark:text-amber-100 sm:w-auto"
-                    title="Crear ODC hacia Almacén con los aditivos faltantes de la fórmula (cantidades editables)"
+                    title="Crear ODC hacia Almacén con los faltantes de la fórmula (cantidades editables)"
                   >
                     <Icon name="post_add" size={17} /> Solicitar faltantes
                   </Button>
@@ -1498,7 +1566,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                     const allowedIds = new Set((item.allowed_material_ids || [item.material_id]).map(Number));
                     const dosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
                     const req = requiredKgPerBatch(item);
-                    const wip = Number(item.available_wip_kg || 0);
+                    const wip = isPpMaterial(item) ? getPpWipCoverageKg(item) : Number(item.available_wip_kg || 0);
                     const physicalWip = Number(item.physical_wip_kg ?? wip);
                     const unscannableWip = Number(item.unscannable_wip_kg || 0);
                     const isSufficient = wip + 0.005 >= req;
@@ -1515,7 +1583,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             <h4 className="min-w-0 break-words text-base font-bold leading-snug text-foreground">{item.material_name}</h4>
                             {isSiloItem ? (
                               <Badge variant={hasSufficientPpInSilo ? 'success' : 'destructive'} className="min-h-8 shrink-0 px-2 text-sm font-bold">
-                                {hasSufficientPpInSilo ? 'Silo listo' : 'Falta PP'}
+                                {ppSiloRequiredKg <= 0.0005 ? 'Costales listos' : hasSufficientPpInSilo ? 'WIP + silo' : 'Falta PP'}
                               </Badge>
                             ) : isExcess ? (
                               <Badge variant="destructive" className="min-h-8 shrink-0 px-2 text-sm font-bold">Exceso</Badge>
@@ -1532,7 +1600,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                           </div>
                           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                             <span className="text-muted-foreground">Requerido <strong className="font-mono text-foreground">{req.toFixed(2)} kg</strong></span>
-                            <span className="text-muted-foreground">{isSiloItem ? 'Automático' : 'Dosificado'} <strong className="font-mono text-foreground">{isSiloItem ? `${req.toFixed(2)} kg` : `${dosed.toFixed(2)} kg`}</strong></span>
+                            <span className="text-muted-foreground">{isSiloItem ? 'Costal dosificado' : 'Dosificado'} <strong className="font-mono text-foreground">{`${dosed.toFixed(2)} kg`}</strong></span>
                           </div>
                         </summary>
 
@@ -1551,20 +1619,20 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                           <div>
                             <dt className="font-semibold text-muted-foreground">Disponible</dt>
                             <dd className={`font-mono text-base font-bold ${isSiloItem ? (hasSufficientPpInSilo ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400') : (isSufficient ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}`}>
-                              {isSiloItem ? `${ppSiloStockKg.toLocaleString()} kg en silos` : `${wip.toFixed(2)} kg en WIP`}
+                              {isSiloItem ? `${wip.toFixed(2)} kg en WIP · ${ppSiloStockKg.toLocaleString()} kg en silos` : `${wip.toFixed(2)} kg en WIP`}
                             </dd>
                             {!isSiloItem && unscannableWip > 0.005 && <dd className="text-sm font-medium text-amber-600 dark:text-amber-400">{unscannableWip.toFixed(2)} kg sin QR activo</dd>}
                           </div>
                           <div className="col-span-2">
                             <dt className="font-semibold text-muted-foreground">Dosificado</dt>
-                            <dd className="font-mono text-base font-bold text-foreground">{isSiloItem ? `${req.toFixed(2)} kg · automático` : `${dosed.toFixed(2)} kg`}</dd>
+                            <dd className="font-mono text-base font-bold text-foreground">{dosed.toFixed(2)} kg en WIP{isSiloItem && ppSiloRequiredKg > 0.0005 ? ` · ${ppSiloRequiredKg.toFixed(2)} kg desde silo al registrar` : ''}</dd>
                           </div>
                         </dl>
 
                         {isSiloItem ? (
                           <p className="mt-3 flex items-start gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                             <Icon name="hub" size={18} className="mt-0.5 shrink-0" />
-                            Alimentación automática desde {selectedSilo?.name || 'silo de PP'}.
+                            {ppWipDoseRequiredKg.toFixed(2)} kg se toman de costales/WIP{ppSiloRequiredKg > 0.0005 ? ` y ${ppSiloRequiredKg.toFixed(2)} kg se alimentan desde silo` : ''}.
                           </p>
                         ) : nextFifoSack ? (
                           <p className="mt-3 break-words rounded-lg border border-blue-500/30 bg-blue-500/10 p-2.5 text-sm font-semibold text-blue-800 dark:text-blue-200">
@@ -1577,11 +1645,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                           </p>
                         )}
 
-                        {isSiloItem ? (
-                          <div className="mt-3 flex min-h-12 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-base font-bold text-emerald-700 dark:text-emerald-300">
-                            <Icon name="hub" size={18} /> Tolva activa
-                          </div>
-                        ) : (
+                        {(
                           <Button
                             type="button"
                             variant="outline"
@@ -1598,7 +1662,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             className="mt-3 min-h-12 w-full gap-2 text-base font-bold"
                           >
                             <Icon name="photo_camera" size={18} />
-                            Escanear material
+                            Escanear costal/WIP
                           </Button>
                         )}
                         </div>
@@ -1624,7 +1688,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                         const allowedIds = new Set((item.allowed_material_ids || [item.material_id]).map(Number));
                         const dosed = inputs.reduce((sum, input) => allowedIds.has(Number(input.material_id)) ? sum + Number(input.quantity || 0) : sum, 0);
                         const req = requiredKgPerBatch(item);
-                        const wip = Number(item.available_wip_kg || 0);
+                        const wip = isPpMaterial(item) ? getPpWipCoverageKg(item) : Number(item.available_wip_kg || 0);
                         const physicalWip = Number(item.physical_wip_kg ?? wip);
                         const unscannableWip = Number(item.unscannable_wip_kg || 0);
                         const isSufficient = wip + 0.005 >= req;
@@ -1632,7 +1696,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                         const isComplete = Math.abs(dosed - req) < 0.05;
                         const isExcess = dosed > req + 0.05;
                         const isPp = isPpMaterial(item);
-                        const isSiloItem = isPp; // Polipropileno siempre se surte desde Silo a Mezcladora
+                        const isSiloItem = isPp;
                         const { remainingFifoList, nextFifoSack } = getMaterialFifoState(item);
 
                         return (
@@ -1642,7 +1706,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                 <span className="min-w-0 break-words font-bold text-foreground text-sm">{item.material_name}</span>
                                 {isSiloItem && (
                                   <Badge variant="outline" className="max-w-full whitespace-normal text-left font-mono text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-                                    ALIMENTACIÓN POR SILO
+                                    PP · COSTAL + SILO
                                   </Badge>
                                 )}
                               </div>
@@ -1658,7 +1722,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                 {isSiloItem ? (
                                   <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1">
                                     <Icon name="hub" size={11} />
-                                    <span>Tolva directa a Mezcladora ({selectedSilo?.name || 'Silo PP'})</span>
+                                    <span>Prioridad: costal/WIP por QR hijo; el silo cubre solo el faltante.</span>
                                   </span>
                                 ) : nextFifoSack ? (
                                   <span
@@ -1694,23 +1758,23 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                   <span className={`font-mono text-xs font-bold block ${
                                     hasSufficientPpInSilo ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600'
                                   }`}>
-                                    {ppSiloStockKg.toLocaleString()} kg
+                                    {wip.toFixed(2)} kg WIP · {ppSiloStockKg.toLocaleString()} kg silo
                                   </span>
                                   <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
-                                    Disponible en ambos silos de PP
+                                    WIP en costales y stock agregado en silos
                                   </span>
                                 </div>
                               ) : (
                                 <div>
                                   <span className={`font-mono text-xs font-bold block ${
-                                    isSufficient ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                                    (isSiloItem ? hasSufficientPpInSilo : isSufficient) ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                                   }`}>
                                     {wip.toFixed(2)} kg
                                   </span>
                                   <span className={`text-[9px] font-bold uppercase tracking-wider block ${
-                                    isSufficient ? 'text-emerald-600' : 'text-rose-600'
+                                    (isSiloItem ? hasSufficientPpInSilo : isSufficient) ? 'text-emerald-600' : 'text-rose-600'
                                   }`}>
-                                    {isSufficient ? 'Disponible con QR' : 'Disponible con QR insuficiente'}
+                                    {isSiloItem ? (hasSufficientPpInSilo ? 'Cobertura total WIP + silo' : 'Falta cobertura total') : (isSufficient ? 'Disponible con QR' : 'Disponible con QR insuficiente')}
                                   </span>
                                   {unscannableWip > 0.005 && (
                                     <span
@@ -1726,7 +1790,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             <td className="px-3 py-3 text-right font-mono font-bold whitespace-nowrap w-24">
                               {isSiloItem ? (
                                 <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold font-mono">
-                                  {req.toFixed(2)} kg (Auto)
+                                  {dosed.toFixed(2)} kg WIP{isSiloItem && ppSiloRequiredKg > 0.0005 ? ` + ${ppSiloRequiredKg.toFixed(2)} kg silo` : ''}
                                 </span>
                               ) : (
                                 <span className={
@@ -1745,10 +1809,10 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                             <td className="px-3 py-3 text-center whitespace-nowrap w-28">
                               {isSiloItem ? (
                                 <Badge
-                                  variant={hasSufficientPpInSilo ? 'success' : 'destructive'}
+                                  variant={hasSufficientPpInSilo && ppWipBalanced ? 'success' : 'destructive'}
                                   className="text-[10px] font-bold px-2 py-0.5"
                                 >
-                                  {hasSufficientPpInSilo ? '✅ SILO LISTO' : '⚠️ SILO INSUF.'}
+                                  {hasSufficientPpInSilo && ppWipBalanced ? '✅ PP LISTO' : !ppWipBalanced ? '⚠️ DOSIFICAR WIP' : '⚠️ SILO INSUF.'}
                                 </Badge>
                               ) : isExcess ? (
                                 <Badge variant="destructive" className="text-[10px] font-bold px-2 py-0.5">EXCESO</Badge>
@@ -1777,15 +1841,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                               )}
                             </td>
                             <td className="px-3 py-3 text-center whitespace-nowrap w-28">
-                              {isSiloItem ? (
-                                <div 
-                                  className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1.5 rounded-md border border-emerald-500/20"
-                                  title="Alimentación directa por tubería desde el Silo seleccionado hacia la Mezcladora. Sin escaneo de QR."
-                                >
-                                  <Icon name="hub" size={13} />
-                                  <span>Tolva Activa</span>
-                                </div>
-                              ) : (
+                              {(
                                 <Button
                                   type="button"
                                   size="sm"
@@ -1808,7 +1864,7 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
                                   }
                                 >
                                   <Icon name="photo_camera" size={14} className="text-primary shrink-0" />
-                                  <span>Agregar</span>
+                                  <span>Agregar WIP</span>
                                 </Button>
                               )}
                             </td>
@@ -1958,7 +2014,12 @@ export const MixingTerminalForm: React.FC<MixingTerminalFormProps> = ({
               <Icon name="warning" size={16} />
               {silos.length !== 2
                 ? `Silos incompletos: se requieren 2; hay ${silos.length}.`
-                : `Falta PP: ${ppRequiredKg.toFixed(2)} kg requeridos; ${ppSiloStockKg.toFixed(2)} kg disponibles.`}
+                : `Falta PP: se requieren ${ppSiloRequiredKg.toFixed(2)} kg desde silo después de usar ${ppWipDoseRequiredKg.toFixed(2)} kg de WIP; hay ${ppSiloStockKg.toFixed(2)} kg disponibles.`}
+            </span>
+          ) : !ppWipBalanced ? (
+            <span className="inline-flex items-center gap-1.5 text-amber-500 font-bold">
+              <Icon name="qr_code_scanner" size={16} />
+              Escanea {Math.max(0, ppWipDoseRequiredKg - ppScannedWipKg).toFixed(2)} kg de PP desde WIP por QR hijo FIFO.
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium">

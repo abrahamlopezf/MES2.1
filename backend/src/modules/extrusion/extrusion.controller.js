@@ -73,7 +73,7 @@ class ExtrusionController {
 
   async getFormulaDetails(req, res, next) {
     try {
-      const formula = await extrusionService.getFormulaDetails(req.params.id);
+      const formula = await extrusionService.getFormulaDetails(req.params.id, req.query.preparation_id);
       return res.status(200).json({
         success: true,
         data: formula
@@ -225,6 +225,23 @@ class ExtrusionController {
     }
   }
 
+  async transferQueuedMixContainer(req, res, next) {
+    try {
+      const result = await extrusionService.transferQueuedMixContainer({
+        ...req.body,
+        shift_session_id: req.extrusionShiftSession?.id,
+        userId: req.user?.id,
+      });
+      return res.status(200).json({
+        success: true,
+        message: `El contenedor ${result.mixture_qr} se transfirió a ${result.to_extruder.name}.`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getRacks(req, res, next) {
     try {
       const { ExtrusionShiftSession } = require('../../database/models');
@@ -364,6 +381,21 @@ class ExtrusionController {
   async getExtrusionShiftEntryState(req, res, next) {
     try { return res.status(200).json({ success: true, data: await extrusionService.getExtrusionShiftEntryState({ user: req.user }) }); }
     catch (error) { next(error); }
+  }
+
+  async getExtrusionShiftSchedule(req, res, next) {
+    try { return res.status(200).json({ success: true, data: await extrusionService.getExtrusionShiftSchedule() }); }
+    catch (error) { next(error); }
+  }
+
+  async updateExtrusionShiftSchedule(req, res, next) {
+    try {
+      const data = await extrusionService.updateExtrusionShiftSchedule({
+        ...req.body,
+        userId: req.user?.id,
+      });
+      return res.status(200).json({ success: true, message: 'Horario de turnos actualizado.', data });
+    } catch (error) { next(error); }
   }
 
   async openExtrusionShiftSession(req, res, next) {

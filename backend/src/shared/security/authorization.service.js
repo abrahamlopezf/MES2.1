@@ -1,5 +1,31 @@
 const { Role } = require('../../database/models');
-const { isAdmin } = require('./accessRules');
+const { isAdmin, isSupervisor } = require('./accessRules');
+
+const AREA_ADMIN_POLICIES = {
+  ADMIN_ALM: { areaId: 1, operationalRoles: ['SUPERVISOR', 'WAREHOUSEMAN'] },
+  ADMIN_ALMACEN: { areaId: 1, operationalRoles: ['SUPERVISOR', 'WAREHOUSEMAN'] },
+  ADMIN_EXT: { areaId: 2, operationalRoles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'] },
+  ADMIN_EXTRUSION: { areaId: 2, operationalRoles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'] },
+  ADMIN_TELARES: { areaId: 3, operationalRoles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'] },
+  ADMIN_TEL: { areaId: 3, operationalRoles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'] },
+  ADMIN_LAMINADO: { areaId: 4, operationalRoles: ['SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'] },
+  ADMIN_GLOBO: { areaId: 5, operationalRoles: ['SUPERVISOR_GLOBO', 'OPERADOR_GLOBO'] },
+  ADMIN_CORTE: { areaId: 6, operationalRoles: ['SUPERVISOR_CORTE', 'OPERADOR_CORTE'] },
+};
+
+const roleCode = (role) => String(role?.code || '').trim().toUpperCase();
+const roleAreaId = (role) => role?.area_id == null ? null : Number(role.area_id);
+const getAreaAdminPolicy = (role) => AREA_ADMIN_POLICIES[roleCode(role)] || null;
+const isAreaAdminRole = (role) => {
+  const policy = getAreaAdminPolicy(role);
+  return Boolean(policy && roleAreaId(role) === policy.areaId && role?.subarea_id == null);
+};
+const isOperationalRoleInArea = (actorRole, targetRole) => {
+  const policy = getAreaAdminPolicy(actorRole);
+  if (!policy || !isAreaAdminRole(actorRole)) return false;
+  return roleAreaId(targetRole) === policy.areaId
+    && policy.operationalRoles.includes(roleCode(targetRole));
+};
 
 /**
  * Servicio de Autorización Centralizado
@@ -75,6 +101,8 @@ class AuthorizationService {
    * o incluso mayor si la política de la empresa lo requiere, pero limitaremos a <= level por seguridad.
    */
   static canViewUser(actorRole, targetUserRole) {
+    if (isSupervisor({ role: actorRole })) return false;
+    if (isAreaAdminRole(actorRole)) return isOperationalRoleInArea(actorRole, targetUserRole);
     // Para ver, permitimos nivel igual (strictLevel = false)
     return this._hasScopeAccess(actorRole, targetUserRole, false);
   }
@@ -84,14 +112,8 @@ class AuthorizationService {
    * Regla: Puede gestionar si el targetUserRole.level < actorRole.level y está en su scope.
    */
   static canManageUser(actorRole, targetUserRole) {
-    const peerManageableRoles = {
-      SUPERVISOR_EXTRUSION: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'],
-      SUPERVISOR_TELARES: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'],
-    };
-    const actorCode = String(actorRole?.code || '').toUpperCase();
-    if (peerManageableRoles[actorCode]?.includes(String(targetUserRole?.code || '').toUpperCase())) {
-      return this._hasScopeAccess(actorRole, targetUserRole, false);
-    }
+    if (isSupervisor({ role: actorRole })) return false;
+    if (isAreaAdminRole(actorRole)) return isOperationalRoleInArea(actorRole, targetUserRole);
     return this._hasScopeAccess(actorRole, targetUserRole, true);
   }
 
@@ -100,7 +122,7 @@ class AuthorizationService {
    * Regla: Igual a canManageUser.
    */
   static canDisableUser(actorRole, targetUserRole) {
-    return this._hasScopeAccess(actorRole, targetUserRole, true);
+    return this.canManageUser(actorRole, targetUserRole);
   }
 
   /**
@@ -108,13 +130,8 @@ class AuthorizationService {
    * Regla: Puede asignar si newRole.level < actorRole.level y está en su scope.
    */
   static canAssignRole(actorRole, newRole) {
-    const actorCode = String(actorRole?.code || '').toUpperCase();
-    if (actorCode === 'SUPERVISOR_EXTRUSION' && String(newRole?.code || '').toUpperCase() === 'SUPERVISOR_EXTRUSION') {
-      return this._hasScopeAccess(actorRole, newRole, false);
-    }
-    if (actorCode === 'SUPERVISOR_TELARES' && String(newRole?.code || '').toUpperCase() === 'SUPERVISOR_TELARES') {
-      return this._hasScopeAccess(actorRole, newRole, false);
-    }
+    if (isSupervisor({ role: actorRole })) return false;
+    if (isAreaAdminRole(actorRole)) return isOperationalRoleInArea(actorRole, newRole);
     return this._hasScopeAccess(actorRole, newRole, true);
   }
 
@@ -126,6 +143,15 @@ class AuthorizationService {
     const canManageCurrent = this.canManageUser(actorRole, currentTargetRole);
     const canAssignNew = this.canAssignRole(actorRole, newTargetRole);
     return canManageCurrent && canAssignNew;
+  }
+
+  static isAreaAdminRole(role) {
+    return isAreaAdminRole(role);
+  }
+
+  static canAdministerUsers(user) {
+    if (!user || isSupervisor(user)) return false;
+    return isAdmin(user) || isAreaAdminRole(user.role);
   }
 }
 

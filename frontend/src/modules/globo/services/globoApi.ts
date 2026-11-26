@@ -41,6 +41,7 @@ export const globoApi = {
     roll_id: number;
     specification_id: number;
     missing_materials: any[];
+    additional_materials?: Array<{ material_id: number; quantity: number }>;
     notes?: string;
   }) => {
     const res = await axiosClient.post('/globo/wip/create-odc', payload);

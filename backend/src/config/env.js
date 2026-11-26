@@ -2,41 +2,49 @@
 process.env.TZ = process.env.TZ || 'America/Mexico_City';
 require('dotenv').config();
 
+const { validateAndResolveDbConfig } = require('./dbGuard');
+
+const dbConfig = validateAndResolveDbConfig(process.env);
+
 const env = {
   timezone: process.env.TIMEZONE || 'America/Mexico_City',
   timezoneStandard: process.env.TIMEZONE_STANDARD_CODE || 'CST',
   utcOffset: process.env.UTC_OFFSET || '-06:00',
-  nodeEnv: process.env.NODE_ENV || 'development',
+  appEnv: dbConfig.appEnv,
+  nodeEnv: dbConfig.nodeEnv,
 
-  isProduction:
-    process.env.NODE_ENV === 'production',
+  isLocal: dbConfig.appEnv === 'local',
+  isTest: dbConfig.appEnv === 'test',
+  isUat: dbConfig.appEnv === 'uat',
+  isProduction: dbConfig.appEnv === 'production',
+  isRemoteEnv: dbConfig.isRemoteEnv,
 
-  databaseUrl:
-    process.env.DATABASE_URL || null,
+  databaseUrl: dbConfig.databaseUrl,
 
-  port: process.env.PORT || 4000,
+  port: Number(process.env.PORT) || 4000,
 
-  clientUrl:
-    process.env.CLIENT_URL || 'http://localhost:5173',
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 
   db: {
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-    name: process.env.DB_NAME || 'sistema_enterprise',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
+    host: dbConfig.host,
+    port: dbConfig.port,
+    name: dbConfig.name,
+    user: dbConfig.user,
+    password: dbConfig.password,
+    ssl: dbConfig.ssl,
   },
 
   jwt: {
     secret:
-      process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'development_secret'),
+      process.env.JWT_SECRET ||
+      (dbConfig.isRemoteEnv ? null : 'development_secret'),
 
     expiresIn: process.env.JWT_EXPIRES_IN || '12h',
   },
 };
 
-if (env.isProduction && (!env.jwt.secret || Buffer.byteLength(env.jwt.secret) < 32)) {
-  throw new Error('JWT_SECRET debe tener al menos 32 bytes en producción.');
+if (env.isRemoteEnv && (!env.jwt.secret || Buffer.byteLength(env.jwt.secret) < 32)) {
+  throw new Error('JWT_SECRET debe tener al menos 32 bytes en ambientes remotos (UAT / Producción).');
 }
 
 module.exports = env;

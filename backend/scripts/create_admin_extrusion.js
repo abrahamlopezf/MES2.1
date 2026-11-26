@@ -70,7 +70,13 @@ async function createAdminExtrusion() {
     console.log('Permissions assigned to ADMIN_EXT.');
 
     console.log('--- 3. Creating or updating user admin_extrusion ---');
-    const hash = await bcrypt.hash('Admin123!', 10);
+    const rawPassword = process.env.ADMIN_EXTRUSION_INITIAL_PASSWORD;
+    if (!rawPassword || rawPassword.length < 12) {
+      throw new Error(
+        '[SECURITY_GUARD] Define ADMIN_EXTRUSION_INITIAL_PASSWORD (mínimo 12 caracteres) en el entorno antes de ejecutar este script.'
+      );
+    }
+    const hash = await bcrypt.hash(rawPassword, 10);
     const [existingUsers] = await sequelize.query(`SELECT id, username FROM users WHERE username = 'admin_extrusion'`);
     if (existingUsers.length > 0) {
       const userId = existingUsers[0].id;

@@ -1,5 +1,10 @@
 'use strict';
 
+throw Object.assign(
+  new Error('[SECURITY_BLOCK] Seeder ad hoc deshabilitado: modifica permisos directamente fuera de una migración controlada. No debe ejecutarse contra Master Data.'),
+  { code: 'UNCONTROLLED_MASTER_DATA_SEED_DISABLED' }
+);
+
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 

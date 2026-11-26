@@ -122,25 +122,26 @@ export const getCdmxDateParts = (date: Date | string | number = new Date()) => {
 };
 
 /**
- * Determina el turno industrial actual en base al horario de CDMX:
- * - Turno 1: 06:00:00 a 13:59:59
- * - Turno 2: 14:00:00 a 21:59:59
- * - Turno 3: 22:00:00 a 05:59:59
+ * Determina el turno de Telares en base al horario confirmado de CDMX:
+ * - Turno 1: 07:00 a 14:59
+ * - Turno 2: 15:00 a 22:59
+ * - Turno 3: 23:00 a 06:59 del día siguiente
  */
 export const getCdmxShift = (date: Date | string | number = new Date()) => {
   const parts = getCdmxDateParts(date);
   const hour = parts.hour;
-  const calendarDate = getCdmxDateString(date);
+  const currentDate = getCdmxDateString(date);
+  let calendarDate = currentDate;
 
   let shiftNumber = 1;
   let shiftCode = 'TURNO_1';
   let shiftName = '1° Turno (Matutino)';
 
-  if (hour >= 6 && hour < 14) {
+  if (hour >= 7 && hour < 15) {
     shiftNumber = 1;
     shiftCode = 'TURNO_1';
     shiftName = '1° Turno (Matutino)';
-  } else if (hour >= 14 && hour < 22) {
+  } else if (hour >= 15 && hour < 23) {
     shiftNumber = 2;
     shiftCode = 'TURNO_2';
     shiftName = '2° Turno (Vespertino)';
@@ -148,6 +149,11 @@ export const getCdmxShift = (date: Date | string | number = new Date()) => {
     shiftNumber = 3;
     shiftCode = 'TURNO_3';
     shiftName = '3° Turno (Nocturno)';
+    if (hour < 7) {
+      const previousDate = new Date(`${currentDate}T00:00:00.000Z`);
+      previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+      calendarDate = previousDate.toISOString().slice(0, 10);
+    }
   }
 
   return {

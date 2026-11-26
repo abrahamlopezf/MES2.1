@@ -2,8 +2,9 @@
 
 const { Op } = require('sequelize');
 const { WipInventory, Lote, Material, MaterialUnit, QrCode, TraceableItem, TraceabilityMovement } = require('../../database/models');
+const { normalizeMaterialIdentityName, getActiveEquivalentMaterialIdsByName } = require('../materials/materialEquivalence');
 
-const requirementsFor = (spec, meters) => {
+const requirementsFor = (spec, meters, { consolidateEquivalentMaterials = false } = {}) => {
   const standardMeters = Number(spec.standard_output_meters || 0);
   if (!(standardMeters > 0)) {
     throw Object.assign(new Error(`La especificación ${spec.code} requiere metros estándar mayores a cero.`), { statusCode: 400 });
@@ -21,20 +22,37 @@ const requirementsFor = (spec, meters) => {
     if (!Number.isFinite(quantity) || quantity < 0) {
       throw Object.assign(new Error(`La cantidad del material ${material.material_id} en ${spec.code} es inválida.`), { statusCode: 400 });
     }
-    const item = aggregated.get(Number(material.material_id)) || {
+    const recipeMaterial = material.material || {};
+    const materialName = recipeMaterial.name || 'Insumo';
+    const familyId = Number(recipeMaterial.family_id) || null;
+    const baseUnitId = recipeMaterial.base_unit_id == null ? null : Number(recipeMaterial.base_unit_id);
+    const normalizedName = normalizeMaterialIdentityName(materialName);
+    const identityKey = consolidateEquivalentMaterials && familyId && normalizedName
+      ? `${familyId}:${baseUnitId ?? 'NULL'}:${normalizedName}`
+      : `MATERIAL:${Number(material.material_id)}`;
+    const item = aggregated.get(identityKey) || {
       material_id: Number(material.material_id),
-      name: material.material?.name || 'Insumo',
-      internal_code: material.material?.internal_code || 'N/A',
+      material_ids: [],
+      family_id: familyId,
+      base_unit_id: baseUnitId,
+      normalized_name: normalizedName,
+      name: materialName,
+      internal_code: recipeMaterial.internal_code || 'N/A',
       quantity: 0,
     };
+    item.material_ids.push(Number(material.material_id));
     item.quantity += quantity;
-    aggregated.set(item.material_id, item);
+    aggregated.set(identityKey, item);
   }
   return [...aggregated.values()].sort((left, right) => left.material_id - right.material_id).map((material) => {
     const quantity = material.quantity;
     const requiredKg = Number((quantity * Number(meters) / standardMeters * (1 + wastePct / 100)).toFixed(3));
     return {
       material_id: material.material_id,
+      material_ids: [...new Set(material.material_ids)],
+      family_id: material.family_id,
+      base_unit_id: material.base_unit_id,
+      normalized_name: material.normalized_name,
       name: material.name,
       internal_code: material.internal_code,
       consumption_per_unit: Number((quantity / standardMeters).toFixed(8)),
@@ -54,12 +72,14 @@ const compatibility = (spec, roll, area) => {
       : ['TELARES', ...(requirements.accepts_from_globo === false ? [] : ['GLOBO'])];
     if (!acceptedStages.includes(String(roll.current_stage || '').toUpperCase())) return false;
   }
-  const minWidth = Number(requirements.min_width_cm || 0);
-  const maxWidth = Number(requirements.max_width_cm || Infinity);
-  const width = Number(roll.width_cm || roll.bom?.target_width_cm || 0);
-  if (width && (width < minWidth || width > maxWidth)) return false;
-  const requiredFabricType = String(requirements.fabric_type || '').toUpperCase();
-  if (requiredFabricType && requiredFabricType !== 'CUALQUIERA' && roll.bom?.fabric_type && String(roll.bom.fabric_type).toUpperCase() !== requiredFabricType) return false;
+  if (!['LAMINADO', 'GLOBO'].includes(area)) {
+    const minWidth = Number(requirements.min_width_cm || 0);
+    const maxWidth = Number(requirements.max_width_cm || Infinity);
+    const width = Number(roll.width_cm || roll.bom?.target_width_cm || 0);
+    if (width && (width < minWidth || width > maxWidth)) return false;
+    const requiredFabricType = String(requirements.fabric_type || '').toUpperCase();
+    if (requiredFabricType && requiredFabricType !== 'CUALQUIERA' && roll.bom?.fabric_type && String(roll.bom.fabric_type).toUpperCase() !== requiredFabricType) return false;
+  }
   return true;
 };
 
@@ -67,7 +87,7 @@ const validateSpecificationPayload = (payload, area, { partial = false } = {}) =
   const errors = [];
   const label = area === 'GLOBO' ? 'Globo' : 'Laminado';
   const requiredNumbers = [
-    ['target_width_cm', 'El ancho de salida'],
+    ...(['LAMINADO', 'GLOBO'].includes(area) ? [] : [['target_width_cm', 'El ancho de salida']]),
     [area === 'GLOBO' ? 'target_grammage_g_per_m' : 'coating_grammage_g_per_m2', area === 'GLOBO' ? 'El gramaje de salida' : 'El gramaje de recubrimiento'],
     ['expected_output_quantity', 'La cantidad de salida estándar'],
     ['standard_output_meters', 'Los metros de salida estándar'],
@@ -94,10 +114,10 @@ const validateSpecificationPayload = (payload, area, { partial = false } = {}) =
   if (bomIds.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0)) errors.push('La selección de BOM contiene un identificador inválido.');
   const minWidth = Number(input.min_width_cm);
   const maxWidth = Number(input.max_width_cm);
-  if ((!partial || payload.loom_roll_requirements !== undefined) && (!Number.isFinite(minWidth) || minWidth <= 0 || !Number.isFinite(maxWidth) || maxWidth <= 0 || minWidth > maxWidth)) {
+  if (!['LAMINADO', 'GLOBO'].includes(area) && (!partial || payload.loom_roll_requirements !== undefined) && (!Number.isFinite(minWidth) || minWidth <= 0 || !Number.isFinite(maxWidth) || maxWidth <= 0 || minWidth > maxWidth)) {
     errors.push('Define un rango de ancho válido: el mínimo debe ser mayor que cero y no superar el máximo.');
   }
-  if ((!partial || payload.loom_roll_requirements !== undefined) && !['TUBULAR', 'PLANA', 'CUALQUIERA'].includes(String(input.fabric_type || '').toUpperCase())) {
+  if (!['LAMINADO', 'GLOBO'].includes(area) && (!partial || payload.loom_roll_requirements !== undefined) && !['TUBULAR', 'PLANA', 'CUALQUIERA'].includes(String(input.fabric_type || '').toUpperCase())) {
     errors.push('Selecciona el tipo de tela compatible con la receta.');
   }
   if (area === 'LAMINADO' && (!Array.isArray(input.accepted_input_stages) || !input.accepted_input_stages.length || input.accepted_input_stages.some((stage) => !['TELARES', 'GLOBO'].includes(String(stage).toUpperCase())))) {
@@ -131,8 +151,8 @@ const validateSpecificationDraftPayload = (payload, area) => {
   if (payload[typeField] && String(payload[typeField]).trim().length > 50) errors.push(`El tipo de ${label} no puede superar 50 caracteres.`);
 
   const positiveFields = area === 'GLOBO'
-    ? ['target_width_cm', 'target_grammage_g_per_m', 'expected_output_quantity', 'standard_output_meters']
-    : ['target_width_cm', 'coating_grammage_g_per_m2', 'expected_output_quantity', 'standard_output_meters'];
+    ? ['target_grammage_g_per_m', 'expected_output_quantity', 'standard_output_meters']
+    : ['coating_grammage_g_per_m2', 'expected_output_quantity', 'standard_output_meters'];
   for (const field of positiveFields) {
     if (payload[field] === undefined || payload[field] === null || payload[field] === '') continue;
     if (!Number.isFinite(Number(payload[field])) || Number(payload[field]) <= 0) errors.push(`${field} debe ser mayor que cero.`);
@@ -149,10 +169,12 @@ const validateSpecificationDraftPayload = (payload, area) => {
   if (bomIds.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0)) errors.push('La selección de fichas de Telares contiene un identificador inválido.');
   const minWidth = flow.min_width_cm;
   const maxWidth = flow.max_width_cm;
-  if (minWidth !== undefined && minWidth !== null && minWidth !== '' && (!Number.isFinite(Number(minWidth)) || Number(minWidth) <= 0)) errors.push('El ancho mínimo debe ser mayor que cero.');
-  if (maxWidth !== undefined && maxWidth !== null && maxWidth !== '' && (!Number.isFinite(Number(maxWidth)) || Number(maxWidth) <= 0)) errors.push('El ancho máximo debe ser mayor que cero.');
-  if (minWidth && maxWidth && Number(minWidth) > Number(maxWidth)) errors.push('El ancho mínimo no puede superar el máximo.');
-  if (flow.fabric_type && !['TUBULAR', 'PLANA', 'CUALQUIERA'].includes(String(flow.fabric_type).toUpperCase())) errors.push('El tipo de tela compatible no es válido.');
+  if (!['LAMINADO', 'GLOBO'].includes(area)) {
+    if (minWidth !== undefined && minWidth !== null && minWidth !== '' && (!Number.isFinite(Number(minWidth)) || Number(minWidth) <= 0)) errors.push('El ancho mínimo debe ser mayor que cero.');
+    if (maxWidth !== undefined && maxWidth !== null && maxWidth !== '' && (!Number.isFinite(Number(maxWidth)) || Number(maxWidth) <= 0)) errors.push('El ancho máximo debe ser mayor que cero.');
+    if (minWidth && maxWidth && Number(minWidth) > Number(maxWidth)) errors.push('El ancho mínimo no puede superar el máximo.');
+    if (flow.fabric_type && !['TUBULAR', 'PLANA', 'CUALQUIERA'].includes(String(flow.fabric_type).toUpperCase())) errors.push('El tipo de tela compatible no es válido.');
+  }
   if (area === 'LAMINADO' && Array.isArray(flow.accepted_input_stages) && flow.accepted_input_stages.some((stage) => !['TELARES', 'GLOBO'].includes(String(stage).toUpperCase()))) {
     errors.push('La ficha puede aceptar rollos de Telares, Globo o ambas etapas.');
   }
@@ -188,16 +210,26 @@ const validateRecipeMaterialUnits = async (materials = []) => {
 };
 
 const assessWip = async ({ spec, meters, areaId }) => {
-  const requirements = requirementsFor(spec, meters);
+  const consolidateEquivalentMaterials = [4, 5].includes(Number(areaId));
+  const requirements = requirementsFor(spec, meters, { consolidateEquivalentMaterials });
   const materials = [];
   for (const requirement of requirements) {
+    const materialIds = consolidateEquivalentMaterials
+      ? await getActiveEquivalentMaterialIdsByName({
+        id: requirement.material_id,
+        family_id: requirement.family_id,
+        base_unit_id: requirement.base_unit_id,
+        name: requirement.name,
+      })
+      : requirement.material_ids;
     const rows = await WipInventory.findAll({
-      where: { area_id: areaId, material_id: requirement.material_id, amount: { [Op.gt]: 0 } },
+      where: { area_id: areaId, material_id: { [Op.in]: materialIds }, amount: { [Op.gt]: 0 } },
     });
     const available = Number(rows.reduce((sum, row) => sum + Number(row.amount), 0).toFixed(3));
     const missing = Number(Math.max(0, requirement.required_kg - available).toFixed(3));
     materials.push({
       ...requirement,
+      equivalent_material_ids: materialIds,
       available_wip_kg: available,
       missing_kg: missing,
       is_sufficient: missing <= 0.001,
@@ -214,13 +246,23 @@ const assessWip = async ({ spec, meters, areaId }) => {
 };
 
 const consumeWip = async ({ spec, meters, areaId, transaction, performedBy }) => {
-  const requirements = requirementsFor(spec, meters);
+  const consolidateEquivalentMaterials = [4, 5].includes(Number(areaId));
+  const requirements = requirementsFor(spec, meters, { consolidateEquivalentMaterials });
   const lockedRowsByMaterial = new Map();
+  const equivalentIdsByMaterial = new Map();
 
   // Lock every required material first, then check the full recipe before changing balances.
   for (const requirement of requirements) {
+    const materialIds = consolidateEquivalentMaterials
+      ? await getActiveEquivalentMaterialIdsByName({
+        id: requirement.material_id,
+        family_id: requirement.family_id,
+        base_unit_id: requirement.base_unit_id,
+        name: requirement.name,
+      }, transaction)
+      : requirement.material_ids;
     const rows = await WipInventory.findAll({
-      where: { area_id: areaId, material_id: requirement.material_id, amount: { [Op.gt]: 0 } },
+      where: { area_id: areaId, material_id: { [Op.in]: materialIds }, amount: { [Op.gt]: 0 } },
       include: [
         { model: Lote, as: 'lote' },
         { model: QrCode, as: 'qr_code' },
@@ -234,9 +276,10 @@ const consumeWip = async ({ spec, meters, areaId, transaction, performedBy }) =>
       throw Object.assign(new Error(`WIP insuficiente para ${requirement.name}: requiere ${requirement.required_kg} kg y hay ${available} kg.`), {
         statusCode: 409,
         code: 'WIP_INSUFFICIENT',
-        details: { material_id: requirement.material_id, required_kg: requirement.required_kg, available_wip_kg: available, missing_kg: Number((requirement.required_kg - available).toFixed(3)) },
+        details: { material_id: requirement.material_id, equivalent_material_ids: materialIds, required_kg: requirement.required_kg, available_wip_kg: available, missing_kg: Number((requirement.required_kg - available).toFixed(3)) },
       });
     }
+    equivalentIdsByMaterial.set(requirement.material_id, materialIds);
     lockedRowsByMaterial.set(requirement.material_id, rows);
   }
 
@@ -277,10 +320,10 @@ const consumeWip = async ({ spec, meters, areaId, transaction, performedBy }) =>
         balance_after: Math.max(0, traceableAfter),
         reference_folio: spec.code,
         notes: `Consumo de receta para PTI ${spec.output_pti_code || spec.output_product_name}`,
-        metadata: { specification_code: spec.code, material_id: requirement.material_id, wip_inventory_id: row.id },
+        metadata: { specification_code: spec.code, recipe_material_id: requirement.material_id, consumed_material_id: Number(row.material_id), equivalent_material_ids: equivalentIdsByMaterial.get(requirement.material_id) || requirement.material_ids, wip_inventory_id: row.id },
         performed_by: performedBy || null,
       }, { transaction });
-      sourceQrConsumptions.push({ qr_code_id: row.qr_code_id, traceable_item_id: traceable.id, qr_code: row.qr_code.qr_code, material_id: requirement.material_id, quantity_used_kg: take });
+      sourceQrConsumptions.push({ qr_code_id: row.qr_code_id, traceable_item_id: traceable.id, qr_code: row.qr_code.qr_code, material_id: Number(row.material_id), recipe_material_id: requirement.material_id, quantity_used_kg: take });
       const unitCost = Number(row.lote?.unit_cost || 0);
       lineCost += take * unitCost;
       remaining = Number((remaining - take).toFixed(3));

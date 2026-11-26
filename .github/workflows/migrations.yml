@@ -1,20 +1,67 @@
-name: Database Migrations
+name: CI Verification & Controlled Database Migrations
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-    paths:
-      - "backend/**"
+      - uat
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Ambiente destino para ejecutar migraciones (uat o production)'
+        required: true
+        default: 'uat'
+        type: choice
+        options:
+          - uat
+          - production
+      confirm:
+        description: 'Escribe EJECUTAR_MIGRACION para autorizar la migración en el ambiente seleccionado'
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  migrate:
-    environment: production
+  ci-verify:
+    name: Security, Unit Tests & Frontend Build Gate
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    permissions:
-      contents: read
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
 
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run Security & Secret Check
+        working-directory: backend
+        run: node src/scripts/security-check.js
+
+      - name: Run Environment Isolation Guard Tests
+        working-directory: backend
+        run: node --test test/envIsolationGuard.test.js
+
+      - name: Install Frontend Dependencies & Build
+        working-directory: frontend
+        run: npm ci && npm run build && npx vitest run
+
+  migrate:
+    name: Controlled Database Migration (${{ inputs.target_environment }})
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'EJECUTAR_MIGRACION'
+    needs: ci-verify
+    environment: ${{ inputs.target_environment }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
@@ -23,7 +70,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,11 +83,13 @@ jobs:
       - name: Validate database state (MES/ERP Pre-check)
         run: node src/scripts/validate-migration.js
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run migrations
-        run: npm run db:migrate
+        run: npx sequelize-cli db:migrate --env ${{ inputs.target_environment }}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

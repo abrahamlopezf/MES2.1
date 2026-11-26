@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const models = require('../src/database/models');
 const telaresService = require('../src/modules/telares/telares.service');
-const { validateOperatorWeightCoverage, validateOutputMeasures } = require('../src/modules/telares/productionRules');
+const { validateOperatorWeightCoverage, validateOutputMeasures, getBomPtiProductIds, assertPtiIncludedInBom } = require('../src/modules/telares/productionRules');
 
 test('normalizeProductionRoute valida destinos de Diagrama 1 (ROLLO_TELA) y bloquea GLOBO', () => {
   assert.deepEqual(
@@ -101,6 +101,149 @@ test('calculateBomPtiDemand calcula demanda teórica de PTI por metros y por pes
   assert.equal(demands[1].requiredKg, 20.4);
   assert.equal(demands[2].requiredKg, 1.7);
   assert.equal(Number((demands[0].requiredKg + demands[1].requiredKg + demands[2].requiredKg).toFixed(2)), 42.5);
+});
+
+test('una ficha admite varios PTI de racks distintos y bloquea un PTI ajeno a la ficha', () => {
+  const bom = {
+    id: 22,
+    code: 'TEL-65-OZ',
+    name: 'Tela 6.5 oz',
+    items: [
+      { pti_product_id: 101, role: 'URDIMBRE' },
+      { pti_product_id: 102, role: 'TRAMA' },
+      { pti_product_id: 101, role: 'REFUERZO' },
+    ],
+  };
+
+  assert.deepEqual(getBomPtiProductIds(bom), [101, 102]);
+  assert.equal(assertPtiIncludedInBom(101, bom), true);
+  assert.equal(assertPtiIncludedInBom(102, bom), true);
+  assert.throws(
+    () => assertPtiIncludedInBom(103, bom),
+    (error) => error.statusCode === 409 && error.code === 'PTI_NOT_IN_SELECTED_BOM',
+  );
+});
+
+test('loadLoomCreel rechaza antes de mover saldos un rack cuyo PTI no pertenece a la ficha seleccionada', async () => {
+  const originals = {
+    transaction: models.sequelize.transaction,
+    loomFindByPk: models.Loom.findByPk,
+    rackFindByPk: models.PtiRack.findByPk,
+    runFindOne: models.LoomRun.findOne,
+    bomFindByPk: models.ProductionBom.findByPk,
+    transferMode: telaresService.getPtiTransferMode,
+    resolveSubarea: telaresService.resolvePtiSubareaId,
+  };
+  let rolledBack = false;
+  const transaction = {
+    LOCK: { UPDATE: 'UPDATE' },
+    commit: async () => {},
+    rollback: async () => { rolledBack = true; },
+  };
+  models.sequelize.transaction = async () => transaction;
+  telaresService.getPtiTransferMode = async () => 'RACK_PARTIAL';
+  telaresService.resolvePtiSubareaId = async () => 3;
+  models.Loom.findByPk = async () => ({
+    id: 7,
+    name: 'Telar Circular 07',
+    subarea_id: 3,
+    supported_pti_types: [203],
+    supported_bom_ids: [22],
+    current_spools_count: 0,
+    creel_capacity_spools: 1800,
+  });
+  models.PtiRack.findByPk = async () => ({
+    id: 9,
+    rack_code: 'RACK-TEST-09',
+    qr_code: 'QR-RACK-TEST-09',
+    current_quantity: 5,
+    current_pti_product_id: 203,
+    destination_subarea_id: 3,
+    destination_route: null,
+    custody_shift_session_id: null,
+    container_type: 'RACK',
+    currentPtiProduct: { id: 203, code: 'PTI-203', telares_subarea_code: 'TELARES_ROLLO', unit_weight_kg: 5 },
+  });
+  models.LoomRun.findOne = async () => null;
+  models.ProductionBom.findByPk = async () => ({
+    id: 22,
+    code: 'TEL-TEST-22',
+    name: 'Ficha de prueba',
+    is_active: true,
+    is_provisional: false,
+    subarea_id: 3,
+    items: [{ pti_product_id: 201, role: 'URDIMBRE' }, { pti_product_id: 202, role: 'TRAMA' }],
+  });
+
+  try {
+    await assert.rejects(
+      telaresService.loadLoomCreel({
+        loom_id: 7,
+        rack_id: 9,
+        spools_to_load: 1,
+        scanned_qr: 'QR-RACK-TEST-09',
+        bom_id: 22,
+      }),
+      (error) => error.statusCode === 409 && error.code === 'PTI_NOT_IN_SELECTED_BOM',
+    );
+    assert.equal(rolledBack, true, 'el movimiento debe cancelarse atómicamente');
+  } finally {
+    models.sequelize.transaction = originals.transaction;
+    models.Loom.findByPk = originals.loomFindByPk;
+    models.PtiRack.findByPk = originals.rackFindByPk;
+    models.LoomRun.findOne = originals.runFindOne;
+    models.ProductionBom.findByPk = originals.bomFindByPk;
+    telaresService.getPtiTransferMode = originals.transferMode;
+    telaresService.resolvePtiSubareaId = originals.resolveSubarea;
+  }
+});
+
+test('la cobertura separa PTI por ficha y sugiere el rack del componente faltante', async () => {
+  const originals = {
+    wipFindAll: models.LoomPtiWip.findAll,
+    rackFindAll: models.PtiRack.findAll,
+    transferMode: telaresService.getPtiTransferMode,
+  };
+  let wipRows = [{ pti_product_id: 201, quantity_remaining_spools: 2, unit_weight_kg: 5 }];
+  let rackRows = [
+    { rack_code: 'RACK-URD', qr_code: 'QR-URD', current_pti_product_id: 201, current_quantity: 2, unit_weight_kg: 5, destination_route: 'TELARES_ROLLO', currentPtiProduct: { id: 201, code: 'PTI-URD', telares_subarea_code: 'TELARES_ROLLO' } },
+    { rack_code: 'RACK-TRA', qr_code: 'QR-TRA', current_pti_product_id: 202, current_quantity: 2, unit_weight_kg: 5, destination_route: 'TELARES_ROLLO', currentPtiProduct: { id: 202, code: 'PTI-TRA', telares_subarea_code: 'TELARES_ROLLO' } },
+    { rack_code: 'RACK-TRA-LOCKED', qr_code: 'QR-TRA-LOCKED', current_pti_product_id: 202, current_quantity: 1, unit_weight_kg: 20, destination_route: 'TELARES_ROLLO', custody_shift_session_id: 44, currentPtiProduct: { id: 202, code: 'PTI-TRA', telares_subarea_code: 'TELARES_ROLLO' } },
+  ];
+  models.LoomPtiWip.findAll = async () => wipRows;
+  models.PtiRack.findAll = async () => rackRows;
+  telaresService.getPtiTransferMode = async () => 'RACK_PARTIAL';
+
+  try {
+    const bom = {
+      code: 'TEL-MIX-PTI',
+      is_provisional: false,
+      standard_output_meters: 10,
+      expected_output_quantity: 1,
+      expected_output_unit: 'ROLLO',
+      items: [
+        { pti_product_id: 201, role: 'URDIMBRE', consumption_per_meter: 1, consumption_per_meter_unit: 'KG', ptiProduct: { id: 201, code: 'PTI-URD', unit_weight_kg: 5 } },
+        { pti_product_id: 202, role: 'TRAMA', consumption_per_meter: 1, consumption_per_meter_unit: 'KG', ptiProduct: { id: 202, code: 'PTI-TRA', unit_weight_kg: 5 } },
+      ],
+    };
+
+    const partial = await telaresService.assessLoomPtiAvailability({ loomId: 8, bom, plannedMeters: 10 });
+    assert.equal(partial.sufficient, false);
+    assert.deepEqual(partial.shortages.map((row) => row.pti_product_id), [201, 202]);
+    assert.deepEqual(partial.shortages.map((row) => row.deficit_kg), [0, 10]);
+    assert.equal(partial.shortages[1].deficit_spools, 2, 'la estimación debe usar solo bobinas de racks liberados');
+    assert.equal(partial.shortages[1].fifo_racks[0].rack_code, 'RACK-TRA');
+    assert.equal(partial.shortages[1].fifo_racks.some((rack) => rack.rack_code === 'RACK-TRA-LOCKED'), false, 'un rack en custodia no debe sugerirse para Telares');
+
+    wipRows = [...wipRows, { pti_product_id: 202, quantity_remaining_spools: 2, unit_weight_kg: 5 }];
+    const sufficient = await telaresService.assessLoomPtiAvailability({ loomId: 8, bom, plannedMeters: 10 });
+    assert.equal(sufficient.sufficient, true);
+    assert.deepEqual(sufficient.shortages.map((row) => row.deficit_kg), [0, 0]);
+  } finally {
+    models.LoomPtiWip.findAll = originals.wipFindAll;
+    models.PtiRack.findAll = originals.rackFindAll;
+    telaresService.getPtiTransferMode = originals.transferMode;
+  }
 });
 
 test('las fichas provisionales no permiten calcular ni consumir WIP para producción', () => {

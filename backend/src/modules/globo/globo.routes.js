@@ -1,6 +1,7 @@
 const express = require('express');
 const globoController = require('./globo.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
+const { isAreaAdministrator } = require('../../shared/security/areaRolePolicy');
 
 const router = express.Router();
 
@@ -14,7 +15,10 @@ const areaRoles = (...allowedRoles) => (req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Globo.' });
 };
 const areaView = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
-const areaAdmin = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO');
+// Specification master data is editable by Globo administration only.
+const areaAdmin = (req, res, next) => isAreaAdministrator(req.user, 'GLOBO')
+  ? next()
+  : res.status(403).json({ success: false, message: 'Solo administración de Globo puede modificar fichas.' });
 const areaProcess = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO', 'OPERADOR_GLOBO');
 const supervisorOrAdmin = areaRoles('ADMIN_GLOBO', 'SUPERVISOR_GLOBO');
 
@@ -26,6 +30,7 @@ router.patch('/specifications/:id/toggle', areaAdmin, (req, res, next) => globoC
 
 // WIP Interno y Trazabilidad Operativa
 router.get('/wip-summary', areaView, (req, res, next) => globoController.getWipSummary(req, res, next));
+router.post('/wip/telares-scrap-observations', areaProcess, (req, res, next) => globoController.reportTelaresScrap(req, res, next));
 router.post('/wip/assess-roll', supervisorOrAdmin, (req, res, next) => globoController.assessRollMaterials(req, res, next));
 router.post('/wip/create-odc', supervisorOrAdmin, (req, res, next) => globoController.createOdcForRoll(req, res, next));
 router.post('/wip/verify-scan', areaProcess, (req, res, next) => globoController.verifyScan(req, res, next));

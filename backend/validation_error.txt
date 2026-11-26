@@ -2,5 +2,9 @@
   {
     "field": "identifier",
     "message": "El usuario o correo es obligatorio."
+  },
+  {
+    "field": "password",
+    "message": "La contraseña es obligatoria."
   }
 ]

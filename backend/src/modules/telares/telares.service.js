@@ -12,6 +12,7 @@ const {
   validateOperatorWeightCoverage,
   estimateBomFabricWeightKg,
   getTelaresPtiCatalogQr,
+  assertPtiIncludedInBom,
 } = require('./productionRules');
 const {
   sequelize,
@@ -160,6 +161,7 @@ class TelaresService {
         where: {
           current_pti_product_id: { [Op.in]: productIds },
           current_quantity: { [Op.gt]: 0 },
+          custody_shift_session_id: null,
           [Op.or]: [{ destination_route: null }, { destination_route: { [Op.in]: ['TELARES_ROLLO', 'TELARES_BANDA'] } }],
         },
         attributes: ['id', 'rack_code', 'qr_code', 'current_pti_product_id', 'current_quantity', 'unit_weight_kg', 'container_type', 'created_at', 'destination_route'],
@@ -183,7 +185,9 @@ class TelaresService {
     const shortages = [...groupedDemands.entries()].map(([productId, group]) => {
       const { item } = group;
       const productWip = wipRows.filter((row) => Number(row.pti_product_id) === productId);
-      const productRacks = racks.filter((rack) => Number(rack.current_pti_product_id) === productId && isRackAuthorizedForTelares(rack));
+      const productRacks = racks.filter((rack) => Number(rack.current_pti_product_id) === productId
+        && !rack.custody_shift_session_id
+        && isRackAuthorizedForTelares(rack));
       const wipSpools = productWip.reduce((sum, row) => sum + Number(row.quantity_remaining_spools || 0), 0);
       const wipKg = productWip.reduce((sum, row) => sum + Number(row.quantity_remaining_spools || 0) * Number(row.unit_weight_kg || 0), 0);
       const knownWipRows = productWip.filter((row) => Number(row.unit_weight_kg || 0) > 0);
@@ -707,7 +711,7 @@ class TelaresService {
    * La modalidad vigente define si se admite transferencia parcial desde rack o transferencia íntegra desde carrito.
    * En ambos modos el débito del origen, el ingreso al WIP del telar y el movimiento de trazabilidad son atómicos.
    */
-  async loadLoomCreel({ loom_id, rack_id, spools_to_load, scanned_qr, operator_id }) {
+  async loadLoomCreel({ loom_id, rack_id, spools_to_load, scanned_qr, operator_id, bom_id }) {
     const t = await sequelize.transaction();
     try {
       const configuredTransferMode = await this.getPtiTransferMode(t);
@@ -803,18 +807,34 @@ class TelaresService {
         throw error;
       }
       const activeRun = await LoomRun.findOne({ where: { loom_id: loom.id, status: 'EN_PROCESO' }, transaction: t });
-      const requiredBomIds = activeRun?.bom_id
-        ? [Number(activeRun.bom_id)]
-        : (loom.current_bom_id ? [Number(loom.current_bom_id)] : (Array.isArray(loom.supported_bom_ids) ? loom.supported_bom_ids.map(Number) : []));
-      if (requiredBomIds.length) {
-        const bomItem = await ProductionBomItem.findOne({
-          where: { bom_id: { [Op.in]: requiredBomIds }, pti_product_id: ptiProduct.id },
+      const requestedBomId = Number(bom_id) > 0 ? Number(bom_id) : null;
+      if (activeRun?.bom_id && requestedBomId && Number(activeRun.bom_id) !== requestedBomId) {
+        throw Object.assign(new Error(`El telar ${loom.name} ya está trabajando con otra ficha. Solo puedes transferir PTI de la ficha activa.`), { statusCode: 409, code: 'TELARES_ACTIVE_BOM_MISMATCH' });
+      }
+      const requiredBomId = activeRun?.bom_id || requestedBomId || loom.current_bom_id || null;
+      if (requiredBomId) {
+        const requiredBom = await ProductionBom.findByPk(requiredBomId, {
+          include: [{ model: ProductionBomItem, as: 'items' }],
           transaction: t,
         });
-        if (!bomItem) {
-          const error = new Error(`El PTI ${ptiProduct.code} (${ptiProduct.color || 'color no definido'}, ${ptiProduct.tape_width_mm || 'ancho s/d'} mm) no está requerido por los modelos/fichas configurados para ${loom.name}.`);
-          error.statusCode = 409;
-          throw error;
+        if (!requiredBom || !requiredBom.is_active || requiredBom.is_provisional) {
+          throw Object.assign(new Error('La ficha seleccionada está inactiva, provisional o ya no existe. Actualiza la pantalla y selecciona una ficha vigente.'), { statusCode: 409, code: 'BOM_NOT_PRODUCTION_READY' });
+        }
+        if (Number(requiredBom.subarea_id || 0) !== Number(loom.subarea_id || 0)) {
+          throw Object.assign(new Error(`La ficha ${requiredBom.name} no corresponde al área del telar ${loom.name}.`), { statusCode: 409, code: 'TELARES_SUBAREA_MISMATCH' });
+        }
+        const supportedBomIds = Array.isArray(loom.supported_bom_ids) ? loom.supported_bom_ids.map(Number) : [];
+        if (!activeRun && supportedBomIds.length && !supportedBomIds.includes(Number(requiredBom.id))) {
+          throw Object.assign(new Error(`El telar ${loom.name} no está autorizado para la ficha ${requiredBom.name}.`), { statusCode: 409, code: 'BOM_NOT_SUPPORTED_BY_LOOM' });
+        }
+        assertPtiIncludedInBom(ptiProduct.id, requiredBom);
+      } else {
+        const supportedBomIds = Array.isArray(loom.supported_bom_ids) ? loom.supported_bom_ids.map(Number) : [];
+        if (supportedBomIds.length && !(await ProductionBomItem.findOne({
+          where: { bom_id: { [Op.in]: supportedBomIds }, pti_product_id: ptiProduct.id },
+          transaction: t,
+        }))) {
+          throw Object.assign(new Error(`El PTI ${ptiProduct.code} no está incluido en ninguna ficha autorizada para ${loom.name}.`), { statusCode: 409, code: 'PTI_NOT_IN_SUPPORTED_BOMS' });
         }
       }
 
@@ -2124,23 +2144,6 @@ class TelaresService {
         error_code: routeError.code || 'INVALID_ROLL_ROUTE',
         roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route: rawRoute, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
         message: `⛔ La ruta registrada para ${roll.roll_code} no es válida: ${routeError.message} Solicita corregirla antes de continuar.`,
-      };
-    }
-
-    if (targetArea === 'GLOBO') {
-      await ViajeroRoutingLog.create({
-        viajero_roll_id: roll.id,
-        from_stage: roll.current_stage,
-        to_stage: targetArea,
-        operator_id: operator_id || null,
-        action: 'BLOQUEO_RUTEO_INVALIDO',
-        notes: 'Bloqueo de negocio: los rollos de tela no pueden ingresar a Globo.',
-      }, transaction ? { transaction } : {});
-      return {
-        is_allowed: false,
-        error_code: 'GLOBO_NOT_ALLOWED_FOR_TELARES_OUTPUT',
-        roll: { roll_code: roll.roll_code, qr_code: roll.qr_code, route, current_stage: roll.current_stage, next_allowed_stage: roll.next_allowed_stage },
-        message: `⛔ Ninguna salida de Telares puede ingresar a Globo. Ruta registrada: ${route.join(' -> ')}.`,
       };
     }
 

@@ -989,6 +989,7 @@ db.GloboSpecificationMaterial = require('../../modules/globo/models/globoSpecifi
 db.LaminadoSpecification = require('../../modules/laminado/models/laminadoSpecification.model')(sequelize, DataTypes);
 db.LaminadoSpecificationMaterial = require('../../modules/laminado/models/laminadoSpecificationMaterial.model')(sequelize, DataTypes);
 db.AreaProcessScrapLog = require('../../modules/wip/areaProcessScrapLog.model')(sequelize, DataTypes);
+db.TelaresScrapObservation = require('../../modules/wip/telaresScrapObservation.model')(sequelize, DataTypes);
 
 db.GloboSpecification.hasMany(db.GloboSpecificationMaterial, { foreignKey: 'globo_spec_id', as: 'materials' });
 db.GloboSpecificationMaterial.belongsTo(db.GloboSpecification, { foreignKey: 'globo_spec_id', as: 'specification' });
@@ -996,6 +997,7 @@ db.GloboSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id'
 
 db.LaminadoSpecification.hasMany(db.LaminadoSpecificationMaterial, { foreignKey: 'laminado_spec_id', as: 'materials' });
 db.CorteLaminadoOrder.belongsTo(db.LaminadoSpecification, { foreignKey: 'target_specification_id', as: 'targetSpecification' });
+db.CorteLaminadoOrder.belongsTo(db.GloboSpecification, { foreignKey: 'target_globo_specification_id', as: 'targetGloboSpecification' });
 db.LaminadoSpecificationMaterial.belongsTo(db.LaminadoSpecification, { foreignKey: 'laminado_spec_id', as: 'specification' });
 db.LaminadoSpecificationMaterial.belongsTo(db.Material, { foreignKey: 'material_id', as: 'material' });
 db.AreaProcessScrapLog.belongsTo(db.Area, { foreignKey: 'area_id', as: 'area' });
@@ -1003,6 +1005,10 @@ db.AreaProcessScrapLog.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id'
 db.AreaProcessScrapLog.belongsTo(db.QrCode, { foreignKey: 'source_qr_code_id', as: 'sourceQr' });
 db.AreaProcessScrapLog.belongsTo(db.QrCode, { foreignKey: 'output_qr_code_id', as: 'outputQr' });
 db.AreaProcessScrapLog.belongsTo(db.User, { foreignKey: 'recorded_by', as: 'recorder' });
+db.TelaresScrapObservation.belongsTo(db.ViajeroRoll, { foreignKey: 'viajero_roll_id', as: 'roll' });
+db.TelaresScrapObservation.belongsTo(db.QrCode, { foreignKey: 'source_qr_code_id', as: 'sourceQr' });
+db.TelaresScrapObservation.belongsTo(db.Area, { foreignKey: 'detecting_area_id', as: 'detectingArea' });
+db.TelaresScrapObservation.belongsTo(db.User, { foreignKey: 'recorded_by', as: 'recorder' });
 
 module.exports = db;
 

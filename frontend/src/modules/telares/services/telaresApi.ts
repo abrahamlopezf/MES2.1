@@ -66,11 +66,13 @@ export const telaresApi = {
     rack_id: number;
     spools_to_load: number;
     scanned_qr: string;
+    bom_id?: number;
   }): Promise<any> => {
     const response = await axiosClient.post(`/telares/looms/${payload.loom_id}/load-creel`, {
       rack_id: payload.rack_id,
       spools_to_load: payload.spools_to_load,
       scanned_qr: payload.scanned_qr,
+      bom_id: payload.bom_id,
     });
     return response.data;
   },

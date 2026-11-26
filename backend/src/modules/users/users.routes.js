@@ -8,34 +8,37 @@ const permissionMiddleware = require('../../middlewares/permission.middleware');
 const validate = require('../../middlewares/validation.middleware');
 
 const { isSupervisor } = require('../../shared/security/accessRules');
+const AuthorizationService = require('../../shared/security/authorization.service');
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 router.use((req, res, next) => {
-  const roleCode = String(req.user?.role?.code || '').toUpperCase();
-  const isAreaSupervisor = ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(roleCode);
-  const allowedSupervisorRequest = isAreaSupervisor && (
-    (req.method === 'GET' && (req.path === '/' || /^\/\d+$/.test(req.path)))
-    || (req.method === 'POST' && req.path === '/')
-    || (req.method === 'PUT' && /^\/\d+$/.test(req.path))
-  );
-  if (isSupervisor(req.user) && !allowedSupervisorRequest) {
+  if (isSupervisor(req.user)) {
     return res.status(403).json({
       success: false,
-      message: isAreaSupervisor
-        ? 'El supervisor puede consultar, crear y editar usuarios de su área; no puede gestionar bajas.'
-        : 'Los supervisores no tienen acceso a la gestión de usuarios.',
+      message: 'Los supervisores no tienen acceso a la administración de usuarios.',
     });
+  }
+  if (!AuthorizationService.canAdministerUsers(req.user)) {
+    return res.status(403).json({ success: false, message: 'Solo los administradores globales o de área pueden administrar usuarios.' });
   }
   next();
 });
 
 const permissionAuthorizer = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
 const authorizeUserPermission = (permission) => (req, res, next) => {
-  if (['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(String(req.user?.role?.code || '').toUpperCase())) return next();
+  if (AuthorizationService.isAreaAdminRole(req.user?.role)
+    && ['users.read', 'users.create', 'users.update'].includes(permission)) return next();
   return permissionAuthorizer(permission)(req, res, next);
+};
+
+const authorizeUserDeactivation = (req, res, next) => {
+  if (AuthorizationService.isAreaAdminRole(req.user?.role)) {
+    return authorizeUserPermission('users.update')(req, res, next);
+  }
+  return permissionMiddleware('users.delete')(req, res, next);
 };
 
 router.get(
@@ -66,7 +69,7 @@ router.put(
 
 router.delete(
   '/:id',
-  permissionMiddleware('users.delete'),
+  authorizeUserDeactivation,
   usersController.deleteUser
 );
 

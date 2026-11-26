@@ -12,7 +12,7 @@ export interface ManualEntryBottomSheetPresenterProps {
   // State
   materialId: string;
   locationId: string;
-  entries: { folio: string; quantity: string; supplier_id: string; unit_cost: string; currency: 'MXN' | 'USD'; invoice_date: string }[];
+  entries: { folio: string; quantity: string; presentation_quantity: string; supplier_id: string; unit_cost: string; currency: 'MXN' | 'USD'; invoice_date: string }[];
   exchangeRatesByDate: Record<string, { rate: number; date: string; requestedDate: string; source: string }>;
   isExchangeRateLoading: boolean;
   exchangeRatePreviewFailed: boolean;
@@ -26,6 +26,8 @@ export interface ManualEntryBottomSheetPresenterProps {
   isSubmitting: boolean;
   // Silo PP specific
   isPp: boolean;
+  ppDestination: 'SILO' | 'PISO';
+  onChangePpDestination: (destination: 'SILO' | 'PISO') => void;
   silos: any[];
   loadingSilos: boolean;
   selectedSiloId: string;
@@ -58,6 +60,8 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
   loadingSuppliers,
   isSubmitting,
   isPp,
+  ppDestination,
+  onChangePpDestination,
   silos,
   loadingSilos,
   selectedSiloId,
@@ -120,7 +124,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
         <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border flex justify-between items-center gap-4 bg-card">
           <h3 id="manual-entry-dialog-title" className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2 min-w-0">
             <PackagePlus size={20} className={isPp ? "text-blue-500" : "text-primary"} />
-            <span>{isPp ? 'Ingreso a Silos (PP - Consumo Mezcladora)' : 'Ingreso de Material (Lote Almacén)'}</span>
+            <span>{isPp && ppDestination === 'SILO' ? 'Ingreso a Silo (PP a granel)' : isPp ? 'Ingreso de PP a Piso (Costales)' : 'Ingreso de Material (Lote Almacén)'}</span>
           </h3>
           <button 
             onClick={onClose}
@@ -160,16 +164,24 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                 <span className="text-xl shrink-0">🛡️</span>
                 <div className="min-w-0">
                   <span className="font-bold text-sm block text-foreground">
-                    Excepción de Almacén: Polipropileno para Silos (Sin QR)
+                    Destino del Polipropileno
                   </span>
                   <span className="text-xs text-muted-foreground block mt-0.5 leading-snug">
-                    Este material ingresa por tubería directamente a los Silos para surtir a la Mezcladora. <strong>No genera etiquetas QR</strong> y la cantidad ingresada se sumará directamente al Silo seleccionado.
+                    Selecciona si esta factura se recibe a granel en un silo o en piso en su presentación de costales.
                   </span>
                 </div>
               </div>
             )}
 
             {isPp && (
+              <fieldset className="grid grid-cols-2 gap-2 rounded-xl border border-border p-3">
+                <legend className="px-1 text-xs font-bold text-muted-foreground">Lugar de recepción *</legend>
+                <button type="button" aria-pressed={ppDestination === 'SILO'} onClick={() => onChangePpDestination('SILO')} className={`min-h-11 rounded-lg border px-3 text-sm font-bold ${ppDestination === 'SILO' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-foreground'}`}>Silo</button>
+                <button type="button" aria-pressed={ppDestination === 'PISO'} onClick={() => onChangePpDestination('PISO')} className={`min-h-11 rounded-lg border px-3 text-sm font-bold ${ppDestination === 'PISO' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-foreground'}`}>Piso · costales</button>
+              </fieldset>
+            )}
+
+            {isPp && ppDestination === 'SILO' && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-bold text-foreground ml-1">
@@ -200,7 +212,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
               </div>
             )}
 
-            {!isPp && (
+            {(!isPp || ppDestination === 'PISO') && (
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-foreground ml-1">Localidad *</label>
                 <SearchSelect
@@ -310,6 +322,27 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                         />
                       </div>
                     </div>
+
+                    {(!isPp || ppDestination === 'PISO') && (
+                    <div className="mt-3 grid grid-cols-1 gap-2 rounded-lg border border-border bg-background/60 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-end">
+                      <label className="flex min-w-0 flex-col gap-1 text-xs font-bold text-foreground">
+                        Presentación por empaque (opcional)
+                        <input
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          aria-label={`Cantidad por presentación del renglón ${index + 1}`}
+                          className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm font-mono text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          placeholder={`Ej. 25 ${materialUnit}`}
+                          value={entry.presentation_quantity}
+                          onChange={(event) => onUpdateEntry(index, 'presentation_quantity', event.target.value)}
+                        />
+                      </label>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Captura cuántos {materialUnit} contiene cada costal, caja o presentación de esta factura. Se usará para surtir ODC sin fraccionar empaques.
+                      </p>
+                    </div>
+                    )}
                     
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
                     <div className="flex flex-col gap-1 min-w-0">
@@ -435,12 +468,12 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
           <Button 
             variant="default" 
             onClick={onConfirmEntry}
-            disabled={isSubmitting || isExchangeRateLoading || !materialId || (!isPp && !locationId) || (isPp && !selectedSiloId) || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
-            className={`min-h-12 flex-[1.5] font-bold rounded-xl shadow-md ${isPp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+            disabled={isSubmitting || isExchangeRateLoading || !materialId || ((!isPp || ppDestination === 'PISO') && !locationId) || (isPp && ppDestination === 'SILO' && !selectedSiloId) || entries.some(e => !e.quantity || Number(e.quantity) <= 0 || e.unit_cost === '' || Number(e.unit_cost) < 0)}
+            className={`min-h-12 flex-[1.5] font-bold rounded-xl shadow-md ${isPp && ppDestination === 'SILO' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
           >
             {isSubmitting ? (
               <><Loader2 className="mr-2 animate-spin" size={18} /> Procesando...</>
-            ) : isPp ? (
+            ) : isPp && ppDestination === 'SILO' ? (
               'Confirmar Ingreso a Silo (Sin QR)'
             ) : (
               'Confirmar Ingreso'

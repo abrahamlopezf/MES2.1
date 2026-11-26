@@ -11,6 +11,7 @@ const {
 const authMiddleware = require('../../middlewares/auth.middleware');
 const permissionMiddleware = require('../../middlewares/permission.middleware');
 const validate = require('../../middlewares/validation.middleware');
+const { requireQrBatchManager } = require('./qrBatchAccess');
 
 const router = express.Router();
 
@@ -35,6 +36,7 @@ router.get(
 
 router.post(
   '/batches',
+  requireQrBatchManager,
   qrPermission('qr.generate', 'qr.create'),
   validate(generateQrBatchSchema),
   qrcodesController.generateQrBatch
@@ -70,12 +72,14 @@ router.get(
 
 router.post(
   '/batches/:id/print',
+  requireQrBatchManager,
   qrPermission('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
   qrcodesController.printQrBatch
 );
 
 router.post(
   '/print-multiple',
+  requireQrBatchManager,
   qrPermission('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
   qrcodesController.printMultipleQrs
 );
@@ -103,7 +107,8 @@ router.post(
 
 router.post(
   '/:uuid/print',
-  qrPermission('dashboard.read'),
+  requireQrBatchManager,
+  qrPermission('qr.create', 'qr.generate'),
   qrcodesController.printQrCode
 );
 

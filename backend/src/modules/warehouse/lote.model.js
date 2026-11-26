@@ -45,6 +45,9 @@ module.exports = (sequelize) => {
       type: DataTypes.DECIMAL(12, 3),
       allowNull: false,
     },
+    // Snapshot of the invoice package; later ODC fulfillment uses whole packages.
+    presentation_quantity: { type: DataTypes.DECIMAL(12, 3), allowNull: true },
+    presentation_unit: { type: DataTypes.STRING(20), allowNull: true },
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,

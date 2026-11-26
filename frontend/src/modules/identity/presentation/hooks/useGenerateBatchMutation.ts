@@ -21,7 +21,8 @@ export const useGenerateBatchMutation = () => {
     'LAM': 'LAMINADO',
     'GLB': 'GLOBO',
     'COR': 'CORTE',
-    'CON': 'CONFECCION',
+    // `CON` is the Telares nomenclature ID; Confección has its own backend area code.
+    'CON': 'TELARES',
     'IMP': 'IMPRENTA',
     'PEG': 'PEGADO',
     'ENS': 'ENSAMBLADO',

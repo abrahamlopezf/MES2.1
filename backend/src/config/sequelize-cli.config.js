@@ -1,5 +1,11 @@
+'use strict';
+
 process.env.TZ = process.env.TZ || 'America/Mexico_City';
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config();
+
+const { validateAndResolveDbConfig, assertSequelizeCliProfile, EnvironmentGuardError } = require('./dbGuard');
 
 const common = {
   dialect: 'postgres',
@@ -9,41 +15,58 @@ const common = {
   seederStorageTableName: 'sequelize_data',
 };
 
-module.exports = {
-  development: {
-    username: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'sistema_enterprise',
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
+const currentValidation = validateAndResolveDbConfig(process.env);
+const explicitCliEnv = process.argv.find((arg) => arg.startsWith('--env='))?.slice('--env='.length)
+  || (process.argv.includes('--env') ? process.argv[process.argv.indexOf('--env') + 1] : null);
+const cliEnvironment = explicitCliEnv || process.env.NODE_ENV || 'development';
+assertSequelizeCliProfile(cliEnvironment, currentValidation);
 
-    ...common,
+function getMigratorCredentials(appEnv) {
+  if (appEnv === 'local' || appEnv === 'test') {
+    dotenv.config({ path: path.resolve(__dirname, '../../.env.migrator.local') });
+  }
+
+  const prefix = appEnv === 'test' ? 'TRACEFLOW_QA_MIGRATOR' : 'TRACEFLOW_DEV_MIGRATOR';
+  const username = process.env[`${prefix}_USER`]?.trim();
+  const password = process.env[`${prefix}_PASSWORD`];
+  if (!username || !password) {
+    throw new EnvironmentGuardError(
+      'MISSING_MIGRATOR_CREDENTIALS',
+      `Se requieren ${prefix}_USER y ${prefix}_PASSWORD para ejecutar migraciones en APP_ENV='${appEnv}'.`
+    );
+  }
+  return { username, password };
+}
+
+const remoteConfig = {
+  use_env_variable: 'DATABASE_URL',
+  dialect: 'postgres',
+  dialectOptions: {
+    ssl: { require: true, rejectUnauthorized: false },
   },
+  logging: false,
+  ...common,
+};
 
-  test: {
-    username: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    database: `${process.env.DB_NAME || 'sistema_enterprise'}_test`,
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-
-    ...common,
-  },
-
-  production: {
-    use_env_variable: 'DATABASE_URL',
-
-    dialect: 'postgres',
-
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
-
+const localMigrationConfig = () => {
+  const credentials = getMigratorCredentials(currentValidation.appEnv);
+  return {
+    username: credentials.username,
+    password: credentials.password,
+    database: currentValidation.name,
+    host: currentValidation.host,
+    port: currentValidation.port,
     logging: false,
-
     ...common,
-  },
+  };
+};
+
+const localConfig = currentValidation.isRemoteEnv ? remoteConfig : localMigrationConfig();
+
+module.exports = {
+  local: localConfig,
+  development: localConfig,
+  test: localConfig,
+  uat: remoteConfig,
+  production: remoteConfig,
 };

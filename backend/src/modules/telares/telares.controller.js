@@ -148,7 +148,7 @@ exports.deleteOperator = async (req, res, next) => {
 exports.loadCreel = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { rack_id, spools_to_load, scanned_qr } = req.body;
+    const { rack_id, spools_to_load, scanned_qr, bom_id } = req.body;
     const operator_id = req.user?.id;
     const result = await telaresService.loadLoomCreel({
       loom_id: Number(id),
@@ -156,6 +156,7 @@ exports.loadCreel = async (req, res, next) => {
       spools_to_load: Number(spools_to_load),
       scanned_qr,
       operator_id,
+      bom_id: bom_id == null ? null : Number(bom_id),
     });
     res.status(200).json(result);
   } catch (err) {

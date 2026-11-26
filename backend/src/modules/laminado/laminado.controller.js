@@ -1,4 +1,5 @@
 const laminadoService = require('./laminado.service');
+const telaresScrapObservationService = require('../wip/telaresScrapObservation.service');
 
 class LaminadoController {
   async getSpecifications(req, res, next) {
@@ -58,6 +59,13 @@ class LaminadoController {
     }
   }
 
+  async reportTelaresScrap(req, res, next) {
+    try {
+      const data = await telaresScrapObservationService.record({ ...req.body, destinationAreaCode: 'LAMINADO', userId: req.user.id });
+      return res.status(201).json({ success: true, data });
+    } catch (err) { next(err); }
+  }
+
   async assessRollMaterials(req, res, next) {
     try {
       const { roll_id, specification_id } = req.body;
@@ -70,11 +78,12 @@ class LaminadoController {
 
   async createOdcForRoll(req, res, next) {
     try {
-      const { roll_id, specification_id, missing_materials, notes } = req.body;
+      const { roll_id, specification_id, missing_materials, additional_materials, notes } = req.body;
       const data = await laminadoService.createOdcForRoll({
         roll_id,
         specification_id,
         missing_materials,
+        additional_materials,
         user_id: req.user.id,
         notes,
       });

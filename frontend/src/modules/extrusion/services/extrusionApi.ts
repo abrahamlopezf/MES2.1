@@ -5,6 +5,7 @@ import {
   Formula,
   SwitchQueuePriorityPayload,
   EnqueueMixPayload,
+  TransferMixContainerPayload,
   ScanRackPtiPayload,
   ScanRackPtiResponse,
   ExtruderQueue
@@ -23,6 +24,11 @@ export const extrusionApi = {
 
   enqueueMix: async (payload: EnqueueMixPayload): Promise<ExtruderQueue> => {
     const response = await axiosClient.post('/extrusion/queue/enqueue', payload);
+    return response.data.data;
+  },
+
+  transferMixContainer: async (payload: TransferMixContainerPayload): Promise<any> => {
+    const response = await axiosClient.post('/extrusion/queue/transfer-container', payload);
     return response.data.data;
   },
 
@@ -93,7 +99,9 @@ export const extrusionApi = {
 
   getActiveShiftSession: async (): Promise<any | null> => (await axiosClient.post('/extrusion/shifts/session/entry', {})).data.data,
   getCurrentShiftSession: async (): Promise<any | null> => (await axiosClient.get('/extrusion/shifts/session/active')).data.data,
-  openShiftSession: async (payload: { shift_date: string; shift_code: string; confirm_carryover?: boolean; confirm_active_mixture?: boolean; confirmed_mixture_qrs?: string[] }): Promise<any> => (await axiosClient.post('/extrusion/shifts/session/open', payload)).data.data,
+  getShiftSchedule: async (): Promise<any> => (await axiosClient.get('/extrusion/shifts/schedule')).data.data,
+  updateShiftSchedule: async (payload: { shifts: Array<{ code: string; label: string; start_time: string; end_time: string }>; operating_days: number[] }): Promise<any> => (await axiosClient.put('/extrusion/shifts/schedule', payload)).data.data,
+  openShiftSession: async (payload: { shift_date: string; shift_code: string; confirm_carryover?: boolean; confirm_active_mixture?: boolean }): Promise<any> => (await axiosClient.post('/extrusion/shifts/session/open', payload)).data.data,
   closeShiftSession: async (payload: { id: number }): Promise<any> => (await axiosClient.post(`/extrusion/shifts/session/${payload.id}/close`, {})).data.data,
 
   closeShift: async (payload: {

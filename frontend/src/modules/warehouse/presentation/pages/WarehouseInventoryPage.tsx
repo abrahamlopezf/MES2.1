@@ -75,8 +75,8 @@ export const WarehouseInventoryPage: React.FC = () => {
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 pb-32 sm:pb-16">
         {/* Header (Mismo diseño que MaterialModuleHeader) */}
         <section className="bg-card rounded-xl border border-border shadow-sm p-5 w-full">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-0 w-full">
-            <div className="flex-1 w-full min-w-[250px]">
+          <div className="flex w-full min-w-0 flex-col gap-5 2xl:flex-row 2xl:items-end 2xl:justify-between">
+            <div className="w-full min-w-0 flex-1">
               <h1 className="text-3xl font-black text-foreground tracking-tight">Inventario de Almacén</h1>
               <p className="text-muted-foreground font-semibold mt-1">Gestión y consulta de existencias físicas en tiempo real.</p>
               
@@ -87,13 +87,13 @@ export const WarehouseInventoryPage: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full lg:w-auto gap-2 sm:gap-3 shrink-0">
+            <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 2xl:w-auto 2xl:grid-cols-4 sm:gap-3">
               <Button 
                 variant="outline"
                 size="lg" 
                 onClick={() => refetch()} 
                 disabled={isRefetching}
-                className="font-bold shadow-sm w-full justify-center h-12 text-base bg-background text-foreground border-border hover:bg-muted"
+                className="h-12 w-full min-w-0 justify-center gap-2 px-3 text-center text-sm font-bold shadow-sm bg-background text-foreground border-border hover:bg-muted sm:text-base"
               >
                 <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0 ${isRefetching ? 'animate-spin' : ''}`} />
                 <span className="leading-tight">Actualizar</span>
@@ -103,7 +103,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                   variant="destructive"
                   size="lg"
                   onClick={() => setIsBajaModalOpen(true)}
-                  className="font-bold shadow-sm w-full justify-center bg-red-600 hover:bg-red-700 text-white h-12 text-base"
+                  className="h-12 w-full min-w-0 justify-center gap-2 px-3 text-center text-sm font-bold shadow-sm bg-red-600 hover:bg-red-700 text-white sm:text-base"
                 >
                   <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
                   <span className="leading-tight">Baja</span>
@@ -114,7 +114,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                   variant="primary"
                   size="lg"
                   onClick={() => setIsConsumoModalOpen(true)}
-                  className="font-bold shadow-sm w-full justify-center bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-12 text-base"
+                  className="h-12 w-full min-w-0 justify-center gap-2 px-3 text-center text-sm font-bold shadow-sm bg-blue-600 hover:bg-blue-700 text-white border-blue-600 sm:text-base"
                 >
                   <QrCode className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
                   <span className="leading-tight">Consumo</span>
@@ -125,7 +125,7 @@ export const WarehouseInventoryPage: React.FC = () => {
                   variant="secondary"
                   size="lg"
                   onClick={() => setIsManualEntryModalOpen(true)}
-                  className="font-bold shadow-sm w-full justify-center bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700 h-12 text-base"
+                  className="h-12 w-full min-w-0 justify-center gap-2 px-3 text-center text-sm font-bold shadow-sm bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700 sm:text-base"
                 >
                   <Layers className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0" />
                   <span className="leading-tight">Ingreso</span>

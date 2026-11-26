@@ -5,6 +5,7 @@ const permissionMiddleware = require('../../middlewares/permission.middleware');
 const roleMiddleware = require('../../middlewares/role.middleware');
 const requireTemporaryMixApproval = require('./middlewares/temporaryMixApproval.middleware');
 const env = require('../../config/env');
+const { isAreaAdministrator } = require('../../shared/security/areaRolePolicy');
 
 const router = express.Router();
 
@@ -15,6 +16,8 @@ const authorizePermission = (...permissions) => (req, res, next) => {
   if (['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION'].includes(roleCode)) return next();
   return permissionAuthorizer(...permissions)(req, res, next);
 };
+const normalizeRoleCode = (role) => String(role || '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
 const authorizeSiloAdministration = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN');
 const authorizeSiloRead = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION');
 
@@ -52,22 +55,19 @@ const stripFinancialFields = (value, activePath = new WeakSet()) => {
   }
 };
 
-const requireFormulaIngredientEditor = (req, res, next) => {
-  if (!Object.prototype.hasOwnProperty.call(req.body || {}, 'ingredients')) return next();
-  const roleCode = (req.user?.role?.code || req.user?.role?.name || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
-  const allowedRoles = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'SUPERADMIN'];
-  if (allowedRoles.includes(roleCode)) return next();
+const requireExtrusionCatalogAdministrator = (req, res, next) => {
+  if (isAreaAdministrator(req.user, 'EXTRUSION')) return next();
   return res.status(403).json({
     success: false,
-    message: 'Solo Admin de Extrusión, Admin y Superadmin pueden modificar los ingredientes de una fórmula.'
+    message: 'Solo administración de Extrusión puede modificar fórmulas y fichas PTI.'
   });
 };
 
 // Control de acceso: Superadmin, Admin General o roles operativos de extrusión
 const requireExtrusionAccess = (req, res, next) => {
-  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
+  const roleCode = normalizeRoleCode(req.user?.role?.code || req.user?.role?.name || req.user?.role);
   const executiveRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'];
-  const allowedRoles = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'];
+  const allowedRoles = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'SUPERVISOR_EXTRUSION', 'SUPERVISOR_DE_EXTRUSION', 'OPERADOR_EXTRUSION'];
   const telaresCatalogRoles = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'];
   // Telares needs the read-only Extrusion PTI catalog to define its BOM inputs.
   // Keep this exception limited to the list endpoint; no other Extrusion route is opened.
@@ -93,11 +93,18 @@ const requireExtrusionFinancialAccess = (req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso financiero restringido a administración autorizada de Extrusión.' });
 };
 
+const requireShiftScheduleEditor = (req, res, next) => {
+  const roleCode = normalizeRoleCode(req.user?.role?.code || req.user?.role?.name || req.user?.role);
+  const allowed = ['ADMIN_EXT', 'ADMIN_EXTRUSION', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'SUPERADMIN'];
+  if (allowed.includes(roleCode)) return next();
+  return res.status(403).json({ success: false, message: 'Solo Admin general, Admin de Extrusión y Superadmin pueden modificar los horarios de turno.' });
+};
+
 router.use(authenticate);
 router.use(requireExtrusionAccess);
 router.use((req, res, next) => {
-  const roleCode = String(req.user?.role?.code || req.user?.role?.name || '').toUpperCase();
-  if (roleCode !== 'SUPERVISOR_EXTRUSION') return next();
+  const roleCode = normalizeRoleCode(req.user?.role?.code || req.user?.role?.name || req.user?.role);
+  if (!['SUPERVISOR_EXTRUSION', 'SUPERVISOR_DE_EXTRUSION'].includes(roleCode)) return next();
 
   req.body = stripFinancialFields(req.body || {});
   const json = res.json.bind(res);
@@ -110,19 +117,22 @@ const requireActiveShift = ({ allowExpired = false } = {}) => async (req, res, n
     const { ExtrusionShiftSession } = require('../../database/models');
     const session = await ExtrusionShiftSession.findOne({ where: { status: 'ABIERTO' }, order: [['opened_at', 'DESC']] });
     if (!session) return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_REQUIRED', message: 'No hay turno de Extrusión abierto. El supervisor responsable debe iniciarlo antes de operar.' });
-    const roleCode = String(req.user?.role?.code || req.user?.role?.name || req.user?.role || '').toUpperCase();
-    if (roleCode === 'SUPERVISOR_EXTRUSION' && Number(session.supervisor_id) !== Number(req.user?.id)) {
+    const roleCode = normalizeRoleCode(req.user?.role?.code || req.user?.role?.name || req.user?.role);
+    if (['SUPERVISOR_EXTRUSION', 'SUPERVISOR_DE_EXTRUSION'].includes(roleCode) && Number(session.supervisor_id) !== Number(req.user?.id)) {
       return res.status(403).json({ success: false, code: 'EXTRUSION_SHIFT_OWNER_MISMATCH', message: 'El turno está a cargo de otro supervisor de Extrusión.' });
     }
     if (session.handoff_ready_at) {
       return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_HANDOFF_PENDING', message: 'El turno está listo para relevo. Espera a que el supervisor entrante confirme la recepción antes de registrar nuevas operaciones.' });
     }
-    const { isExtrusionShiftExpired } = require('./services/shiftPolicy');
+    const { isExtrusionShiftExpired, getShiftDurationMs } = require('./services/shiftPolicy');
+    const schedule = await require('./extrusion.service').getExtrusionShiftSchedule({ includeNextCode: false });
+    const shiftDurationMs = getShiftDurationMs(schedule, session.shift_code);
     const approvedTemporaryMixOnExpiredShift = env.nodeEnv !== 'production'
       && req.mixApproval?.temporary === true
       && req.mixApproval?.operation === 'EXTRUSION_MIX_PREPARATION';
-    if (!allowExpired && !approvedTemporaryMixOnExpiredShift && isExtrusionShiftExpired(session.opened_at)) {
-      return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_EXPIRED', message: 'El turno superó las 12 horas. El supervisor debe completar el cierre; la custodia de racks se mantiene hasta confirmarlo.' });
+    if (!allowExpired && !approvedTemporaryMixOnExpiredShift && isExtrusionShiftExpired(session.opened_at, new Date(), shiftDurationMs)) {
+      const durationHours = Number((shiftDurationMs / (60 * 60 * 1000)).toFixed(2));
+      return res.status(409).json({ success: false, code: 'EXTRUSION_SHIFT_EXPIRED', message: `El turno superó su duración programada de ${durationHours} horas. El supervisor debe completar el cierre; la custodia de racks se mantiene hasta confirmarlo.` });
     }
     req.extrusionShiftSession = session;
     req.body = { ...(req.body || {}), shift_code: session.shift_code, shift_session_id: session.id };
@@ -150,6 +160,7 @@ router.get('/mix-requests', authorizePermission('extrusion.formulas.view', 'extr
 // PISO DE EXTRUSIÓN & CONTROL DE COLAS & SCRAP
 // ==========================================
 router.post('/queue/switch', requireActiveShift(), extrusionController.switchQueue);
+router.post('/queue/transfer-container', requireActiveShift(), extrusionController.transferQueuedMixContainer);
 router.post('/rack/scan', requireActiveShift(), extrusionController.scanRack);
 router.get('/queue', extrusionController.getQueues);
 router.get('/purge-materials', extrusionController.getPurgeMaterials);
@@ -159,17 +170,17 @@ router.get('/racks', extrusionController.getRacks);
 router.post('/racks', extrusionController.createRack);
 // Piso de formulas y edicion de indice de multiplicacion
 router.get('/floor-formulas', extrusionController.getExtrusionFormulas);
-router.post('/floor-formulas', authorizePermission('extrusion.formulas.manage'), extrusionController.createFormula);
+router.post('/floor-formulas', requireExtrusionCatalogAdministrator, extrusionController.createFormula);
 router.get('/floor-formulas/:id', extrusionController.getFormulaById);
-router.put('/floor-formulas/:id', requireFormulaIngredientEditor, extrusionController.updateFormula);
-router.put('/formulas/:id', requireFormulaIngredientEditor, extrusionController.updateFormula);
+router.put('/floor-formulas/:id', requireExtrusionCatalogAdministrator, extrusionController.updateFormula);
+router.put('/formulas/:id', requireExtrusionCatalogAdministrator, extrusionController.updateFormula);
 
 // Catalogo de PTI (Carretes / Bobinas Salientes)
 router.get('/pti-products', extrusionController.getPtiProducts);
 router.get('/pti-products/:id', extrusionController.getPtiProductById);
-router.post('/pti-products', authorizePermission('extrusion.formulas.manage'), extrusionController.createPtiProduct);
-router.put('/pti-products/:id', authorizePermission('extrusion.formulas.manage'), extrusionController.updatePtiProduct);
-router.delete('/pti-products/:id', authorizePermission('extrusion.formulas.manage'), extrusionController.deletePtiProduct);
+router.post('/pti-products', requireExtrusionCatalogAdministrator, extrusionController.createPtiProduct);
+router.put('/pti-products/:id', requireExtrusionCatalogAdministrator, extrusionController.updatePtiProduct);
+router.delete('/pti-products/:id', requireExtrusionCatalogAdministrator, extrusionController.deletePtiProduct);
 
 // Merma / Scrap y Balance de Masa
 router.post('/scrap', requireActiveShift({ allowExpired: true }), extrusionController.registerScrap);
@@ -180,6 +191,8 @@ router.get('/shifts/activity', extrusionController.getExtrusionShiftActivity);
 router.get('/shifts/report', extrusionController.getExtrusionShiftReport);
 router.get('/shifts/session/active', extrusionController.getActiveExtrusionShiftSession);
 router.post('/shifts/session/entry', extrusionController.getExtrusionShiftEntryState);
+router.get('/shifts/schedule', extrusionController.getExtrusionShiftSchedule);
+router.put('/shifts/schedule', requireShiftScheduleEditor, extrusionController.updateExtrusionShiftSchedule);
 router.post('/shifts/session/open', extrusionController.openExtrusionShiftSession);
 router.post('/shifts/session/:id/close', extrusionController.closeExtrusionShiftSession);
 router.post('/shifts/close', requireActiveShift({ allowExpired: true }), extrusionController.closeExtrusionShift);

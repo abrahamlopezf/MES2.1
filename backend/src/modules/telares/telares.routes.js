@@ -3,6 +3,7 @@ const router = express.Router();
 const telaresController = require('./telares.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
 const roleMiddleware = require('../../middlewares/role.middleware');
+const { isAreaAdministrator } = require('../../shared/security/areaRolePolicy');
 
 // Todas las rutas protegidas por autenticación
 router.use(authMiddleware);
@@ -33,6 +34,10 @@ const requireTelaresAdministratorOrSupervisor = (req, res, next) => {
   if (allowedRoles.includes(roleCode)) return next();
   return res.status(403).json({ success: false, message: 'Solo administración o supervisión de Telares puede modificar esta configuración.' });
 };
+const requireTelaresCatalogAdministrator = (req, res, next) => {
+  if (isAreaAdministrator(req.user, 'TELARES')) return next();
+  return res.status(403).json({ success: false, message: 'Solo administración de Telares puede modificar fichas PTI.' });
+};
 
 // Rutas de Telares y Racks
 router.get('/subareas', telaresController.getSubareas);
@@ -41,9 +46,9 @@ router.post('/looms', requireTelaresAdministratorOrSupervisor, telaresController
 router.put('/looms/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateLoom);
 router.delete('/looms/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteLoom);
 router.get('/boms', telaresController.getBoms);
-router.post('/boms', requireTelaresAdministratorOrSupervisor, telaresController.createBom);
-router.put('/boms/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateBom);
-router.delete('/boms/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteBom);
+router.post('/boms', requireTelaresCatalogAdministrator, telaresController.createBom);
+router.put('/boms/:id', requireTelaresCatalogAdministrator, telaresController.updateBom);
+router.delete('/boms/:id', requireTelaresCatalogAdministrator, telaresController.deleteBom);
 router.get('/operators', telaresController.getOperators);
 router.post('/operators', requireTelaresAdministratorOrSupervisor, telaresController.createOperator);
 router.put('/operators/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateOperator);

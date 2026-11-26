@@ -1,41 +1,65 @@
-// Fallback horario provisional para reportes históricos sin sesión operativa.
-// Los turnos actuales miden su ventana real con opened_at / closed_at; se toma
-// 06:00 como ancla provisional hasta que la empresa confirme la hora oficial.
-const SHIFT_BOUNDARIES = {
-  TURNO_1: [6, 18],
-  TURNO_2: [18, 6],
+const DEFAULT_SHIFT_SCHEDULE = {
+  shifts: [
+    { code: 'TURNO_1', label: 'Turno 1', start_time: '06:00', end_time: '18:00', duration_hours: 12 },
+    { code: 'TURNO_2', label: 'Turno 2', start_time: '18:00', end_time: '06:00', duration_hours: 12 },
+  ],
 };
 
-function getExtrusionShiftWindow(shiftDate, shiftCode) {
+function getExtrusionShiftWindow(shiftDate, shiftCode, schedule = DEFAULT_SHIFT_SCHEDULE) {
   const code = String(shiftCode || '').trim().toUpperCase();
-  const hours = SHIFT_BOUNDARIES[code];
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(shiftDate || '')) || !hours) {
+  const shift = (schedule?.shifts || DEFAULT_SHIFT_SCHEDULE.shifts).find((item) => String(item.code).toUpperCase() === code);
+  const parseTime = (value) => {
+    const match = /^(\d{2}):(\d{2})$/.exec(String(value || ''));
+    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+  };
+  const startMinute = parseTime(shift?.start_time);
+  const endMinute = parseTime(shift?.end_time);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(shiftDate || '')) || !shift || startMinute == null || endMinute == null) {
     throw Object.assign(new Error('Fecha o turno inválido.'), { statusCode: 400 });
   }
   // Planta usa hora CDMX (UTC-06:00); shiftDate representa el día en que inicia el turno.
-  const start = new Date(`${shiftDate}T${String(hours[0]).padStart(2, '0')}:00:00-06:00`);
-  const end = new Date(`${shiftDate}T${String(hours[1]).padStart(2, '0')}:00:00-06:00`);
-  if (hours[1] <= hours[0]) end.setUTCDate(end.getUTCDate() + 1);
+  const format = (minute) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}:00`;
+  const start = new Date(`${shiftDate}T${format(startMinute)}-06:00`);
+  const end = new Date(`${shiftDate}T${format(endMinute)}-06:00`);
+  if (endMinute <= startMinute) end.setUTCDate(end.getUTCDate() + 1);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     throw Object.assign(new Error('Fecha de turno inválida.'), { statusCode: 400 });
   }
   return { start, end };
 }
 
-function getShiftDateForInstant(date = new Date()) {
+const getMexicoCityParts = (instant) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(instant).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
+};
+
+function getShiftDateForInstant(date = new Date(), schedule = DEFAULT_SHIFT_SCHEDULE) {
   const current = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(current.getTime())) throw new Error('Fecha actual inválida.');
-  const dateParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(current).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
-  const calendarDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
-  const hour = Number(new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Mexico_City', hour: '2-digit', hourCycle: 'h23',
-  }).format(current));
-  if (hour >= 6) return calendarDate;
+  const { date: calendarDate, minutes } = getMexicoCityParts(current);
+  const firstShift = (schedule?.shifts || DEFAULT_SHIFT_SCHEDULE.shifts)
+    .map((shift) => ({ shift, minutes: Number(String(shift.start_time).slice(0, 2)) * 60 + Number(String(shift.start_time).slice(3, 5)) }))
+    .sort((a, b) => a.minutes - b.minutes)[0];
+  if (!firstShift || minutes >= firstShift.minutes) return calendarDate;
   const previous = new Date(`${calendarDate}T00:00:00.000Z`);
   previous.setUTCDate(previous.getUTCDate() - 1);
   return previous.toISOString().slice(0, 10);
+}
+
+function getShiftCodeForInstant(date = new Date(), schedule = DEFAULT_SHIFT_SCHEDULE) {
+  const current = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(current.getTime())) throw new Error('Fecha actual inválida.');
+  const { minutes } = getMexicoCityParts(current);
+  const shifts = schedule?.shifts || DEFAULT_SHIFT_SCHEDULE.shifts;
+  for (const shift of shifts) {
+    const start = Number(String(shift.start_time).slice(0, 2)) * 60 + Number(String(shift.start_time).slice(3, 5));
+    const end = Number(String(shift.end_time).slice(0, 2)) * 60 + Number(String(shift.end_time).slice(3, 5));
+    const contains = end > start ? minutes >= start && minutes < end : minutes >= start || minutes < end;
+    if (contains) return shift.code;
+  }
+  return shifts[0]?.code || 'TURNO_1';
 }
 
 function calculateShiftBalance({
@@ -122,9 +146,12 @@ function calculatePtiOutputEstimate(entries = [], consumedKg = null) {
     const pieces = Math.max(0, Number(entry.pieces) || 0);
     const standardWeight = Number(entry.standard_unit_weight_kg);
     const netWeight = Math.max(0, Number(entry.net_weight_kg) || 0);
-    usefulPtiKg += entry.standard_unit_weight_kg != null && Number.isFinite(standardWeight) && standardWeight > 0
-      ? pieces * standardWeight
-      : netWeight;
+    const weightSource = String(entry.weight_source || '').trim().toUpperCase();
+    usefulPtiKg += weightSource === 'BASCULA'
+      ? netWeight
+      : entry.standard_unit_weight_kg != null && Number.isFinite(standardWeight) && standardWeight > 0
+        ? pieces * standardWeight
+        : netWeight;
     observedPieces += pieces;
     if (entry.standard_unit_weight_kg != null && Number.isFinite(standardWeight) && standardWeight > 0 && pieces > 0) {
       standardWeightTotal += standardWeight * pieces;
@@ -147,4 +174,4 @@ function hasQualifyingShiftActivity({ productionEntries = 0, preparedMixes = 0, 
   return Number(productionEntries) + Number(preparedMixes) + Number(transitions) > 0;
 }
 
-module.exports = { getExtrusionShiftWindow, getShiftDateForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity };
+module.exports = { getExtrusionShiftWindow, getShiftDateForInstant, getShiftCodeForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity };

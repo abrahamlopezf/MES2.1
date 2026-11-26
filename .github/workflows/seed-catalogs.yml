@@ -1,24 +1,30 @@
-name: Seed Catalog Data (Production)
+name: Seed Catalog Data (Controlled)
 
 on:
-  # Se dispara manualmente desde GitHub → Actions → "Run workflow"
   workflow_dispatch:
     inputs:
+      target_environment:
+        description: 'Ambiente destino (uat o production)'
+        required: true
+        default: 'uat'
+        type: choice
+        options:
+          - uat
+          - production
       confirm:
-        description: 'Escribe "SEED" para confirmar la carga de catálogos en Neon'
+        description: 'Escribe "SEED_CONFIRMADO" para confirmar la carga idempotente de catálogos'
         required: true
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   seed-catalogs:
-    name: Seed Catalogs → Neon
-    environment: production
+    name: Seed Catalogs -> ${{ inputs.target_environment }}
+    environment: ${{ inputs.target_environment }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    # Solo corre si el usuario escribió "SEED" como confirmación
-    if: ${{ github.event.inputs.confirm == 'SEED' }}
-
+    if: ${{ github.event.inputs.confirm == 'SEED_CONFIRMADO' }}
     defaults:
       run:
         working-directory: backend
@@ -40,23 +46,27 @@ jobs:
       - name: Validate DB connection (pre-check)
         run: node src/scripts/validate-migration.js
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run pending migrations first
-        run: npm run db:migrate
+        run: npx sequelize-cli db:migrate --env ${{ inputs.target_environment }}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Seed catalog data into Neon
-        run: npm run db:seed:catalog
+      - name: Seed catalog data
+        run: npx sequelize-cli db:seed --seed 20260826120000-production-catalog-data.js --env ${{ inputs.target_environment }}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Verify seeded rows (spot-check)
         run: node src/scripts/verify-catalog-seed.js
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

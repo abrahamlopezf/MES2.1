@@ -6,4 +6,8 @@ module.exports = (sequelize, DataTypes) => sequelize.define('CorteLaminadoOrderI
   picked_by: { type: DataTypes.INTEGER, allowNull: true },
   picked_at: { type: DataTypes.DATE, allowNull: true },
   processed_at: { type: DataTypes.DATE, allowNull: true },
+  dispatched_by: { type: DataTypes.INTEGER, allowNull: true },
+  dispatched_at: { type: DataTypes.DATE, allowNull: true },
+  received_by: { type: DataTypes.INTEGER, allowNull: true },
+  received_at: { type: DataTypes.DATE, allowNull: true },
 }, { tableName: 'corte_laminado_order_items', timestamps: true, underscored: true });

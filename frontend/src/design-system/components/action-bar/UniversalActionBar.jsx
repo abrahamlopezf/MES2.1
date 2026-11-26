@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect } from 'react';
+import React, { forwardRef } from 'react';
 import { ComponentHealth } from '../../foundation/ComponentHealth';
 import { createComponentMetadata } from '../../foundation/ComponentMetadata';
 import { tokens } from '../../foundation/tokens';
@@ -21,7 +21,7 @@ export const UniversalActionBar = forwardRef(({
   ComponentHealth.check('UniversalActionBar');
 
   // Policy Validations en tiempo de desarrollo
-  if (process.env.NODE_ENV !== 'production') {
+  if (import.meta.env.DEV) {
     if (primaryActions.length === 0 && secondaryActions.length === 0) {
       throw new Error(`[MES_POLICY_VIOLATION] UniversalActionBar requiere al menos una acción.`);
     }

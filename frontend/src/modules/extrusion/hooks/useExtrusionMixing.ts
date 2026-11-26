@@ -4,6 +4,7 @@ import { apiClient } from '../../../core/api/apiClient';
 interface MixInput {
   qr_code: string;
   quantity: number;
+  material_id?: number;
 }
 
 interface MixPayload {
@@ -60,12 +61,13 @@ export const useMixFormula = () => {
   });
 };
 
-export const useFormulaDetails = (formulaId: string | number | undefined) => {
+export const useFormulaDetails = (formulaId: string | number | undefined, preparationId?: number | null) => {
   return useQuery({
-    queryKey: ['extrusion', 'formula-details', formulaId],
+    queryKey: ['extrusion', 'formula-details', formulaId, preparationId || null],
     queryFn: async () => {
       if (!formulaId) return null;
-      const res: any = await apiClient.get(`/extrusion/formulas/${formulaId}`);
+      const params = preparationId ? `?preparation_id=${encodeURIComponent(preparationId)}` : '';
+      const res: any = await apiClient.get(`/extrusion/formulas/${formulaId}${params}`);
       return res?.data || res;
     },
     // Keep the QR-backed WIP and FIFO suggestions fresh while the mixing

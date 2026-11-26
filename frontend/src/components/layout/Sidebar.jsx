@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { useUsersQuery } from "../../modules/users/hooks/useUsers";
 import { Icon, renderAnyIcon } from "../../design-system";
-import { isAdminUser, isSupervisorUser, getUserAreaCode, ADMIN_ROLES } from "../../utils/authHelpers";
+import { isAdminUser, isSupervisorUser, getUserAreaCode, ADMIN_ROLES, canManageUsers } from "../../utils/authHelpers";
 
 const menuGroups = [
   {
@@ -47,7 +47,7 @@ const menuGroups = [
     permission: ["qr.create", "qr.history.read", "qr.events.read"],
     isGroup: true,
     children: [
-      { label: "Generar Lote", path: "/identity/generate", icon: "qr_code", permission: "qr.create" },
+      { label: "Generar Lote", path: "/identity/generate", icon: "qr_code", permission: "qr.create", restrictToRoles: true, allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM", "ADMIN_ALMACEN"] },
       { label: "Historial QRs", path: "/qrcodes", icon: "format_list_bulleted", permission: ["qr.history.read", "qr.events.read"] }
     ]
   },
@@ -185,11 +185,13 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
     : hasPermission(item.permission);
 
   const userRole = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
+  const isUserManagementAdmin = item.label === 'Gestión de Usuarios' && canManageUsers(user);
+  hasAccess = hasAccess || isUserManagementAdmin;
+  const isDeniedUserManagementGroup = item.label === 'Gestión de Usuarios' && isSupervisorUser(user);
   const isExtrusionSupervisor = userRole === 'SUPERVISOR_EXTRUSION';
   const isTelaresSupervisor = userRole === 'SUPERVISOR_TELARES';
-  const isTelaresUserManager = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'].includes(userRole);
   useEffect(() => {
-    if (item.label === 'Gestión de Usuarios' && ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES'].includes(userRole)) {
+    if (item.label === 'Gestión de Usuarios' && ['ADMIN_TELARES', 'ADMIN_TEL'].includes(userRole)) {
       setIsOpen(true);
     }
   }, [item.label, userRole]);
@@ -197,7 +199,7 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
   const isTelaresSupervisorHome = item.path === '/dashboard' && isSupervisorUser(user) && getUserAreaCode(user) === 'TELARES';
   const isHiddenForRole = item.hiddenRoles?.some(r => r.toUpperCase() === userRole);
   const isAllowedRole = isGlobalAdmin || !item.allowedRoles || item.allowedRoles.some(r => r.toUpperCase() === userRole);
-  if ((!hasAccess && !isGlobalAdmin && !isExtrusionSupervisor && !isTelaresSupervisor && !isTelaresSupervisorHome) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
+  if (isDeniedUserManagementGroup || (!hasAccess && !isGlobalAdmin && !isExtrusionSupervisor && !isTelaresSupervisor && !isTelaresSupervisorHome) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
 
   if (!item.isGroup) {
     return (
@@ -282,10 +284,13 @@ const SidebarItem = ({ item, pendingUsersCount, isCollapsed, onExpand, onMobileC
               ? hasAnyPermission(child.permission)
               : hasPermission(child.permission);
             const isGlobalAdmin = ADMIN_ROLES.includes(userRole);
+            const isAreaUserManager = canManageUsers(user) && !isGlobalAdmin;
             const isHiddenForRole = child.hiddenRoles?.some(r => r.toUpperCase() === userRole);
-            const isAllowedRole = isGlobalAdmin || isExtrusionSupervisor || isTelaresSupervisor || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
-            const isTelaresUsersLink = isTelaresUserManager && child.path === '/users';
-            if ((!hasChildAccess && !isGlobalAdmin && !isExtrusionSupervisor && !isTelaresSupervisor && !isTelaresUsersLink) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
+            const isAllowedRole = child.restrictToRoles
+              ? child.allowedRoles?.some(r => r.toUpperCase() === userRole)
+              : isGlobalAdmin || isExtrusionSupervisor || isTelaresSupervisor || !child.allowedRoles || child.allowedRoles.some(r => r.toUpperCase() === userRole);
+            const isAreaUsersLink = isAreaUserManager && child.path === '/users';
+            if ((!hasChildAccess && !isGlobalAdmin && !isExtrusionSupervisor && !isTelaresSupervisor && !isAreaUsersLink) || (isHiddenForRole && !isGlobalAdmin) || !isAllowedRole) return null;
             if (child.onClick) {
               return (
                 <button
@@ -382,12 +387,12 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
       }
 
       // 1. REGLA ESTRICTA SUPERVISORES:
-      // - Solo Supervisor de Extrusión puede acceder a usuarios de su área
+      // - Ningún supervisor puede abrir el módulo administrativo de usuarios
       // - Solo tiene acceso a su propia área (las demás áreas/procesos ocultos)
       // - Dashboard e Identidad y Lotes sí están disponibles (limitados)
       if (isSupervisor) {
         if (group.label === 'Gestión de Usuarios') {
-          return (userRole === 'SUPERVISOR_EXTRUSION' && userArea === 'EXTRUSION') || (userRole === 'SUPERVISOR_TELARES' && userArea === 'TELARES');
+          return false;
         }
         if (group.label === 'Dashboard' || group.label === 'Identidad y Lotes') {
           return true;
@@ -454,7 +459,7 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
       if (isTelaresOperator && group.label === 'Telares') {
         return { ...group, children: group.children?.filter(child => child.path === '/production/telares') };
       }
-      if ((isWarehouseUser || isExtrusionAdmin || isTelaresAdmin || (isSupervisor && ['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(userRole))) && group.label === 'Gestión de Usuarios') {
+      if ((isWarehouseUser || isExtrusionAdmin || isTelaresAdmin) && group.label === 'Gestión de Usuarios') {
         return {
           ...group,
           children: group.children?.filter(child => child.path === '/users')

@@ -16,22 +16,24 @@ export interface LaminadoSpecificationMaterial {
 export interface LaminadoLoomRollRequirements {
   allowed_bom_ids: number[];
   accepts_from_globo: boolean;
+  accepted_input_stages?: string[];
   min_width_cm?: number;
   max_width_cm?: number;
-  fabric_type: 'TUBULAR' | 'PLANA' | 'CUALQUIERA';
+  fabric_type?: 'TUBULAR' | 'PLANA' | 'CUALQUIERA';
   meters_per_output: number;
   notes?: string;
 }
 
 export interface LaminadoSpecification {
   id: number;
+  is_catalog_master?: boolean;
   code: string;
   output_pti_code: string;
   configuration_status?: 'BORRADOR' | 'ACTIVA';
   name: string;
   description?: string;
   lamination_type: 'EXTRUSION_COATING' | 'MONOCAPA' | 'BICAPA' | 'BOPP_FILM' | 'PAPEL_KRAFT';
-  target_width_cm: number;
+  target_width_cm?: number | null;
   coating_grammage_g_per_m2: number;
   output_product_name: string;
   expected_output_quantity: number;

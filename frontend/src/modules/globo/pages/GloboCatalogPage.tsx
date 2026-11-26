@@ -15,12 +15,10 @@ import {
   Sliders,
   DollarSign,
   Filter,
-  Check,
   X,
   PlusCircle,
   ShieldCheck,
   ChevronRight,
-  Info,
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -29,9 +27,9 @@ import { globoApi } from '../services/globoApi';
 import { telaresApi } from '../../telares/services/telaresApi';
 import axiosClient from '../../../api/axiosClient';
 import { GloboSpecification } from '../types/globo.types';
-import { groupIdenticalRecipeLines } from '../../../shared/utils/groupIdenticalRecipeLines';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
+import { SearchSelect } from '../../../design-system/components/Input/SearchSelect';
 import { toast } from 'sonner';
 
 interface MaterialItemDraft {
@@ -67,6 +65,39 @@ const emptySpecificationForm = () => ({
   materials: [] as MaterialItemDraft[],
 });
 
+const normalizeMaterialName = (name: unknown) => String(name || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLocaleUpperCase('es-MX');
+
+const materialIdentityKey = (material: any) => {
+  const name = normalizeMaterialName(material?.name);
+  if (material?.family_id && name) return `${material.family_id}:${material.base_unit_id ?? 'NULL'}:${name}`;
+  return `MATERIAL:${material?.id ?? material?.material_id}`;
+};
+
+const consolidateMaterialLines = (materials: any[] = []) => {
+  const grouped = new Map<string, { line: any; quantity: number; codes: Set<string>; notes: Set<string> }>();
+  for (const line of materials) {
+    const material = line.material || {};
+    const key = materialIdentityKey({ ...material, id: line.material_id });
+    const current = grouped.get(key) || { line, quantity: 0, codes: new Set<string>(), notes: new Set<string>() };
+    current.quantity += Number(line.quantity || 0);
+    if (material.internal_code) current.codes.add(String(material.internal_code));
+    if (line.notes) current.notes.add(String(line.notes));
+    grouped.set(key, current);
+  }
+  return [...grouped.entries()].map(([key, group]) => ({
+    key,
+    line: group.line,
+    quantity: Number(group.quantity.toFixed(3)),
+    equivalentCodeCount: group.codes.size,
+    notes: [...group.notes].join(' · '),
+  }));
+};
+
 export const GloboCatalogPage: React.FC = () => {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
@@ -79,6 +110,7 @@ export const GloboCatalogPage: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSpecId, setEditingSpecId] = useState<number | null>(null);
+  const [selectedBomToAdd, setSelectedBomToAdd] = useState<number | ''>('');
   const [formData, setFormData] = useState(emptySpecificationForm());
 
   // Queries
@@ -87,16 +119,27 @@ export const GloboCatalogPage: React.FC = () => {
     queryFn: () => globoApi.getSpecifications(),
   });
 
-  const { data: boms = [] } = useQuery({
+  const { data: boms = [], isError: bomsError } = useQuery({
     queryKey: ['telares-boms'],
     queryFn: () => telaresApi.getBoms(),
   });
 
-  const { data: warehouseMaterials = [] } = useQuery({
+  const { data: warehouseMaterials = [], isError: materialsError } = useQuery({
     queryKey: ['warehouse-materials-list'],
     queryFn: async () => {
-      const res = await axiosClient.get('/materials?limit=250');
-      return res.data?.data || res.data || [];
+      const pageSize = 250;
+      const allMaterials: any[] = [];
+      let page = 1;
+      let total = Infinity;
+      while (allMaterials.length < total) {
+        const res = await axiosClient.get('/materials', { params: { page, pageSize, status: 'ACTIVE' } });
+        const rows = Array.isArray(res.data?.data) ? res.data.data : [];
+        allMaterials.push(...rows);
+        total = Number(res.data?.meta?.total ?? allMaterials.length);
+        if (rows.length < pageSize) break;
+        page += 1;
+      }
+      return allMaterials;
     },
   });
   const recipeMaterials = useMemo(() => warehouseMaterials.filter((mat: any) => {
@@ -105,6 +148,21 @@ export const GloboCatalogPage: React.FC = () => {
     const unitName = String(mat.base_unit?.name || mat.unit?.name || '').toUpperCase();
     return unitCode === 'KG' || ['KILOGRAMO', 'KILOGRAMOS'].includes(unitName);
   }), [warehouseMaterials]);
+  const recipeMaterialGroups = useMemo(() => {
+    const groups = new Map<string, any>();
+    for (const material of recipeMaterials) {
+      const key = materialIdentityKey(material);
+      const group = groups.get(key) || { ...material, equivalent_material_ids: [], equivalent_codes: [] };
+      group.equivalent_material_ids.push(Number(material.id));
+      if (material.internal_code) group.equivalent_codes.push(String(material.internal_code));
+      if (Number(material.id) < Number(group.id)) {
+        group.id = Number(material.id);
+        group.internal_code = material.internal_code;
+      }
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'es-MX'));
+  }, [recipeMaterials]);
 
   // Mutations
   const createMutation = useMutation({
@@ -146,12 +204,14 @@ export const GloboCatalogPage: React.FC = () => {
 
   const handleOpenCreate = () => {
     setEditingSpecId(null);
+    setSelectedBomToAdd('');
     setFormData(emptySpecificationForm());
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (spec: GloboSpecification) => {
     setEditingSpecId(spec.id);
+    setSelectedBomToAdd('');
     setFormData({
       code: spec.code,
       output_pti_code: spec.output_pti_code || '',
@@ -159,7 +219,7 @@ export const GloboCatalogPage: React.FC = () => {
       description: spec.description || '',
       process_type: ['EXPANSION', 'FUELLE', 'CALIBRADO', 'REFUERZO'].includes(spec.process_type) ? spec.process_type : 'OTRO',
       custom_process_type: ['EXPANSION', 'FUELLE', 'CALIBRADO', 'REFUERZO'].includes(spec.process_type) ? '' : String(spec.process_type),
-      target_width_cm: spec.target_width_cm == null ? '' : Number(spec.target_width_cm),
+      target_width_cm: '',
       target_grammage_g_per_m: spec.target_grammage_g_per_m == null ? '' : Number(spec.target_grammage_g_per_m),
       output_product_name: spec.output_product_name || '',
       expected_output_quantity: spec.expected_output_quantity == null ? '' : Number(spec.expected_output_quantity),
@@ -169,18 +229,16 @@ export const GloboCatalogPage: React.FC = () => {
       cost_transformation_index: spec.cost_transformation_index == null ? '' : Number(spec.cost_transformation_index),
       loom_roll_requirements: {
         allowed_bom_ids: spec.loom_roll_requirements?.allowed_bom_ids || [],
-        min_width_cm: Number(spec.loom_roll_requirements?.min_width_cm),
-        max_width_cm: Number(spec.loom_roll_requirements?.max_width_cm),
-        fabric_type: spec.loom_roll_requirements?.fabric_type || '',
+        min_width_cm: '',
+        max_width_cm: '',
+        fabric_type: '',
         meters_per_output: Number(spec.loom_roll_requirements?.meters_per_output),
         notes: spec.loom_roll_requirements?.notes || '',
       },
-      materials: (spec.materials || []).map((m) => ({
-        material_id: m.material_id,
-        quantity: Number(m.quantity || 0),
-        unit: m.unit || 'KG',
-        notes: m.notes || '',
-      })),
+      materials: consolidateMaterialLines(spec.materials || []).map(({ line, quantity, notes }) => {
+        const equivalent = recipeMaterialGroups.find((group: any) => group.equivalent_material_ids.includes(Number(line.material_id)));
+        return { material_id: equivalent?.id || line.material_id, quantity, unit: line.unit || 'KG', notes };
+      }),
     });
     setIsModalOpen(true);
   };
@@ -223,24 +281,42 @@ export const GloboCatalogPage: React.FC = () => {
     });
   };
 
+  const isCompatibleTelaresBom = (bom: any) => {
+    if (bom.is_active === false || String(bom.product_kind || '').toUpperCase() !== 'ROLLO_TELA' || !(Number(bom.target_width_cm) > 0)) return false;
+    const routes = Array.isArray(bom.allowed_routes) && bom.allowed_routes.length ? bom.allowed_routes : [bom.default_route];
+    return routes.some((route: any) => Array.isArray(route)
+      && String(route[0] || '').toUpperCase() === 'TELARES'
+      && String(route[1] || '').toUpperCase() === 'GLOBO'
+      && String(route[2] || '').toUpperCase() === 'CORTE');
+  };
+  const selectedBomIds = formData.loom_roll_requirements.allowed_bom_ids;
+  const selectedBomOptions = boms.filter((bom: any) => selectedBomIds.includes(Number(bom.id)));
+  const compatibleBomOptions = boms.filter((bom: any) => !selectedBomIds.includes(Number(bom.id)) && isCompatibleTelaresBom(bom));
+
+  const handleAddSelectedBom = () => {
+    if (!selectedBomToAdd) return;
+    handleBomToggle(Number(selectedBomToAdd));
+    setSelectedBomToAdd('');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const partialMaterial = formData.materials.some((m) => !m.material_id || !Number(m.quantity) || Number(m.quantity) <= 0);
-    if (!formData.code.trim() || !formData.name.trim() || !formData.output_pti_code.trim() || !formData.output_product_name.trim() || partialMaterial) {
-      toast.error('Indica el código y nombre de la ficha y el código y nombre del PTI. Completa o elimina cada línea de insumo iniciada.');
+    if (!formData.code.trim() || !formData.name.trim() || !formData.output_pti_code.trim() || !formData.output_product_name.trim() || formData.loom_roll_requirements.allowed_bom_ids.length === 0 || formData.materials.length === 0 || partialMaterial) {
+      toast.error('Completa la ficha, agrega al menos un rollo compatible de Telares y un material con su consumo.');
       return;
     }
     const payload = {
       ...formData,
       process_type: formData.process_type === 'OTRO' ? formData.custom_process_type.trim().toUpperCase() : formData.process_type || null,
-      target_width_cm: formData.target_width_cm === '' ? null : Number(formData.target_width_cm),
+      target_width_cm: null,
       target_grammage_g_per_m: formData.target_grammage_g_per_m === '' ? null : Number(formData.target_grammage_g_per_m),
       expected_output_quantity: formData.expected_output_quantity === '' ? null : Number(formData.expected_output_quantity),
       expected_output_unit: formData.expected_output_unit || null,
       standard_output_meters: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters),
       standard_waste_percentage: formData.standard_waste_percentage === '' ? null : Number(formData.standard_waste_percentage),
       cost_transformation_index: allowCosts && formData.cost_transformation_index !== '' ? Number(formData.cost_transformation_index) : null,
-      loom_roll_requirements: { ...formData.loom_roll_requirements, min_width_cm: formData.loom_roll_requirements.min_width_cm === '' ? null : Number(formData.loom_roll_requirements.min_width_cm), max_width_cm: formData.loom_roll_requirements.max_width_cm === '' ? null : Number(formData.loom_roll_requirements.max_width_cm), meters_per_output: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters) },
+      loom_roll_requirements: { allowed_bom_ids: formData.loom_roll_requirements.allowed_bom_ids, meters_per_output: formData.standard_output_meters === '' ? null : Number(formData.standard_output_meters), notes: formData.loom_roll_requirements.notes },
       materials: formData.materials
         .map((m) => ({
           material_id: Number(m.material_id),
@@ -434,7 +510,7 @@ export const GloboCatalogPage: React.FC = () => {
                 <div>
                   <span className="text-slate-500 block">Ancho / Gramaje:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {spec.target_width_cm ?? '—'} cm | {spec.target_grammage_g_per_m ?? '—'} g/m
+                    {spec.allowed_boms?.length ? `Ancho de entrada: ${[...new Set(spec.allowed_boms.map((bom) => Number(bom.target_width_cm)).filter((width) => width > 0))].join(' / ')} cm` : 'Ancho de entrada pendiente'} | {spec.target_grammage_g_per_m ?? '—'} g/m
                   </span>
                 </div>
                 <div>
@@ -453,7 +529,7 @@ export const GloboCatalogPage: React.FC = () => {
                     Rollos de Telares Admitidos:
                   </span>
                   <span>
-                    {spec.loom_roll_requirements?.fabric_type || 'Tipo sin definir'} · {spec.loom_roll_requirements?.min_width_cm ?? '—'}–{spec.loom_roll_requirements?.max_width_cm ?? '—'} cm
+                    {spec.allowed_boms?.length || 0} ficha(s) compatibles de Telares
                   </span>
                 </div>
 
@@ -468,7 +544,7 @@ export const GloboCatalogPage: React.FC = () => {
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-slate-400 italic">Cualquier rollo tubular compatible</span>
+                    <span className="text-xs text-slate-400 italic">No hay rollos configurados</span>
                   )}
                 </div>
               </div>
@@ -482,21 +558,21 @@ export const GloboCatalogPage: React.FC = () => {
 
                 <div className="space-y-1">
                   {spec.materials && spec.materials.length > 0 ? (
-                    groupIdenticalRecipeLines(spec.materials).map(({ line: m, count, totalQuantity }) => (
+                    consolidateMaterialLines(spec.materials).map(({ key, line: m, quantity, equivalentCodeCount }) => (
                       <div
-                        key={`${m.material_id}-${m.quantity}-${m.unit}-${m.notes ?? ''}`}
+                        key={`${key}-${m.unit}`}
                         className="flex min-w-0 flex-col gap-1 rounded border border-purple-500/20 bg-purple-500/5 p-1.5 text-xs sm:flex-row sm:items-center sm:justify-between"
                       >
                         <span className="min-w-0 break-words font-semibold text-slate-700 dark:text-slate-300">
                           {m.material?.name || `Material #${m.material_id}`}
-                          {count > 1 && (
+                          {equivalentCodeCount > 1 && (
                             <span className="ml-1 text-[10px] font-normal text-slate-500">
-                              · {count} renglones idénticos
+                              · {equivalentCodeCount} códigos equivalentes
                             </span>
                           )}
                         </span>
                         <span className="shrink-0 font-mono font-bold text-purple-600 dark:text-purple-400">
-                          {count > 1 ? totalQuantity.toFixed(3) : m.quantity} {m.unit}
+                          {quantity.toFixed(3)} {m.unit}
                         </span>
                       </div>
                     ))
@@ -568,7 +644,7 @@ export const GloboCatalogPage: React.FC = () => {
                   </div>
                 </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                       <label className="text-xs font-bold text-slate-400 block mb-1">Tipo de Proceso *</label>
                     <select
@@ -591,17 +667,6 @@ export const GloboCatalogPage: React.FC = () => {
                       <Input required maxLength={50} value={formData.custom_process_type} onChange={(e) => setFormData({ ...formData, custom_process_type: e.target.value })} placeholder="Escribe el tipo de transformación" />
                     </div>
                   )}
-                  <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Ancho de salida (cm) *</label>
-                    <Input
-                      type="number"
-                      min="0.01"
-                      step="0.1"
-                      required
-                      value={formData.target_width_cm}
-                      onChange={(e) => setFormData({ ...formData, target_width_cm: e.target.value === '' ? '' : Number(e.target.value) })}
-                    />
-                  </div>
                   <div>
                       <label className="text-xs font-bold text-slate-400 block mb-1">Gramaje de salida (g/m) *</label>
                     <Input
@@ -703,84 +768,42 @@ export const GloboCatalogPage: React.FC = () => {
                     <Layers className="h-4 w-4" />
                     Rollos de Telares Permitidos / Requeridos
                   </h4>
-                  <p className="text-xs text-slate-400">
-                    Selecciona los BOM de Telares compatibles. Sus onzas, tipo de tela, denier y cinta se consultan desde el catálogo BOM.
-                  </p>
+                  <p className="text-xs text-slate-400">Busca rollos de tela activos en el catálogo de Telares con ruta Telares → Globo/Liner → Corte. El ancho, tipo y onzaje se heredan de cada ficha; no se capturan de nuevo.</p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 bg-black/20 rounded-lg">
-                    {boms.filter((bom: any) => bom.is_active !== false).map((bom: any) => {
-                      const isSelected = formData.loom_roll_requirements.allowed_bom_ids?.includes(bom.id);
-                      return (
-                        <button
-                          key={bom.id}
-                          type="button"
-                          onClick={() => handleBomToggle(bom.id)}
-                          aria-pressed={Boolean(isSelected)}
-                          className={`text-left p-2 rounded border text-xs transition-colors flex items-center justify-between min-h-16 ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-500 font-bold'
-                              : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
-                          }`}
-                        >
-                          <span className="min-w-0 pr-1">
-                            <span className="block truncate">{bom.code} · {bom.name}</span>
-                            <span className="block text-[10px] opacity-80">{bom.ounces_yd2 ? `${bom.ounces_yd2} oz/yd² · ` : ''}{bom.fabric_type || 'Tipo no definido'} · {bom.target_width_cm} cm</span>
-                            <span className="block text-[10px] opacity-80">Trama {bom.weft_denier || '—'}D · Urdimbre {bom.warp_denier || '—'}D</span>
-                            <span className="block text-[10px] opacity-80">Cinta {bom.tape_color || '—'} · {bom.tape_denier || '—'}D / {bom.tape_width_mm || '—'} mm</span>
-                            {bom.general_considerations && <span className="block text-[10px] opacity-80 line-clamp-2">{bom.general_considerations}</span>}
-                          </span>
-                          {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
-                        </button>
-                      );
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                    <div className="min-w-0 flex-1">
+                      <SearchSelect
+                        options={compatibleBomOptions}
+                        value={selectedBomToAdd || null}
+                        onChange={(value) => setSelectedBomToAdd(Number(value) || '')}
+                        getLabel={(bom: any) => `${bom.code} · ${bom.name}`}
+                        getDescription={(bom: any) => `${bom.fabric_type || 'Tipo sin definir'} · ${bom.target_width_cm} cm · ${bom.ounces_yd2 ? `${bom.ounces_yd2} oz/yd²` : 'Onzaje pendiente'}`}
+                        getValue={(bom: any) => Number(bom.id)}
+                        placeholder="Buscar rollo compatible de Telares..."
+                        emptyMessage="No hay rollos compatibles que coincidan con la búsqueda"
+                        disabled={bomsError || compatibleBomOptions.length === 0}
+                      />
+                    </div>
+                    <Button type="button" onClick={handleAddSelectedBom} disabled={!selectedBomToAdd} className="min-h-11 shrink-0 bg-blue-600 text-white hover:bg-blue-700">
+                      <Plus className="mr-1 h-4 w-4" /> Agregar rollo
+                    </Button>
+                  </div>
+                  {compatibleBomOptions.length === 0 && selectedBomOptions.length === 0 && <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">No hay rollos activos de Telares con ruta Globo → Corte y ancho definido en su ficha.</p>}
+
+                  <div className="space-y-2">
+                    {selectedBomOptions.map((bom: any) => {
+                      const isCompatible = isCompatibleTelaresBom(bom);
+                      return <div key={bom.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-sm ${isCompatible ? 'border-blue-500/30 bg-blue-500/5' : 'border-rose-500/40 bg-rose-500/10'}`}>
+                        <div className="min-w-0">
+                          <p className="truncate font-bold">{bom.code} · {bom.name}</p>
+                          <p className="text-xs text-slate-400">Ancho heredado: {bom.target_width_cm} cm · {bom.fabric_type || 'Tipo sin definir'}{bom.ounces_yd2 ? ` · ${bom.ounces_yd2} oz/yd²` : ''}</p>
+                          {!isCompatible && <p className="text-xs font-semibold text-rose-300">Ya no cumple los requisitos; quítalo antes de guardar.</p>}
+                        </div>
+                        <Button type="button" variant="outline" onClick={() => handleBomToggle(Number(bom.id))} className="min-h-11 shrink-0" aria-label={`Quitar ${bom.code}`}><X className="h-4 w-4" /> Quitar</Button>
+                      </div>;
                     })}
                   </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Ancho mínimo de entrada (cm) *</label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.5"
-                        required
-                        value={formData.loom_roll_requirements.min_width_cm}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            loom_roll_requirements: {
-                              ...formData.loom_roll_requirements,
-                              min_width_cm: e.target.value === '' ? '' : Number(e.target.value),
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Ancho máximo de entrada (cm) *</label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.5"
-                        required
-                        value={formData.loom_roll_requirements.max_width_cm}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            loom_roll_requirements: {
-                              ...formData.loom_roll_requirements,
-                              max_width_cm: e.target.value === '' ? '' : Number(e.target.value),
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 block mb-1">Tipo de tela de entrada *</label>
-                      <select required value={formData.loom_roll_requirements.fabric_type} onChange={(e) => setFormData({ ...formData, loom_roll_requirements: { ...formData.loom_roll_requirements, fabric_type: e.target.value as any } })} className="w-full h-10 px-3 rounded-md border text-sm font-semibold bg-transparent">
-                        <option value="">Selecciona</option><option value="TUBULAR">Tubular</option><option value="PLANA">Plana</option><option value="CUALQUIERA">Cualquiera</option>
-                      </select>
-                    </div>
-                  </div>
+                  {selectedBomOptions.length === 0 && <p className="text-xs text-amber-200">Agrega al menos un rollo compatible de Telares.</p>}
                   <div>
                     <label className="text-xs font-bold text-slate-400 block mb-1">Notas / restricciones de entrada</label>
                     <Input value={formData.loom_roll_requirements.notes} onChange={(e) => setFormData({ ...formData, loom_roll_requirements: { ...formData.loom_roll_requirements, notes: e.target.value } })} placeholder="Restricciones adicionales para recibir el rollo" />
@@ -812,20 +835,18 @@ export const GloboCatalogPage: React.FC = () => {
                     <div className="space-y-2">
                       {formData.materials.map((row, index) => (
                         <div key={index} className="grid grid-cols-[minmax(0,1fr)_8rem_2rem] gap-2 items-center bg-black/20 p-2 rounded-lg">
-                          <select
-                            required
-                            value={row.material_id}
-                            onChange={(e) => handleMaterialChange(index, 'material_id', e.target.value ? Number(e.target.value) : '')}
-                            className="flex-1 h-9 px-2 rounded border text-xs bg-slate-800 text-slate-200"
-                          >
-                            <option value="">-- Seleccionar Insumo de Almacén --</option>
-                            {recipeMaterials.map((mat: any) => (
-                              <option key={mat.id} value={mat.id}>
-                                {mat.name} ({mat.internal_code}) · {mat.base_unit?.code || mat.base_unit?.name || 'KG'}
-                              </option>
-                            ))}
-                          </select>
-                          {recipeMaterials.length === 0 && <p className="col-span-3 text-xs text-amber-300">No hay materiales activos con unidad base KG en el catálogo de Almacén.</p>}
+                          <SearchSelect
+                            options={recipeMaterialGroups.filter((mat: any) => mat.equivalent_material_ids.includes(Number(row.material_id)) || !formData.materials.some((other, otherIndex) => otherIndex !== index && mat.equivalent_material_ids.includes(Number(other.material_id))))}
+                            value={row.material_id ? Number(row.material_id) : null}
+                            onChange={(value) => handleMaterialChange(index, 'material_id', Number(value) || '')}
+                            getLabel={(mat: any) => `${mat.name} · ${mat.equivalent_codes.length} código(s)`}
+                            getDescription={(mat: any) => `${mat.equivalent_codes.join(', ')} · ${mat.base_unit?.code || mat.base_unit?.name || 'KG'}`}
+                            getValue={(mat: any) => Number(mat.id)}
+                            placeholder="Buscar material de Almacén..."
+                            emptyMessage="No hay materiales que coincidan con la búsqueda"
+                            disabled={materialsError || recipeMaterialGroups.length === 0}
+                          />
+                          {recipeMaterialGroups.length === 0 && <p className="col-span-3 text-xs text-amber-300">No hay materiales activos con unidad base KG en el catálogo de Almacén.</p>}
 
                           <div>
                             <Input

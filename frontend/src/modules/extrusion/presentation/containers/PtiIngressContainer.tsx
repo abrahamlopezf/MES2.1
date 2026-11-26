@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../../../store/authStore';
 import { canViewCosts as checkCanViewCosts } from '@/utils/authHelpers';
@@ -17,6 +18,7 @@ import {
   useRegisterPtiSaleExitMutation
 } from '../../hooks/useExtrusionFloorQueries';
 import { PtiIngressPresenter } from '../presenters/PtiIngressPresenter';
+import { extrusionApi } from '../../services/extrusionApi';
 import {
   PtiRack,
   Formula,
@@ -132,6 +134,10 @@ export const PtiIngressContainer: React.FC = () => {
   const [scrapReason, setScrapReason] = useState<string>('ARRANQUE_EXTRUSORA');
   const [scrapColor, setScrapColor] = useState<string>('');
   const [shiftCode, setShiftCode] = useState('TURNO_1');
+  const activeShiftQuery = useQuery({ queryKey: ['extrusion', 'active-shift-session'], queryFn: extrusionApi.getCurrentShiftSession, staleTime: 0 });
+  useEffect(() => {
+    if (activeShiftQuery.data?.shift_code) setShiftCode(activeShiftQuery.data.shift_code);
+  }, [activeShiftQuery.data?.shift_code]);
   const [notes, setNotes] = useState<string>('');
   const [lastBackflushingResult, setLastBackflushingResult] = useState<BackflushingResult | null>(null);
 

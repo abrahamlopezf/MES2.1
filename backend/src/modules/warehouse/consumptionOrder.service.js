@@ -3,6 +3,8 @@ const { encryptQrData } = require('../../shared/utils/crypto.utils');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const { getLotBackedInventoryReconciliation } = require('./inventoryLotReconciliation');
+const { planFifoPackageAllocations, getWholePackageAvailable, EPSILON } = require('./consumptionPackageAllocator');
+const { getActiveEquivalentMaterialIdsByName } = require('../materials/materialEquivalence');
 
 class ConsumptionOrderService {
   async createOrder(data, transaction = null) {
@@ -58,37 +60,58 @@ class ConsumptionOrderService {
     }
 
     // Process Items and FIFO Allocation
+    const reservedByLotId = new Map();
     for (const item of items) {
       const { material_id, quantity } = item;
+      if (!material_id || !Number.isFinite(Number(quantity)) || Number(quantity) <= 0) {
+        throw new Error('Cada material de la ODC requiere un identificador y una cantidad mayor a cero.');
+      }
 
       const materialRecord = await Material.findByPk(material_id, {
-        attributes: ['id', 'name', 'family_id', 'base_unit_id', 'internal_code'],
+        attributes: ['id', 'name', 'family_id', 'base_unit_id', 'internal_code', 'is_active'],
         transaction
       });
-      const inventoryRecord = await Inventory.findOne({ where: { material_id }, transaction });
+      if (!materialRecord || materialRecord.is_active === false) throw new Error(`El material ${material_id} no existe o está inactivo.`);
+      const equivalentMaterialIds = await getActiveEquivalentMaterialIdsByName(materialRecord, transaction);
+      const equivalentMaterials = await Material.findAll({
+        where: { id: { [Op.in]: equivalentMaterialIds }, is_active: true },
+        attributes: ['id', 'name', 'base_unit_id', 'family_id', 'internal_code'],
+        transaction,
+      });
+      const equivalentMaterialById = new Map(equivalentMaterials.map((material) => [Number(material.id), material]));
+      const inventoryRecords = await Inventory.findAll({ where: { material_id: { [Op.in]: equivalentMaterialIds } }, transaction });
       
       // Find available lots ordered by date (FIFO)
       const availableLots = await Lote.findAll({
         where: {
-          material_id,
+          material_id: { [Op.in]: equivalentMaterialIds },
           is_active: true,
           available_amount: { [Op.gt]: 0 }
         },
-        order: [['created_at', 'ASC']],
+        order: [['created_at', 'ASC'], ['id', 'ASC']],
         transaction
       });
 
       // Sum total available
-      const totalAvailable = availableLots.reduce((acc, l) => acc + Number(l.available_amount), 0);
-      if (totalAvailable < quantity) {
+      const lotsForPlanning = availableLots.map((lot) => ({
+        ...lot.toJSON(),
+        available_amount: Number((Number(lot.available_amount || 0) - Number(reservedByLotId.get(Number(lot.id)) || 0)).toFixed(3)),
+      })).filter((lot) => lot.available_amount > EPSILON);
+      const totalAvailable = lotsForPlanning.reduce((acc, lot) => acc + Number(lot.available_amount), 0);
+      const packagePlan = planFifoPackageAllocations(lotsForPlanning, quantity);
+      const fulfillableAvailable = getWholePackageAvailable(lotsForPlanning);
+      if (packagePlan.pending_quantity > EPSILON) {
         const materialLabel = materialRecord
           ? `${materialRecord.name || 'Material'} (${materialRecord.internal_code || `ID ${material_id}`})`
           : `material ID ${material_id}`;
-        const globalAmount = Number(inventoryRecord?.amount || 0);
+        const globalAmount = Number(inventoryRecords.reduce((sum, inventory) => sum + Number(inventory.amount || 0), 0).toFixed(3));
         const mismatchHint = globalAmount > totalAvailable
           ? ` El inventario global indica ${globalAmount}, pero sus lotes FIFO solo suman ${totalAvailable}; solicita a Almacén conciliar el inventario con sus lotes antes de generar la ODC.`
           : '';
-        throw new Error(`Existencia insuficiente en lotes de almacén para ${materialLabel}. Solicitado: ${quantity}, disponible para surtir: ${totalAvailable}.${mismatchHint}`);
+        const packageHint = fulfillableAvailable < totalAvailable
+          ? ` Considerando empaques completos, solo hay ${fulfillableAvailable} disponibles; no se fraccionan presentaciones de factura.`
+          : '';
+        throw new Error(`Existencia insuficiente en lotes de almacén para ${materialLabel}. Solicitado: ${quantity}, disponible para surtir: ${fulfillableAvailable}.${packageHint}${mismatchHint}`);
       }
 
       // Get material to have fallback base_unit_id and check if Raw Material
@@ -99,13 +122,10 @@ class ConsumptionOrderService {
       }
 
       const allocations = [];
-      let remainingQuantity = quantity;
-
-      for (const lot of availableLots) {
-        if (remainingQuantity <= 0) break;
-
-        const lotAvailable = Number(lot.available_amount);
-        const quantityToTake = Math.min(remainingQuantity, lotAvailable);
+      for (const lotPlan of packagePlan.allocations) {
+        const lot = lotPlan.lot;
+        const quantityToTake = lotPlan.quantity;
+        reservedByLotId.set(Number(lot.id), Number(((reservedByLotId.get(Number(lot.id)) || 0) + quantityToTake).toFixed(3)));
 
         let childQrId = null;
         // La materia prima pasa a custodia WIP del área solicitante; los
@@ -159,14 +179,12 @@ class ConsumptionOrderService {
 
         allocations.push({
           order_id: order.id,
-          material_id,
+          material_id: Number(lot.material_id),
           lote_id: lot.id,
           requested_quantity: quantityToTake,
-          unit_id: unitId,
+          unit_id: lot.unit_id || equivalentMaterialById.get(Number(lot.material_id))?.base_unit_id || unitId,
           child_qr_id: childQrId
         });
-
-        remainingQuantity -= quantityToTake;
       }
 
       await ConsumptionOrderItem.bulkCreate(allocations, { transaction });
@@ -366,15 +384,14 @@ class ConsumptionOrderService {
             available_amount: { [Op.gt]: 0 }
           },
           include: [{ model: QrCode, as: 'qr_code', attributes: ['qr_code'] }],
-          order: [['created_at', 'ASC']],
+          order: [['created_at', 'ASC'], ['id', 'ASC']],
           transaction,
         });
 
-        for (const lot of availableLots) {
-          if (pending <= 0) break;
-          const lotAvailable = Number(lot.available_amount);
-          const qtyToTake = Math.min(pending, lotAvailable);
-          
+        const packagePlan = planFifoPackageAllocations(availableLots, pending);
+        for (const lotPlan of packagePlan.allocations) {
+          const lot = lotPlan.lot;
+          const qtyToTake = lotPlan.quantity;
           finalItems.push({
             id: 'virtual-' + lot.id,
             order_id: plainOrder.id,
@@ -387,11 +404,9 @@ class ConsumptionOrderService {
             unit_id: lot.unit_id || materialMap[matId]?.base_unit_id || materialMap[matId]?.base_unit?.id,
             unit: materialMap[matId]?.base_unit
           });
-          
-          pending -= qtyToTake;
         }
 
-        if (pending > 0) {
+        if (packagePlan.pending_quantity > EPSILON) {
           finalItems.push({
             id: 'virtual-missing-' + matId,
             order_id: plainOrder.id,
@@ -399,7 +414,7 @@ class ConsumptionOrderService {
             material: materialMap[matId],
             lote_id: null,
             lote: null,
-            requested_quantity: pending,
+            requested_quantity: packagePlan.pending_quantity,
             fulfilled_quantity: 0,
             unit_id: materialMap[matId]?.base_unit_id || materialMap[matId]?.base_unit?.id,
             unit: materialMap[matId]?.base_unit
@@ -522,7 +537,20 @@ class ConsumptionOrderService {
       itemsPending[0];
     const originallyAssignedLotId = itemToFulfill.lote_id == null ? null : Number(itemToFulfill.lote_id);
     const pendingQty = Number(itemToFulfill.requested_quantity) - Number(itemToFulfill.fulfilled_quantity);
-    const qtyToTake = Math.min(pendingQty, Number(scannedLote.available_amount));
+    const scannedLotAvailable = Number(scannedLote.available_amount);
+    const presentationQuantity = Number(scannedLote.presentation_quantity) || 0;
+    let qtyToTake = Math.min(pendingQty, scannedLotAvailable);
+    if (presentationQuantity > EPSILON) {
+      const pendingPackages = Math.round(pendingQty / presentationQuantity);
+      if (pendingPackages < 1 || Math.abs(pendingQty - pendingPackages * presentationQuantity) > EPSILON) {
+        throw Object.assign(new Error(`La cantidad pendiente (${pendingQty}) no corresponde a empaques completos de ${presentationQuantity} ${scannedLote.presentation_unit || 'unidades'}.`), { statusCode: 409 });
+      }
+      const completePackageBalance = Math.floor((scannedLotAvailable + EPSILON) / presentationQuantity) * presentationQuantity;
+      qtyToTake = Math.min(pendingQty, completePackageBalance);
+      if (qtyToTake < presentationQuantity - EPSILON) {
+        throw Object.assign(new Error(`El lote ${scannedLote.folio} no tiene una presentación completa disponible de ${presentationQuantity} ${scannedLote.presentation_unit || 'unidades'}.`), { statusCode: 409 });
+      }
+    }
 
     if (qtyToTake <= 0) throw new Error('Cantidad a tomar es 0.');
 

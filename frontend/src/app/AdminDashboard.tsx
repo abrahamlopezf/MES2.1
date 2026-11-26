@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { QrCode, Printer, PackagePlus, Settings2, Activity, Network } from '@/design-system/components/Icon/googleIconCompat';
 import { useAuth } from '../modules/identity/presentation/context/AuthContext';
+import { canManageQrBatches } from '../modules/qrcodes/access/qrBatchAccess';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -74,7 +75,7 @@ export const AdminDashboard: React.FC = () => {
           <QrCode className="text-blue-600" /> Identity Center (Administración)
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {links.map((l) => (
+          {links.filter((link) => !['/identity/generate', '/identity/print'].includes(link.path) || canManageQrBatches(user)).map((l) => (
             <Link key={l.path} to={l.path} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-300 transition-all group">
               <div className="mb-4 bg-slate-50 w-16 h-16 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 {l.icon}

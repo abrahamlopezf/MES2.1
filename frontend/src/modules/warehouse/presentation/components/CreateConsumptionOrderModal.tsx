@@ -53,6 +53,63 @@ const normalizeMaterialName = (value: unknown) => String(value || '')
   .trim()
   .toLocaleLowerCase();
 
+const planFifoPackageQuantity = (requestedQuantity: number, fifoPackages: any[] = []) => {
+  const requested = Math.max(0, Number(requestedQuantity) || 0);
+  let pending = requested;
+  let allocated = 0;
+  let completePackages = 0;
+  const packageBreakdown: string[] = [];
+  const epsilon = 0.0005;
+  for (const lot of fifoPackages || []) {
+    if (pending <= epsilon) break;
+    const available = Math.max(0, Number(lot.available_quantity) || 0);
+    const presentation = Number(lot.presentation_quantity) || 0;
+    let quantity = 0;
+    if (presentation > epsilon) {
+      const packagesAvailable = Math.floor((available + epsilon) / presentation);
+      if (packagesAvailable < 1) break;
+      const packagesNeeded = Math.ceil((pending - epsilon) / presentation);
+      const packages = Math.min(packagesAvailable, packagesNeeded);
+      quantity = packages * presentation;
+      completePackages += packages;
+      if (packages > 0) packageBreakdown.push(`${presentation.toLocaleString()} ${lot.presentation_unit || ''} × ${packages}`.trim());
+    } else {
+      quantity = Math.min(pending, available);
+    }
+    allocated += quantity;
+    pending = Math.max(0, pending - quantity);
+    const packageRemainder = presentation > epsilon
+      && available - quantity > epsilon
+      && Math.floor((available - quantity + epsilon) / presentation) * presentation < available - quantity - epsilon;
+    if (pending > epsilon && packageRemainder) break;
+  }
+  return {
+    allocated_quantity: Number(allocated.toFixed(3)),
+    pending_quantity: Number(pending.toFixed(3)),
+    complete_packages: completePackages,
+    package_breakdown: packageBreakdown,
+    covered: pending <= epsilon,
+  };
+};
+
+const getFifoPackageAvailable = (fifoPackages: any[] = [], fallbackAmount = 0) => {
+  if (!fifoPackages?.length) return Math.max(0, Number(fallbackAmount) || 0);
+  const epsilon = 0.0005;
+  let total = 0;
+  for (const lot of fifoPackages) {
+    const available = Math.max(0, Number(lot.available_quantity) || 0);
+    const presentation = Number(lot.presentation_quantity) || 0;
+    if (presentation <= epsilon) {
+      total += available;
+      continue;
+    }
+    const completeQuantity = Math.floor((available + epsilon) / presentation) * presentation;
+    total += completeQuantity;
+    if (available - completeQuantity > epsilon) break;
+  }
+  return Number(total.toFixed(3));
+};
+
 interface DirectMixConsumptionViewProps {
   items: any[];
   setItems: React.Dispatch<React.SetStateAction<any[]>>;
@@ -94,16 +151,16 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
     const candidate = (item.eligible_inventory || []).find((entry: any) => sameMaterialId(entry.material_id, materialId));
     if (!candidate) return;
     setItems(items.map((current) => current.material_id === item.material_id
-      ? { ...current, material_id: Number(candidate.material_id), material: candidate.material, amount: Number(candidate.amount || 0) }
+      ? { ...current, material_id: Number(candidate.material_id), material: candidate.material, amount: Number(candidate.amount || 0), fifo_packages: candidate.fifo_packages || [] }
       : current));
   };
 
-  const filteredInventory = inventory.filter(inv => 
+  const filteredInventory = inventory.filter(inv => inv.inventory_source !== 'SILO' && (
     inv.material?.name?.toLowerCase().includes(search.toLowerCase()) || 
     inv.material?.internal_code?.toLowerCase().includes(search.toLowerCase()) ||
     inv.material?.material_code?.toLowerCase().includes(search.toLowerCase()) ||
     inv.material?.description?.toLowerCase().includes(search.toLowerCase())
-  );
+  ));
 
   return (
     <>
@@ -250,8 +307,13 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
               const unitCode = getUnitCode(item) || 'KG';
               const availableWarehouse = Number(item.amount) || 0;
               const reqQty = Number(item.req_quantity) || 0;
-              const hasInsufficientStock = availableWarehouse < reqQty;
-              const isZeroStock = availableWarehouse <= 0;
+              const packageAvailable = getFifoPackageAvailable(item.fifo_packages, availableWarehouse);
+              const packagePlan = planFifoPackageQuantity(reqQty, item.fifo_packages?.length
+                ? item.fifo_packages
+                : [{ available_quantity: availableWarehouse, presentation_quantity: null }]);
+              const hasPackageMetadata = (item.fifo_packages || []).some((lot: any) => Number(lot.presentation_quantity) > 0);
+              const hasInsufficientStock = packageAvailable + 0.0005 < reqQty;
+              const isZeroStock = packageAvailable <= 0;
               const itemName = normalizeMaterialName(item.material?.name);
               const sameNameOtherCodes = itemName
                 ? inventory.filter((inv: any) =>
@@ -319,15 +381,29 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
                           }`}>
                             {availableWarehouse} {unitCode}
                           </span>
+                          {hasPackageMetadata && (
+                            <span className="text-[11px] font-semibold text-muted-foreground">
+                              {packageAvailable.toLocaleString()} {unitCode} en empaques completos
+                            </span>
+                          )}
                           {hasInsufficientStock && (
                             <span className="text-[11px] font-semibold text-destructive flex items-center gap-1">
                               <Icon name="warning" size={13} />
-                              {isZeroStock ? 'Sin existencias en almacén' : 'Stock en almacén menor a lo requerido'}
+                              {isZeroStock
+                                ? (availableWarehouse > 0 ? 'El saldo no completa una presentación' : 'Sin existencias en almacén')
+                                : (hasPackageMetadata && packageAvailable < reqQty ? 'Faltan empaques completos para cubrir lo requerido' : 'Stock en almacén menor a lo requerido')}
                             </span>
                           )}
                         </>
                       )}
                     </div>
+                    {hasPackageMetadata && reqQty > 0 && (
+                      <div className={`mt-2 rounded-lg border px-2.5 py-2 text-[11px] ${packagePlan.covered ? 'border-sky-500/25 bg-sky-500/5 text-sky-800 dark:text-sky-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200'}`}>
+                        {packagePlan.covered
+                          ? `La receta requiere ${reqQty.toLocaleString()} ${unitCode}; almacén surtirá ${packagePlan.allocated_quantity.toLocaleString()} ${unitCode}${packagePlan.complete_packages > 0 ? ` (${packagePlan.package_breakdown.join(' + ')} empaque(s))` : ''}${packagePlan.allocated_quantity > reqQty ? `. El excedente de ${(packagePlan.allocated_quantity - reqQty).toLocaleString()} ${unitCode} quedará en el WIP del área` : ''}.`
+                          : `La cantidad solicitada requiere empaques completos; con el FIFO actual solo se podrían planear ${packagePlan.allocated_quantity.toLocaleString()} ${unitCode}.`}
+                      </div>
+                    )}
                     {!inventoryLoading && isZeroStock && sameNameOtherCodes.length > 0 && (
                       <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
                         Hay material con el mismo nombre en almacén, pero con otro código ({sameNameOtherCodes
@@ -653,17 +729,19 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
       ]).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
       const res = await axiosClient.get('/warehouse/inventory', {
         params: requestedMaterialIds.length
-          ? { material_ids: requestedMaterialIds.join(','), limit: 1000 }
-          : { limit: 1000 },
+          ? { material_ids: requestedMaterialIds.join(','), limit: 1000, include_fifo_packages: true }
+          : { limit: 1000, include_fifo_packages: true },
       });
       const data = res.data.data || res.data;
-      const invList = data.items || data || [];
+      // Las ODC se surten desde lotes físicos de piso. Los saldos de silo se
+      // consumen directamente desde Extrusión y no son lotes escaneables aquí.
+      const invList = (data.items || data || []).filter((entry: any) => entry.inventory_source !== 'SILO');
       setInventory(invList);
 
       // Sincronizar items precargados con datos de almacén si ya existen
       setItems(prevItems => prevItems.map(item => {
         const eligibleIds = new Set((item.eligible_material_ids || [item.material_id]).map(Number));
-        const candidates = invList.filter((inv: any) => eligibleIds.has(Number(inv.material_id)));
+        const candidates = invList.filter((inv: any) => inv.inventory_source !== 'SILO' && eligibleIds.has(Number(inv.material_id)));
         const exactMatch = candidates.find((inv: any) => sameMaterialId(inv.material_id, item.material_id));
         const inventoryById = new Map(candidates.map((candidate: any) => [Number(candidate.material_id), candidate]));
         const stockSources = item.eligible_materials?.length
@@ -677,6 +755,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                 amount: inventoryItem
                   ? Number(inventoryItem.amount || 0)
                   : 0,
+                fifo_packages: inventoryItem?.fifo_packages || [],
                 material: inventoryItem?.material || {
                   id: Number(candidate.material_id),
                   name: candidate.name,
@@ -688,6 +767,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
           : candidates.map((candidate: any) => ({
               material_id: Number(candidate.material_id),
               amount: Number(candidate.amount || 0),
+              fifo_packages: candidate.fifo_packages || [],
               material: candidate.material,
             }));
         const stockedCandidates = stockSources.filter((candidate: any) => Number(candidate.amount || 0) > 0)
@@ -701,6 +781,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
         const eligibleInventory = stockedCandidates.map((candidate: any) => ({
           material_id: Number(candidate.material_id),
           amount: Number(candidate.amount || 0),
+          fifo_packages: candidate.fifo_packages || [],
           material: candidate.material,
         }));
         if (match) {
@@ -708,6 +789,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
             ...item,
             material_id: Number(match.material_id),
             amount: match.amount !== undefined ? match.amount : item.amount,
+            fifo_packages: match.fifo_packages || [],
             material: { ...item.material, ...match.material },
             unit: match.material?.base_unit || item.unit,
             eligible_inventory: eligibleInventory,
@@ -731,9 +813,9 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
   const updateItemQty = (material_id: number, qty: number) => {
     setItems(items.map(i => {
       if (i.material_id === material_id) {
-        const maxAmount = Number(i.amount) || 0;
+        const maxAmount = getFifoPackageAvailable(i.fifo_packages, Number(i.amount) || 0);
         if (maxAmount > 0 && qty > maxAmount) {
-          toast.warning(`Stock insuficiente en almacén. Solo hay ${maxAmount} disponibles para ${i.material?.name}.`);
+          toast.warning(`Stock insuficiente en presentaciones completas. Solo hay ${maxAmount} ${getUnitCode(i)} disponibles para ${i.material?.name}.`);
           return { ...i, req_quantity: maxAmount };
         }
         return { ...i, req_quantity: qty };
@@ -771,6 +853,11 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
     for (const item of items) {
       if (!item.req_quantity || item.req_quantity <= 0) {
         toast.warning(`La cantidad para ${item.material?.name || 'el material'} debe ser mayor a 0`);
+        return;
+      }
+      const packageAvailable = getFifoPackageAvailable(item.fifo_packages, Number(item.amount) || 0);
+      if (Number(item.req_quantity) > packageAvailable + 0.0005) {
+        toast.error(`No hay suficientes presentaciones completas para ${item.material?.name || 'el material'}. Disponibles para surtir: ${packageAvailable} ${getUnitCode(item)}.`);
         return;
       }
     }
@@ -1097,6 +1184,11 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                 <div className="space-y-4 mb-6">
                   {items.map(item => {
                     const unitCode = getUnitCode(item);
+                    const packageAvailable = getFifoPackageAvailable(item.fifo_packages, Number(item.amount) || 0);
+                    const packagePlan = planFifoPackageQuantity(Number(item.req_quantity) || 0, item.fifo_packages?.length
+                      ? item.fifo_packages
+                      : [{ available_quantity: Number(item.amount) || 0, presentation_quantity: null }]);
+                    const hasPackageMetadata = (item.fifo_packages || []).some((lot: any) => Number(lot.presentation_quantity) > 0);
                     return (
                       <div key={item.material_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/5 relative">
                         <div className="flex-1 min-w-0 pr-2">
@@ -1121,6 +1213,14 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                           {Number(item.amount) > 0 && (
                             <div className="text-xs text-muted-foreground/80 mt-1">
                               Disponible en Almacén: <strong className="text-foreground">{Number(item.amount)} {unitCode}</strong>
+                              {hasPackageMetadata && <span> · {packageAvailable.toLocaleString()} {unitCode} en presentaciones completas</span>}
+                            </div>
+                          )}
+                          {hasPackageMetadata && Number(item.req_quantity) > 0 && (
+                            <div className={`mt-2 rounded-lg border px-2.5 py-2 text-[11px] ${packagePlan.covered ? 'border-sky-500/25 bg-sky-500/5 text-sky-800 dark:text-sky-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200'}`}>
+                              {packagePlan.covered
+                                ? `Solicitas ${Number(item.req_quantity).toLocaleString()} ${unitCode}; se reservarán ${packagePlan.allocated_quantity.toLocaleString()} ${unitCode}${packagePlan.complete_packages > 0 ? ` (${packagePlan.package_breakdown.join(' + ')} empaque(s))` : ''}${packagePlan.allocated_quantity > Number(item.req_quantity) ? `. El excedente de ${(packagePlan.allocated_quantity - Number(item.req_quantity)).toLocaleString()} ${unitCode} llegará al WIP del área` : ''}.`
+                                : `No hay empaques completos suficientes para cubrir ${Number(item.req_quantity).toLocaleString()} ${unitCode}.`}
                             </div>
                           )}
                         </div>
@@ -1132,7 +1232,7 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                                 <input 
                                   type="number" 
                                   min="0.01" 
-                                  max={Number(item.amount) > 0 ? Number(item.amount) : undefined}
+                                  max={packageAvailable > 0 ? packageAvailable : undefined}
                                   step="any"
                                   value={item.req_quantity === 0 ? '' : item.req_quantity}
                                   onChange={(e) => {

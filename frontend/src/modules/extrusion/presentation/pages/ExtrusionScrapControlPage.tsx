@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardList, Eye, RefreshCw, Scale } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,12 @@ export const ExtrusionScrapControlPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<ScrapStatusFilter>('ALL');
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const { data: queueGroups = [] } = useExtruderQueuesQuery();
+  const scheduleQuery = useQuery({ queryKey: ['extrusion', 'shift-schedule'], queryFn: extrusionApi.getShiftSchedule, staleTime: 60_000 });
   const machines = useMemo(() => queueGroups.map((group) => group.machine), [queueGroups]);
+  useEffect(() => {
+    const shifts = scheduleQuery.data?.shifts || [];
+    if (shiftCode && shifts.length && !shifts.some((shift: any) => shift.code === shiftCode)) setShiftCode('');
+  }, [scheduleQuery.data, shiftCode]);
   const historyQuery = useQuery({
     queryKey: ['extrusion', 'scrap-control-history', extruderId, shiftDate, shiftCode],
     queryFn: () => extrusionApi.getScrapLogs({
@@ -155,7 +160,7 @@ export const ExtrusionScrapControlPage: React.FC = () => {
               </label>
               <label className="space-y-1 text-sm font-semibold">Fecha del turno<Input className="min-h-12 text-base" type="date" value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} /></label>
               <label className="space-y-1 text-sm font-semibold">Turno
-                <select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Todos</option><option value="TURNO_1">Turno 1</option><option value="TURNO_2">Turno 2</option><option value="TURNO_3">Turno 3</option></select>
+                <select value={shiftCode} onChange={(event) => setShiftCode(event.target.value)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Todos</option>{(scheduleQuery.data?.shifts || []).map((shift: any) => <option key={shift.code} value={shift.code}>{shift.label}</option>)}</select>
               </label>
               <label className="space-y-1 text-sm font-semibold">Estado
                 <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ScrapStatusFilter)} className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="ALL">Todos</option><option value="PENDING">Pendientes de pesaje</option><option value="CLOSED">Pesados / conciliados</option></select>

@@ -6,7 +6,7 @@ const { getShiftDateForInstant } = require('../src/modules/extrusion/services/sh
 
 const enabled = process.env.RUN_EXTRUSION_LOCAL_INTEGRATION === '1';
 
-test('cola, ingreso compatible/incompatible a rack y cambio de mezcla (fixtures revertidos)', { skip: !enabled, timeout: 30000 }, async () => {
+test('cola, ingreso compatible/incompatible a rack y cambio de mezcla (fixtures revertidos)', { skip: !enabled, timeout: 30000 }, async (t) => {
   require('dotenv').config({ quiet: true });
   const models = require('../src/database/models');
   const service = require('../src/modules/extrusion/extrusion.service');
@@ -34,7 +34,11 @@ test('cola, ingreso compatible/incompatible a rack y cambio de mezcla (fixtures 
     const nextPti = await models.PtiProduct.findByPk(12, { attributes: ['id', 'code', 'color', 'formula_id', 'is_active'] });
 
     assert.ok(user && batch && extrusionArea && machine && formula?.ptiProducts?.length && nextPti?.is_active, 'Faltan catálogos locales para construir la prueba aislada.');
-    assert.equal(await models.ExtruderQueue.count({ where: { extruder_id: machine.id, status: 'ACTIVA' } }), 0, 'La extrusora de prueba debe estar libre.');
+    const activeQueueCount = await models.ExtruderQueue.count({ where: { extruder_id: machine.id, status: 'ACTIVA' } });
+    if (activeQueueCount > 0) {
+      t.skip(`Extrusora ${machine.id} ya tiene una mezcla activa en la base local; la prueba no debe intervenir datos operativos.`);
+      return;
+    }
 
     const rollbackMarker = new Error('QA_ROLLBACK_FIXTURES');
     try {

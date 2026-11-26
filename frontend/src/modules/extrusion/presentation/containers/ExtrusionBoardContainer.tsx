@@ -7,11 +7,12 @@ import {
   useFloorFormulasQuery,
   useSwitchQueueMutation,
   useEnqueueMixMutation,
+  useTransferMixContainerMutation,
   usePtiProductsQuery,
   useScanRackPtiMutation
 } from '../../hooks/useExtrusionFloorQueries';
 import { ExtrusionBoardPresenter } from '../presenters/ExtrusionBoardPresenter';
-import { ExtruderQueue, Formula, PtiProduct } from '../../types/extrusion.types';
+import { ExtruderQueue, Formula, PtiProduct, TransferMixContainerPayload } from '../../types/extrusion.types';
 import { getClientAllowedExtruders, isClientFormula } from '../../domain/clientFormulaRules';
 import { useExtrusionMixing } from '../../hooks/useExtrusionMixing';
 import { MixContainersPrintModal, MixResultData } from '../../../production/presentation/components/MixContainersPrintModal';
@@ -33,6 +34,7 @@ export const ExtrusionBoardContainer: React.FC = () => {
 
   const switchMutation = useSwitchQueueMutation();
   const enqueueMutation = useEnqueueMixMutation();
+  const transferMutation = useTransferMixContainerMutation();
   const { data: ptiProducts = [] } = usePtiProductsQuery({ is_active: true });
   const scanRackPtiMutation = useScanRackPtiMutation();
   const { data: machines = [] } = useQuery({
@@ -320,6 +322,17 @@ export const ExtrusionBoardContainer: React.FC = () => {
     }
   };
 
+  const handleTransferContainer = async (payload: TransferMixContainerPayload) => {
+    try {
+      const result = await transferMutation.mutateAsync(payload);
+      toast.success(`${result.mixture_qr} fue transferido a ${result.to_extruder?.name || 'la extrusora de destino'} con ${Number(result.balance_kg || 0).toFixed(3)} kg registrados.`);
+      return true;
+    } catch (error: any) {
+      toast.error(error.friendlyMessage || error.response?.data?.message || 'No se pudo transferir el contenedor.');
+      return false;
+    }
+  };
+
   return (
     <>
       <ExtrusionBoardPresenter
@@ -369,6 +382,8 @@ export const ExtrusionBoardContainer: React.FC = () => {
       isEnqueuing={enqueueMutation.isPending}
       isFormulaRestrictedForMachine={isFormulaRestrictedForMachine}
       onOpenContainerQr={handleOpenContainerQr}
+      onTransferContainer={handleTransferContainer}
+      isTransferringContainer={transferMutation.isPending}
     />
 
     {/* Modal de Impresión y Visualización de Etiquetas QR de Contenedor */}

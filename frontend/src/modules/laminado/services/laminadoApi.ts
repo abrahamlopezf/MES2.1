@@ -41,6 +41,7 @@ export const laminadoApi = {
     roll_id: number;
     specification_id: number;
     missing_materials: any[];
+    additional_materials?: Array<{ material_id: number; quantity: number }>;
     notes?: string;
   }) => {
     const res = await axiosClient.post('/laminado/wip/create-odc', payload);
@@ -53,12 +54,12 @@ export const laminadoApi = {
   },
 
   getCorteOrders: async () => {
-    const res = await axiosClient.get('/laminado/corte-orders');
+    const res = await axiosClient.get('/corte/process-orders', { params: { destination_area_code: 'LAMINADO' } });
     return res.data?.data ?? res.data ?? [];
   },
 
   confirmCortePickup: async (orderId: number, qr_code: string) => {
-    const res = await axiosClient.post(`/laminado/corte-orders/${orderId}/pick`, { qr_code });
+    const res = await axiosClient.post('/corte/process-pickup-scan', { qr_code, destination_area_code: 'LAMINADO', order_id: orderId });
     return res.data?.data ?? res.data;
   },
 

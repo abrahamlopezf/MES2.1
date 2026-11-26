@@ -98,10 +98,10 @@ const getCdmxDateParts = (date = new Date()) => {
 };
 
 /**
- * Determina el turno de producción industrial (8 horas) en base a la hora de CDMX:
- * - Turno 1 (Matutino): 06:00:00 a 13:59:59
- * - Turno 2 (Vespertino): 14:00:00 a 21:59:59
- * - Turno 3 (Nocturno): 22:00:00 a 05:59:59
+ * Determina el turno de Telares (8 horas) en base al horario confirmado de CDMX:
+ * - Turno 1: 07:00 a 14:59
+ * - Turno 2: 15:00 a 22:59
+ * - Turno 3: 23:00 a 06:59 del día siguiente
  * 
  * @param {Date|string|number} [date=new Date()]
  * @returns {{ shiftNumber: number, shiftCode: string, shiftName: string, calendarDate: string }}
@@ -109,17 +109,18 @@ const getCdmxDateParts = (date = new Date()) => {
 const getCdmxShift = (date = new Date()) => {
   const parts = getCdmxDateParts(date);
   const hour = parts.hour;
-  const calendarDate = getCdmxDateString(date);
+  const currentDate = getCdmxDateString(date);
 
   let shiftNumber = 1;
   let shiftCode = 'TURNO_1';
   let shiftName = '1° Turno (Matutino)';
 
-  if (hour >= 6 && hour < 14) {
+  let calendarDate = currentDate;
+  if (hour >= 7 && hour < 15) {
     shiftNumber = 1;
     shiftCode = 'TURNO_1';
     shiftName = '1° Turno (Matutino)';
-  } else if (hour >= 14 && hour < 22) {
+  } else if (hour >= 15 && hour < 23) {
     shiftNumber = 2;
     shiftCode = 'TURNO_2';
     shiftName = '2° Turno (Vespertino)';
@@ -127,6 +128,11 @@ const getCdmxShift = (date = new Date()) => {
     shiftNumber = 3;
     shiftCode = 'TURNO_3';
     shiftName = '3° Turno (Nocturno)';
+    if (hour < 7) {
+      const previousDate = new Date(`${currentDate}T00:00:00.000Z`);
+      previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+      calendarDate = previousDate.toISOString().slice(0, 10);
+    }
   }
 
   return {

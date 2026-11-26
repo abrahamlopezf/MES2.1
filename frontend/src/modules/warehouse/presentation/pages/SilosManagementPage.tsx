@@ -723,7 +723,7 @@ export const SilosManagementPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {filteredSilos.map((silo) => {
+          {filteredSilos.map((silo, siloIndex) => {
             const currentStock = Number(silo.current_stock_kg) || 0;
             const maxCap = Number(silo.capacity_kg) || 40000;
             const minCap = Number(silo.min_capacity_kg) || 5000;
@@ -734,7 +734,7 @@ export const SilosManagementPage: React.FC = () => {
 
             return (
               <div
-                key={silo.id}
+                key={silo.id ?? `silo-${silo.code ?? 'sin-codigo'}-${siloIndex}`}
                 className={`rounded-2xl border-2 bg-card overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md ${
                   isCritical
                     ? 'border-amber-500/70 dark:border-amber-500/80 ring-1 ring-amber-500/30'
@@ -909,7 +909,7 @@ export const SilosManagementPage: React.FC = () => {
                       {(silo.fifo_layers || []).length === 0 ? (
                         <p className="text-xs text-muted-foreground">No hay capas FIFO con saldo. Si el silo muestra stock, actualiza la información y reporta una diferencia.</p>
                       ) : (silo.fifo_layers || []).map((layer, index) => (
-                        <div key={layer.id} className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-muted/40 p-2.5 text-xs sm:grid-cols-4">
+                        <div key={layer.id ?? `${silo.id ?? silo.code ?? 'silo'}-${layer.invoice_folio ?? 'capa'}-${index}`} className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-muted/40 p-2.5 text-xs sm:grid-cols-4">
                           <span className="font-mono font-bold">{index + 1}. {layer.invoice_folio}</span>
                           <span>Factura: {String(layer.invoice_date).slice(0, 10)}</span>
                           <span>Recibido: {new Date(layer.received_at).toLocaleDateString('es-MX')}</span>
@@ -1121,9 +1121,9 @@ export const SilosManagementPage: React.FC = () => {
                       <div role="listbox" aria-label="Proveedores activos" className="mt-2 max-h-48 overflow-y-auto">
                         {loadingSuppliers ? (
                           <p className="px-3 py-4 text-xs text-muted-foreground">Cargando proveedores...</p>
-                        ) : filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier) => (
+                        ) : filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier, supplierIndex) => (
                           <button
-                            key={supplier.id}
+                            key={supplier.id ?? `supplier-${supplier.code ?? supplier.name ?? 'sin-identificador'}-${supplierIndex}`}
                             type="button"
                             role="option"
                             aria-selected={String(supplier.id) === invoiceForm.supplier_id}
@@ -1185,7 +1185,7 @@ export const SilosManagementPage: React.FC = () => {
                     </label>
                     <Input
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       min="0.0001"
                       required
                       value={invoiceForm.unit_cost}
@@ -1340,8 +1340,8 @@ export const SilosManagementPage: React.FC = () => {
                       className="w-full !h-11 bg-background border border-border rounded-lg pl-3 pr-10 text-xs sm:text-sm font-bold text-foreground outline-none appearance-none cursor-pointer"
                     >
                       <option value="">-- Selecciona una etiqueta --</option>
-                      {materialTags.map((tag: any) => (
-                        <option key={tag.id} value={tag.id}>{tag.name}</option>
+                      {materialTags.map((tag: any, tagIndex: number) => (
+                        <option key={tag.id ?? `tag-${tag.code ?? tag.name ?? 'sin-identificador'}-${tagIndex}`} value={tag.id}>{tag.name}</option>
                       ))}
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">

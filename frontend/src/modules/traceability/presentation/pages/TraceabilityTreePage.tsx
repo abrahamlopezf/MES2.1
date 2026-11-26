@@ -167,6 +167,12 @@ export function TraceabilityTreePage() {
               </div>
             </div>
 
+            {routing?.status_message && (
+              <div role="status" className="mt-3 rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm font-semibold text-amber-100">
+                {routing.status_message}
+              </div>
+            )}
+
             {/* Aviso de modo consulta cuando el usuario es de otra área */}
             {!userAreaAction && !globalAdmin && (
               <div className="flex items-center gap-3 p-3.5 rounded-xl bg-secondary/50 border border-border text-sm font-semibold text-foreground">

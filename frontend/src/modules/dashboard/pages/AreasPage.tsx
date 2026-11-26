@@ -145,7 +145,7 @@ export const AreasPage: React.FC = () => {
       gradient: 'from-purple-500/20 to-fuchsia-500/20 text-purple-500',
       permission: ['qr.create', 'qr.history.read', 'qr.events.read'],
       children: [
-        { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión y serialización', icon: Printer, path: '/identity/generate', permission: 'qr.create' },
+        { id: 'identity_gen', title: 'Generar Lote QR', description: 'Impresión y serialización', icon: Printer, path: '/identity/generate', permission: 'qr.create', allowedRoles: ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN', 'ADMIN_ALM', 'ADMIN_ALMACEN'] },
         { id: 'identity_hist', title: 'Historial de QRs', description: 'Trazabilidad y estados', icon: List, path: '/qrcodes', permission: ['qr.history.read', 'qr.events.read'] },
       ]
     },

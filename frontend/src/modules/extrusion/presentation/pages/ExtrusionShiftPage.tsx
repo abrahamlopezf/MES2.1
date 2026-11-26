@@ -1,10 +1,11 @@
 import React from 'react';
 import { CalendarClock, CheckCircle2, ClipboardList } from '@/design-system/components/Icon/googleIconCompat';
 import { ExtrusionShiftSessionPanel } from '../presenters/ExtrusionShiftSessionPanel';
+import { ExtrusionShiftSchedulePanel } from '../presenters/ExtrusionShiftSchedulePanel';
 
 const steps = [
   { icon: CalendarClock, title: 'Revisa el turno', detail: 'Confirma si iniciarás la jornada o recibirás un relevo.' },
-  { icon: CheckCircle2, title: 'Confirma la continuidad', detail: 'Si hay mezclas en proceso, verifica sus QR antes de tomar el turno.' },
+  { icon: CheckCircle2, title: 'Confirma la continuidad', detail: 'Revisa los saldos digitales de las mezclas activas y confirma el relevo.' },
   { icon: ClipboardList, title: 'Opera y cierra', detail: 'Registra la producción durante el turno y captura el cierre al terminar.' },
 ];
 
@@ -31,6 +32,7 @@ export const ExtrusionShiftPage: React.FC = () => (
       ))}
     </ol>
 
+    <ExtrusionShiftSchedulePanel />
     <ExtrusionShiftSessionPanel />
   </main>
 );

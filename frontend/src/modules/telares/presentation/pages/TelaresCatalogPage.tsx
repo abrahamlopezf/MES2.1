@@ -99,6 +99,8 @@ const routeOptionsForKind = (kind: string) => kind === 'ROLLO_TELA'
   ? [
       { value: 'TELARES,LAMINADO', label: 'Telares → Laminado' },
       { value: 'TELARES,LAMINADO,CORTE', label: 'Telares → Laminado → Corte' },
+      { value: 'TELARES,LAMINADO,VENTA', label: 'Telares → Laminado → Venta' },
+      { value: 'TELARES,GLOBO,CORTE', label: 'Telares → Globo/Liner → Corte' },
       { value: 'TELARES,CORTE', label: 'Telares → Corte directo' },
       { value: 'TELARES,LONAS', label: 'Telares → Lonas' },
       { value: 'TELARES,ALMACEN', label: 'Telares → Almacén' },
@@ -1688,7 +1690,7 @@ export const TelaresCatalogPage: React.FC = () => {
                       <Input type="number" min="0.0001" step="0.0001" value={bomDraft.weight_conversion_width_m} onChange={(e) => setBomDraft({ ...bomDraft, weight_conversion_width_m: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="Ej. 1.16" className="mt-1 bg-slate-900 border-slate-700 text-white" />
                     </label>
                     <label className="text-xs font-bold text-slate-300">FACTOR DE CAPAS (por ficha)
-                      <Input type="number" min="0.0001" step="0.01" value={bomDraft.weight_conversion_factor} onChange={(e) => setBomDraft({ ...bomDraft, weight_conversion_factor: e.target.value === '' ? '' : Number(e.target.value) })} placeholder={bomDraft.fabric_type === 'PLANA' ? '1' : '2 (confirmar)'} className="mt-1 bg-slate-900 border-slate-700 text-white" />
+                      <Input type="number" min="0.01" step="0.01" value={bomDraft.weight_conversion_factor} onChange={(e) => setBomDraft({ ...bomDraft, weight_conversion_factor: e.target.value === '' ? '' : Number(e.target.value) })} placeholder={bomDraft.fabric_type === 'PLANA' ? '1' : '2 (confirmar)'} className="mt-1 bg-slate-900 border-slate-700 text-white" />
                     </label>
                   </div>
                   {Number(bomDraft.weight_conversion_width_m) > 0 && Number(bomDraft.ounces_yd2) > 0 && Number(bomDraft.weight_conversion_factor) > 0 && <p className="mt-2 text-sm font-bold text-cyan-100">Estimación: {((Number(bomDraft.weight_conversion_width_m) * Number(bomDraft.weight_conversion_factor) * 33.9 * Number(bomDraft.ounces_yd2))).toLocaleString('es-MX', { maximumFractionDigits: 3 })} g/m · {Number(bomDraft.standard_output_meters) > 0 ? `${(Number(bomDraft.weight_conversion_width_m) * Number(bomDraft.standard_output_meters) * Number(bomDraft.weight_conversion_factor) * 33.9 * Number(bomDraft.ounces_yd2) / 1000).toLocaleString('es-MX', { maximumFractionDigits: 3 })} kg en ${Number(bomDraft.standard_output_meters).toLocaleString('es-MX')} m` : 'define metros de referencia para ver el total'}</p>}
@@ -1747,7 +1749,7 @@ export const TelaresCatalogPage: React.FC = () => {
                   </label>
                   <label className="sm:col-span-2 block text-xs font-bold text-slate-300">
                     METROS DE REFERENCIA PARA LOS INSUMOS {!bomDraft.is_provisional && bomDraft.items.some((item) => item.pti_product_id !== '') ? '*' : '(PROVISIONAL)'}
-                    <Input type="number" min="0.001" step="0.01" value={bomDraft.standard_output_meters} onChange={(e) => {
+                    <Input type="number" min="0.01" step="0.01" value={bomDraft.standard_output_meters} onChange={(e) => {
                       const nextValue = e.target.value === '' ? '' : Number(e.target.value);
                       const previousMeters = Number(bomDraft.standard_output_meters) || 0;
                       const nextMeters = Number(nextValue) || 0;
@@ -1941,7 +1943,7 @@ export const TelaresCatalogPage: React.FC = () => {
                         Cantidad consumida para {Number(bomDraft.standard_output_meters) > 0 ? `${Number(bomDraft.standard_output_meters).toLocaleString('es-MX')} m` : 'los metros de referencia'}
                         <Input
                           type="number"
-                          min="0.000001"
+                          min="0.001"
                           step="0.001"
                           value={item.required_quantity === '' && Number(item.consumption_per_meter) > 0 && Number(bomDraft.standard_output_meters) > 0
                             ? Number((Number(item.consumption_per_meter) * Number(bomDraft.standard_output_meters)).toFixed(6))

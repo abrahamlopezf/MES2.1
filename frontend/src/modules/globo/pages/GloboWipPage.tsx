@@ -28,6 +28,8 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { PrepareRollMaterialsModal } from '../../../shared/components/wip/PrepareRollMaterialsModal';
 import { ScanAndTransformModal } from '../../../shared/components/wip/ScanAndTransformModal';
+import { CorteProcessPickupPanel } from '../../../shared/components/wip/CorteProcessPickupPanel';
+import { TelaresScrapObservationForm } from '../../../shared/components/wip/TelaresScrapObservationForm';
 
 export const GloboWipPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -54,6 +56,7 @@ export const GloboWipPage: React.FC = () => {
   const warehouseMaterials = wipData?.warehouse_materials || [];
   const recentTransformed = wipData?.recent_transformed || [];
   const scrapLogs = wipData?.scrap_logs || [];
+  const telaresScrapObservations = wipData?.telares_scrap_observations || [];
 
   const filteredRolls = rollsInFloor.filter(
     (r) =>
@@ -116,7 +119,7 @@ export const GloboWipPage: React.FC = () => {
             className="bg-orange-600 hover:bg-orange-700 text-white font-black flex items-center gap-2 shadow-lg shadow-orange-600/30 cursor-pointer"
           >
             <QrIcon className="h-4 w-4" />
-            Escanear QR y Recibir Rollo
+            Iniciar proceso con QR
           </Button>
         </div>
       </div>
@@ -334,6 +337,7 @@ export const GloboWipPage: React.FC = () => {
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </div>
+                <TelaresScrapObservationForm area="GLOBO" roll={roll} onSaved={() => refetch()} />
               </div>
             ))}
           </div>
@@ -393,12 +397,14 @@ export const GloboWipPage: React.FC = () => {
           </div>
         )
       ) : activeTab === 'scrap' ? (
-        scrapLogs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-slate-400">No hay registros de merma o scrap en Globo.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{scrapLogs.map((log: any) => <article key={log.id} className="rounded-xl border border-rose-500/30 bg-slate-900/70 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="font-mono text-rose-300">{log.output_pti_code}</strong><time className="text-xs text-slate-400">{new Date(log.created_at).toLocaleString()}</time></div><p className="mt-1 text-sm text-slate-300">Ficha {log.specification_code} · {log.recorded_by}</p><dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm"><div><dt className="text-xs text-slate-500">Procesado</dt><dd className="font-mono">{log.processed_meters} m</dd></div><div><dt className="text-xs text-slate-500">Bueno</dt><dd className="font-mono text-emerald-400">{log.good_meters} m</dd></div><div><dt className="text-xs text-slate-500">Merma</dt><dd className="font-mono text-rose-300">{log.scrap_meters} m</dd></div><div><dt className="text-xs text-slate-500">Peso merma</dt><dd className="font-mono">{log.scrap_weight_kg ?? 'Sin pesar'}{log.scrap_weight_kg == null ? '' : ' kg'}</dd></div></dl><p className="mt-3 break-all text-xs text-slate-400">QR origen: {log.source_qr} → QR PTI: {log.output_qr}</p>{log.reason && <p className="mt-1 text-xs text-slate-400">Motivo: {log.reason}</p>}</article>)}</div>
+        <div className="space-y-6"><section><h2 className="mb-3 text-lg font-bold">Defectos de Telares detectados al desenrollar</h2>{telaresScrapObservations.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-slate-400">Aún no hay defectos reportados.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{telaresScrapObservations.map((row: any) => <article key={row.id} className="rounded-xl border border-amber-500/30 bg-slate-900/70 p-4"><div className="flex justify-between gap-2"><strong className="font-mono text-amber-200">Rollo #{row.roll_id}</strong><time className="text-xs text-slate-400">{new Date(row.created_at).toLocaleString()}</time></div><p className="mt-2 text-sm">QR {row.source_qr} · {row.meter_start}–{row.meter_end} m</p><p className="text-sm text-amber-100">{row.scrap_meters} m · ~{row.estimated_weight_kg} kg estimados</p><p className="mt-1 text-xs text-slate-400">Causa: Telares · Detectó {row.recorded_by} · {row.reason}</p></article>)}</div>}</section><section><h2 className="mb-3 text-lg font-bold">Merma propia de Globo</h2>{scrapLogs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-slate-400">No hay registros de merma de proceso.</div> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{scrapLogs.map((log: any) => <article key={log.id} className="rounded-xl border border-rose-500/30 bg-slate-900/70 p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="font-mono text-rose-300">{log.output_pti_code}</strong><time className="text-xs text-slate-400">{new Date(log.created_at).toLocaleString()}</time></div><p className="mt-1 text-sm text-slate-300">Ficha {log.specification_code} · {log.recorded_by}</p><p className="mt-2 font-mono text-sm text-rose-200">{log.scrap_meters} m · {log.scrap_weight_kg ?? 'Sin pesar'}{log.scrap_weight_kg == null ? '' : ' kg'}</p>{log.reason && <p className="mt-1 text-xs text-slate-400">Motivo: {log.reason}</p>}</article>)}</div>}</section></div>
       ) : activeTab === 'incoming' ? (
-        /* TAB 3: En Tránsito hacia Globo */
-        rollsIncoming.length === 0 ? (
+        <div className="space-y-5">
+        <CorteProcessPickupPanel area="GLOBO" onReceived={() => refetch()} />
+        {/* Rollos con ruta a Globo pero aún no recogidos bajo una orden de Corte */}
+        {rollsIncoming.length === 0 ? (
           <div className="text-center py-12 rounded-xl border border-dashed border-slate-700 text-slate-400 bg-white/5">
-            No hay rollos programados o en tránsito hacia Globo en este momento.
+            No hay rollos de Telares pendientes de recogida para Globo.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -453,7 +459,8 @@ export const GloboWipPage: React.FC = () => {
               </div>
             ))}
           </div>
-        )
+        )}
+        </div>
       ) : (
         /* TAB 4: PTIs Procesados Recientes */
         recentTransformed.length === 0 ? (

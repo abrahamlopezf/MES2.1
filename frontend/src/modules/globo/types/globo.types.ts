@@ -15,9 +15,9 @@ export interface GloboSpecificationMaterial {
 
 export interface LoomRollRequirements {
   allowed_bom_ids: number[];
-  min_width_cm?: number;
-  max_width_cm?: number;
-  fabric_type: 'TUBULAR' | 'PLANA' | 'CUALQUIERA';
+  min_width_cm?: number | null;
+  max_width_cm?: number | null;
+  fabric_type?: 'TUBULAR' | 'PLANA' | 'CUALQUIERA' | '';
   meters_per_output: number;
   notes?: string;
 }
@@ -30,7 +30,7 @@ export interface GloboSpecification {
   name: string;
   description?: string;
   process_type: 'EXPANSION' | 'FUELLE' | 'CALIBRADO' | 'REFUERZO';
-  target_width_cm: number;
+  target_width_cm?: number | null;
   target_grammage_g_per_m: number;
   output_product_name: string;
   expected_output_quantity: number;

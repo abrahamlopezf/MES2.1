@@ -171,12 +171,32 @@ export interface ExtruderQueue {
   formula?: Formula;
   created_at?: string;
   updated_at?: string;
+  last_transfer?: {
+    from_extruder_id: number;
+    from_extruder_name: string | null;
+    to_extruder_id: number;
+    to_extruder_name: string | null;
+    transferred_at: string;
+    transferred_by: number;
+  } | null;
+}
+
+export interface TransferMixContainerPayload {
+  queue_id: number;
+  from_extruder_id: number;
+  to_extruder_id: number;
+  scanned_mixture_qr: string;
+  notes?: string;
 }
 
 export interface ExtruderMachineInfo {
   id: number;
+  code?: string;
   machine_number?: number | null;
   name: string;
+  status?: string;
+  is_active?: boolean;
+  is_dynamic_member?: boolean;
   type: 'FIXED' | 'DYNAMIC';
   description: string;
   telares_subarea_code?: 'TELARES_BANDA' | 'TELARES_ROLLO' | 'NO_APLICA';

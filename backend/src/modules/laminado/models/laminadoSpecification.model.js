@@ -21,6 +21,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'BORRADOR',
       },
+      is_catalog_master: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       name: {
         type: DataTypes.STRING(150),
         allowNull: false,

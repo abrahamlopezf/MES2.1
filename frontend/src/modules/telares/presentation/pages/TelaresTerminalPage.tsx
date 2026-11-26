@@ -237,6 +237,12 @@ export const TelaresTerminalPage: React.FC = () => {
   }, [activeLoom]);
 
   const selectedBom = useMemo(() => boms.find((bom) => bom.id === Number(selectedBomId)) || null, [boms, selectedBomId]);
+  const creelTransferBom = useMemo(() => {
+    if (!creelTargetLoom) return null;
+    if (Number(creelTargetLoom.id) === Number(activeLoom?.id) && selectedBom) return selectedBom;
+    const currentBomId = Number(creelTargetLoom.current_bom_id || 0);
+    return currentBomId ? boms.find((bom) => Number(bom.id) === currentBomId) || null : null;
+  }, [creelTargetLoom, activeLoom?.id, selectedBom, boms]);
   const selectedBomEstimatedKgPerMeter = useMemo(() => {
     if (!selectedBom) return 0;
     const width = Number(selectedBom.weight_conversion_width_m || 0);
@@ -307,6 +313,9 @@ export const TelaresTerminalPage: React.FC = () => {
   const creelCompatibleRacks = useMemo(() => {
     const targetLoom = creelTargetLoom;
     const supportedTypes = (targetLoom?.supported_pti_types || []).map(Number);
+    const fichaPtiIds = creelTransferBom
+      ? new Set((creelTransferBom.items || []).map((item: any) => Number(item.pti_product_id)).filter((id: number) => id > 0))
+      : null;
     const targetIsBanda = isBandaLoom(targetLoom);
     return ptiRacks.filter((r: any) => {
       if (Number(r.current_quantity) <= 0) return false;
@@ -314,6 +323,7 @@ export const TelaresTerminalPage: React.FC = () => {
       const expectedContainer = transferMode === 'CART_FULL' ? 'CARRITO' : 'RACK';
       if (transferModeReady && String(r.container_type || 'RACK').trim().toUpperCase() !== expectedContainer) return false;
       const ptiId = Number(r.current_pti_product_id || r.currentPtiProduct.id || 0);
+      if (fichaPtiIds && !fichaPtiIds.has(ptiId)) return false;
       if (supportedTypes.length && ptiId > 0 && !supportedTypes.includes(ptiId)) return false;
       const configuredSubarea = String(r.currentPtiProduct?.telares_subarea_code || '').trim().toUpperCase();
       const extMachine = Number(r.currentPtiProduct?.extrusion_machine_number || 0);
@@ -327,7 +337,7 @@ export const TelaresTerminalPage: React.FC = () => {
       if (targetLoom && r.destination_subarea_id != null && Number(r.destination_subarea_id) !== Number(targetLoom.subarea_id)) return false;
       return true;
     });
-  }, [ptiRacks, creelTargetLoom, transferMode, transferModeReady]);
+  }, [ptiRacks, creelTargetLoom, creelTransferBom, transferMode, transferModeReady]);
 
   const selectedRackCompatible = Boolean(
     selectedTransferRack && creelCompatibleRacks.some((rack: any) => rack.id === selectedTransferRack.id),
@@ -523,6 +533,7 @@ export const TelaresTerminalPage: React.FC = () => {
         rack_id: Number(creelRackId),
         spools_to_load: Number(creelSpoolsToLoad),
         scanned_qr: creelScannedQr,
+        bom_id: creelTransferBom ? Number(creelTransferBom.id) : undefined,
       });
       toast.success(res.message || 'Bobinas cargadas a la fileta');
       setIsCreelModalOpen(false);
@@ -1003,7 +1014,7 @@ export const TelaresTerminalPage: React.FC = () => {
 
             {terminalStage === 'PREPARE' && (
               <div className="flex justify-end xl:col-span-2">
-                <Button type="button" onClick={() => setTerminalStage('RUN')} className="min-h-12 w-full px-5 text-base font-bold sm:w-auto">
+                <Button type="button" onClick={() => setTerminalStage('RUN')} disabled={!selectedBom || plannedMeters <= 0} className="min-h-12 w-full px-5 text-base font-bold sm:w-auto">
                   Continuar a corrida <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
@@ -1592,6 +1603,23 @@ export const TelaresTerminalPage: React.FC = () => {
                 <strong className="block text-amber-300">{transferMode === 'CART_FULL' ? 'Modo: carrito completo' : 'Modo: rack con transferencia parcial'}</strong>
                 <span>{transferMode === 'CART_FULL' ? 'Escanea el QR del carrito. Se transferirá todo su saldo, sin permitir una cantidad parcial.' : 'Escanea el QR del rack. Después indica cuántas bobinas físicas tomar; el resto seguirá en Extrusión.'}</span>
               </div>
+              {creelTransferBom && (
+                <div className="rounded-xl border border-cyan-700/60 bg-cyan-950/30 p-3 text-sm" aria-live="polite">
+                  <p className="font-bold text-cyan-100">PTI permitidos por la ficha: {creelTransferBom.code} · {creelTransferBom.name}</p>
+                  <ul className="mt-2 grid gap-1 text-slate-200 sm:grid-cols-2">
+                    {(creelTransferBom.items || []).map((item: any) => (
+                      <li key={item.id}>
+                        <span className="font-semibold">{String(item.role || 'PTI').replace(/_/g, ' ')}:</span>{' '}
+                        {item.ptiProduct?.code || `PTI ${item.pti_product_id}`} · {item.ptiProduct?.name || 'Sin nombre'}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-cyan-100">Puedes abastecer con varios racks: cada rack conserva su PTI y el telar los consumirá por separado según esta ficha.</p>
+                  {!(creelTransferBom.items || []).some((item: any) => Number(item.pti_product_id) > 0) && (
+                    <p role="alert" className="mt-2 font-semibold text-amber-200">Esta ficha no tiene PTI vinculados. Corrígela en el catálogo antes de transferir bobinas.</p>
+                  )}
+                </div>
+              )}
               {!transferModeReady && (
                 <p role="alert" className="text-xs text-rose-300">
                   {isTransferModeError ? 'No se pudo leer el modo vigente. Reintenta antes de transferir.' : 'Consultando el modo de transferencia...'}
@@ -1619,7 +1647,12 @@ export const TelaresTerminalPage: React.FC = () => {
                       return;
                     }
                     if (!creelCompatibleRacks.some((rack: any) => rack.id === found.id)) {
-                      toast.error('El PTI o la ruta del contenedor no son compatibles con el telar seleccionado.');
+                      const ptiCode = found.currentPtiProduct?.code || `PTI ${found.current_pti_product_id || ''}`;
+                      const fichaMismatch = creelTransferBom
+                        && !(creelTransferBom.items || []).some((item: any) => Number(item.pti_product_id) === Number(found.current_pti_product_id || found.currentPtiProduct?.id));
+                      toast.error(fichaMismatch
+                        ? `${ptiCode} no está vinculado a la ficha ${creelTransferBom.code}. Escanea un rack de uno de los PTI indicados.`
+                        : 'El PTI o la ruta del contenedor no son compatibles con el telar seleccionado.');
                       return;
                     }
                     setCreelRackId(found.id);
@@ -1629,6 +1662,11 @@ export const TelaresTerminalPage: React.FC = () => {
                     toast.success(`${expectedContainer === 'CARRITO' ? 'Carrito' : 'Rack'} ${found.rack_code} leído. Cantidad disponible precargada.`);
                   }}
                 />
+                {creelTargetLoom && creelTransferBom && creelCompatibleRacks.length === 0 && (
+                  <p role="status" className="rounded-lg border border-amber-600/50 bg-amber-950/30 p-3 text-sm text-amber-100">
+                    No hay racks disponibles que coincidan con esta ficha y este telar. Revisa que Extrusión haya registrado los PTI indicados y que el turno productor ya esté cerrado.
+                  </p>
+                )}
                 {selectedTransferRack && creelScannedQr && (
                   <div className="space-y-1 rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm" aria-live="polite">
                     <p className="font-bold text-emerald-200">QR leído · {selectedTransferRack.rack_code}</p>
@@ -1670,7 +1708,11 @@ export const TelaresTerminalPage: React.FC = () => {
               </div>
 
               {creelTargetLoom && selectedTransferRack && !selectedRackCompatible && (
-                <p role="alert" className="text-sm font-semibold text-rose-300">Este contenedor no corresponde al destino del telar. Verifica subárea, ruta y PTI.</p>
+                <p role="alert" className="text-sm font-semibold text-rose-300">
+                  {creelTransferBom && !(creelTransferBom.items || []).some((item: any) => Number(item.pti_product_id) === Number(selectedTransferRack.current_pti_product_id || selectedTransferRack.currentPtiProduct?.id))
+                    ? `El PTI de este rack no está en la ficha ${creelTransferBom.code}. Usa uno de los PTI permitidos que aparecen arriba.`
+                    : 'Este contenedor no corresponde al destino del telar. Verifica subárea, ruta y PTI.'}
+                </p>
               )}
 
               {isCreelConfirmationOpen ? (

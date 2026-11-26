@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getExtrusionShiftWindow, getShiftDateForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity } = require('./shiftBalance');
+const { getExtrusionShiftWindow, getShiftDateForInstant, getShiftCodeForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity } = require('./shiftBalance');
 
 test('shift windows use two twelve-hour shifts, including the overnight second shift', () => {
   const first = getExtrusionShiftWindow('2026-10-30', 'TURNO_1');
@@ -15,6 +15,34 @@ test('shift windows use two twelve-hour shifts, including the overnight second s
 test('overnight shift is attributed to the date it started before 06:00 CDMX', () => {
   assert.equal(getShiftDateForInstant(new Date('2026-10-31T08:00:00.000Z')), '2026-10-30');
   assert.equal(getShiftDateForInstant(new Date('2026-10-31T12:00:00.000Z')), '2026-10-31');
+});
+
+test('custom turn windows and production attribution use the edited schedule', () => {
+  const schedule = { shifts: [
+    { code: 'TURNO_1', label: 'Mañana', start_time: '00:00', end_time: '08:00' },
+    { code: 'TURNO_2', label: 'Tarde', start_time: '08:00', end_time: '16:00' },
+    { code: 'TURNO_3', label: 'Noche', start_time: '16:00', end_time: '00:00' },
+  ] };
+  const night = getExtrusionShiftWindow('2026-11-02', 'TURNO_3', schedule);
+  assert.equal(night.start.toISOString(), '2026-11-02T22:00:00.000Z');
+  assert.equal(night.end.toISOString(), '2026-11-03T06:00:00.000Z');
+  const producedAtNight = new Date('2026-11-03T02:00:00.000Z'); // 20:00 CDMX
+  assert.equal(getShiftCodeForInstant(producedAtNight, schedule), 'TURNO_3');
+  assert.equal(getShiftDateForInstant(producedAtNight, schedule), '2026-11-02');
+});
+
+test('temporary third shift on a Friday keeps its production attributed to the Friday start date', () => {
+  const schedule = { operating_days: [1, 2, 3, 4, 5], shifts: [
+    { code: 'TURNO_1', label: 'Turno 1', start_time: '06:00', end_time: '14:00' },
+    { code: 'TURNO_2', label: 'Turno 2', start_time: '14:00', end_time: '22:00' },
+    { code: 'TURNO_3', label: 'Turno 3', start_time: '22:00', end_time: '06:00' },
+  ] };
+  const fridayNight = getExtrusionShiftWindow('2026-11-20', 'TURNO_3', schedule);
+  assert.equal(fridayNight.start.toISOString(), '2026-11-21T04:00:00.000Z');
+  assert.equal(fridayNight.end.toISOString(), '2026-11-21T12:00:00.000Z');
+  const producedAt = new Date('2026-11-21T08:00:00.000Z'); // Saturday 02:00 CDMX, inside Friday's third shift
+  assert.equal(getShiftCodeForInstant(producedAt, schedule), 'TURNO_3');
+  assert.equal(getShiftDateForInstant(producedAt, schedule), '2026-11-20');
 });
 
 test('PTI output balance excludes separately measured purge from mixture production', () => {

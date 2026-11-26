@@ -1,0 +1,443 @@
+{
+  "fingerprintVersion": 2,
+  "generatedAt": "2026-11-26T09:44:51.799Z",
+  "database": "sistema_enterprise_test",
+  "host": "127.0.0.1",
+  "port": 5432,
+  "totalPublicTables": 90,
+  "masterTablesEvaluated": 30,
+  "totalMasterRows": 2972,
+  "globalMasterDataSha256": "aa80cc00d5f9faec21d0ddf476c3def4fe24926083cc71c4f4f87ecace9fcf83",
+  "tables": [
+    {
+      "table": "areas",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 16,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active"
+      ],
+      "sha256": "1b9f362a31c80792ef55e1cf10160d0b06ab469a998560b3b633f18aa26ea9de"
+    },
+    {
+      "table": "subareas",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 4,
+      "protectedColumns": [
+        "id",
+        "area_id",
+        "name",
+        "is_active"
+      ],
+      "sha256": "31ad0c7eeab11eee0f232ea97f768cefbe4239378915b32e02a1bf8c51263e00"
+    },
+    {
+      "table": "roles",
+      "category": "CONFIGURATION",
+      "exists": true,
+      "rowCount": 24,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "area_id",
+        "subarea_id",
+        "is_active"
+      ],
+      "sha256": "5a806d13893e7612814874816ae2d458e7b93d13a4ee0c4bd7d4531608554045"
+    },
+    {
+      "table": "permissions",
+      "category": "CONFIGURATION",
+      "exists": true,
+      "rowCount": 67,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "module"
+      ],
+      "sha256": "44f8cfdcda1e6d466baec70be2e580a35b1e5a03c7f8be5dd6937ea4024db57a"
+    },
+    {
+      "table": "role_permissions",
+      "category": "CONFIGURATION",
+      "exists": true,
+      "rowCount": 318,
+      "protectedColumns": [
+        "role_id",
+        "permission_id"
+      ],
+      "sha256": "e6e640323e5d899cc961a4bfa7ed69143e30e51349dd7760f929077c8607ab6d"
+    },
+    {
+      "table": "rankings",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 15,
+      "protectedColumns": [
+        "id",
+        "name",
+        "nomenclature"
+      ],
+      "sha256": "6082a205d6f250b13169f1cffb8e484374ab722f842e691611cb4c1c4f052bf7"
+    },
+    {
+      "table": "material_units",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 4,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active"
+      ],
+      "sha256": "7980c7284984d4d522e5646af6a70b302f7f31358a8c79102cb2c03a797052b8"
+    },
+    {
+      "table": "material_families",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 15,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "148b61cbe782df3539c5af7242c30e231d8192179b66d5b39e19ebc81aa2184b"
+    },
+    {
+      "table": "material_codes",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 765,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "09299f98e8b8a969cac46e07e197830347cdca5425e1099b5c853cc6fb18da32"
+    },
+    {
+      "table": "material_types",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 586,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "7e5768e286df89fd98a40e487206d18c7bcce7e246f4c27a432c67dc3b71e5fa"
+    },
+    {
+      "table": "material_brands",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 28,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "7414b82b1f97b08c70546a0479665cf0d123238e9f0b996ce1f766e25a76e231"
+    },
+    {
+      "table": "material_locations",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 132,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "area_id",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "a759d404e5b533c7b74e6878fb847fa9e4c3b7543739e51a2b1e038e088fa026"
+    },
+    {
+      "table": "suppliers",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 2,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "aecd18d147d875c801fcd5e17d6e1ce881be30ad7c27a06edd2a12f87a945d45"
+    },
+    {
+      "table": "tags",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 4,
+      "protectedColumns": [
+        "id",
+        "name",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "a8bc2a4c9e551f3ca4b2543f0ecde58c7f3c9c7852cb97a700e3662ce7c9538c"
+    },
+    {
+      "table": "materials",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 676,
+      "protectedColumns": [
+        "id",
+        "internal_code",
+        "name",
+        "family_id",
+        "material_code_id",
+        "type_id",
+        "brand_id",
+        "default_location_id",
+        "ranking_id",
+        "minimum_stock",
+        "is_active",
+        "deleted_at"
+      ],
+      "sha256": "c60d28e0b93cf7372ca6db90092858f0f27c81c6b37a6d50a7d5f361dc70c2a3"
+    },
+    {
+      "table": "material_tags",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 6,
+      "protectedColumns": [
+        "material_id",
+        "tag_id"
+      ],
+      "sha256": "7cd73dddeae816a13550da168c0d4cc9f510c0176697979255c0072def206d53"
+    },
+    {
+      "table": "tipos_baja",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 7,
+      "protectedColumns": [
+        "id",
+        "name",
+        "description"
+      ],
+      "sha256": "7432e82d53bb2b34c03c8ee43d140578f91b1f0e2846c8c71bd61783c70d3e57"
+    },
+    {
+      "table": "formulas",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 25,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "batch_size_kg",
+        "expected_yield_pieces",
+        "extruder_assignment_mode",
+        "allowed_extruders",
+        "restricted_extruders",
+        "is_active"
+      ],
+      "sha256": "abc096ad0fdcb035b8372572f9cb572696cf8ecffc4770a83ba21571807ff585"
+    },
+    {
+      "table": "formula_ingredients",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 111,
+      "protectedColumns": [
+        "id",
+        "formula_id",
+        "material_id",
+        "equivalence_tag_id",
+        "quantity",
+        "percentage"
+      ],
+      "sha256": "acf10a276349d5fb0795b96f97477b7fcf1e3cc2a66016c39b94185fd7e617d1"
+    },
+    {
+      "table": "pti_products",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 26,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "color",
+        "unit_weight_kg",
+        "formula_id",
+        "extrusion_machine_id",
+        "telares_subarea_code",
+        "is_active"
+      ],
+      "sha256": "10790e4a225e4fd83d0f9252261d4fe0d95c25ff855c6028c984b4b686bcf193"
+    },
+    {
+      "table": "extruders",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 5,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_dynamic_member",
+        "is_active"
+      ],
+      "sha256": "7dfa26cb113f9f111fe251340841e16d72b08371d0d267204455ce46f46b212b"
+    },
+    {
+      "table": "extrusoras_formulas",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 44,
+      "protectedColumns": [
+        "extruder_id",
+        "formula_id"
+      ],
+      "sha256": "645cb007da5757ffcba6db28a6b4b4c686fe9e7ec187013023961318b802ed3c"
+    },
+    {
+      "table": "silos",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 4,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "capacity_kg",
+        "material_id",
+        "material_tag_id",
+        "is_extrusion_feed",
+        "is_active"
+      ],
+      "sha256": "7b3299a26b84bc1c8c6b64a1b47543125ec6d1961d6d03a5a270baf37d5b3af0"
+    },
+    {
+      "table": "looms",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 21,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "subarea_id",
+        "creel_capacity_spools",
+        "supported_pti_types",
+        "supported_bom_ids",
+        "is_active"
+      ],
+      "sha256": "a53c2d23bd384e9adb170bd4a619382f591388dc4de426282857c4b8653993cc"
+    },
+    {
+      "table": "production_boms",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 18,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "product_kind",
+        "subarea_id",
+        "fabric_type",
+        "ounces_yd2",
+        "warp_denier",
+        "weft_denier",
+        "tape_color",
+        "default_route",
+        "is_provisional",
+        "is_active"
+      ],
+      "sha256": "4c826e6149eac033055f370ba056ad608cd4bb8f9723ee92c830be015de8dac1"
+    },
+    {
+      "table": "production_bom_items",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 19,
+      "protectedColumns": [
+        "id",
+        "bom_id",
+        "pti_product_id",
+        "material_id",
+        "role",
+        "ratio_percentage",
+        "consumption_g_per_m"
+      ],
+      "sha256": "a451c37d4f54c6ce3b24a59263bd4cdc2b6cd891d34f4e11fb33ae81ba7d8dc6"
+    },
+    {
+      "table": "laminado_specifications",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 4,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active"
+      ],
+      "sha256": "d546ae7dd33d54c089ed611f016609bbc8787e67a2e4ba338aefcf22af6d3d55"
+    },
+    {
+      "table": "laminado_specification_materials",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 18,
+      "protectedColumns": [
+        "id",
+        "laminado_spec_id",
+        "material_id"
+      ],
+      "sha256": "428bd498d7adcf0a1576226960548463e86077a2ec3def463283dfecac0eefdb"
+    },
+    {
+      "table": "globo_specifications",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 2,
+      "protectedColumns": [
+        "id",
+        "code",
+        "name",
+        "is_active"
+      ],
+      "sha256": "faeec09b522a41f58f6ab5fa4e5dcae5d378bc54dfcc4ab126282b8e5178e34c"
+    },
+    {
+      "table": "globo_specification_materials",
+      "category": "MASTER_DATA_CLIENT",
+      "exists": true,
+      "rowCount": 6,
+      "protectedColumns": [
+        "id",
+        "globo_spec_id",
+        "material_id"
+      ],
+      "sha256": "474f23578dc4298b0ef20265b434cf660935cea05191e862ab46a1af7d967bb9"
+    }
+  ]
+}
