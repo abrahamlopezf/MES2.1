@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canManageUsers, canViewCosts, isAreaAdminUser, isSupervisorUser } from './authHelpers';
+import { canManageUsers, canViewCosts, getUserAreaCode, isAreaAdminUser, isSupervisorUser } from './authHelpers';
 
 const user = (code: string, areaId: number | null) => ({
   role: { code, area_id: areaId },
@@ -49,5 +49,15 @@ describe('user administration visibility policy', () => {
     expect(canViewCosts(user('SUPERVISOR_LAMINADO', 4))).toBe(false);
     expect(canViewCosts(user('ADMIN_FINANCE', null))).toBe(false);
     expect(canViewCosts(user('FINANCE', null))).toBe(false);
+  });
+});
+
+describe('operational area resolution', () => {
+  it('resolves Corte by its role even when the cached area is absent', () => {
+    expect(getUserAreaCode(user('SUPERVISOR_CORTE', null))).toBe('CORTE');
+  });
+
+  it('resolves Corte from the configured area ID', () => {
+    expect(getUserAreaCode(user('OPERADOR', 6))).toBe('CORTE');
   });
 });

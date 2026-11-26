@@ -21,6 +21,7 @@ import { ExtrusionDashboard } from '../../production/presentation/pages/Extrusio
 import { TelaresDashboard } from '../../telares/presentation/pages/TelaresDashboard';
 import GloboWipPage from '../../globo/pages/GloboWipPage';
 import LaminadoWipPage from '../../laminado/pages/LaminadoWipPage';
+import CorteLaminadoOrdersPage from '../../corte/pages/CorteLaminadoOrdersPage';
 import { getUserAreaCode } from '../../../utils/authHelpers';
 
 
@@ -117,6 +118,9 @@ const DashboardPage = () => {
     }
     if (userArea === 'TELARES') {
       return <TelaresDashboard />;
+    }
+    if (userArea === 'CORTE') {
+      return <CorteLaminadoOrdersPage />;
     }
     return <WarehouseDashboard />;
   }

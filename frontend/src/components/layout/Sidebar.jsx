@@ -403,6 +403,9 @@ const Sidebar = ({ isOpen: mobileIsOpen, setIsOpen: setMobileIsOpen }) => {
         if (userArea === 'TELARES') {
           return group.label === 'Telares';
         }
+        if (userArea === 'CORTE') {
+          return group.label === 'Corte';
+        }
         if (userArea === 'ALMACEN') {
           return group.label === 'Almacén';
         }

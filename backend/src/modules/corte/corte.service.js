@@ -437,7 +437,10 @@ class CorteService {
     if (isUrgent && !String(urgentReason || '').trim()) throw httpError(400, 'El motivo es obligatorio para priorizar una orden urgente.');
     return sequelize.transaction(async (transaction) => {
       const Specification = specificationModelForArea(destination);
-      const spec = await Specification.findByPk(Number(specificationId), { transaction, lock: transaction.LOCK.UPDATE });
+      // La especificación pertenece a Master Data y el runtime QA solo puede
+      // consultarla. No es mutable durante esta operación; FOR UPDATE exigiría
+      // privilegios de escritura sin proteger ningún dato operativo.
+      const spec = await Specification.findByPk(Number(specificationId), { transaction });
       if (!spec || !spec.is_active) throw httpError(400, `Selecciona una especificación activa de ${destination}.`);
       const order = await CorteLaminadoOrder.create({
         order_number: `CL-${randomUUID()}`, requested_by: requestedBy,

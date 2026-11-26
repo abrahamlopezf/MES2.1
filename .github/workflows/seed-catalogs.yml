@@ -4,13 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       target_environment:
-        description: 'Ambiente destino (uat o production)'
+        description: 'Ambiente de pruebas del cliente (UAT)'
         required: true
         default: 'uat'
         type: choice
         options:
           - uat
-          - production
       confirm:
         description: 'Escribe "SEED_CONFIRMADO" para confirmar la carga idempotente de catálogos'
         required: true
@@ -66,6 +65,13 @@ jobs:
 
       - name: Verify seeded rows (spot-check)
         run: node src/scripts/verify-catalog-seed.js
+        env:
+          APP_ENV: ${{ inputs.target_environment }}
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Verify client operational catalogs
+        run: node src/scripts/verify-client-area-catalogs.js
         env:
           APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production

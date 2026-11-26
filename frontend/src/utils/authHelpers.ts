@@ -91,6 +91,7 @@ export const getUserAreaCode = (user: any): string => {
   if (roleCode.includes('TELARES') || roleCode.startsWith('ADMIN_TEL')) return 'TELARES';
   if (roleCode.includes('EXTRUSION') || roleCode === 'ADMIN_EXT') return 'EXTRUSION';
   if (roleCode.includes('ALMACEN') || roleCode.includes('ALM') || roleCode === 'WAREHOUSEMAN') return 'ALMACEN';
+  if (roleCode.includes('CORTE')) return 'CORTE';
 
   const areaCode = String(user?.area?.code || user?.role?.area?.code || '').toUpperCase();
   if (areaCode) return areaCode;
@@ -101,6 +102,7 @@ export const getUserAreaCode = (user: any): string => {
   if (areaId === 3) return 'TELARES';
   if (areaId === 4) return 'LAMINADO';
   if (areaId === 5) return 'GLOBO';
+  if (areaId === 6) return 'CORTE';
 
   return '';
 };
@@ -113,6 +115,7 @@ export const getUserAreaId = (user: any): number | null => {
   if (areaCode === 'TELARES') return 3;
   if (areaCode === 'LAMINADO') return 4;
   if (areaCode === 'GLOBO') return 5;
+  if (areaCode === 'CORTE') return 6;
   const id = user?.area?.id || user?.areaId || user?.role?.area?.id || user?.role?.area_id;
   if (id) return Number(id);
   return null;

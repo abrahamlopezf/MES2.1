@@ -53,6 +53,20 @@ test('Corte solicita una cantidad de PTI y Laminado solo recibe custodia con QR 
             (error) => error.statusCode === 409 && error.code === 'CORTE_ORDER_PICKUP_REQUIRED',
             'Tampoco se debe transformar sin confirmar la recogida física.',
           );
+          const processOrder = await corte.createProcessOrder({
+            destinationAreaCode: 'LAMINADO',
+            specificationId: matchingDemand.id,
+            requestedRollCount: 1,
+            requestedBy: user.id,
+          });
+          assert.equal(processOrder.status, 'REQUESTED', 'La solicitud de proceso debe poder leer la ficha maestra sin bloquearla para escritura.');
+          assert.equal(processOrder.destination_area_code, 'LAMINADO');
+          assert.equal(processOrder.specification.id, matchingDemand.id);
+          const persistedProcessOrder = await models.CorteLaminadoOrder.findByPk(processOrder.id, { transaction });
+          assert.equal(persistedProcessOrder.status, 'REQUESTED', 'La solicitud debe persistir dentro de la transacción QA.');
+          assert.equal(Number(persistedProcessOrder.target_specification_id), Number(matchingDemand.id));
+          assert.equal(await models.CorteLaminadoOrderItem.count({ where: { order_id: processOrder.id }, transaction }), 1);
+
           const created = await corte.createOrder({ specificationId: matchingDemand.id, requestedRollCount: 1, requestedBy: user.id, notes: 'QA local, transacción revertida.' });
           assert.equal(created.requested_roll_count, 1);
           const order = await models.CorteLaminadoOrder.findByPk(created.id, { transaction });
