@@ -4263,6 +4263,10 @@ class ExtrusionService {
         const qty = Number(ing.quantity || 0);
         const lastLote = await Lote.findOne({
           where: { material_id: ing.material_id },
+          // This calculation only needs these three persisted values. Selecting every
+          // Lote attribute made the formula catalog depend on unrelated, newer lot
+          // columns (package and invoice metadata) being migrated in every environment.
+          attributes: ['material_id', 'unit_cost', 'created_at'],
           order: [['created_at', 'DESC']]
         });
         const unitCost = lastLote && Number(lastLote.unit_cost) > 0 ? Number(lastLote.unit_cost) : null;

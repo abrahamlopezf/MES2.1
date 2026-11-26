@@ -37,7 +37,7 @@ const getAreaInventory = async (req, res, next) => {
 
 const getMaterialLotes = async (req, res, next) => {
   try {
-    const result = await warehouseService.getMaterialLotes(req.params.material_id);
+    const result = await warehouseService.getMaterialLotes(req.params.material_id, req.user);
     return successResponse(res, 'Lotes obtenidos correctamente.', result);
   } catch (error) {
     return next(error);
@@ -55,7 +55,7 @@ const disposeLotes = async (req, res, next) => {
 
 const getLoteDetails = async (req, res, next) => {
   try {
-    const result = await warehouseService.getLoteDetails(req.params.id);
+    const result = await warehouseService.getLoteDetails(req.params.id, req.user);
     return successResponse(res, 'Detalles del lote obtenidos.', result);
   } catch (error) {
     return next(error);
@@ -137,7 +137,7 @@ const manualEntry = async (req, res, next) => {
 
 const getMermaScrapReport = async (req, res, next) => {
   try {
-    const result = await warehouseService.getMermaScrapReport();
+    const result = await warehouseService.getMermaScrapReport(req.user);
     return successResponse(res, 'Reporte de Merma y Scrap obtenido', result);
   } catch (error) {
     return next(error);
@@ -146,7 +146,7 @@ const getMermaScrapReport = async (req, res, next) => {
 
 const getMermaScrapDetails = async (req, res, next) => {
   try {
-    const result = await warehouseService.getMermaScrapDetails(req.params.material_id);
+    const result = await warehouseService.getMermaScrapDetails(req.params.material_id, req.user);
     return successResponse(res, 'Detalles de Merma y Scrap obtenidos', result);
   } catch (error) {
     return next(error);

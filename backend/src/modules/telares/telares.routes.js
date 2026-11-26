@@ -23,16 +23,11 @@ router.use((req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Telares.' });
 });
 
-// Catalog/setup changes are limited to Telares administration and supervisors.
-// Operators retain the production actions below, but cannot alter master data.
-const requireTelaresAdministratorOrSupervisor = (req, res, next) => {
-  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
-  const allowedRoles = [
-    'SUPERADMIN', 'ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL',
-    'ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES',
-  ];
-  if (allowedRoles.includes(roleCode)) return next();
-  return res.status(403).json({ success: false, message: 'Solo administración o supervisión de Telares puede modificar esta configuración.' });
+// Loom settings and the operator roster are administrative configuration.
+// Supervisors retain production actions but cannot create or administer users.
+const requireTelaresAdministrator = (req, res, next) => {
+  if (isAreaAdministrator(req.user, 'TELARES')) return next();
+  return res.status(403).json({ success: false, message: 'Solo administración de Telares puede modificar esta configuración.' });
 };
 const requireTelaresCatalogAdministrator = (req, res, next) => {
   if (isAreaAdministrator(req.user, 'TELARES')) return next();
@@ -42,17 +37,17 @@ const requireTelaresCatalogAdministrator = (req, res, next) => {
 // Rutas de Telares y Racks
 router.get('/subareas', telaresController.getSubareas);
 router.get('/looms', telaresController.getLooms);
-router.post('/looms', requireTelaresAdministratorOrSupervisor, telaresController.createLoom);
-router.put('/looms/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateLoom);
-router.delete('/looms/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteLoom);
+router.post('/looms', requireTelaresAdministrator, telaresController.createLoom);
+router.put('/looms/:id', requireTelaresAdministrator, telaresController.updateLoom);
+router.delete('/looms/:id', requireTelaresAdministrator, telaresController.deleteLoom);
 router.get('/boms', telaresController.getBoms);
 router.post('/boms', requireTelaresCatalogAdministrator, telaresController.createBom);
 router.put('/boms/:id', requireTelaresCatalogAdministrator, telaresController.updateBom);
 router.delete('/boms/:id', requireTelaresCatalogAdministrator, telaresController.deleteBom);
-router.get('/operators', telaresController.getOperators);
-router.post('/operators', requireTelaresAdministratorOrSupervisor, telaresController.createOperator);
-router.put('/operators/:id', requireTelaresAdministratorOrSupervisor, telaresController.updateOperator);
-router.delete('/operators/:id', requireTelaresAdministratorOrSupervisor, telaresController.deleteOperator);
+router.get('/operators', requireTelaresAdministrator, telaresController.getOperators);
+router.post('/operators', requireTelaresAdministrator, telaresController.createOperator);
+router.put('/operators/:id', requireTelaresAdministrator, telaresController.updateOperator);
+router.delete('/operators/:id', requireTelaresAdministrator, telaresController.deleteOperator);
 router.post('/looms/:id/assign-rack', telaresController.assignRack);
 router.post('/looms/:id/load-creel', telaresController.loadCreel);
 router.post('/transfer-cart', telaresController.transferCart);
@@ -61,7 +56,7 @@ router.get('/pti-racks/lookup/:code', telaresController.lookupPtiRack);
 router.get('/wip-summary', telaresController.getWipSummary);
 router.get('/performance-summary', telaresController.getPerformanceSummary);
 router.get('/pti-transfer-mode', telaresController.getPtiTransferMode);
-router.put('/pti-transfer-mode', requireTelaresAdministratorOrSupervisor, telaresController.updatePtiTransferMode);
+router.put('/pti-transfer-mode', requireTelaresAdministrator, telaresController.updatePtiTransferMode);
 router.post('/runs/start', telaresController.startRun);
 router.post('/runs/finish-roll', telaresController.finishRoll);
 router.post('/runs/:id/finish', telaresController.finishRun);

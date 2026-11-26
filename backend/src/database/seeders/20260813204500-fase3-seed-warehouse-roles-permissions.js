@@ -66,6 +66,20 @@ module.exports = {
         }
       }
 
+      // The Warehouse supervisor can inspect stock and area metrics, but receives
+      // no warehouse mutation or QR batch-generation permissions.
+      if (roleMap['SUPERVISOR'] && permMap['inventory.view']) {
+        await queryInterface.sequelize.query(
+          `INSERT INTO role_permissions (role_id, permission_id, created_at, updated_at)
+           SELECT ${roleMap['SUPERVISOR']}, ${permMap['inventory.view']}, NOW(), NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM role_permissions
+             WHERE role_id = ${roleMap['SUPERVISOR']} AND permission_id = ${permMap['inventory.view']}
+           );`,
+          { transaction }
+        );
+      }
+
       // ADMIN_ALM
       const adminAlmPerms = [
         'inventory.view', 'warehouse.consume', 'warehouse.dispose', 'warehouse.read', 

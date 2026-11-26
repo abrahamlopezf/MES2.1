@@ -1,9 +1,50 @@
 const { Op } = require('sequelize');
 const { sequelize, Inventory, Material, Lote, User, Ranking, MaterialUnit } = require('../../database/models');
-const { throwHttpError, canViewCosts } = require('../../shared/security/accessRules');
+const { throwHttpError, canViewCosts, getUserAreaId, isAdmin } = require('../../shared/security/accessRules');
 const inventoryDomainService = require('./inventoryDomain.service');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const FINANCIAL_FIELD = /cost|price|currency|financial|valuation|costo|precio|dinero|^value$|_value$/i;
+
+const stripFinancialFields = (value, activePath = new WeakSet()) => {
+  if (!value || typeof value !== 'object' || value instanceof Date || Buffer.isBuffer(value)) return value;
+  if (activePath.has(value)) return null;
+
+  activePath.add(value);
+  let source = value;
+  let sourceAdded = false;
+  try {
+    if (!Array.isArray(value) && typeof value.toJSON === 'function') {
+      source = value.toJSON();
+      if (source && typeof source === 'object' && source !== value) {
+        if (activePath.has(source)) return null;
+        activePath.add(source);
+        sourceAdded = true;
+      }
+    }
+    if (Array.isArray(source)) return source.map((child) => stripFinancialFields(child, activePath));
+    if (!source || typeof source !== 'object') return source;
+    return Object.fromEntries(Object.entries(source)
+      .filter(([key]) => !FINANCIAL_FIELD.test(key))
+      .map(([key, child]) => [key, stripFinancialFields(child, activePath)]));
+  } finally {
+    if (sourceAdded) activePath.delete(source);
+    activePath.delete(value);
+  }
+};
+
+const hideCostsUnlessAuthorized = (value, currentUser) => (
+  canViewCosts(currentUser) ? value : stripFinancialFields(value)
+);
+
+const getAreaInventoryScope = (currentUser) => {
+  const isGlobalAdmin = isAdmin(currentUser);
+  const areaId = getUserAreaId(currentUser);
+  if (!isGlobalAdmin && !areaId) {
+    throwHttpError('El usuario no tiene un área asignada para ver el inventario de área.', 403);
+  }
+  return isGlobalAdmin ? {} : { area_id: areaId };
+};
 
 const parseUuidList = (raw) => String(raw || '')
   .split(',')
@@ -229,21 +270,12 @@ const getInventory = async (query = {}, currentUser) => {
 };
 
 const getAreaInventory = async (query = {}, currentUser) => {
-  const isGlobalAdmin = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_GRAL', 'ADMIN', 'ADMIN_ALM'].includes(currentUser.role?.code);
-
-  if (!currentUser.area_id && !isGlobalAdmin) {
-    throwHttpError('El usuario no tiene un área asignada para ver el inventario de área.', 400);
-  }
-
   const { WipInventory, QrCode } = require('../../database/models');
   
   const where = {
-    amount: { [Op.gt]: 0 }
+    amount: { [Op.gt]: 0 },
+    ...getAreaInventoryScope(currentUser),
   };
-
-  if (!isGlobalAdmin || currentUser.area_id) {
-    where.area_id = currentUser.area_id;
-  }
 
   const limit = Math.min(Number(query.limit) || 100, 300);
   const offset = Number(query.offset) || 0;
@@ -265,7 +297,9 @@ const getAreaInventory = async (query = {}, currentUser) => {
       {
         model: Lote,
         as: 'lote',
-        attributes: ['id', 'folio', 'is_active', 'unit_cost']
+        attributes: canViewCosts(currentUser)
+          ? ['id', 'folio', 'is_active', 'unit_cost']
+          : ['id', 'folio', 'is_active']
       },
       {
         model: QrCode,
@@ -286,7 +320,7 @@ const getAreaInventory = async (query = {}, currentUser) => {
   };
 };
 
-const getMaterialLotes = async (material_id) => {
+const getMaterialLotes = async (material_id, currentUser) => {
   if (!material_id) {
     throwHttpError('Falta el material_id', 400);
   }
@@ -308,7 +342,7 @@ const getMaterialLotes = async (material_id) => {
     order: [['date_received', 'DESC']]
   });
 
-  return lotes;
+  return hideCostsUnlessAuthorized(lotes, currentUser);
 };
 
 const disposeLotes = async (payload, currentUser) => {
@@ -438,7 +472,7 @@ const resolveWasteRequest = async (requestId, status, currentUser) => {
   });
 };
 
-const getLoteDetails = async (id) => {
+const getLoteDetails = async (id, currentUser) => {
   const { Material, User, Location, QrCode, TraceabilityEvent } = require('../../database/models');
   
   const lote = await Lote.findByPk(id, {
@@ -481,11 +515,11 @@ const getLoteDetails = async (id) => {
     order: [['created_at', 'ASC']]
   });
 
-  return {
+  return hideCostsUnlessAuthorized({
     lote,
     events,
     consumptions
-  };
+  }, currentUser);
 };
 const consumeMaterials = async (payload, currentUser) => {
   if (!payload.items || !payload.items.length) {
@@ -1346,7 +1380,7 @@ const manualEntry = async (payload, currentUser) => {
     };
   });
 };
-const getMermaScrapReport = async () => {
+const getMermaScrapReport = async (currentUser) => {
   const { sequelize } = require('../../database/models');
 
   const [movements] = await sequelize.query(`
@@ -1402,10 +1436,10 @@ const getMermaScrapReport = async () => {
 
   const materialsList = Object.values(materialsMap);
 
-  return materialsList;
+  return hideCostsUnlessAuthorized(materialsList, currentUser);
 };
 
-const getMermaScrapDetails = async (material_id) => {
+const getMermaScrapDetails = async (material_id, currentUser) => {
   const { InventoryMovement, Inventory, User } = require('../../database/models');
   const { Op } = require('sequelize');
 
@@ -1446,7 +1480,7 @@ const getMermaScrapDetails = async (material_id) => {
     };
   });
 
-  return result;
+  return hideCostsUnlessAuthorized(result, currentUser);
 };
 
 const getLowStockReport = async () => {
@@ -1544,6 +1578,8 @@ module.exports = {
   getLoteDetails,
   getDashboardMetrics,
   getAreaInventory,
+  getAreaInventoryScope,
+  hideCostsUnlessAuthorized,
   getLowStockReport,
   manualEntry,
   getMermaScrapReport,

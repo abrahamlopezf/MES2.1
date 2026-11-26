@@ -16,6 +16,13 @@ const authorizePermission =
   permissionMiddleware.authorizePermission ||
   permissionMiddleware.requirePermission ||
   permissionMiddleware;
+const denySupervisorFormulaCatalogAccess = (req, res, next) => {
+  const roleCode = String(req.user?.role?.code || req.user?.role?.name || '').toUpperCase();
+  if (roleCode.startsWith('SUPERVISOR')) {
+    return res.status(403).json({ success: false, message: 'El catálogo general de fórmulas no está habilitado para supervisores. Consulta el catálogo de tu área.' });
+  }
+  return next();
+};
 
 if (typeof authenticate !== 'function') {
   throw new Error(
@@ -34,6 +41,7 @@ const router = express.Router();
 router.get(
   '/',
   authenticate,
+  denySupervisorFormulaCatalogAccess,
   authorizePermission('formulas.read'),
   formulasController.listFormulas
 );
@@ -41,6 +49,7 @@ router.get(
 router.get(
   '/:id',
   authenticate,
+  denySupervisorFormulaCatalogAccess,
   authorizePermission('formulas.read'),
   formulasController.getFormulaById
 );
@@ -48,6 +57,7 @@ router.get(
 router.post(
   '/',
   authenticate,
+  denySupervisorFormulaCatalogAccess,
   authorizePermission('formulas.manage'),
   formulasController.createFormula
 );
@@ -55,6 +65,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
+  denySupervisorFormulaCatalogAccess,
   authorizePermission('formulas.manage'),
   formulasController.updateFormula
 );
@@ -62,6 +73,7 @@ router.put(
 router.patch(
   '/:id/deactivate',
   authenticate,
+  denySupervisorFormulaCatalogAccess,
   authorizePermission('formulas.manage'),
   formulasController.deactivateFormula
 );

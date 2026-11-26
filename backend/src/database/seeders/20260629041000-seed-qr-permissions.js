@@ -52,7 +52,6 @@ const ROLE_PERMISSION_MAP = {
   ],
   SUPERVISOR: [
     'qr.read',
-    'qr.generate',
     'qr.assign',
     'qr.events.read',
   ],

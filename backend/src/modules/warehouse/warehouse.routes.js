@@ -15,6 +15,7 @@ const authenticate = authMiddleware.authenticate || authMiddleware.authMiddlewar
 const authorizePermission = permissionMiddleware.authorizePermission || permissionMiddleware.requirePermission || permissionMiddleware;
 const validateRequest = validationMiddleware.validateRequest || validationMiddleware;
 const authorizeWarehouseReports = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN');
+const authorizeWarehouseArea = roleMiddleware('ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN', 'SUPERVISOR');
 
 router.use(authenticate);
 
@@ -25,24 +26,28 @@ router.post('/pti-extrusion-transfers/receive', roleMiddleware('WAREHOUSEMAN', '
 
 router.get(
   '/dashboard-metrics',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.dashboard.view', 'inventory.view'),
   warehouseController.getDashboardMetrics
 );
 
 router.get(
   '/low-stock-report',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.dashboard.view', 'inventory.view'),
   warehouseController.getLowStockReport
 );
 
 router.get(
   '/reports/merma-scrap',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.read', 'inventory.view'),
   warehouseController.getMermaScrapReport
 );
 
 router.get(
   '/reports/merma-scrap/:material_id',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.read', 'inventory.view'),
   warehouseController.getMermaScrapDetails
 );
@@ -115,6 +120,7 @@ router.post(
 
 router.post(
   '/inventory/dispose-request',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.read', 'warehouse.waste.request', 'inventory.view'),
   warehouseController.requestDisposeLotes
 );
@@ -133,6 +139,7 @@ router.post(
 
 router.get(
   '/tipo-baja',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.read', 'inventory.view', 'warehouse.waste', 'warehouse.waste.request', 'warehouse.dispose'),
   async (req, res, next) => {
     try {
@@ -186,6 +193,7 @@ router.post(
 
 router.post(
   '/inventory/change-location',
+  authorizeWarehouseArea,
   authorizePermission('warehouse.read', 'inventory.view', 'warehouse.consume'), 
   warehouseController.changeLocation
 );

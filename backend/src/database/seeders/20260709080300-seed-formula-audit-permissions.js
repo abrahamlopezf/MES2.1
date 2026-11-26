@@ -33,7 +33,6 @@ const privilegedRoleCodes = [
   'SUPERADMIN',
   'ADMIN',
   'MANAGER',
-  'SUPERVISOR',
 ];
 
 module.exports = {

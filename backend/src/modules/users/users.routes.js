@@ -75,7 +75,7 @@ router.delete(
 
 router.post(
   '/:id/request-deactivation',
-  permissionMiddleware('users.update'),
+  authorizeUserPermission('users.update'),
   usersController.requestDeactivation
 );
 

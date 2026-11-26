@@ -506,6 +506,10 @@ const requestDeactivation = async (userId, currentUser) => {
       throwHttpError('Usuario no encontrado.', 404);
     }
 
+    if (!AuthorizationService.canManageUser(currentUser.role, user.role)) {
+      throwHttpError('No tienes permisos para solicitar la desactivación de este usuario.', 403);
+    }
+
     if (Number(user.id) === Number(currentUser.id)) {
       throwHttpError('No puedes solicitar la desactivación de tu propio usuario.', 400);
     }

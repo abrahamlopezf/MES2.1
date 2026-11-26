@@ -80,7 +80,11 @@ export const TelaresRoute: React.FC<{ children?: React.ReactNode }> = ({ childre
 
   const roleCode = (typeof user?.role === 'string' ? user.role : (user?.role?.code || user?.role?.name))?.toUpperCase() || '';
   if (['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'].includes(roleCode)) return children ? <>{children}</> : <Outlet />;
-  if (['ADMIN_TELARES', 'ADMIN_TEL'].includes(roleCode)) {
+  const isTelaresAdministrator = ['ADMIN_TELARES', 'ADMIN_TEL'].includes(roleCode);
+  if (location.pathname.startsWith('/telares/operadores') && !isTelaresAdministrator) {
+    return <Navigate to="/production/telares" replace />;
+  }
+  if (isTelaresAdministrator) {
     if (!hasTelaresMenuAccess(location.pathname)) return <Navigate to="/telares/catalogos" replace />;
     return children ? <>{children}</> : <Outlet />;
   }
