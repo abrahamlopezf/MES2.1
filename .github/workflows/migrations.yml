@@ -86,6 +86,7 @@ jobs:
           APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Run migrations
         run: npx sequelize-cli db:migrate --env ${{ inputs.target_environment }}
@@ -93,3 +94,4 @@ jobs:
           APP_ENV: ${{ inputs.target_environment }}
           NODE_ENV: production
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
