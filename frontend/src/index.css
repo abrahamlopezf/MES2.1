@@ -132,7 +132,6 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transform: translateZ(0); /* Force hardware acceleration for smooth rendering */
   }
   
   
@@ -239,10 +238,6 @@ html.mobile-keyboard-open [data-keyboard-aware-panel] input:focus,
 html.mobile-keyboard-open [data-keyboard-aware-panel] select:focus,
 html.mobile-keyboard-open [data-keyboard-aware-panel] textarea:focus {
   scroll-margin-block: 1rem;
-}
-
-html.mobile-keyboard-open [data-keyboard-aware-panel] .sticky.bottom-0 {
-  display: none !important;
 }
 
 html.mobile-keyboard-open nav[aria-label="Navegación principal móvil"] {

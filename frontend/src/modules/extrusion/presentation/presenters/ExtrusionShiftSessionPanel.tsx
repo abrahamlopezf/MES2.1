@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Activity, Lock, Play, ShieldCheck } from '@/design-system/components/Icon/googleIconCompat';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { extrusionApi } from '../../services/extrusionApi';
 import { useExtruderQueuesQuery } from '../../hooks/useExtrusionFloorQueries';
 import { useAuthStore } from '@/store/authStore';
@@ -33,6 +37,7 @@ export const ExtrusionShiftSessionPanel: React.FC = () => {
   const isExecutive = ['ADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'SUPERADMIN', 'ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(role);
   const { data: extruderGroups = [] } = useExtruderQueuesQuery();
   const announcedAutoStart = useRef<number | null>(null);
+  const [handoffConfirmation, setHandoffConfirmation] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const activeQuery = useQuery({
     queryKey: ['extrusion', 'active-shift-session'],
     queryFn: async () => {
@@ -95,9 +100,10 @@ export const ExtrusionShiftSessionPanel: React.FC = () => {
     const question = activeNames
       ? `¿Quedó mezcla activa en ${activeNames}? Confirma que continuará en la extrusora y pasará al siguiente supervisor con el saldo digital, sin pesaje ni interrupción.`
       : 'No hay mezcla activa detectada. ¿Confirmas que el turno está listo para entregar?';
-    if (window.confirm(`${question} El cambio se completará cuando el supervisor entrante confirme.`)) {
-      closeMutation.mutate({ id: Number(session.id) });
-    }
+    setHandoffConfirmation({
+      open: true,
+      message: `${question} El cambio se completará cuando el supervisor entrante confirme.`,
+    });
   };
   return <section className="space-y-4 rounded-2xl border border-primary/30 bg-card p-4 shadow-sm sm:p-6" aria-labelledby="extrusion-shift-session-title">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -159,5 +165,20 @@ export const ExtrusionShiftSessionPanel: React.FC = () => {
       </div>
     </> : isSupervisor ? suggestedShift?.reason === 'RELEVO_DEL_DIA' ? <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold">El siguiente supervisor debe iniciar el relevo</h3><p className="text-sm text-muted-foreground">{nextShift?.label || String(suggestedShift.shift_code).replaceAll('_', ' ')} · {suggestedShift.shift_date}. El inicio requiere confirmación explícita.</p>{nextShift && <p className="text-xs text-muted-foreground">{nextShift.start_time}–{nextShift.end_time} · {Number(nextShift.duration_hours)} horas</p>}</div><Button type="button" className="min-h-12" disabled={!isAllowedShiftDate(suggestedShift.shift_date, operatingDays) || openMutation.isPending || activeQuery.isFetching} onClick={() => openMutation.mutate({ shift_date: suggestedShift.shift_date, shift_code: suggestedShift.shift_code })}><Play className="mr-2 h-5 w-5" />{openMutation.isPending ? 'Iniciando…' : `Iniciar ${nextShift?.label || String(suggestedShift.shift_code).replaceAll('_', ' ').toLowerCase()}`}</Button></div> : <div className="rounded-xl border border-border bg-background/60 p-4"><p className="font-semibold">El primer turno del día operativo se inicia automáticamente cuando ingresa el supervisor.</p><p className="mt-1 text-sm text-muted-foreground">{suggestedShift?.shift_date ? `Siguiente fecha operativa: ${suggestedShift.shift_date}.` : 'No hay un turno que iniciar manualmente en este momento.'} Los relevos siguen los días configurados para Extrusión.</p></div>
     : <p className="rounded-xl border border-border bg-background/50 p-4 text-sm text-muted-foreground">El supervisor de Extrusión debe iniciar el turno antes de registrar mezclas o producción.</p>}
+    <AlertDialog open={handoffConfirmation.open} onOpenChange={(open) => setHandoffConfirmation((current) => ({ ...current, open }))}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar entrega del turno</AlertDialogTitle>
+          <AlertDialogDescription>{handoffConfirmation.message}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => {
+            setHandoffConfirmation((current) => ({ ...current, open: false }));
+            closeMutation.mutate({ id: Number(session?.id) });
+          }}>Dejar turno listo para entrega</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </section>;
 };

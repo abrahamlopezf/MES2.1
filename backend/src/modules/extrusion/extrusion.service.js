@@ -5,6 +5,7 @@ const { getClientFormulaKind, isClientFormulaAllowedOnMachine, selectLeastLoaded
 const { fetchQueueOutputSnapshots, persistQueueOutputSnapshot } = require('./services/queueOutputSnapshot.service');
 const { getFormulaOutputColorLabel, validateRequestedOutputColor } = require('./services/formulaColorRules');
 const { samePreparedQueueBatch, selectNextQueueForBatch, normalizeColor } = require('./services/queueBatchRules');
+const { splitQuantityEqually } = require('./services/splitQuantityEqually');
 const { getExtrusionShiftWindow, getShiftDateForInstant, getShiftCodeForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity } = require('./services/shiftBalance');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
@@ -1161,14 +1162,11 @@ class ExtrusionService {
       preparation.remaining_quantity_kg = totalQuantity;
 
       // 6. Dividir Cantidad Total entre los N Contenedores y Crear TraceableItems + QRs
-      const weightPerContainer = Number((totalQuantity / count).toFixed(2));
+      const containerWeights = splitQuantityEqually(totalQuantity, count, 3);
       const createdContainers = [];
       for (let i = 0; i < containerCodes.length; i++) {
         const cCode = containerCodes[i];
-        // En el último contenedor se ajusta la diferencia de redondeo para que la suma exacta sea totalQuantity
-        const cWeight = i === containerCodes.length - 1
-          ? Number((totalQuantity - (weightPerContainer * (containerCodes.length - 1))).toFixed(2))
-          : weightPerContainer;
+        const cWeight = containerWeights[i];
 
         const cQr = virginQrByCode.get(cCode);
         const qrPreviousStatus = cQr.status;

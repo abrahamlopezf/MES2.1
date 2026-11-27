@@ -3,7 +3,7 @@ import { Card, CardContent, TopBar, Button } from '../../../design-system';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import {
-  Moon, Sun, LogOut, Edit2, X, Save, Lock, Camera, Link as LinkIcon,
+  LogOut, Edit2, X, Save, Lock, Camera, Link as LinkIcon,
 } from '@/design-system/components/Icon/googleIconCompat';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ import { UserAvatar as SharedUserAvatar } from '../../../components/ui/UserAvata
 
 const ProfilePage: React.FC = () => {
   const { user, logout, initializeAuth } = useAuthStore() as any;
-  const { theme, toggleTheme } = useThemeStore();
+  const { themePreference, setTheme } = useThemeStore();
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -217,12 +217,19 @@ const ProfilePage: React.FC = () => {
                 <Lock size={16} /> Cambiar Contraseña
               </Button>
 
-              <Button variant="outline" className="w-full justify-between" onClick={toggleTheme}>
-                <span className="flex items-center gap-2">
-                  {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-                  Modo {theme === 'dark' ? 'Oscuro' : 'Claro'}
-                </span>
-              </Button>
+              <label className="block space-y-2 text-sm font-semibold text-foreground" htmlFor="theme-preference">
+                Apariencia
+                <select
+                  id="theme-preference"
+                  value={themePreference}
+                  onChange={(event) => setTheme(event.target.value)}
+                  className="h-12 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="system">Automática (según el dispositivo)</option>
+                  <option value="light">Clara</option>
+                  <option value="dark">Oscura</option>
+                </select>
+              </label>
 
               <Button variant="destructive" className="w-full justify-center gap-2" onClick={handleLogout}>
                 <LogOut size={16} /> Cerrar Sesión

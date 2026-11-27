@@ -50,6 +50,7 @@ import { QrScannerButton } from '@/shared/components/scan/QrScannerButton';
 import { ProductionReconciliationPanel } from './ProductionReconciliationPanel';
 import { RackQrLabelsDialog } from '../components/RackQrLabelsDialog';
 import { QRCodeSVG } from 'qrcode.react';
+import { buildPtiRackAssignmentPreview } from '../utils/ptiRackAssignmentPreview';
 
 export interface PtiIngressPresenterProps {
   racks: PtiRack[];
@@ -237,33 +238,14 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
         : null)
     : null;
   const rackAssignmentPreview = React.useMemo(() => {
-    if (!selectedPtiProduct || !pieces || !expectedRoute) return { allocations: [] as Array<{ rack: PtiRack; pieces: number }>, remaining: pieces };
-    const eligible = racks.filter((rack) => {
-      if (rack.locked_until_shift_close || rack.available_for_active_shift === false
-        || (rack.custody_shift_session_id != null && rack.available_for_active_shift !== true)) return false;
-      const occupied = Number(rack.current_quantity || 0);
-      if (occupied <= 0) return true;
-      return Number(rack.current_pti_product_id) === Number(selectedPtiProduct.id)
-        && rack.destination_route === expectedRoute
-        && rack.destination_subarea_id == null;
+    return buildPtiRackAssignmentPreview({
+      racks,
+      ptiProductId: selectedPtiProduct ? Number(selectedPtiProduct.id) : null,
+      expectedRoute,
+      pieces,
+      selectedRackId: selectedRack?.id ?? null,
     });
-    const firstChoice = [...eligible]
-      .sort((a, b) => Number(b.current_quantity || 0) - Number(a.current_quantity || 0) || Number(a.id) - Number(b.id))
-      .find((rack) => Number(rack.current_quantity || 0) < Number(rack.max_capacity || 100));
-    const allocationOrder = firstChoice
-      ? [firstChoice, ...eligible.filter((rack) => rack.id !== firstChoice.id).sort((a, b) => Number(a.id) - Number(b.id))]
-      : [];
-    let remaining = pieces;
-    const allocations: Array<{ rack: PtiRack; pieces: number }> = [];
-    for (const rack of allocationOrder) {
-      const available = Math.max(0, Number(rack.max_capacity || 100) - Number(rack.current_quantity || 0));
-      const assigned = Math.min(remaining, available);
-      if (assigned > 0) allocations.push({ rack, pieces: assigned });
-      remaining -= assigned;
-      if (remaining <= 0) break;
-    }
-    return { allocations, remaining: Math.max(0, remaining) };
-  }, [racks, selectedPtiProduct, pieces, expectedRoute]);
+  }, [racks, selectedPtiProduct, pieces, expectedRoute, selectedRack]);
   const isIngressSubmitDisabled = isSubmitting || !selectedPtiMaterialId || pieces <= 0 || !expectedRoute || rackAssignmentPreview.remaining > 0;
   const ingressSubmitHint = !selectedPtiMaterialId
     ? 'Selecciona el PTI'
@@ -802,7 +784,7 @@ export const PtiIngressPresenter: React.FC<PtiIngressPresenterProps> = ({
                   <ul className="space-y-1.5">
                     {rackAssignmentPreview.allocations.map(({ rack, pieces: assigned }) => (
                       <li key={rack.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
-                        <span className="font-bold text-foreground">{rack.rack_code}<span className="ml-2 text-xs font-medium text-muted-foreground">{Number(rack.current_quantity || 0)} / {Number(rack.max_capacity || 100)} piezas</span></span>
+                        <span className="font-bold text-foreground">{rack.rack_code}<span className="ml-2 text-xs font-medium text-muted-foreground">{' · '}{Number(rack.current_quantity || 0)} / {Number(rack.max_capacity || 100)} piezas</span></span>
                         <span className="font-mono font-black text-primary">+{assigned} piezas</span>
                       </li>
                     ))}

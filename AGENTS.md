@@ -79,3 +79,21 @@ All AI agents working on TraceFlow MES MUST read and follow the engineering base
 - **Test Before & After Refactoring**: Never refactor a module without first running `npm run test:integrity` (`envIsolationGuard.test.js` + `characterization.contracts.test.js`) and `npm run test:unit`. Every refactoring unit in `docs/engineering-readiness/11_REFACTORING_ROADMAP.md` must leave all tests green (`npm run validate`).
 - **Protect Concurrent Work in Progress**: Always inspect `git status` first. NEVER run destructive commands (`git reset --hard`, `git checkout -- .`, `git clean -fd`) or overwrite uncommitted changes from other developers.
 - **Prohibition on Unauthorized Business Logic Changes**: NEVER alter business rules, industrial routing, tolerances, or financial/mass calculations without explicit user authorization. When encountering an ambiguity between code and tests (such as `QA-TEL-ROUTE-001` or `QA-ODC-PACK-001`), document the evidence and ask the user before changing the rule.
+
+## Frontend Responsive and Visual Quality Standards
+
+These standards apply to frontend pages, routes, components, dialogs, tables, notifications, scanners, and shared layouts. They supplement the rules above and do not override operational or permission contracts.
+
+- Use mobile-first, content-driven layouts. Review compact phones (320–359 CSS px), standard phones (360–479), large phones/compact tablets (480–639), tablets (640–1023), compact desktop (1024–1279), standard desktop (1280–1535), and wide desktop (1536+); record the exact tested viewport and browser.
+- Preserve zoom, device text scaling, orientation changes, focus, entered form values, roles, permissions, backend-calculated indicators, and `allowed_actions`.
+- Check horizontal overflow, clipped text/actions, fixed widths/heights, nested scrolling, keyboard/visual viewport behavior, safe areas, modal stacking, sticky actions, charts, and tables at each applicable size. Never hide a critical form action solely because the virtual keyboard is open.
+- Use minimum 44×44 CSS px touch targets where practical, visible keyboard focus, explicit labels, semantic status text, and readable contrast. Do not rely on color or hover alone.
+- Keep the established design system and operational color meaning. Validate light, dark, and system-following appearance when a component uses theme-sensitive styling; preserve user-entered data during theme changes.
+- Do not claim a physical-device, browser, role, route, or viewport was verified unless a reproducible check actually ran. Label emulation as emulation and keep FIXED separate from VERIFIED.
+- For responsive changes, run focused frontend tests and a production build where safe; document viewport, browser, route, role/state, result, and evidence. Do not run tests that write operational data or access remote production services.
+
+## QR-First functional source of truth
+
+- Follow [`QR_FIRST_FUNCTIONAL_SPEC.md`](QR_FIRST_FUNCTIONAL_SPEC.md) for confirmed QR-First business rules, process-specific QR granularity, traceability, and unresolved decisions. It supersedes older incompatible QR-First interpretations.
+- Check [`docs/qa/QR_FIRST_COMPLIANCE_MATRIX.md`](docs/qa/QR_FIRST_COMPLIANCE_MATRIX.md) before changing a QR-First flow. It separates implementation evidence from validated production behavior and records migration-sensitive gaps.
+- Do not apply additive migrations without the required authorization and an isolated QA database that passes its full protection gate. Never run operational writes against DEV or a QA database whose gate is not ready.

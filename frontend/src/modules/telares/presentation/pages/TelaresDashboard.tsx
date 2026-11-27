@@ -15,6 +15,7 @@ import { telaresApi } from '../../services/telaresApi';
 import { LoomWipItem, AvailableCart } from '../../types/telares.types';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
+import { getTransferSourceCopy } from '../utils/transferSourceCopy';
 
 export const TelaresDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -60,6 +61,7 @@ export const TelaresDashboard: React.FC = () => {
 
   const macro = wipData?.macro;
   const transferMode = wipData?.transfer_mode || 'RACK_PARTIAL';
+  const transferSourceCopy = getTransferSourceCopy(transferMode);
   const looms = wipData?.looms || [];
   const availableCarts = wipData?.available_carts || [];
   const selectedWipLoom = looms.find((loom) => loom.id === Number(selectedWipLoomId));
@@ -819,9 +821,9 @@ export const TelaresDashboard: React.FC = () => {
                 {/* PASO 1: SELECCIONAR O ESCANEAR CARRITO */}
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase text-foreground flex items-center justify-between">
-                    <span>1. {transferMode === 'RACK_PARTIAL' ? 'Rack PTI de Extrusión:' : 'Carrito PTI de Extrusión:'}</span>
+                    <span>1. {transferSourceCopy.heading}</span>
                     <span className="text-muted-foreground font-semibold">
-                      {availableCarts.length} carritos con bobinas
+                      {availableCarts.length} {transferSourceCopy.count}
                     </span>
                   </label>
 
@@ -833,7 +835,7 @@ export const TelaresDashboard: React.FC = () => {
                     }}
                     className="w-full h-12 rounded-xl bg-background border-2 border-border px-3 text-sm font-bold text-foreground focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="">-- Seleccionar Carrito Disponible --</option>
+                    <option value="">{transferSourceCopy.placeholder}</option>
                     {availableCarts.map((cart) => (
                       <option key={cart.id} value={cart.id}>
                         {cart.rack_code} — {cart.current_quantity} bobinas ({cart.net_weight_kg == null ? 'Peso s/d' : `${cart.net_weight_kg} kg neto`} | Tara {cart.tare_weight_kg == null ? 's/d' : `${cart.tare_weight_kg} kg`}) — {cart.pti_product?.code || 'PTI'} ({cart.pti_product?.color || 'Color'} · D{cart.pti_product?.denier || 's/d'} · {cart.pti_product?.tape_width_mm || 's/d'} mm)

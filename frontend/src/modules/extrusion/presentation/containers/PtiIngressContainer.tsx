@@ -19,6 +19,7 @@ import {
 } from '../../hooks/useExtrusionFloorQueries';
 import { PtiIngressPresenter } from '../presenters/PtiIngressPresenter';
 import { extrusionApi } from '../../services/extrusionApi';
+import { buildRackScanPayload } from '../utils/rackScanPayload';
 import {
   PtiRack,
   Formula,
@@ -292,7 +293,7 @@ export const PtiIngressContainer: React.FC = () => {
     }
 
     try {
-      const payload: any = {
+      const payload: any = buildRackScanPayload({
         pti_material_id: Number(selectedPtiMaterialId),
         extruder_id: selectedExtruderId || undefined,
         estimated_scrap_weight_kg: Number(scrapWeightKg) > 0 ? Number(scrapWeightKg) : undefined,
@@ -301,7 +302,7 @@ export const PtiIngressContainer: React.FC = () => {
         scrap_color: Number(scrapWeightKg) > 0 ? (scrapColor.trim() || selectedPtiProduct?.color || undefined) : undefined,
         shift_code: shiftCode,
         notes: notes ? notes.trim() : undefined
-      };
+      }, rackQr);
 
       if (ingressMode === 'WEIGHT') {
         payload.weight_kg = Number(scaleWeightKg);

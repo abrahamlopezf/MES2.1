@@ -86,4 +86,34 @@ Resultados nuevos: backend unitario 92/96 al habilitar ejecución local de socke
 
 La ejecución escalada de `dev:check` fue rechazada por la revisión automática con la explicación de que podría ejecutar `CREATE TABLE` en bases existentes. Se respetó el rechazo; no se intentó otra vía. No hubo DDL/DML, usuarios sintéticos, API autenticada, UI por rol, corrida industrial ni multicorridas. El estado de huella, privilegios, migraciones y triggers indicado en la sección anterior es evidencia de la auditoría previa, no una revalidación en esta continuación.
 
-La QA desechable sigue sin estar disponible: no hay Docker/Podman ni credencial administrativa local configurada. Requisito para continuar: instancia PostgreSQL independiente con puerto/volumen y credenciales locales propios, restore verificable, runtime/migrador aislados y autorización de acceso a esa instancia. Hasta entonces se bloquean escrituras QA, protección trigger, migración DEV, E2E autenticada y multicorridas. Dictamen vigente: **QR-FIRST PARCIALMENTE VALIDADO**.
+La QA desechable sigue sin estar disponible: no hay Docker/Podman ni credencial administrativa local configurada. Requisito para continuar: instancia PostgreSQL independiente con puerto/volumen y credenciales locales propios, restore verificable, runtime/migrador aislados y autorización de acceso a esa instancia. Hasta entonces se bloquean escrituras QA, protección trigger, migración DEV, E2E autenticada y multicorridas. Dictamen histórico a esa fecha: **QR-FIRST PARCIALMENTE VALIDADO**.
+
+## Anexo de reanudación Playwright — 2026-11-26
+
+### Seguridad y runtime QA
+
+La revalidación de solo lectura mediante `backend/src/scripts/qa-readiness-check.js` confirmó `sistema_enterprise_test`, rol runtime `traceflow_app_test`, dirección PostgreSQL `127.0.0.1/32:5432`, sin superuser/roles elevados ni conexión a DEV, `extrusoras_formulas` presente (44 filas, 7 columnas), 60 triggers habilitados sobre 30 tablas y `readyForWrites=true`. DEV tiene 163 migraciones y QA 164; únicamente QA registra `20261124130000-add-laminado-cut-transfer-confirmations.js`. No se ejecutaron migraciones.
+
+La huella de solo lectura de QA volvió a dar 2,972 filas en 30 tablas y SHA-256 `aa80cc00d5f9faec21d0ddf476c3def4fe24926083cc71c4f4f87ecace9fcf83`. El hash coincide con el previamente informado.
+
+El backend QA se ejecuta en el puerto 4001 ligado a `127.0.0.1`; Vite QA en `127.0.0.1:5176`, en modo `qa`, con el cliente servido apuntando a `http://localhost:4001/api`. La URL 5174 no se utilizó para operaciones porque el proceso preexistente allí usa `APP_ENV=local` y `sistema_enterprise` (DEV); no se hicieron clics ni escrituras en ese proceso. No se consultó Neon.
+
+### Sesiones y actividad
+
+Playwright/CDP verificó siete procesos Chrome distintos, cada uno con perfil persistente propio y puerto CDP loopback independiente: Almacén, Extrusión, Telares, Laminado, Lainer pendiente, Corte y Globo. Todas las páginas apuntan a QA y permanecen en `/login`; no hay cookies/sesiones autenticadas nuevas en estos perfiles. Capturas sin credenciales en `docs/qa/evidence/2026-11-26-qrfirst-restart/` (`almacen-login.png`, `extrusion-login.png`, `telares-login.png`, `laminado-login.png`, `lainer-pendiente-login.png`, `corte-login.png`, `globo-login.png`). No se probó una operación industrial desde UI en esta reanudación y no se crearon solicitudes, corridas, lotes ni PTI. La separación de perfiles sí fue verificada; la autenticación por rol sigue pendiente de intervención manual del operador.
+
+### Validaciones automatizadas de esta reanudación
+
+- Frontend Vitest: 65/65 en 18 archivos.
+- Build Vite: PASS, 1,870 módulos; sigue el aviso de chunk JS de 3,714.20 kB sin gzip.
+- `npm run security:check`: PASS, 8,116 archivos, 0 hallazgos.
+- Backend unitario completo ejecutado previamente durante esta intervención: 97/100; siguen 3 fallos en expectativas contrapuestas de rutas Telares→Globo. No se modificaron esas reglas ni pruebas.
+- No se ejecutó integración con escritura ni E2E autenticado en esta reanudación.
+
+### Cambio de seguridad durante la preparación
+
+La primera instancia de backend QA apareció ligada a `::` debido a que `server.js` usa `app.listen(PORT)` sin host. Se detuvo esa instancia y se reinició solo el proceso QA del puerto 4001 con bind explícito de loopback; DEV no fue detenido ni cambiado. Este ajuste se aplicó al comando de ejecución, sin modificar código fuente ni la base.
+
+### Estado
+
+Gate de escritura QA: **PASS**. Integridad Master Data: **PASS**. E2E industrial autenticado: **PENDIENTE**, en espera de inicio manual de sesión en los perfiles etiquetados. La divergencia de migraciones es conocida y bloquea DDL, no las escrituras operativas ordinarias autorizadas por el gate.
