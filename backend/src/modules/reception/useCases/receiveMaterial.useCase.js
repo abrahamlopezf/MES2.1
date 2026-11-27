@@ -16,6 +16,8 @@ class ReceiveMaterialUseCase {
       location_id,
       unit_id,
       quantity,
+      presentation_quantity,
+      presentation_unit,
       folio,
       supplier_id = null,
       new_supplier_name = null,
@@ -26,6 +28,9 @@ class ReceiveMaterialUseCase {
 
     if (!folio) {
       throw new Error("El folio de la factura es obligatorio para la recepción.");
+    }
+    if (Math.abs(quantity / presentation_quantity - Math.round(quantity / presentation_quantity)) > 0.0005) {
+      throw Object.assign(new Error(`La cantidad recibida debe corresponder a empaques completos de ${presentation_quantity} ${presentation_unit}.`), { statusCode: 400 });
     }
 
     return await sequelize.transaction(async (t) => {
@@ -142,6 +147,8 @@ class ReceiveMaterialUseCase {
         location_id: finalLocationId,
         supplier_id: finalSupplierId,
         quantity,
+        presentation_quantity,
+        presentation_unit,
         folio,
         notes,
         unit_cost,

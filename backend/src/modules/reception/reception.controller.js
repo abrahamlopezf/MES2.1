@@ -29,7 +29,7 @@ class ReceptionController {
       console.error('Error en ReceptionController.receiveMaterial:', error);
       
       // Manejo de errores de negocio vs errores de sistema
-      const status = error.message.includes('no existe') || error.message.includes('estado') ? 400 : 500;
+      const status = error.statusCode || (error.message.includes('no existe') || error.message.includes('estado') ? 400 : 500);
       
       return res.status(status).json({
         message: 'No se pudo completar la recepción',

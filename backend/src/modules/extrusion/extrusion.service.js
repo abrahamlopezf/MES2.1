@@ -9,7 +9,8 @@ const { splitQuantityEqually } = require('./services/splitQuantityEqually');
 const { getExtrusionShiftWindow, getShiftDateForInstant, getShiftCodeForInstant, calculateShiftBalance, allocateVarianceByInput, addOperationalScrapInput, calculatePtiOutputEstimate, hasQualifyingShiftActivity } = require('./services/shiftBalance');
 const { decryptQrData } = require('../../shared/utils/crypto.utils');
 const { canViewCosts } = require('../../shared/security/accessRules');
-const { getWholePackageAvailable } = require('../warehouse/consumptionPackageAllocator');
+const { getWholePackageAvailable, prioritizeLegacyLots } = require('../warehouse/consumptionPackageAllocator');
+const { getActiveEquivalentMaterialIdsByName } = require('../materials/materialEquivalence');
 const { Op } = sequelize.Sequelize;
 
 const domainError = (message, statusCode = 400, code, details) => Object.assign(new Error(message), {
@@ -135,35 +136,6 @@ const getActiveMaterialIdsForTag = async (tagId, transaction = null) => {
     transaction,
   });
   return activeMaterials.map((material) => Number(material.id));
-};
-
-const normalizeMaterialIdentityName = (name) => String(name || '')
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .trim()
-  .replace(/\s+/g, ' ')
-  .toLocaleUpperCase('es-MX');
-
-// Legacy catalog duplicates can differ by internal consecutive/location while
-// representing the same exact named material. Match conservatively within the
-// same family and base unit; never use fuzzy or partial-name matching.
-const getActiveEquivalentMaterialIdsByName = async (material, transaction = null) => {
-  if (!material?.id || !material?.family_id || !normalizeMaterialIdentityName(material.name)) return material?.id ? [Number(material.id)] : [];
-  const { Material } = require('../../database/models');
-  const candidates = await Material.findAll({
-    where: {
-      family_id: Number(material.family_id),
-      base_unit_id: material.base_unit_id == null ? null : Number(material.base_unit_id),
-      is_active: true,
-    },
-    attributes: ['id', 'name'],
-    transaction,
-  });
-  const identity = normalizeMaterialIdentityName(material.name);
-  return [...new Set(candidates
-    .filter((candidate) => normalizeMaterialIdentityName(candidate.name) === identity)
-    .map((candidate) => Number(candidate.id))
-    .concat(Number(material.id)))];
 };
 
 const getWipQrContext = async (qrIds = []) => {
@@ -1372,7 +1344,7 @@ class ExtrusionService {
 
       for (const ing of ingredients) {
         const mat = ing.material;
-        const eligibleMaterialIds = new Set(isPpFormulaIngredient(ing) ? [] : await getActiveEquivalentMaterialIdsByName(mat));
+        const eligibleMaterialIds = new Set(await getActiveEquivalentMaterialIdsByName(mat));
         eligibleMaterialIds.add(Number(ing.material_id));
         if (ing.equivalence_tag_id && ing.equivalenceTag?.is_active) {
           const activeTaggedMaterialIds = await getActiveMaterialIdsForTag(ing.equivalence_tag_id);
@@ -1403,7 +1375,7 @@ class ExtrusionService {
             code: candidate.internal_code || null,
             warehouse_available_kg: Number(materialLots.reduce((sum, lot) => sum + Number(lot.available_amount || 0), 0).toFixed(3)),
             warehouse_package_available_kg: getWholePackageAvailable(materialLots),
-            warehouse_fifo_packages: materialLots.map((lot) => ({
+            warehouse_fifo_packages: prioritizeLegacyLots(materialLots).map((lot) => ({
               available_quantity: Number(lot.available_amount) || 0,
               presentation_quantity: lot.presentation_quantity == null ? null : Number(lot.presentation_quantity),
               presentation_unit: lot.presentation_unit || null,

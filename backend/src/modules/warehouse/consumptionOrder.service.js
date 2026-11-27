@@ -529,12 +529,20 @@ class ConsumptionOrderService {
       throw new Error('Esta orden ya no requiere más de este material.');
     }
 
-    // Prefer the exact FIFO reservation for this scanned lot. Falling back to
-    // another pending line is allowed for substitutions, but must not steal a
-    // different lot's reservation when an exact match exists.
-    let itemToFulfill = itemsPending.find((item) => Number(item.lote_id) === Number(scannedLote.id)) ||
-      itemsPending.find((item) => item.lote_id == null) ||
-      itemsPending[0];
+    // The order lines are created from the FIFO plan. Require the operator to
+    // scan those lots in that same order so legacy unpresented stock is used
+    // before newly received packaged stock.
+    const firstPendingItem = itemsPending[0];
+    const exactPendingItem = itemsPending.find((item) => Number(item.lote_id) === Number(scannedLote.id));
+    if (firstPendingItem?.lote_id != null && Number(firstPendingItem.lote_id) !== Number(scannedLote.id)) {
+      const expectedLot = firstPendingItem.lote?.folio || `lote ${firstPendingItem.lote_id}`;
+      throw Object.assign(new Error(`Respeta el orden FIFO de esta ODC. Primero escanea ${expectedLot}; después podrás surtir el siguiente lote.`), { statusCode: 409 });
+    }
+    if (exactPendingItem && firstPendingItem && Number(exactPendingItem.id) !== Number(firstPendingItem.id)) {
+      const expectedLot = firstPendingItem.lote?.folio || `lote ${firstPendingItem.lote_id}`;
+      throw Object.assign(new Error(`Respeta el orden FIFO de esta ODC. Primero escanea ${expectedLot}.`), { statusCode: 409 });
+    }
+    const itemToFulfill = exactPendingItem || firstPendingItem;
     const originallyAssignedLotId = itemToFulfill.lote_id == null ? null : Number(itemToFulfill.lote_id);
     const pendingQty = Number(itemToFulfill.requested_quantity) - Number(itemToFulfill.fulfilled_quantity);
     const scannedLotAvailable = Number(scannedLote.available_amount);

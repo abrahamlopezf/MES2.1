@@ -151,7 +151,14 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
     const candidate = (item.eligible_inventory || []).find((entry: any) => sameMaterialId(entry.material_id, materialId));
     if (!candidate) return;
     setItems(items.map((current) => current.material_id === item.material_id
-      ? { ...current, material_id: Number(candidate.material_id), material: candidate.material, amount: Number(candidate.amount || 0), fifo_packages: candidate.fifo_packages || [] }
+      ? {
+          ...current,
+          material_id: Number(candidate.material_id),
+          material: candidate.material,
+          amount: Number(candidate.equivalent_available_amount ?? candidate.amount ?? 0),
+          fifo_packages: candidate.equivalent_fifo_packages || candidate.fifo_packages || [],
+          equivalent_material_ids: candidate.equivalent_material_ids || [Number(candidate.material_id)],
+        }
       : current));
   };
 
@@ -397,6 +404,11 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
                         </>
                       )}
                     </div>
+                    {(item.equivalent_material_ids || []).length > 1 && (
+                      <div className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                        Saldo consolidado de {(item.equivalent_material_ids || []).length} códigos con el mismo nombre; Almacén surtirá en FIFO.
+                      </div>
+                    )}
                     {hasPackageMetadata && reqQty > 0 && (
                       <div className={`mt-2 rounded-lg border px-2.5 py-2 text-[11px] ${packagePlan.covered ? 'border-sky-500/25 bg-sky-500/5 text-sky-800 dark:text-sky-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200'}`}>
                         {packagePlan.covered
@@ -406,9 +418,9 @@ const DirectMixConsumptionView: React.FC<DirectMixConsumptionViewProps> = ({
                     )}
                     {!inventoryLoading && isZeroStock && sameNameOtherCodes.length > 0 && (
                       <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
-                        Hay material con el mismo nombre en almacén, pero con otro código ({sameNameOtherCodes
+                        Hay material con el mismo nombre en almacén, pero su registro no está habilitado para esta fórmula ({sameNameOtherCodes
                           .map((inv: any) => inv.material?.internal_code || inv.material?.material_code || `MAT-${inv.material_id}`)
-                          .join(', ')}). El sistema no lo considera disponible para esta fórmula porque es otro registro de catálogo. Verifica el material enlazado a la fórmula.
+                          .join(', ')}). Revisa que esté activo y que use la misma unidad base; el código y la localidad no deben impedir el surtido.
                       </div>
                     )}
                   </div>
@@ -756,6 +768,10 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
                   ? Number(inventoryItem.amount || 0)
                   : 0,
                 fifo_packages: inventoryItem?.fifo_packages || [],
+                equivalent_material_ids: inventoryItem?.equivalent_material_ids || [Number(candidate.material_id)],
+                equivalent_available_amount: inventoryItem?.equivalent_available_amount,
+                equivalent_fifo_packages: inventoryItem?.equivalent_fifo_packages,
+                equivalent_package_available_amount: inventoryItem?.equivalent_package_available_amount,
                 material: inventoryItem?.material || {
                   id: Number(candidate.material_id),
                   name: candidate.name,
@@ -768,6 +784,10 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
               material_id: Number(candidate.material_id),
               amount: Number(candidate.amount || 0),
               fifo_packages: candidate.fifo_packages || [],
+              equivalent_material_ids: candidate.equivalent_material_ids || [Number(candidate.material_id)],
+              equivalent_available_amount: candidate.equivalent_available_amount,
+              equivalent_fifo_packages: candidate.equivalent_fifo_packages,
+              equivalent_package_available_amount: candidate.equivalent_package_available_amount,
               material: candidate.material,
             }));
         const stockedCandidates = stockSources.filter((candidate: any) => Number(candidate.amount || 0) > 0)
@@ -782,14 +802,21 @@ export const CreateConsumptionOrderModal: React.FC<CreateConsumptionOrderModalPr
           material_id: Number(candidate.material_id),
           amount: Number(candidate.amount || 0),
           fifo_packages: candidate.fifo_packages || [],
+          equivalent_material_ids: candidate.equivalent_material_ids || [Number(candidate.material_id)],
+          equivalent_available_amount: candidate.equivalent_available_amount,
+          equivalent_fifo_packages: candidate.equivalent_fifo_packages,
+          equivalent_package_available_amount: candidate.equivalent_package_available_amount,
           material: candidate.material,
         }));
         if (match) {
           return {
             ...item,
             material_id: Number(match.material_id),
-            amount: match.amount !== undefined ? match.amount : item.amount,
-            fifo_packages: match.fifo_packages || [],
+            amount: match.equivalent_available_amount !== undefined
+              ? Number(match.equivalent_available_amount)
+              : match.amount !== undefined ? match.amount : item.amount,
+            fifo_packages: match.equivalent_fifo_packages || match.fifo_packages || [],
+            equivalent_material_ids: match.equivalent_material_ids || [Number(match.material_id)],
             material: { ...item.material, ...match.material },
             unit: match.material?.base_unit || item.unit,
             eligible_inventory: eligibleInventory,

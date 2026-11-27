@@ -308,8 +308,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       return;
     }
 
-    if (entries.some((entry) => entry.presentation_quantity !== '' && (!Number.isFinite(Number(entry.presentation_quantity)) || Number(entry.presentation_quantity) <= 0))) {
-      toast.error('La cantidad por empaque debe ser mayor a cero, o déjala vacía si la factura no especifica una presentación fija.');
+    if (!(isPp && ppDestination === 'SILO') && entries.some((entry) => entry.presentation_quantity === '' || !Number.isFinite(Number(entry.presentation_quantity)) || Number(entry.presentation_quantity) <= 0)) {
+      toast.error('Captura la presentación por empaque de cada ingreso a piso.');
       return;
     }
 

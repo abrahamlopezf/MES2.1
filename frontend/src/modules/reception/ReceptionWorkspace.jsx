@@ -19,6 +19,7 @@ export const ReceptionWorkspace = ({
 
   const [selectedMaterialId, setSelectedMaterialId] = useState(data?.materialId || null);
   const [quantity, setQuantity] = useState('');
+  const [presentationQuantity, setPresentationQuantity] = useState('');
   const [folio, setFolio] = useState('');
   const [rack, setRack] = useState('');
   const [supplierId, setSupplierId] = useState('');
@@ -172,6 +173,8 @@ export const ReceptionWorkspace = ({
       qrCode: data?.qrCode,
       materialId: selectedMaterialId,
       quantity: Number(quantity),
+      presentationQuantity: Number(presentationQuantity),
+      presentationUnit: selectedMaterial?.base_unit?.code || selectedMaterial?.base_unit?.name || 'KG',
       folio,
       rack,
       supplierId: supplierId ? (String(supplierId).startsWith('NEW:') ? supplierId : Number(supplierId)) : undefined,
@@ -207,7 +210,7 @@ export const ReceptionWorkspace = ({
     }
   };
 
-  const isFormValid = selectedMaterialId && quantity !== '' && folio.trim() !== '' && rack !== '' && unitCost !== '' && Number(unitCost) >= 0 && totalCost !== '' && Number(totalCost) >= 0;
+  const isFormValid = selectedMaterialId && quantity !== '' && Number(presentationQuantity) > 0 && folio.trim() !== '' && rack !== '' && unitCost !== '' && Number(unitCost) >= 0 && totalCost !== '' && Number(totalCost) >= 0;
 
   // Pantalla de Captura de Datos (FORM_READY / SUBMITTING)
   return (
@@ -372,9 +375,25 @@ export const ReceptionWorkspace = ({
                     className="flex-1"
                   />
                   <div className="bg-muted border border-border rounded-lg px-4 flex items-center justify-center font-medium text-muted-foreground shrink-0 min-w-[80px]">
-                    {selectedMaterial.default_unit?.code || selectedMaterial.base_unit_id ? 'KG' : '—'}
+                    {selectedMaterial.base_unit?.code || selectedMaterial.base_unit?.name || '—'}
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Presentación por empaque ({selectedMaterial.base_unit?.code || selectedMaterial.base_unit?.name || 'KG'}) <span className="text-danger">*</span>
+                </label>
+                <TFInput
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={presentationQuantity}
+                  onChange={e => setPresentationQuantity(e.target.value)}
+                  disabled={workflowState === 'SUBMITTING'}
+                  placeholder="Ej. 25"
+                />
+                <p className="text-xs text-muted-foreground mt-1">La cantidad total recibida debe ser un múltiplo de esta presentación.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

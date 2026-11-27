@@ -15,7 +15,9 @@ class InventoryDomainService {
       folio,
       notes = null,
       unit_cost = null,
-      total_cost = null
+      total_cost = null,
+      presentation_quantity = null,
+      presentation_unit = null
     } = payload;
 
     if (!folio) throw new Error("Folio de lote es obligatorio");
@@ -33,6 +35,8 @@ class InventoryDomainService {
       notes,
       unit_cost,
       total_cost,
+      presentation_quantity,
+      presentation_unit,
       is_active: true
     }, { transaction });
 

@@ -326,7 +326,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                     {(!isPp || ppDestination === 'PISO') && (
                     <div className="mt-3 grid grid-cols-1 gap-2 rounded-lg border border-border bg-background/60 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-end">
                       <label className="flex min-w-0 flex-col gap-1 text-xs font-bold text-foreground">
-                        Presentación por empaque (opcional)
+                        Presentación por empaque <span className="text-danger">*</span>
                         <input
                           type="number"
                           min="0.001"
@@ -339,7 +339,7 @@ export const ManualEntryBottomSheetPresenter: React.FC<ManualEntryBottomSheetPre
                         />
                       </label>
                       <p className="text-xs leading-relaxed text-muted-foreground">
-                        Captura cuántos {materialUnit} contiene cada costal, caja o presentación de esta factura. Se usará para surtir ODC sin fraccionar empaques.
+                        Obligatoria para ingresos a piso. Captura cuántos {materialUnit} contiene cada costal, caja o empaque; se surtirá completo en las ODC.
                       </p>
                     </div>
                     )}

@@ -3,6 +3,15 @@
 const EPSILON = 0.0005;
 
 /**
+ * Legacy lots without invoice presentation metadata must be consumed before
+ * newly received packaged lots. Keep the existing FIFO order inside each tier.
+ */
+const prioritizeLegacyLots = (lots = []) => [
+  ...lots.filter((lot) => !(Number(lot.presentation_quantity) > EPSILON)),
+  ...lots.filter((lot) => Number(lot.presentation_quantity) > EPSILON),
+];
+
+/**
  * Plan a FIFO withdrawal without splitting any package recorded on an invoice.
  * Lots without package metadata remain eligible for exact-quantity withdrawals.
  */
@@ -13,7 +22,7 @@ const planFifoPackageAllocations = (lots, requestedQuantity) => {
   }
 
   const allocations = [];
-  for (const lot of lots || []) {
+  for (const lot of prioritizeLegacyLots(lots)) {
     if (pending <= EPSILON) break;
     const available = Math.max(0, Number(lot.available_amount) || 0);
     const presentation = Number(lot.presentation_quantity) || 0;
@@ -50,7 +59,7 @@ const planFifoPackageAllocations = (lots, requestedQuantity) => {
 
 const getWholePackageAvailable = (lots) => {
   let total = 0;
-  for (const lot of lots || []) {
+  for (const lot of prioritizeLegacyLots(lots)) {
     const available = Math.max(0, Number(lot.available_amount) || 0);
     const presentation = Number(lot.presentation_quantity) || 0;
     if (presentation <= EPSILON) {
@@ -64,4 +73,4 @@ const getWholePackageAvailable = (lots) => {
   return Number(total.toFixed(3));
 };
 
-module.exports = { planFifoPackageAllocations, getWholePackageAvailable, EPSILON };
+module.exports = { planFifoPackageAllocations, getWholePackageAvailable, prioritizeLegacyLots, EPSILON };

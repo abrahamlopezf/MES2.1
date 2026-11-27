@@ -10,18 +10,17 @@ const normalizeMaterialIdentityName = (name) => String(name || '')
   .replace(/\s+/g, ' ')
   .toLocaleUpperCase('es-MX');
 
-// Keep equivalence conservative: exact normalized name, same family and same
-// base unit. Codes/location never define material identity.
+// Catalog family and code can differ across warehouse locations. The client's
+// identity rule is exact normalized name; keep base units aligned so quantities
+// are never combined across incompatible units.
 const getActiveEquivalentMaterialIdsByName = async (material, transaction = null) => {
   const materialId = Number(material?.id);
-  const familyId = Number(material?.family_id);
   const name = normalizeMaterialIdentityName(material?.name);
   if (!Number.isInteger(materialId) || materialId <= 0) return [];
-  if (!Number.isInteger(familyId) || familyId <= 0 || !name) return [materialId];
+  if (!name) return [materialId];
 
   const candidates = await Material.findAll({
     where: {
-      family_id: familyId,
       base_unit_id: material.base_unit_id == null ? { [Op.is]: null } : Number(material.base_unit_id),
       is_active: true,
     },

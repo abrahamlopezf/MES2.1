@@ -116,7 +116,7 @@ export const ReceptionProvider = () => {
     }
 
     if (command.type === 'SUBMIT_RECEPTION_COMMAND') {
-      const { qrCode, materialId, quantity, rack, observations, folio, supplierId, unitCost, totalCost } = command.payload;
+      const { qrCode, materialId, quantity, presentationQuantity, presentationUnit, rack, observations, folio, supplierId, unitCost, totalCost } = command.payload;
       const start = performance.now();
       try {
         const response = await apiClient.post('/reception', {
@@ -125,6 +125,8 @@ export const ReceptionProvider = () => {
           location_id: rack,
           unit_id: 1, // TODO: Debería venir del unit_id base del material, pero por ahora se asume 1 (Ej. KG)
           quantity: Number(quantity),
+          presentation_quantity: Number(presentationQuantity),
+          presentation_unit: presentationUnit,
           supplier_id: supplierId ? (String(supplierId).startsWith('NEW:') ? supplierId : Number(supplierId)) : null,
           notes: observations,
           folio: folio,

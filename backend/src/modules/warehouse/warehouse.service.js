@@ -1,4 +1,6 @@
 const { Op } = require('sequelize');
+const { prioritizeLegacyLots, getWholePackageAvailable } = require('./consumptionPackageAllocator');
+const { getActiveEquivalentMaterialIdsByName } = require('../materials/materialEquivalence');
 const { sequelize, Inventory, Material, Lote, User, Ranking, MaterialUnit } = require('../../database/models');
 const { throwHttpError, canViewCosts, getUserAreaId, isAdmin } = require('../../shared/security/accessRules');
 const inventoryDomainService = require('./inventoryDomain.service');
@@ -168,10 +170,10 @@ const getInventory = async (query = {}, currentUser) => {
   const materialIds = rows.map((row) => Number(row.material_id));
   const materialRows = materialIds.length ? await Material.findAll({
     where: { id: { [Op.in]: materialIds } },
-    attributes: ['id', 'internal_code', 'name', 'description'],
+    attributes: ['id', 'internal_code', 'name', 'description', 'base_unit_id'],
     include: [
       { model: Ranking, as: 'ranking', attributes: ['name', 'nomenclature'] },
-      { model: MaterialUnit, as: 'base_unit', attributes: ['code'] }
+      { model: MaterialUnit, as: 'base_unit', attributes: ['id', 'code'] }
     ]
   }) : [];
   const materialById = new Map(materialRows.map((material) => [Number(material.id), material]));
@@ -183,19 +185,56 @@ const getInventory = async (query = {}, currentUser) => {
         is_active: true,
         available_amount: { [Op.gt]: 0 },
       },
-      attributes: ['id', 'material_id', 'available_amount', 'presentation_quantity', 'presentation_unit'],
+      attributes: ['id', 'material_id', 'available_amount', 'presentation_quantity', 'presentation_unit', 'created_at'],
       order: [['created_at', 'ASC'], ['id', 'ASC']],
       raw: true,
     });
-    for (const lot of fifoLots) {
+    for (const lot of prioritizeLegacyLots(fifoLots)) {
       const materialId = Number(lot.material_id);
       const rows = fifoPackagesByMaterial.get(materialId) || [];
       rows.push({
         available_quantity: Number(lot.available_amount) || 0,
         presentation_quantity: lot.presentation_quantity == null ? null : Number(lot.presentation_quantity),
         presentation_unit: lot.presentation_unit || null,
+        fifo_created_at: lot.created_at || null,
       });
       fifoPackagesByMaterial.set(materialId, rows);
+    }
+  }
+
+  // ODC from a formula must see the full stock behind duplicate catalog rows
+  // that share the same material name and base unit. Keep inventory rows
+  // separate for audit, while exposing the canonical group availability for
+  // planning; the reservation service still allocates the actual FIFO lots.
+  const equivalentInventoryById = new Map();
+  if (requestedMaterialIds.length) {
+    const equivalentGroups = new Map();
+    for (const material of materialRows) {
+      const materialId = Number(material.id);
+      const equivalentIds = await getActiveEquivalentMaterialIdsByName(material);
+      equivalentGroups.set(materialId, equivalentIds);
+    }
+    const allEquivalentIds = [...new Set([...equivalentGroups.values()].flat())];
+    const equivalentLots = allEquivalentIds.length ? await Lote.findAll({
+      where: { material_id: { [Op.in]: allEquivalentIds }, is_active: true, available_amount: { [Op.gt]: 0 } },
+      attributes: ['id', 'material_id', 'available_amount', 'presentation_quantity', 'presentation_unit', 'created_at'],
+      order: [['created_at', 'ASC'], ['id', 'ASC']],
+      raw: true,
+    }) : [];
+    for (const [materialId, equivalentIds] of equivalentGroups) {
+      const groupIdSet = new Set(equivalentIds.map(Number));
+      const fifoLots = prioritizeLegacyLots(equivalentLots.filter((lot) => groupIdSet.has(Number(lot.material_id))));
+      equivalentInventoryById.set(materialId, {
+        equivalent_material_ids: equivalentIds,
+        equivalent_available_amount: Number(fifoLots.reduce((sum, lot) => sum + Number(lot.available_amount || 0), 0).toFixed(3)),
+        equivalent_fifo_packages: fifoLots.map((lot) => ({
+          available_quantity: Number(lot.available_amount) || 0,
+          presentation_quantity: lot.presentation_quantity == null ? null : Number(lot.presentation_quantity),
+          presentation_unit: lot.presentation_unit || null,
+          fifo_created_at: lot.created_at || null,
+        })),
+        equivalent_package_available_amount: getWholePackageAvailable(fifoLots),
+      });
     }
   }
 
@@ -205,6 +244,7 @@ const getInventory = async (query = {}, currentUser) => {
       warehouse_amount: Number(row.warehouse_amount || 0),
       amount: Number(row.amount || 0),
       fifo_packages: fifoPackagesByMaterial.get(Number(row.material_id)) || [],
+      ...(equivalentInventoryById.get(Number(row.material_id)) || {}),
       warehouse_value: allowCosts ? Number(row.warehouse_value || 0) : null,
       total_value: allowCosts ? Number(row.total_value || 0) : null,
       updated_at: row.updated_at,
@@ -976,6 +1016,9 @@ const manualEntry = async (payload, currentUser) => {
       for (const entry of payload.entries) {
         const presentation = Number(entry.presentation_quantity) || 0;
         const quantity = Number(entry.quantity) || 0;
+        if (!Number.isFinite(presentation) || presentation <= 0 || !String(entry.presentation_unit || '').trim()) {
+          throwHttpError('La presentación por empaque es obligatoria para cada recepción en piso. Captura una cantidad positiva y su unidad.', 400);
+        }
         if (presentation > 0) {
           const packageCount = quantity / presentation;
           if (Math.abs(packageCount - Math.round(packageCount)) > 0.0005) {
