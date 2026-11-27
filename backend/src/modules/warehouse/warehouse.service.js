@@ -100,7 +100,7 @@ const getInventory = async (query = {}, currentUser) => {
   // Lot balances are the stock that FIFO can actually fulfill. Reading the
   // aggregate Inventory snapshot here can show stock that the ODC service
   // cannot pick (or hide stock while its asynchronous reconciliation catches up).
-  const conditions = ["m.is_active = true", "m.deleted_at IS NULL", "COALESCE(l.amount, 0) > 0"];
+  const conditions = ["m.is_active = true", "m.deleted_at IS NULL"];
   const replacements = {};
 
   if (material_id) {
@@ -114,6 +114,12 @@ const getInventory = async (query = {}, currentUser) => {
       replacements.materialIds = requestedMaterialIds;
     }
   }
+
+  // Targeted formula lookups must return the requested catalog rows even when
+  // their own code has zero stock. That lets the backend attach stock held by
+  // an equivalent same-name material code instead of dropping the formula's
+  // canonical row before equivalence is resolved.
+  if (!requestedMaterialIds.length) conditions.push('COALESCE(l.amount, 0) > 0');
 
   const tags = parseUuidList(query.tag);
   if (query.tag) {
