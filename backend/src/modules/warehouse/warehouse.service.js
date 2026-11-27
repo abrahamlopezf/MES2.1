@@ -209,7 +209,7 @@ const getInventory = async (query = {}, currentUser) => {
   }
 
   // ODC from a formula must see the full stock behind duplicate catalog rows
-  // that share the same material name and base unit. Keep inventory rows
+  // that share the same normalized material name. Keep inventory rows
   // separate for audit, while exposing the canonical group availability for
   // planning; the reservation service still allocates the actual FIFO lots.
   const equivalentInventoryById = new Map();
