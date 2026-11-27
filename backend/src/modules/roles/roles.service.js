@@ -136,18 +136,23 @@ const assertRoleCanBeDeactivated = async (role, transaction = null) => {
   }
 };
 
+const AREA_ROLE_OPTIONS = {
+  ADMIN_EXT: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
+  ADMIN_EXTRUSION: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
+  SUPERVISOR_EXTRUSION: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
+  ADMIN_TELARES: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
+  ADMIN_TEL: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
+  SUPERVISOR_TELARES: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
+  ADMIN_LAMINADO: { roles: ['SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'], areaId: 4 },
+  ADMIN_GLOBO: { roles: ['SUPERVISOR_GLOBO', 'OPERADOR_GLOBO'], areaId: 5 },
+};
+
+const getAreaRoleOptions = (roleCode) => AREA_ROLE_OPTIONS[String(roleCode || '').toUpperCase()] || null;
+
 const getRoles = async (currentUser) => {
   const actorCode = String(currentUser?.role?.code || '').toUpperCase();
   const where = getRoleWhereForActor(currentUser);
-  const areaRoleOptions = {
-    ADMIN_EXT: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
-    ADMIN_EXTRUSION: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
-    SUPERVISOR_EXTRUSION: { roles: ['SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION'], areaId: 2 },
-    ADMIN_TELARES: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
-    ADMIN_TEL: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
-    SUPERVISOR_TELARES: { roles: ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'], areaId: 3 },
-  };
-  const areaOptions = areaRoleOptions[actorCode];
+  const areaOptions = getAreaRoleOptions(actorCode);
   if (areaOptions) {
     where.code = areaOptions.roles;
     where.area_id = currentUser?.role?.area_id ?? areaOptions.areaId;
@@ -286,6 +291,7 @@ const deleteRole = async (roleId, currentUser) => {
 
 module.exports = {
   getRoles,
+  getAreaRoleOptions,
   getRoleById,
   createRole,
   updateRole,

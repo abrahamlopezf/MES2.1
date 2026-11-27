@@ -8,6 +8,7 @@ const permissionMiddleware = require('../../middlewares/permission.middleware');
 const validate = require('../../middlewares/validation.middleware');
 
 const { isSupervisor } = require('../../shared/security/accessRules');
+const AuthorizationService = require('../../shared/security/authorization.service');
 
 const router = express.Router();
 
@@ -24,11 +25,11 @@ router.use((req, res, next) => {
       message: 'Los supervisores no tienen acceso a la gestión de roles.',
     });
   }
-  if (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(roleCode)
-    && !(req.method === 'GET' && req.path === '/')) {
+  const isAreaRoleSelectorRead = req.method === 'GET' && req.path === '/';
+  if (AuthorizationService.isAreaAdminRole(req.user?.role) && !isAreaRoleSelectorRead) {
     return res.status(403).json({
       success: false,
-      message: 'Admin de Extrusión no tiene acceso a la gestión de roles.',
+      message: 'Los administradores de área solo pueden consultar los roles operativos de su área.',
     });
   }
   next();
@@ -37,6 +38,9 @@ router.use((req, res, next) => {
 const authorizeRoleSelectorRead = (req, res, next) => {
   if (['SUPERVISOR_EXTRUSION', 'SUPERVISOR_TELARES'].includes(String(req.user?.role?.code || '').toUpperCase())
     && req.method === 'GET' && req.path === '/') return next();
+  if (AuthorizationService.isAreaAdminRole(req.user?.role)) {
+    return permissionMiddleware('users.read', 'users.create')(req, res, next);
+  }
   return permissionMiddleware('roles.read', 'users.read', 'users.create')(req, res, next);
 };
 

@@ -17,7 +17,7 @@ import { getRolesRequest } from '../../roles/services/rolesApi';
 import { includesNormalized } from '@/utils/filters';
 import { PermissionGate } from '@/shared/components/auth/PermissionGate';
 import { useAuthStore } from '@/store/authStore';
-import { isAdminUser, isSupervisorUser, getUserAreaCode } from '@/utils/authHelpers';
+import { isAdminUser, isSupervisorUser, isAreaAdminUser, getUserAreaCode } from '@/utils/authHelpers';
 
 import UserForm from '../components/UserForm';
 import UsersGrid from '../components/UsersTable';
@@ -46,6 +46,7 @@ const UsersPage: React.FC = () => {
   const currentRoleCode = (currentUser?.role?.code || '').toUpperCase();
   const isGlobalAdmin = isAdminUser(currentUser);
   const isSuperAdmin = currentRoleCode === 'SUPERADMIN';
+  const isAreaAdmin = !isGlobalAdmin && isAreaAdminUser(currentUser);
   const isSupervisor = isSupervisorUser(currentUser);
   const isTelaresSupervisor = currentRoleCode === 'SUPERVISOR_TELARES';
   const isWarehouseUser = !isGlobalAdmin && (['ADMIN_ALM', 'WAREHOUSEMAN'].includes(currentRoleCode) ||
@@ -55,8 +56,10 @@ const UsersPage: React.FC = () => {
                           currentUser?.area?.code === 'EXTRUSION');
   const isTelaresAdmin = !isGlobalAdmin && !isSupervisor && (['ADMIN_TELARES', 'ADMIN_TEL'].includes(currentRoleCode) ||
                           getUserAreaCode(currentUser) === 'TELARES');
+  const isLaminadoAdmin = !isGlobalAdmin && !isSupervisor && currentRoleCode === 'ADMIN_LAMINADO';
+  const isGloboAdmin = !isGlobalAdmin && !isSupervisor && currentRoleCode === 'ADMIN_GLOBO';
   const isTelaresUser = isTelaresAdmin || isTelaresSupervisor;
-  const canViewRoles = !isWarehouseUser && !isExtrusionAdmin && !isTelaresUser && hasPermission('roles.read');
+  const canViewRoles = !isAreaAdmin && hasPermission('roles.read');
   
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -103,6 +106,12 @@ const UsersPage: React.FC = () => {
   if (isTelaresAdmin) {
     roles = roles.filter((r: any) => ['SUPERVISOR_TELARES', 'OPERADOR_TELARES'].includes(String(r.code || '').toUpperCase()));
   }
+  if (isLaminadoAdmin) {
+    roles = roles.filter((r: any) => ['SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'].includes(String(r.code || '').toUpperCase()));
+  }
+  if (isGloboAdmin) {
+    roles = roles.filter((r: any) => ['SUPERVISOR_GLOBO', 'OPERADOR_GLOBO'].includes(String(r.code || '').toUpperCase()));
+  }
 
   const filteredUsers = useMemo(() => {
     return users
@@ -138,6 +147,13 @@ const UsersPage: React.FC = () => {
           if (!isFromTelares) return false;
         }
 
+        if (isLaminadoAdmin || isGloboAdmin) {
+          const expectedArea = isLaminadoAdmin ? 'LAMINADO' : 'GLOBO';
+          const areaUpper = (user.areaNombre || '').toUpperCase();
+          const roleUpper = (user.rolNombre || '').toUpperCase();
+          if (!areaUpper.includes(expectedArea) && !roleUpper.includes(expectedArea)) return false;
+        }
+
         const searchableText = [
           user.nombres,
           user.apellidos,
@@ -158,7 +174,7 @@ const UsersPage: React.FC = () => {
         return matchesSearch && matchesRole && matchesStatus;
       })
       .sort((a, b) => Number(a.id) - Number(b.id));
-  }, [users, searchTerm, roleFilter, statusFilter, isWarehouseUser, isExtrusionAdmin, isTelaresUser, isSuperAdmin]);
+  }, [users, searchTerm, roleFilter, statusFilter, isWarehouseUser, isExtrusionAdmin, isTelaresUser, isLaminadoAdmin, isGloboAdmin, isSuperAdmin]);
 
   const groupedUsers = useMemo(() => {
     const groups: Record<string, User[]> = {};

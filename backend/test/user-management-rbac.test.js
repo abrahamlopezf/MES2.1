@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const AuthorizationService = require('../src/shared/security/authorization.service');
+const { getAreaRoleOptions } = require('../src/modules/roles/roles.service');
 
 const role = (code, area_id, level = 10, extra = {}) => ({ code, area_id, subarea_id: null, level, ...extra });
 
@@ -54,4 +55,23 @@ test('only recognized area admins receive user-management access', () => {
   assert.equal(AuthorizationService.canAdministerUsers({ role: role('ADMIN_GLOBO', 5) }), true);
   assert.equal(AuthorizationService.canAdministerUsers({ role: role('ADMIN_FINANCE', null, 10) }), false);
   assert.equal(AuthorizationService.canAdministerUsers({ role: role('OPERADOR_TELARES', 3) }), false);
+});
+
+test('laminado and globo admins receive only their area operational role options', () => {
+  assert.deepEqual(getAreaRoleOptions('ADMIN_LAMINADO'), {
+    roles: ['SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO'],
+    areaId: 4,
+  });
+  assert.deepEqual(getAreaRoleOptions('ADMIN_GLOBO'), {
+    roles: ['SUPERVISOR_GLOBO', 'OPERADOR_GLOBO'],
+    areaId: 5,
+  });
+  assert.equal(getAreaRoleOptions('ADMIN_GENERAL'), null);
+
+  const laminadoAdmin = role('ADMIN_LAMINADO', 4);
+  assert.equal(AuthorizationService.canAssignRole(laminadoAdmin, role('SUPERVISOR_LAMINADO', 4)), true);
+  assert.equal(AuthorizationService.canAssignRole(laminadoAdmin, role('OPERADOR_GLOBO', 5)), false);
+  const globoAdmin = role('ADMIN_GLOBO', 5);
+  assert.equal(AuthorizationService.canAssignRole(globoAdmin, role('SUPERVISOR_GLOBO', 5)), true);
+  assert.equal(AuthorizationService.canAssignRole(globoAdmin, role('OPERADOR_LAMINADO', 4)), false);
 });
