@@ -8,7 +8,7 @@ import { authInterceptor } from './interceptors/auth.interceptor';
  * Cliente HTTP puro. Agrega la configuración base sin lógica de dominio.
  */
 export const httpClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:4000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

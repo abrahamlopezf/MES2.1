@@ -59,9 +59,20 @@ const cancelQrSchema = Joi.object({
   }),
 });
 
+const createQrIdentityRequestSchema = Joi.object({
+  requested_quantity: Joi.number().integer().min(1).max(50000).required(),
+  notes: Joi.string().trim().max(500).allow('', null).optional(),
+});
+
+const fulfillQrIdentityRequestSchema = Joi.object({
+  qr_code_ids: Joi.array().items(Joi.number().integer().positive()).min(1).max(50000).required(),
+});
+
 module.exports = {
   generateQrBatchSchema,
   assignQrCodesSchema,
   validateQrSchema,
   cancelQrSchema,
+  createQrIdentityRequestSchema,
+  fulfillQrIdentityRequestSchema,
 };

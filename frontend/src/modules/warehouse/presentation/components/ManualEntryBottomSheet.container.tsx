@@ -4,7 +4,7 @@ import axiosClient from '../../../../api/axiosClient';
 import { toast } from 'sonner';
 import { useConfirmAction } from '../../../../providers/ConfirmProvider';
 import { ManualEntryBottomSheetPresenter } from './ManualEntryBottomSheet.presenter';
-import { downloadBatchPdf } from '../../../identity/presentation/hooks/useIdentityBatches';
+import { ThermalQrPrintDialog, type ThermalQrPrintTarget } from '../../../identity/presentation/components/ThermalQrPrintDialog';
 import { Link } from 'react-router-dom';
 import { Sparkles, ExternalLink, AlertCircle } from '@/design-system/components/Icon/googleIconCompat';
 import { 
@@ -52,6 +52,8 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
   const [entries, setEntries] = useState<ManualEntryRow[]>([{ folio: '', quantity: '', presentation_quantity: '', supplier_id: '', unit_cost: '', currency: 'MXN', invoice_date: todayLocal() }]);
   const [notes, setNotes] = useState('');
   const [catalogReminder, setCatalogReminder] = useState<any>(null);
+  const [thermalPrintTarget, setThermalPrintTarget] = useState<ThermalQrPrintTarget | null>(null);
+  const [pendingThermalPrintTarget, setPendingThermalPrintTarget] = useState<ThermalQrPrintTarget | null>(null);
 
   const invoiceDates = [...new Set(entries.map((entry) => entry.invoice_date).filter(Boolean))].sort();
   const {
@@ -208,12 +210,9 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
       const createdCatalogs = resPayload?.created_catalogs || [];
       const qrBatchId = resPayload?.qrBatchId;
       if (qrBatchId && !resPayload?.is_silo) {
-        toast.info('Generando y descargando códigos QR...');
-        try {
-          await downloadBatchPdf(qrBatchId, 'MANUAL-ENTRY');
-        } catch (e) {
-          toast.error('Ocurrió un error al descargar el PDF de Códigos QR.');
-        }
+        const target: ThermalQrPrintTarget = { kind: 'batch', id: String(qrBatchId), title: 'Etiquetas de recepción de material' };
+        if (createdCatalogs.length > 0) setPendingThermalPrintTarget(target);
+        else setThermalPrintTarget(target);
       }
 
       if (createdCatalogs.length > 0) {
@@ -389,6 +388,7 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
         onRemoveEntry={handleRemoveEntry}
         onConfirmEntry={onConfirmEntry}
       />
+      <ThermalQrPrintDialog target={thermalPrintTarget} onClose={() => setThermalPrintTarget(null)} />
 
       {/* DIÁLOGO RECORDATORIO DE PROVEEDOR CREADO AL VUELO */}
       {catalogReminder && (
@@ -461,7 +461,13 @@ export const ManualEntryBottomSheet: React.FC<ManualEntryBottomSheetContainerPro
             <TFDialogFooter className="mt-2">
               <TFButton
                 variant="primary"
-                onClick={() => setCatalogReminder(null)}
+                onClick={() => {
+                  setCatalogReminder(null);
+                  if (pendingThermalPrintTarget) {
+                    setThermalPrintTarget(pendingThermalPrintTarget);
+                    setPendingThermalPrintTarget(null);
+                  }
+                }}
                 className="w-full sm:w-auto h-10 text-sm font-bold"
               >
                 Entendido, continuar

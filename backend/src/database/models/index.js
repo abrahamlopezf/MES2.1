@@ -11,6 +11,8 @@ const initPasswordResetModel = require('../../modules/auth/passwordReset.model')
 
 const initQrBatchModel = require('../../modules/qrcodes/qrBatch.model');
 const initQrCodeModel = require('../../modules/qrcodes/qrCode.model');
+const initQrIdentityRequestModel = require('../../modules/qrcodes/qrIdentityRequest.model');
+const initQrIdentityRequestItemModel = require('../../modules/qrcodes/qrIdentityRequestItem.model');
 const initTraceabilityEventModel = require('../../modules/traceability/traceabilityEvent.model');
 
 const initMaterialCodeModel = require('../../modules/materials/materialCode.model');
@@ -64,6 +66,8 @@ db.PasswordReset = initPasswordResetModel(sequelize);
 
 db.QrBatch = initQrBatchModel(sequelize, DataTypes);
 db.QrCode = initQrCodeModel(sequelize, DataTypes);
+db.QrIdentityRequest = initQrIdentityRequestModel(sequelize, DataTypes);
+db.QrIdentityRequestItem = initQrIdentityRequestItemModel(sequelize, DataTypes);
 db.TraceabilityEvent = initTraceabilityEventModel(sequelize, DataTypes);
 
 db.MaterialCode = initMaterialCodeModel(sequelize, DataTypes);
@@ -382,6 +386,17 @@ db.QrAreaAssignment.belongsTo(db.User, {
   foreignKey: 'updated_by',
   as: 'updater',
 });
+
+db.Area.hasMany(db.QrIdentityRequest, { foreignKey: 'area_id', as: 'qr_identity_requests' });
+db.QrIdentityRequest.belongsTo(db.Area, { foreignKey: 'area_id', as: 'area' });
+db.User.hasMany(db.QrIdentityRequest, { foreignKey: 'requested_by', as: 'requested_qr_identity_requests' });
+db.QrIdentityRequest.belongsTo(db.User, { foreignKey: 'requested_by', as: 'requester' });
+db.User.hasMany(db.QrIdentityRequest, { foreignKey: 'delivered_by', as: 'delivered_qr_identity_requests' });
+db.QrIdentityRequest.belongsTo(db.User, { foreignKey: 'delivered_by', as: 'deliverer' });
+db.QrIdentityRequest.hasMany(db.QrIdentityRequestItem, { foreignKey: 'request_id', as: 'items' });
+db.QrIdentityRequestItem.belongsTo(db.QrIdentityRequest, { foreignKey: 'request_id', as: 'request' });
+db.QrIdentityRequestItem.belongsTo(db.QrCode, { foreignKey: 'qr_code_id', as: 'qr_code' });
+db.QrIdentityRequestItem.belongsTo(db.QrAreaAssignment, { foreignKey: 'qr_area_assignment_id', as: 'area_assignment' });
 
 /* =========================
    TRACEABLE ITEMS

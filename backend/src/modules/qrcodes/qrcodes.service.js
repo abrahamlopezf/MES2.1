@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const crypto = require('crypto');
 
 const {
   sequelize,
@@ -511,6 +512,7 @@ const getQrBatches = async (query, currentUser) => {
     
     const available_quantity = batch.codes ? batch.codes.filter(c => (c.status === QR_STATUS.UNASSIGNED || c.status === QR_STATUS.ASSIGNED) && c.is_active).length : 0;
     const tokens = batch.codes ? batch.codes.map(c => ({
+      qrCodeId: c.id,
       tokenId: c.uuid,
       industrialCode: c.qr_code,
       status: c.status
@@ -579,6 +581,7 @@ const getQrBatchById = async (batchId, currentUser) => {
   
   const available_quantity = batch.codes ? batch.codes.filter(c => (c.status === QR_STATUS.UNASSIGNED || c.status === QR_STATUS.ASSIGNED) && c.is_active).length : 0;
   const tokens = batch.codes ? batch.codes.map(c => ({
+    qrCodeId: c.id,
     tokenId: c.uuid,
     industrialCode: c.qr_code,
     status: c.status
@@ -670,6 +673,191 @@ const getQrCodesByUuids = async (uuids, currentUser) => {
   });
 
   return qrCodes;
+};
+
+const THERMAL_PRINT_MAX_LABELS = 500;
+const PRINT_PAYLOAD_EVENT_TYPES = [QR_EVENT_TYPE.PRINT_PAYLOAD_RESERVED, QR_EVENT_TYPE.PRINT_REQUESTED, QR_EVENT_TYPE.REPRINT_REQUESTED];
+
+const validateThermalPrintSelection = (qrCodeIds) => {
+  const normalizedIds = (Array.isArray(qrCodeIds) ? qrCodeIds : []).map(Number);
+  if (!normalizedIds.length) throwHttpError('Selecciona al menos un código QR.', 400);
+  if (normalizedIds.length > THERMAL_PRINT_MAX_LABELS) {
+    const error = new Error(`Puedes generar hasta ${THERMAL_PRINT_MAX_LABELS} etiquetas por PDF. Divide la selección en grupos más pequeños.`);
+    error.statusCode = 413;
+    error.code = 'QR_PRINT_BATCH_TOO_LARGE';
+    throw error;
+  }
+  if (normalizedIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+    throwHttpError('La selección contiene un código QR no válido.', 400);
+  }
+  if (new Set(normalizedIds).size !== normalizedIds.length) {
+    throwHttpError('La selección contiene códigos QR duplicados.', 400);
+  }
+  return normalizedIds;
+};
+
+const resolveQrPrintData = async (qrCodes, currentUser, { transaction, labelLengthMm, recordPrintRequest = false } = {}) => {
+  const { getLabelProfile } = require('./printer/thermalLabelPdf');
+  const profile = getLabelProfile(labelLengthMm === undefined || labelLengthMm === null
+    ? undefined
+    : `62x${Number(labelLengthMm)}`);
+  const ids = validateThermalPrintSelection(qrCodes.map((code) => code.id));
+  const lockedCodes = await QrCode.findAll({
+    where: { id: ids },
+    order: [['id', 'ASC']],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (lockedCodes.length !== ids.length) throwHttpError('Uno o más códigos QR ya no están disponibles para impresión.', 409);
+
+  const orderedCodes = new Map(lockedCodes.map((code) => [Number(code.id), code]));
+  const ordered = ids.map((id) => orderedCodes.get(id));
+  const priorEvents = await TraceabilityEvent.findAll({
+    where: { qr_code_id: ids, event_type: PRINT_PAYLOAD_EVENT_TYPES },
+    attributes: ['qr_code_id', 'event_type', 'metadata'],
+    order: [['created_at', 'ASC'], ['id', 'ASC']],
+    transaction,
+  });
+  const firstPayloadByQrId = new Map();
+  const hasPriorPrintRequestByQrId = new Set();
+  for (const event of priorEvents) {
+    const qrId = Number(event.qr_code_id);
+    const metadata = event.metadata || {};
+    if (event.event_type === QR_EVENT_TYPE.PRINT_PAYLOAD_RESERVED && metadata.encoded_qr_payload && !firstPayloadByQrId.has(qrId)) {
+      firstPayloadByQrId.set(qrId, metadata.encoded_qr_payload);
+    }
+    if ([QR_EVENT_TYPE.PRINT_REQUESTED, QR_EVENT_TYPE.REPRINT_REQUESTED].includes(event.event_type)) {
+      hasPriorPrintRequestByQrId.add(qrId);
+    }
+  }
+
+  const createdAt = new Date();
+  const reservationEvents = [];
+  const printEvents = [];
+  const codes = ordered.map((qrCode) => {
+    const id = Number(qrCode.id);
+    let encodedPayload = firstPayloadByQrId.get(id);
+    if (!encodedPayload) {
+      encodedPayload = require('../../shared/utils/crypto.utils').encryptQrData(qrCode.qr_code);
+      reservationEvents.push({
+        qr_code_id: id,
+        event_type: QR_EVENT_TYPE.PRINT_PAYLOAD_RESERVED,
+        from_status: qrCode.status,
+        to_status: qrCode.status,
+        from_area_id: qrCode.current_area_id || qrCode.assigned_area_id || null,
+        to_area_id: qrCode.current_area_id || qrCode.assigned_area_id || null,
+        performed_by: currentUser.id,
+        notes: 'Payload cifrado reservado para que futuras reimpresiones conserven el mismo contenido QR.',
+        metadata: { encoded_qr_payload: encodedPayload, purpose: 'thermal_qr_label' },
+        created_at: createdAt,
+        updated_at: createdAt,
+      });
+      firstPayloadByQrId.set(id, encodedPayload);
+    }
+
+    if (recordPrintRequest) {
+      const eventType = hasPriorPrintRequestByQrId.has(id)
+        ? QR_EVENT_TYPE.REPRINT_REQUESTED
+        : QR_EVENT_TYPE.PRINT_REQUESTED;
+      printEvents.push({
+        qr_code_id: id,
+        event_type: eventType,
+        from_status: qrCode.status,
+        to_status: qrCode.status,
+        from_area_id: qrCode.current_area_id || qrCode.assigned_area_id || null,
+        to_area_id: qrCode.current_area_id || qrCode.assigned_area_id || null,
+        performed_by: currentUser.id,
+        notes: eventType === QR_EVENT_TYPE.REPRINT_REQUESTED
+          ? 'Se generó un nuevo archivo PDF para reimpresión; el estado y la identidad QR permanecen iguales.'
+          : 'Se generó el archivo PDF térmico; esto no confirma impresión física ni entrega del lote.',
+        metadata: {
+          print_profile: profile.id,
+          label_width_mm: profile.widthMm,
+          label_length_mm: profile.heightMm,
+          encoded_qr_payload: encodedPayload,
+          physical_print_confirmed: false,
+          warehouse_delivery_confirmed: false,
+        },
+        created_at: createdAt,
+        updated_at: createdAt,
+      });
+      hasPriorPrintRequestByQrId.add(id);
+    }
+
+    return {
+      id,
+      uuid: qrCode.uuid,
+      qr_code: qrCode.qr_code,
+      status: qrCode.status,
+      encodedPayload,
+    };
+  });
+
+  if (reservationEvents.length) await TraceabilityEvent.bulkCreate(reservationEvents, { transaction });
+  if (printEvents.length) await TraceabilityEvent.bulkCreate(printEvents, { transaction });
+
+  return { codes, profile };
+};
+
+const getThermalPrintSummary = (count, profile) => ({
+  quantity: count,
+  width_mm: profile.widthMm,
+  label_length_mm: profile.heightMm,
+  qr_size_mm: profile.qrSizeMm,
+  label_format: profile.label,
+  theoretical_paper_consumption_mm: count * profile.heightMm,
+  theoretical_paper_consumption_m: (count * profile.heightMm) / 1000,
+  nominal_roll_length_mm: 30_400,
+  theoretical_labels_per_roll: Math.floor(30_400 / profile.heightMm),
+  excludes_advance_gap_and_calibration: true,
+  roll_yield_is_guaranteed: false,
+});
+
+const getQrBatchForThermalPrint = async (batchId, currentUser) => {
+  const batch = await getQrBatchById(batchId, currentUser);
+  return {
+    batch,
+    qrCodeIds: (batch.tokens || []).map((token) => Number(token.qrCodeId)).filter(Number.isInteger),
+  };
+};
+
+const prepareThermalPrintPreview = async (qrCodeIds, currentUser, { labelLengthMm } = {}) => {
+  const ids = validateThermalPrintSelection(qrCodeIds);
+  return sequelize.transaction(async (transaction) => {
+    const qrs = await QrCode.findAll({ where: { id: ids }, transaction });
+    if (qrs.length !== ids.length) throwHttpError('Uno o más códigos QR no existen.', 404);
+    const { codes, profile } = await resolveQrPrintData(qrs, currentUser, { transaction, labelLengthMm });
+    return {
+      summary: getThermalPrintSummary(codes.length, profile),
+      preview: {
+        qr_code: codes[0].qr_code,
+        encoded_payload: codes[0].encodedPayload,
+        status: codes[0].status,
+      },
+    };
+  });
+};
+
+const generateThermalPrintPdf = async (qrCodeIds, currentUser, { labelLengthMm } = {}) => {
+  const ids = validateThermalPrintSelection(qrCodeIds);
+  return sequelize.transaction(async (transaction) => {
+    const qrs = await QrCode.findAll({ where: { id: ids }, transaction });
+    if (qrs.length !== ids.length) throwHttpError('Uno o más códigos QR no existen.', 404);
+    const { codes, profile } = await resolveQrPrintData(qrs, currentUser, {
+      transaction,
+      labelLengthMm,
+      recordPrintRequest: true,
+    });
+    const { buffer } = await require('./printer/thermalLabelPdf').generateThermalQrPdf(
+      codes,
+      `62x${profile.heightMm}`,
+    );
+    return {
+      buffer,
+      profile,
+      summary: getThermalPrintSummary(codes.length, profile),
+    };
+  });
 };
 
 const getQrEvents = async (qrCodeId, currentUser) => {
@@ -948,5 +1136,9 @@ module.exports = {
   cancelQrCode,
   getQrBatches,
   getQrBatchById,
+  THERMAL_PRINT_MAX_LABELS,
+  prepareThermalPrintPreview,
+  generateThermalPrintPdf,
+  getQrBatchForThermalPrint,
   lookup,
 };

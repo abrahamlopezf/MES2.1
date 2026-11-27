@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,9 @@ const LoginPage = () => {
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-2">
             <Lock className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Acceso al sistema</CardTitle>
+          <CardTitle role="heading" aria-level={1} className="text-2xl font-bold tracking-tight">
+            Acceso al sistema
+          </CardTitle>
           <CardDescription className="text-base">
             Ingresa tu usuario y contraseña para continuar.
           </CardDescription>
@@ -95,9 +97,9 @@ const LoginPage = () => {
                 render={({ field }) => (
                   <FormItem style={{ '--stagger': 1 }}>
                     <FormLabel>Usuario o No. de Nómina</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <FormControl>
                         <Input
                           placeholder="Usuario o número de nómina"
                           autoComplete="username"
@@ -105,8 +107,8 @@ const LoginPage = () => {
                           className="!pl-10"
                           {...field}
                         />
-                      </div>
-                    </FormControl>
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -118,9 +120,9 @@ const LoginPage = () => {
                 render={({ field }) => (
                   <FormItem style={{ '--stagger': 2 }}>
                     <FormLabel>Contraseña</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <FormControl>
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Contraseña"
@@ -129,15 +131,16 @@ const LoginPage = () => {
                           className="!pl-10 !pr-10"
                           {...field}
                         />
-                        <button
-                          type="button"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md flex items-center justify-center"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                        </button>
-                      </div>
-                    </FormControl>
+                      </FormControl>
+                      <button
+                        type="button"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md flex items-center justify-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

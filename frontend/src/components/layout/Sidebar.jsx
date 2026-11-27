@@ -44,9 +44,10 @@ const menuGroups = [
   {
     label: "Identidad y Lotes",
     icon: "qr_code_2",
-    permission: ["qr.create", "qr.history.read", "qr.events.read"],
+    permission: "",
     isGroup: true,
     children: [
+      { label: "Solicitar / entregar QR", path: "/identity/requests", icon: "qr_code", permission: "", restrictToRoles: true, allowedRoles: ["ADMIN_ALM", "ADMIN_ALMACEN", "SUPERVISOR_ALMACEN", "WAREHOUSEMAN", "SUPERVISOR", "ADMIN_EXT", "ADMIN_EXTRUSION", "SUPERVISOR_EXTRUSION", "OPERADOR_EXTRUSION", "ADMIN_TELARES", "ADMIN_TEL", "SUPERVISOR_TELARES", "OPERADOR_TELARES", "ADMIN_LAMINADO", "SUPERVISOR_LAMINADO", "OPERADOR_LAMINADO", "ADMIN_GLOBO", "SUPERVISOR_GLOBO", "OPERADOR_GLOBO", "ADMIN_CORTE", "SUPERVISOR_CORTE", "OPERADOR_CORTE"] },
       { label: "Generar Lote", path: "/identity/generate", icon: "qr_code", permission: "qr.create", restrictToRoles: true, allowedRoles: ["SUPERADMIN", "ADMIN_GRAL", "ADMIN_GENERAL", "ADMIN", "ADMIN_ALM", "ADMIN_ALMACEN"] },
       { label: "Historial QRs", path: "/qrcodes", icon: "format_list_bulleted", permission: ["qr.history.read", "qr.events.read"] }
     ]

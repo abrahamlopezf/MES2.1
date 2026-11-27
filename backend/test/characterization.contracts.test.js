@@ -119,9 +119,9 @@ test('Caracterización HTTP 4: Guardas de autenticación protegen todos los domi
   }
 });
 
-test('Caracterización ORM 5: Registro central de Sequelize expone los 77 modelos del dominio con sus asociaciones', () => {
+test('Caracterización ORM 5: Registro central de Sequelize expone los 79 modelos del dominio con sus asociaciones', () => {
   const modelNames = Object.keys(db).filter((k) => k !== 'sequelize' && k !== 'Sequelize');
-  assert.equal(modelNames.length, 77);
+  assert.equal(modelNames.length, 79);
 
   const criticalModels = [
     'User',
@@ -138,6 +138,8 @@ test('Caracterización ORM 5: Registro central de Sequelize expone los 77 modelo
     'WipInventory',
     'QrBatch',
     'QrCode',
+    'QrIdentityRequest',
+    'QrIdentityRequestItem',
     'TraceableItem',
     'TraceabilityEvent',
     'TraceabilityLink',

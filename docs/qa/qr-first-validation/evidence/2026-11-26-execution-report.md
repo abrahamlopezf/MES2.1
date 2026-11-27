@@ -117,3 +117,11 @@ La primera instancia de backend QA apareció ligada a `::` debido a que `server.
 ### Estado
 
 Gate de escritura QA: **PASS**. Integridad Master Data: **PASS**. E2E industrial autenticado: **PENDIENTE**, en espera de inicio manual de sesión en los perfiles etiquetados. La divergencia de migraciones es conocida y bloquea DDL, no las escrituras operativas ordinarias autorizadas por el gate.
+
+## Anexo de sesiones — 2026-11-27
+
+El usuario reportó iniciar Extrusión, Laminado, Almacén y Telares, y faltar Corte/Globo. La verificación visual de las ventanas disponibles encontró que las cuatro sesiones efectivas observables apuntaban a `http://127.0.0.1:5174/dashboard` (DEV), no a QA: Extrusión, Almacén, Laminado y Corte. No había una sesión de Telares visible en esa inspección y no se efectuaron operaciones en esas ventanas.
+
+Se prepararon seis procesos Chrome visibles con perfiles persistentes independientes para Almacén, Extrusión, Telares, Laminado, Corte y Globo, bajo `tmp/traceflow-qa-profiles-20261127/`. Cada perfil usa un puerto CDP distinto (56001–56006) ligado a loopback y su única página fue comprobada en `http://127.0.0.1:5176/login?qa_context=<área>`. Las seis páginas siguen en login; no se capturaron credenciales ni se autenticó un usuario. El acceso manual requerido es: `admin_alm`, `SUPREL`, `sup_tel_1150`, `SUPLAM`, `QACOR` y `SUPGLO`, respectivamente. No se requiere abrir un perfil de producción para Lainer mientras QA no tenga cuenta/área Lainer identificada; Lainer no se equipara automáticamente a Globo bajo QR-First V2.0.
+
+Esta comprobación no realizó escrituras. Mantener sesiones antiguas en 5174 sin acciones y completar la autenticación en los seis perfiles nuevos de 5176 antes de continuar con operaciones QA.

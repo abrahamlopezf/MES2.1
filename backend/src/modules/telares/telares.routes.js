@@ -3,36 +3,13 @@ const router = express.Router();
 const telaresController = require('./telares.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
 const roleMiddleware = require('../../middlewares/role.middleware');
-const { isAreaAdministrator } = require('../../shared/security/areaRolePolicy');
+const { requireTelaresAreaAccess, requireTelaresAdministrator, requireTelaresCatalogAdministrator } = require('./telares.access');
 
 // Todas las rutas protegidas por autenticación
 router.use(authMiddleware);
 
 // Area-only authorization: executive roles use the consolidated dashboard, not Telares endpoints.
-router.use((req, res, next) => {
-  const roleCode = (req.user?.role?.code || (typeof req.user?.role === 'string' ? req.user.role : '')).toUpperCase();
-  const executiveRoles = ['SUPERADMIN', 'ADMIN_GRAL', 'ADMIN_GENERAL', 'ADMIN'];
-  const telaresRoles = ['ADMIN_TELARES', 'ADMIN_TEL', 'SUPERVISOR_TELARES', 'OPERADOR_TELARES'];
-  const otherAreaRoles = [
-    'ADMIN_ALM', 'ADMIN_ALMACEN', 'WAREHOUSEMAN', 'ADMIN_EXT', 'ADMIN_EXTRUSION',
-    'SUPERVISOR_EXTRUSION', 'OPERADOR_EXTRUSION', 'ADMIN_GLOBO', 'SUPERVISOR_GLOBO',
-    'OPERADOR_GLOBO', 'ADMIN_LAMINADO', 'SUPERVISOR_LAMINADO', 'OPERADOR_LAMINADO',
-  ];
-  if (executiveRoles.includes(roleCode)) return next();
-  if (!otherAreaRoles.includes(roleCode) && telaresRoles.includes(roleCode)) return next();
-  return res.status(403).json({ success: false, message: 'Acceso restringido al personal autorizado de Telares.' });
-});
-
-// Loom settings and the operator roster are administrative configuration.
-// Supervisors retain production actions but cannot create or administer users.
-const requireTelaresAdministrator = (req, res, next) => {
-  if (isAreaAdministrator(req.user, 'TELARES')) return next();
-  return res.status(403).json({ success: false, message: 'Solo administración de Telares puede modificar esta configuración.' });
-};
-const requireTelaresCatalogAdministrator = (req, res, next) => {
-  if (isAreaAdministrator(req.user, 'TELARES')) return next();
-  return res.status(403).json({ success: false, message: 'Solo administración de Telares puede modificar fichas PTI.' });
-};
+router.use(requireTelaresAreaAccess);
 
 // Rutas de Telares y Racks
 router.get('/subareas', telaresController.getSubareas);

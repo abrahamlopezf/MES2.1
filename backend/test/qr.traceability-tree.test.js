@@ -1,6 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { computeOperationalRouting, normalizeAreaCode } = require('../src/modules/qrcodes/qrTraceabilityTree.service');
+const { buildLineageCompleteness, computeOperationalRouting, normalizeAreaCode } = require('../src/modules/qrcodes/qrTraceabilityTree.service');
+
+test('lineage completeness explicitly marks bounded queries that may have been truncated', () => {
+  assert.deepEqual(buildLineageCompleteness([]), {
+    complete: null,
+    possibly_truncated: false,
+    bounded_queries: [],
+  });
+  assert.deepEqual(buildLineageCompleteness(['ConsumptionOrderItem relacionado (20)']), {
+    complete: false,
+    possibly_truncated: true,
+    bounded_queries: ['ConsumptionOrderItem relacionado (20)'],
+  });
+});
 
 test('normalizeAreaCode maps area names and objects consistently', () => {
   assert.equal(normalizeAreaCode({ code: 'ALM' }), 'ALMACEN');

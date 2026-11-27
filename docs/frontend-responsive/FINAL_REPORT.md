@@ -1,23 +1,41 @@
-# Informe de cierre de fase — auditoría responsive
+# Informe de avance — Fase II de auditoría responsive
 
-**Estado global: INCOMPLETO / EN PROGRESO.** Esta fase corrigió defectos transversales y validó el acceso en varios tamaños; no auditó todas las rutas, componentes, roles ni estados exigidos por el encargo.
+**Estado: INCOMPLETO / EN PROGRESO.** Esta actualización amplía la validación de la pantalla pública de acceso y deja una suite reproducible. No es certificación integral: no se auditaron pantallas autenticadas por falta de un entorno/sesión QA verificados.
 
-## Resultados
+## Cobertura comprobada
 
-- Módulos identificados: 27; completamente auditados: 0.
-- Declaraciones de ruta: 76; inspección visual E2E de extremo a extremo: 1 pantalla pública (login), 1.3% según conteo conservador.
-- Archivos `.tsx/.jsx`: 288; revisión individual terminada: 0.
-- Hallazgos registrados: 4 (2 P1, 1 P2, 1 P3); correcciones aplicadas: 4; validaciones específicas automatizadas/DOM: tema 3 pruebas unitarias y `lang` en browser; visualmente verificados en componentes con cambios: 0.
-- Viewports simulados: 5 en login; dispositivos físicos: 0; navegadores reportables: Edge vía extensión; versiones/otros motores pendientes.
-- Pruebas frontend: 65 aprobadas, 0 fallidas; build: aprobada; lint: 112 errores + 11 warnings; seguridad: 0 hallazgos.
-- Dependencias agregadas/eliminadas: 0.
-- Backend, DB, esquema y Master Data: sin cambios; verificación de huella DB no aplicaba y no fue ejecutada.
-- Evidencia visual: login a 320×720 inspeccionado en browser. No se guardó PNG en el repositorio; capturas por módulo/theme quedan pendientes.
+- Inventario estático: 27 directorios de módulos, 76 declaraciones `path`, 288 archivos `.tsx/.jsx`. Las declaraciones incluyen aliases, guards, redirects y rutas parametrizadas; no son 76 pantallas únicas.
+- Navegación automatizada: `/login` renderizada y verificada en Edge headless en 27 perfiles de viewport y dos temas explícitos (54 casos), más 6 combinaciones de tema Automático.
+- Interacciones públicas: validación de formulario vacío y mostrar/ocultar contraseña; conserva el valor.
+- Muestra de guards: 12 rutas protegidas redirigen a login sin sesión; su contenido y permisos autenticados no quedan verificados.
+- Evidencia: 7 PNG reales de `/login` en `docs/frontend-responsive/evidence/`.
+- Pantallas con validación de render responsive completada en esta fase: 1. Módulos completamente auditados conforme al criterio integral: 0.
 
-## Archivos modificados en esta fase
+## Hallazgos y correcciones
 
-`AGENTS.md`, `frontend/index.html`, `frontend/src/index.css`, `frontend/src/store/themeStore.js`, `frontend/src/store/themeStore.test.js`, `frontend/src/modules/users/pages/ProfilePage.tsx` y los documentos de `docs/frontend-responsive/`.
+1. **Runtime general — import inválido en diálogo térmico QR.** El navegador quedaba en blanco al cargar la app porque `ThermalQrPrintDialog.tsx` importaba `LoaderCircle`, que no existe en la compatibilidad de iconos activa. Se sustituyó solo por el export existente `Loader2`, preservando el trabajo concurrente del diálogo.
+2. **Accesibilidad de login.** Se añadió semántica de encabezado H1 al título, nombre accesible dinámico al botón de visibilidad de contraseña y asociación real de etiquetas a los inputs mediante `FormControl`.
+3. Se eliminó un import `CardFooter` sin uso detectado por lint focalizado.
 
-## Condiciones pendientes para declarar el proyecto aprobado
+## Validación
 
-Recorrer las 76 declaraciones/rutas agrupadas por módulos, cobertura autorizada por rol, estados UI, Claro/Oscuro/Automático, móviles/tablets/desktop y navegadores; revisar cada formulario/modal/tabla/notificación/scanner; probar teclado virtual y cámara en equipos físicos; capturar antes/después; tratar lint y riesgos de chunk; validar regresión de los flujos aprobados sin tocar datos reales. Ver HANDOFF.md.
+| Verificación | Resultado |
+|---|---|
+| `npm run test:responsive` | 74 aprobadas / 0 fallidas. Playwright 1.64.1, Edge headless. |
+| `npm run test:frontend` | 18 archivos, 65 pruebas aprobadas / 0 fallidas. |
+| `npm --prefix frontend run build` | Aprobada; el bundle conserva advertencia de chunks grandes (JS principal ~3.72 MB, ~974 KB gzip). |
+| ESLint global | FALLIDO: 112 errores y 11 advertencias. No se deshabilitaron reglas ni se corrigió el baseline general. `LoginPage.jsx` pasa lint focalizado. |
+| `npm run security:check` | Aprobado: 13,223 archivos escaneados, 0 hallazgos. |
+| Backend/DB/Master Data | Sin conexión ni modificación. Integridad DB no consultada. |
+
+## Restricciones de QA
+
+La configuración real del backend apunta a `APP_ENV=local`, base `sistema_enterprise` en loopback. La resolución en modo `test` apunta a `sistema_enterprise_test`, también loopback, pero no se comprobó el servidor PostgreSQL, grants del rol, triggers de protección QA ni hash Master Data mediante conexión. No había credenciales QA por rol verificadas. No se abrió sesión con usuarios reales ni se probaron operaciones con side effects; el uso autenticado queda bloqueado hasta disponer de un setup de QA autorizado.
+
+## Cobertura no certificada
+
+Los otros 26 módulos, contenido de rutas protegidas, permisos/roles, formularios y modales autenticados, ambas apariencias en módulos privados, errores de red, cámara física, teclado virtual, orientación, navegadores móviles, dispositivo Samsung Galaxy Tab A11 y pruebas físicas no se probaron. La matriz distingue estos pendientes y no declara módulos completos.
+
+## Siguiente paso
+
+Preparar un entorno QA aislado con conexión y triggers verificados y cuentas QA autorizadas de solo lectura/roles pertinentes. Después iniciar con la primera pantalla protegida real, `/dashboard`, sin ejecutar acciones que alteren datos industriales; avanzar por lotes registrando captura, interacciones y regresión antes de marcar cada escenario VERIFIED.

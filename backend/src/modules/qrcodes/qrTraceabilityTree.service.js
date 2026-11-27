@@ -16,6 +16,12 @@ const formatUserFullName = (user) => {
   return full || user.username || `Usuario #${user.id}`;
 };
 
+const buildLineageCompleteness = (boundedQueries) => ({
+  complete: boundedQueries.length > 0 ? false : null,
+  possibly_truncated: boundedQueries.length > 0,
+  bounded_queries: boundedQueries,
+});
+
 const normalizeAreaCode = (areaOrName) => {
   if (!areaOrName) return '';
   if (typeof areaOrName === 'object') {
@@ -330,6 +336,10 @@ const computeOperationalRouting = ({
 const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrResponse, buildEventResponse }) => {
   const cleanCode = String(rawInput || '').trim();
   const upperCode = cleanCode.toUpperCase();
+  const boundedQueries = [];
+  const notePossibleTruncation = (label, rows, limit) => {
+    if (rows.length >= limit) boundedQueries.push(label);
+  };
 
   // ---------------------------------------------------------------------------
   // STEP 1: Locate direct matches across all plant tables
@@ -675,6 +685,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
         order: [['received_at', 'DESC']],
         limit: 10,
       });
+      notePossibleTruncation('LoomPtiWip por telar (10)', loomWips, 10);
       for (const lw of loomWips) {
         collectedLoomWips.set(lw.id, lw);
         if (lw.sourceRack) collectedRacks.set(lw.sourceRack.id, lw.sourceRack);
@@ -694,6 +705,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
       order: [['received_at', 'DESC']],
       limit: 10,
     });
+    notePossibleTruncation('LoomPtiWip por rack (10)', rackWips, 10);
     for (const lw of rackWips) {
       collectedLoomWips.set(lw.id, lw);
     }
@@ -724,6 +736,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
       order: [['recorded_at', 'DESC']],
       limit: 15,
     });
+    notePossibleTruncation('ExtrusionProductionEntry (15)', entries, 15);
     for (const entry of entries) {
       collectedProdEntries.set(entry.id, entry);
     }
@@ -786,6 +799,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
       order: [['recorded_at', 'DESC']],
       limit: 15,
     });
+    notePossibleTruncation('ExtrusionProductionEntry por preparación (15)', entriesForPrep, 15);
     for (const entry of entriesForPrep) {
       collectedProdEntries.set(entry.id, entry);
       if (entry.rack) collectedRacks.set(entry.rack.id, entry.rack);
@@ -862,6 +876,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
       ],
       limit: 20,
     });
+    notePossibleTruncation('ConsumptionOrderItem relacionado (20)', relatedOrderItems, 20);
 
     for (const oi of relatedOrderItems) {
       if (oi.order) {
@@ -890,6 +905,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
       order: [['created_at', 'DESC']],
       limit: 15,
     });
+    notePossibleTruncation('InventoryMovement por silo (15)', siloMovs, 15);
     for (const mov of siloMovs) {
       const list = siloMovementsBySiloId.get(mov.silo_id) || [];
       list.push(mov);
@@ -1396,6 +1412,7 @@ const buildFullQrLookup = async (rawInput, { qrInclude, eventInclude, buildQrRes
     inventory,
     operational_routing: operationalRouting,
     traceability_tree: traceabilityTree,
+    lineage_completeness: buildLineageCompleteness(boundedQueries),
   };
 };
 
@@ -1403,5 +1420,6 @@ module.exports = {
   buildFullQrLookup,
   computeOperationalRouting,
   normalizeAreaCode,
+  buildLineageCompleteness,
 };
 

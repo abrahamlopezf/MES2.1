@@ -72,31 +72,3 @@ export const useBatchByIdQuery = (batchId: string | null) => {
     enabled: !!batchId,
   });
 };
-
-export const downloadBatchPdf = async (batchId: string, batchNumber: string) => {
-  const response = await axiosClient.post(`/qr/batches/${batchId}/print`, {}, { responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', `batch-${batchNumber}.pdf`);
-  link.target = '_blank';
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
-
-export const downloadQrPdf = async (uuid: string, qrCode: string) => {
-  const response = await axiosClient.post(`/qr/${uuid}/print`, {}, { responseType: 'blob' });
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', `qr-${uuid}.pdf`);
-  link.target = '_blank';
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};

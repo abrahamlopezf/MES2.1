@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { X, Info, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
 import { Button, Badge } from '../../../../design-system';
-import { downloadQrPdf } from '../../../identity/presentation/hooks/useIdentityBatches';
-import { toast } from 'sonner';
+import { useAuthStore } from '../../../../store/authStore';
+import { canManageQrBatches } from '../../../qrcodes/access/qrBatchAccess';
+import { ThermalQrPrintDialog, type ThermalQrPrintTarget } from '../../../identity/presentation/components/ThermalQrPrintDialog';
 
 export interface InfoBottomSheetPresenterProps {
   item: any;
@@ -23,6 +24,9 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
   onClose,
   onViewAllLotes
 }) => {
+  const { user } = useAuthStore();
+  const canPrintQrLabels = canManageQrBatches(user);
+  const [thermalPrintTarget, setThermalPrintTarget] = React.useState<ThermalQrPrintTarget | null>(null);
   const {
     isRendered,
     animateIn,
@@ -170,9 +174,9 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
                       </div>
                       
                       <div className="flex min-w-0 items-center gap-3 border-t border-border/70 pt-3 sm:border-0 sm:pt-0">
-                        {lote.qr_code?.uuid && !isDepleted && (
+                        {canPrintQrLabels && lote.qr_code?.uuid && !isDepleted && (
                           <button
-                            onClick={() => downloadQrPdf(lote.qr_code.uuid, lote.qr_code.qr_code).catch(() => toast.error('Error al descargar QR'))}
+                            onClick={() => setThermalPrintTarget({ kind: 'single', uuid: lote.qr_code.uuid, title: `Lote ${lote.folio || 'LEGACY-LOT'}` })}
                             aria-label={`Descargar QR del lote ${lote.folio || 'LEGACY-LOT'}`}
                             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
                             title="Descargar Código QR"
@@ -220,6 +224,7 @@ export const InfoBottomSheetPresenter: React.FC<InfoBottomSheetPresenterProps> =
         </div>
 
       </div>
+      <ThermalQrPrintDialog target={thermalPrintTarget} onClose={() => setThermalPrintTarget(null)} />
     </div>,
     document.body
   );

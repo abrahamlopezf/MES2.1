@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Usamos withCredentials si tenemos autenticación por cookies (como vimos en auth)
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:4000/api',
   withCredentials: true
 });
 

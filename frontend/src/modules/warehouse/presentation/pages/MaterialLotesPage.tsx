@@ -10,10 +10,13 @@ import { LoteTraceabilityBottomSheet } from '../components/LoteTraceabilityBotto
 import { useAuthStore } from '../../../../store/authStore';
 import { canViewCosts } from '../../../../utils/authHelpers';
 import { CollapsibleFilterPanel } from '../../../../components/shared/CollapsibleFilterPanel';
+import { canManageQrBatches } from '../../../qrcodes/access/qrBatchAccess';
+import { ThermalQrPrintDialog, type ThermalQrPrintTarget } from '../../../identity/presentation/components/ThermalQrPrintDialog';
 
 const MaterialLotesPageContent = () => {
   const { user } = useAuthStore();
   const allowCosts = canViewCosts(user);
+  const canPrintQrLabels = canManageQrBatches(user);
   const { materialId } = useParams();
   const navigate = useNavigate();
   const [lotesToMove, setLotesToMove] = useState<any[]>([]);
@@ -21,7 +24,7 @@ const MaterialLotesPageContent = () => {
   
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedLotes, setSelectedLotes] = useState<Set<number>>(new Set());
-  const [isDownloadingQRs, setIsDownloadingQRs] = useState(false);
+  const [thermalPrintTarget, setThermalPrintTarget] = useState<ThermalQrPrintTarget | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['material-lotes', materialId],
@@ -148,60 +151,23 @@ const MaterialLotesPageContent = () => {
   };
 
   const handleDownloadSelectedQRs = async () => {
-    setIsDownloadingQRs(true);
-    try {
-      const selectedLotsData = data.filter((lote: any) => selectedLotes.has(lote.id));
-      const lotsWithQRs = selectedLotsData.filter((lote: any) => lote.qr_code?.uuid);
-
-      if (lotsWithQRs.length === 0) {
-        alert('Ninguno de los lotes seleccionados tiene un código QR válido asignado.');
-        setIsDownloadingQRs(false);
-        return;
-      }
-
-      if (lotsWithQRs.length < selectedLotsData.length) {
-        const missingCount = selectedLotsData.length - lotsWithQRs.length;
-        alert(`Atención: ${missingCount} lote(s) seleccionado(s) no tienen un Código QR asignado y serán omitidos en la impresión.`);
-      }
-
-      const uuids = lotsWithQRs.map((lote: any) => lote.qr_code.uuid);
-
-      const response = await axiosClient.post('/qr/print-multiple', { uuids }, { responseType: 'blob', timeout: 180000 });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      
-      const dateStr = new Date().toISOString().split('T')[0];
-      link.setAttribute('download', `lotes-seleccionados-${dateStr}.pdf`);
-      link.target = '_blank';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-      
-    } catch (error) {
-      console.error('Error al descargar QRs:', error);
-      const responseData = (error as any)?.response?.data;
-      let message = (error as any)?.friendlyMessage || (error as any)?.message;
-      if (responseData instanceof Blob) {
-        try {
-          const body = JSON.parse(await responseData.text());
-          message = body.message || body.error || message;
-        } catch {
-          // La respuesta puede ser HTML o texto plano si falló el servidor proxy.
-        }
-      } else if (responseData?.message || responseData?.error) {
-        message = responseData.message || responseData.error;
-      }
-      if ((error as any)?.code === 'ECONNABORTED') {
-        message = 'La generación del PDF tardó más de lo esperado. Intenta descargar los lotes en grupos más pequeños.';
-      }
-      alert(message || 'Ocurrió un error al intentar descargar los códigos QR.');
-    } finally {
-      setIsDownloadingQRs(false);
+    if (!canPrintQrLabels) return;
+    const selectedLotsData = data.filter((lote: any) => selectedLotes.has(lote.id));
+    const lotsWithQRs = selectedLotsData.filter((lote: any) => lote.qr_code?.uuid);
+    if (lotsWithQRs.length === 0) {
+      alert('Ninguno de los lotes seleccionados tiene un código QR válido asignado.');
+      return;
     }
+    if (lotsWithQRs.length < selectedLotsData.length) {
+      const missingCount = selectedLotsData.length - lotsWithQRs.length;
+      alert(`Atención: ${missingCount} lote(s) no tienen QR y se excluirán. Se imprimirán solo los ${lotsWithQRs.length} seleccionados con QR.`);
+    }
+    if (lotsWithQRs.length > 500) {
+      alert('Puedes imprimir hasta 500 etiquetas por PDF. Reduce la selección y continúa en grupos.');
+      return;
+    }
+    const uuids = lotsWithQRs.map((lote: any) => lote.qr_code.uuid);
+    setThermalPrintTarget({ kind: 'multiple', uuids, title: `${uuids.length} QR de lotes de material` });
   };
 
   return (
@@ -266,16 +232,16 @@ const MaterialLotesPageContent = () => {
           >
             Cambiar localidad
           </Button>
-          <Button
+          {canPrintQrLabels && <Button
             variant="secondary"
             size="sm"
             onClick={handleDownloadSelectedQRs}
-            disabled={selectedLotes.size === 0 || isDownloadingQRs}
+            disabled={selectedLotes.size === 0}
             className="shrink-0 whitespace-nowrap font-bold bg-slate-800 text-slate-100 hover:bg-slate-700"
           >
             <QrCode className="w-4 h-4 mr-2" />
-            {isDownloadingQRs ? 'Generando...' : 'Descargar QR'}
-          </Button>
+            Descargar QR
+          </Button>}
           <Button variant="outline" size="sm" onClick={toggleSelectionMode} className="shrink-0 whitespace-nowrap ml-auto font-bold hover:bg-destructive hover:text-destructive-foreground">
             <X className="w-4 h-4 mr-2" /> Cancelar
           </Button>
@@ -549,6 +515,7 @@ const MaterialLotesPageContent = () => {
           onClose={() => setTraceabilityLoteId(null)}
         />
       )}
+      <ThermalQrPrintDialog target={thermalPrintTarget} onClose={() => setThermalPrintTarget(null)} />
     </div>
   );
 };

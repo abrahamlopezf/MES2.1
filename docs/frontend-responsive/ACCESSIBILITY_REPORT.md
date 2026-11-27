@@ -1,17 +1,25 @@
-# Informe de accesibilidad — revisión inicial
+# Informe de accesibilidad — avance
 
-## Comprobado
+## Revisado en Login
 
 - Documento con idioma español (`lang="es"`).
-- Preferencia visual accesible con etiqueta visible y un `<select>` nativo en Perfil: Automática, Clara, Oscura.
-- Login renderiza su contenido y acciones a 320 CSS px sin scroll horizontal, en tema oscuro.
-- Los estilos globales mantienen indicadores de foco y selectores `:focus` para diálogo/viewport; quitar `transform` evita una causa de stacking context en `body`.
+- Encabezado principal expuesto como H1.
+- Campos de usuario y contraseña asociados a sus etiquetas y mensajes de validación.
+- Botón de mostrar/ocultar contraseña con nombre accesible que cambia según estado.
+- Validación vacía comprensible y visible.
+- Controles y contenido no salen del viewport emulado mínimo de 320 CSS px.
+- Ambos temas explícitos y el modo Automático se comprobaron mediante browser automation.
 
-## No auditado en esta fase
+## Pruebas automatizadas
 
-- Contraste medido por token/estado en todas las vistas y ambos temas.
-- Recorrido completo con teclado/lector de pantalla, orden de foco, trampas/restauración de foco en modales.
-- Nombres accesibles de cada acción icon-only, errores asociados, tablas complejas, gráficos, cámara y estados de carga/vacío.
-- Zoom 200/400%, texto grande, Windows contrast themes y `prefers-reduced-motion` por ruta.
+La suite Playwright verifica roles/nombres accesibles de título, inputs, botón de ingreso y toggle; valida el estado de error. 74 casos responsive y de flujo público aprobaron. No se ejecutó axe-core ni un recorrido completo con lector de pantalla.
 
-Estado: hallazgos globales puntuales aplicados; no equivale a certificación WCAG.
+## Pendiente
+
+- Contraste medido por token y estado en todas las rutas/temas.
+- Navegación por teclado, orden/restauración de foco y lector de pantalla.
+- Diálogos, tablas, notificaciones, gráficos, cámara, overlays y acciones icon-only fuera de Login.
+- Zoom 200/400%, texto ampliado, Windows High Contrast y `prefers-reduced-motion` por ruta.
+- Revisión de targets táctiles y componentes third-party.
+
+No se certifica accesibilidad integral del producto.

@@ -2,6 +2,16 @@
 
 Fecha de revisión: 26 Nov 2026. Alcance: frontend activo identificado en `frontend/src/app/router.jsx` y revisión transversal del shell, tema, viewport del teclado y acceso público.
 
+## Continuación ejecutada — 27 Nov 2026
+
+- Se abrió `/login` en Microsoft Edge headless mediante Playwright, después de reproducir y corregir un error de runtime que dejaba en blanco las rutas.
+- Suite `e2e/responsive/`: 74/74 aprobadas; Login 27 perfiles × 2 temas = 54 renders, 6 casos Automáticos, validación, toggle de contraseña y redirects sin sesión de 12 rutas protegidas.
+- Evidencia PNG generada en `docs/frontend-responsive/evidence/` (7 archivos, Login únicamente).
+- Se corrigieron el import inválido `LoaderCircle` en el diálogo QR térmico y semántica/labels de login.
+- Regresión: frontend 65/65, build OK, lint 112 errores + 11 warnings, seguridad 13,223 archivos y 0 hallazgos.
+- No se auditó contenido autenticado. La base efectiva de `.env` es local; el destino test se inspeccionó por configuración únicamente. No se conectó a DB y no se validaron grants, triggers ni Master Data. Sin credenciales QA confirmadas, perfiles/roles siguen bloqueados.
+- La suite cubre un solo screen renderizado; los redirects no equivalen a inspección de pantalla ni permisos.
+
 ## Inventario y cobertura
 
 - 27 directorios de módulos identificados en `frontend/src/modules`.

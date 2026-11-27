@@ -6,6 +6,8 @@ const {
   assignQrCodesSchema,
   validateQrSchema,
   cancelQrSchema,
+  createQrIdentityRequestSchema,
+  fulfillQrIdentityRequestSchema,
 } = require('./qrcodes.validator');
 
 const authMiddleware = require('../../middlewares/auth.middleware');
@@ -16,6 +18,11 @@ const { requireQrBatchManager } = require('./qrBatchAccess');
 const router = express.Router();
 
 router.use(authMiddleware);
+
+router.post('/identity-requests', validate(createQrIdentityRequestSchema), qrcodesController.createQrIdentityRequest);
+router.get('/identity-requests', qrcodesController.listQrIdentityRequests);
+router.get('/identity-requests/available-codes', qrcodesController.listAvailableQrCodesForWarehouse);
+router.post('/identity-requests/:id/fulfill', validate(fulfillQrIdentityRequestSchema), qrcodesController.fulfillQrIdentityRequest);
 
 const qrPermission = (...permissions) => (req, res, next) => {
   if (req.user && permissions.length === 1 && permissions[0] === 'qr.read') return next();
@@ -78,6 +85,20 @@ router.post(
 );
 
 router.post(
+  '/batches/:id/print-preview',
+  requireQrBatchManager,
+  qrPermission('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
+  qrcodesController.previewQrBatchPrint
+);
+
+router.post(
+  '/print-preview',
+  requireQrBatchManager,
+  qrPermission('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
+  qrcodesController.previewMultipleQrPrint
+);
+
+router.post(
   '/print-multiple',
   requireQrBatchManager,
   qrPermission('dashboard.read', 'qr.read', 'qr.generate', 'qr.create'),
@@ -110,6 +131,13 @@ router.post(
   requireQrBatchManager,
   qrPermission('qr.create', 'qr.generate'),
   qrcodesController.printQrCode
+);
+
+router.post(
+  '/:uuid/print-preview',
+  requireQrBatchManager,
+  qrPermission('qr.create', 'qr.generate'),
+  qrcodesController.previewQrCodePrint
 );
 
 router.get(

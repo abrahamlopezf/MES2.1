@@ -1,11 +1,11 @@
 # Propuesta de esquema aditivo para QR-First V2.0
 
-**Estatus:** Diseño preliminar para revisión; no es una migración ejecutable ni fue aplicado.  
+**Estatus:** Diseño de solicitudes QR implementado en modelos/servicio y migración `20261127100000-create-qr-identity-requests.js`; no se ejecutó ni aplicó. Los diseños de metros/rollos y transformación 1:N siguen siendo propuestas, no DDL listo.
 **Ambiente:** El informe histórico del 26/11/2026 registró `58/60` y `readyForWrites=false`; una revalidación de solo lectura posterior el mismo día confirmó `60/60`, `readyForWrites=true`, runtime `traceflow_app_test` y 30 tablas protegidas. QA conserva una migración que no está en DEV (`20261124130000-add-laminado-cut-transfer-confirmations.js`). No aplicar DDL en QA compartida: para cambios de esquema se requiere copia QA desechable, migraciones coherentes y runtime de mínimo privilegio.
 
 ## 1. Solicitud y surtido persistente de QR vírgenes
 
-La inspección encontró lotes y asignaciones persistentes (`qr_batches`, `qr_codes`, `qr_area_assignments`), pero no una operación backend que persista la solicitud del área y la ligue a cada QR surtido. La vista actual lee un repositorio en memoria.
+La inspección encontró lotes y asignaciones persistentes (`qr_batches`, `qr_codes`, `qr_area_assignments`), pero no una operación backend que persista la solicitud del área y la ligue a cada QR surtido. La implementación actual agrega encabezado/ítems persistentes y reemplaza la vista de demostración con operaciones API.
 
 ### Estructura candidata
 
@@ -13,7 +13,9 @@ La inspección encontró lotes y asignaciones persistentes (`qr_batches`, `qr_co
 - `qr_identity_request_items`: solicitud, `qr_code_id`, asignador/entregador, fecha de entrega; restricción única por `qr_code_id` para impedir entrega duplicada entre solicitudes activas. Conservar también la asignación y los eventos QR existentes.
 - Índices por área/fecha y solicitud/QR; claves foráneas a área, usuario y QR; operaciones de entrega bajo transacción bloqueando solicitud y QR.
 
-La interfaz de Almacén consultaría solicitudes reales y confirmaría los QR escaneados; la interfaz del área mostraría los códigos ligados a su solicitud. La API reutilizaría el permiso existente solo si las cuentas/roles actuales ya lo tienen legítimamente; no ampliar RBAC como parte del DDL. No se propone aprobación ni devolución. Parcialidad de surtido y confirmación de recepción quedan fuera hasta definir su regla y contrato; la asignación del QR al área no se presentará como evidencia física si falta la entrega registrada.
+La interfaz de Almacén consulta solicitudes reales y confirma códigos individuales seleccionados; la interfaz del área muestra los códigos ligados a su solicitud. La autorización es una lista explícita de roles operativos/área que ya existen en las políticas de acceso; no agrega grants de permisos. No se propone aprobación ni devolución. El surtido es exacto, sin parciales; la entrega se registra solamente al confirmar la acción de Almacén. Recepción por el área continúa fuera del contrato.
+
+La migración `up` y `down` usan transacción Sequelize para que PostgreSQL revierta un fallo DDL intermedio. Las pruebas actuales usan QueryInterface simulado para verificar la forma del esquema y del rollback; todavía no sustituyen la ejecución `up`/`down` contra PostgreSQL desechable.
 
 ## 2. Demanda de Corte por rollos o metros
 

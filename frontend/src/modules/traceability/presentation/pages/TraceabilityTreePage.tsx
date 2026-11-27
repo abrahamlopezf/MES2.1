@@ -68,6 +68,7 @@ export function TraceabilityTreePage() {
   }
 
   const routing = qrInfo?.operational_routing;
+  const lineageCompleteness = qrInfo?.lineage_completeness;
   const actionsByArea = routing?.actions_by_area || {};
   const userAreaAction = userAreaCode ? actionsByArea[userAreaCode] : null;
   const treeStages: any[] = Array.isArray(qrInfo?.traceability_tree) ? qrInfo.traceability_tree : [];
@@ -170,6 +171,18 @@ export function TraceabilityTreePage() {
             {routing?.status_message && (
               <div role="status" className="mt-3 rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm font-semibold text-amber-100">
                 {routing.status_message}
+              </div>
+            )}
+
+            {lineageCompleteness?.possibly_truncated && (
+              <div role="alert" className="mt-3 rounded-xl border border-warning/50 bg-warning/10 p-4 text-sm font-semibold text-foreground">
+                <strong className="block">Genealogía posiblemente incompleta</strong>
+                <span>Una o más consultas alcanzaron su límite de resultados. Este árbol no debe tratarse como genealogía completa.</span>
+                {Array.isArray(lineageCompleteness.bounded_queries) && lineageCompleteness.bounded_queries.length > 0 && (
+                  <ul className="mt-2 list-inside list-disc">
+                    {lineageCompleteness.bounded_queries.map((query: string) => <li key={query}>{query}</li>)}
+                  </ul>
+                )}
               </div>
             )}
 

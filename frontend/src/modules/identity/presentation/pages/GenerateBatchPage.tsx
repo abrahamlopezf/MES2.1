@@ -4,21 +4,16 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useGenerateBatchMutation } from '../hooks/useGenerateBatchMutation';
-import { useIdentityBatchesQuery, downloadBatchPdf, downloadQrPdf } from '../hooks/useIdentityBatches';
+import { useIdentityBatchesQuery } from '../hooks/useIdentityBatches';
 import { useNavigate, Link } from 'react-router-dom';
-import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
-import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, Truck, Factory, Package } from '@/design-system/components/Icon/googleIconCompat';
+import { Plus, X, Printer, TreeDeciduous, ChevronDown, ChevronUp, Package2, Send, QrCode } from '@/design-system/components/Icon/googleIconCompat';
 import nomenclature from '@shared/config/nomenclature.json';
 import { useAreasQuery } from '../../../qrcodes/hooks/useQrQueries';
 import { useAuthStore } from '../../../../store/authStore';
 import { useBottomSheetAnimation } from '../../../../hooks/useBottomSheetAnimation';
-
-const getAreaIcon = (mainAreaId: string) => {
-  if (mainAreaId === 'ALM') return <Truck size={24} className="text-white" />;
-  if (mainAreaId === 'EXT') return <Factory size={24} className="text-white" />;
-  return <Package size={24} className="text-white" />;
-};
+import { canManageQrBatches } from '../../../qrcodes/access/qrBatchAccess';
+import { ThermalQrPrintDialog, type ThermalQrPrintTarget } from '../components/ThermalQrPrintDialog';
 
 const generateBatchSchema = z.object({
   mainAreaId: z.string().min(1, 'Debes seleccionar un área asignada'),
@@ -44,6 +39,7 @@ export function GenerateBatchPage() {
   const isWarehouseQrCoordinator = !isAdmin && !isSupervisor && ['ADMIN_ALM', 'ADMIN_ALMACEN'].includes(userRoleCode);
   const isExtrusionAdmin = !isAdmin && !isSupervisor && (['ADMIN_EXT', 'ADMIN_EXTRUSION'].includes(userRoleCode) || 
                            user?.area?.code === 'EXTRUSION');
+  const canManageQrPrinting = canManageQrBatches(user);
   
   const mutation = useGenerateBatchMutation();
   const { data: backendAreas = [] } = useAreasQuery();
@@ -96,6 +92,8 @@ export function GenerateBatchPage() {
   }, [allBatches, isAdmin, isSupervisor, isExtrusionSupervisor, isWarehouseUser, isWarehouseQrCoordinator, isExtrusionAdmin, user]);
 
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+  const [selectedTokenIds, setSelectedTokenIds] = useState<string[]>([]);
+  const [thermalTarget, setThermalTarget] = useState<ThermalQrPrintTarget | null>(null);
   const expandedBatch = useMemo(() => {
     if (!expandedBatchId || !batches) return null;
     return batches.find(b => String(b.id) === String(expandedBatchId)) || null;
@@ -200,15 +198,12 @@ export function GenerateBatchPage() {
         handleCloseModal();
         reset();
         toast.success('✨ Lote generado exitosamente');
-        
-        try {
-          if (responseData && responseData.batch) {
-            toast.info('Generando PDF del lote, por favor espera...');
-            await downloadBatchPdf(String(responseData.batch.id), responseData.batch.batch_code);
-          }
-        } catch (err) {
-          console.error('Error auto-downloading PDF:', err);
-          toast.error('Ocurrió un error al auto-descargar el PDF del lote.');
+        if (responseData?.batch?.id) {
+          setThermalTarget({
+            kind: 'batch',
+            id: String(responseData.batch.id),
+            title: String(responseData.batch.batch_code || 'Lote QR recién generado'),
+          });
         }
       },
       onError: (error: any) => {
@@ -222,31 +217,29 @@ export function GenerateBatchPage() {
     toast.error('Error de validación: ' + Object.keys(errors).join(', '));
   };
 
-  const handleReprint = async () => {
+  const handleReprint = () => {
     if (!expandedBatch || !expandedBatch.tokens.length) {
       toast.error('No hay códigos QR para imprimir en este lote.');
       return;
     }
-
-    try {
-      toast.info('Generando PDF del lote, por favor espera...');
-      await downloadBatchPdf(expandedBatch.id, expandedBatch.batchNumber);
-      toast.success('PDF descargado exitosamente.');
-    } catch (error) {
-      console.error(error);
-      toast.error('Ocurrió un error al generar el PDF.');
+    if (expandedBatch.tokens.length > 500) {
+      toast.error('Este lote supera 500 etiquetas por PDF. Selecciona un grupo de hasta 500 etiquetas.');
+      return;
     }
+    setThermalTarget({ kind: 'batch', id: expandedBatch.id, title: expandedBatch.batchNumber });
   };
 
-  const handlePrintSingle = async (tokenId: string, qrCode: string) => {
-    try {
-      toast.info('Generando PDF del QR...');
-      await downloadQrPdf(tokenId, qrCode);
-      toast.success('PDF descargado exitosamente.');
-    } catch (error) {
-      console.error(error);
-      toast.error('Ocurrió un error al generar el PDF.');
+  const handlePrintSelected = () => {
+    if (!expandedBatch || !selectedTokenIds.length) {
+      toast.error('Selecciona uno o más QR del lote.');
+      return;
     }
+
+    setThermalTarget({ kind: 'multiple', uuids: selectedTokenIds, title: `Selección de ${selectedTokenIds.length} QR` });
+  };
+
+  const handlePrintSingle = (tokenId: string, qrCode: string) => {
+    setThermalTarget({ kind: 'single', uuid: tokenId, title: qrCode });
   };
 
   const handleTraceability = (tokenId: string) => {
@@ -254,7 +247,34 @@ export function GenerateBatchPage() {
   };
 
   const toggleExpand = (batchId: string) => {
+    setSelectedTokenIds([]);
     setExpandedBatchId(prev => prev === batchId ? null : batchId);
+  };
+
+  const toggleTokenSelection = (tokenId: string) => {
+    setSelectedTokenIds((current) => {
+      if (current.includes(tokenId)) return current.filter((item) => item !== tokenId);
+      if (current.length >= 500) {
+        toast.error('El PDF admite hasta 500 etiquetas. Descarga este grupo y luego selecciona el siguiente.');
+        return current;
+      }
+      return [...current, tokenId];
+    });
+  };
+
+  const handleSelectBatchTokens = () => {
+    if (!expandedBatch) return;
+    const selectable = expandedBatch.tokens.slice(0, 500).map((token: any) => token.tokenId);
+    const currentIsSelectableSet = selectedTokenIds.length === selectable.length
+      && selectable.every((id: string) => selectedTokenIds.includes(id));
+    if (currentIsSelectableSet) {
+      setSelectedTokenIds([]);
+      return;
+    }
+    setSelectedTokenIds(selectable);
+    if (expandedBatch.tokens.length > 500) {
+      toast.info('Se seleccionaron las primeras 500 etiquetas. Puedes imprimirlas por grupos.');
+    }
   };
 
   const handleCloseModal = () => {
@@ -278,13 +298,13 @@ export function GenerateBatchPage() {
           <h1 className="text-3xl font-black text-foreground tracking-tight">Centro de Identidad</h1>
           <p className="text-muted-foreground font-semibold mt-1 text-sm">Gestiona y genera lotes de QRs para trazabilidad.</p>
         </div>
-        <button 
+        {canManageQrPrinting && <button
           onClick={() => setIsModalOpen(true)}
           className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm w-full md:w-auto shrink-0 h-12 px-6 rounded-md transition-colors flex items-center justify-center gap-2 text-sm"
         >
           <Plus size={18} />
           Generar Nuevo Lote
-        </button>
+        </button>}
       </div>
 
       {/* BATCH LIST MAIN AREA (SPLIT SCREEN MASTER-DETAIL) */}
@@ -390,13 +410,14 @@ export function GenerateBatchPage() {
                           </div>
 
                           <div className="flex flex-col justify-end xl:w-64 pt-6 xl:pt-0 shrink-0">
-                            <button 
+                            <p className="mb-3 text-xs text-muted-foreground">Formato estándar DK-2205, ajustable en la vista previa.</p>
+                            {canManageQrPrinting && <button
                               onClick={handleReprint}
                               className="w-full flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-3 px-4 rounded-lg transition-colors border border-border shadow-sm"
                             >
                               <Printer size={18} />
                               Reimprimir Lote Completo
-                            </button>
+                            </button>}
                           </div>
                         </div>
 
@@ -404,33 +425,52 @@ export function GenerateBatchPage() {
                         <div className="bg-background rounded-lg border border-border overflow-hidden flex flex-col flex-1 min-h-[300px]">
                           <div className="bg-muted/50 p-3 border-b border-border font-bold text-sm flex justify-between items-center">
                             <span>Códigos Físicos del Lote</span>
-                            <span className="bg-background px-2 py-0.5 rounded-full border border-border text-xs">{expandedBatch.tokens.length} unidades</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handleSelectBatchTokens}
+                                disabled={!canManageQrPrinting || expandedBatch.tokens.length === 0}
+                                className="min-h-10 rounded-md border border-border px-3 text-xs font-bold text-foreground disabled:opacity-50"
+                              >
+                                {selectedTokenIds.length > 0 && selectedTokenIds.length === Math.min(500, expandedBatch.tokens.length) ? 'Quitar selección' : 'Seleccionar etiquetas'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handlePrintSelected}
+                                disabled={!canManageQrPrinting || !selectedTokenIds.length}
+                                className="min-h-10 rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Imprimir seleccionados ({selectedTokenIds.length})
+                              </button>
+                              <span className="bg-background px-2 py-0.5 rounded-full border border-border text-xs">{expandedBatch.tokens.length} unidades</span>
+                            </div>
                           </div>
+                          {expandedBatch.tokens.length > 0 && (
+                            <div className="border-b border-border bg-muted/20 p-4 text-sm font-medium text-muted-foreground">
+                              La vista previa a escala y el perfil 62 × 45/55/62 mm se abren antes de descargar el PDF.
+                              El contenido mostrado allí coincide con el QR cifrado del archivo.
+                            </div>
+                          )}
                           <div className="overflow-y-auto p-4 flex-1">
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                               {expandedBatch.tokens.map((token: any) => (
                                 <div key={token.tokenId} className="flex flex-col p-4 rounded-xl border border-border/60 bg-card hover:border-primary/50 transition-colors shadow-sm gap-4 group">
+                                  {canManageQrPrinting && <label className="flex min-h-10 items-center gap-2 text-sm font-bold text-foreground">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedTokenIds.includes(token.tokenId)}
+                                      onChange={() => toggleTokenSelection(token.tokenId)}
+                                      className="size-5 accent-primary"
+                                      aria-label={`Seleccionar QR ${token.industrialCode}`}
+                                    />
+                                    Seleccionar etiqueta
+                                  </label>}
                                   
-                                  {/* QR Físico Simulado */}
+                                  {/* Vista previa del QR físico */}
                                   <div className="flex gap-4 items-center">
-                                    <div className="bg-white p-2 rounded-lg border border-slate-200 shrink-0 relative overflow-hidden flex flex-col items-center shadow-sm">
-                                      <div className="relative">
-                                        <QRCodeCanvas value={token.industrialCode} size={64} />
-                                        {/* Icono Central Dinámico */}
-                                        <div 
-                                          className="absolute inset-0 m-auto flex items-center justify-center rounded-sm w-7 h-7 shadow-sm"
-                                          style={{ backgroundColor: getSubcategoryData(expandedBatch.areaId)?.color || '#000' }}
-                                        >
-                                          {getAreaIcon(getSubcategoryData(expandedBatch.areaId)?.areaId || 'ALM')}
-                                        </div>
-                                      </div>
-                                      {/* Marca visual física del QR */}
-                                      <div 
-                                        className="w-full text-center text-[9px] font-black mt-1 text-white uppercase tracking-wider"
-                                        style={{ backgroundColor: getSubcategoryData(expandedBatch.areaId)?.color || '#000' }}
-                                      >
-                                        {expandedBatch.areaId}
-                                      </div>
+                                    <div className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background text-muted-foreground" aria-label="El QR cifrado se muestra en la vista previa de impresión">
+                                      <QrCode size={34} aria-hidden="true" />
+                                      <span className="text-center text-[9px] font-bold">QR cifrado</span>
                                     </div>
                                     
                                     <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -457,13 +497,13 @@ export function GenerateBatchPage() {
                                         <span>Trazabilidad</span>
                                       </button>
                                     )}
-                                    <button 
+                                    {canManageQrPrinting && <button
                                       onClick={() => handlePrintSingle(token.tokenId, token.industrialCode)}
                                       className="w-full flex items-center justify-center gap-1.5 bg-secondary/50 hover:bg-secondary text-secondary-foreground font-bold py-2 px-2 rounded-md text-[11px] transition-colors"
                                     >
                                       <Printer size={14} className="shrink-0" />
                                       <span>Imprimir</span>
-                                    </button>
+                                    </button>}
                                   </div>
                                 </div>
                               ))}
@@ -604,23 +644,9 @@ export function GenerateBatchPage() {
 
                   {/* Previsualizador */}
                   <div className="flex flex-row items-center justify-center gap-4 sm:w-32 sm:flex-col sm:justify-start sm:pt-6">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">Preview<br/>QR Virgen</span>
-                    <div className="bg-white p-2 rounded-xl border border-slate-200 relative overflow-hidden flex flex-col items-center shadow-md">
-                      <div className="relative">
-                        <QRCodeCanvas value={`SAMPLE-${selectedMainAreaId}-${selectedSubAreaId || 'XX'}`} size={80} />
-                        <div 
-                          className="absolute inset-0 m-auto flex items-center justify-center rounded-sm w-8 h-8 shadow-sm"
-                          style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
-                        >
-                          {getAreaIcon(selectedMainAreaId)}
-                        </div>
-                      </div>
-                      <div 
-                        className="w-full text-center text-[10px] font-black mt-1 text-white uppercase tracking-wider rounded-b-sm"
-                        style={{ backgroundColor: getSubcategoryData(selectedSubAreaId)?.color || '#0f172a' }}
-                      >
-                        {selectedSubAreaId || selectedMainAreaId}
-                      </div>
+                    <div className="flex min-h-28 max-w-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 py-3 text-center">
+                      <span className="text-xs font-black uppercase tracking-wide text-foreground">Etiqueta QR</span>
+                      <span className="text-xs font-medium text-muted-foreground">La identidad se asigna al confirmar el lote.</span>
                     </div>
                   </div>
                 </div>
@@ -650,6 +676,8 @@ export function GenerateBatchPage() {
         </div>,
         document.body
       )}
+
+      <ThermalQrPrintDialog target={thermalTarget} onClose={() => setThermalTarget(null)} />
 
     </div>
   );

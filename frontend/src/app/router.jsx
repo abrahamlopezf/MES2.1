@@ -218,7 +218,7 @@ export const router = createBrowserRouter([
           },
           {
             path: '/identity/requests',
-            element: <PermissionRoute permissions={['qr.assign']}><IdentityRequestsPage /></PermissionRoute>,
+            element: <IdentityRequestsPage />,
           },
           {
             path: '/identity/print',
